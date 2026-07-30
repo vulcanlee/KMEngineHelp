@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>腳手架新專案啟動流程｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>腳手架新專案啟動流程</h1><p class="sub">從本腳手架複製成新系統時的操作步驟與檢查清單，避免命名、設定、帳號與文件殘留舊專案資訊。</p></header><div class="docwrap"><main><ul><li>文件用途：從本腳手架複製成新系統時的操作步驟與檢查清單，避免命名、設定、帳號與文件殘留舊專案資訊。</li><li>主要讀者：開發者、技術主管</li><li>文件版本：1.1（反映 1.0.70 的腳本修正；補 New-CrudModule 產出位置與搬入後必做步驟）</li><li>更新日期：2026/07/26</li><li>對應系統版本：1.0.71</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>本文件是建立新專案時的操作檢查清單；下列項目依每次新專案情境逐項確認，不視為 KnowledgeExtraction.AI 目前 backlog。</p></blockquote>
+<hr>
+<h2 id="一產生新專案副本" class="t1">一、產生新專案副本</h2>
+<pre><code>pwsh -File scripts/New-StarterProject.ps1 -ProjectName 新系統代號 -DestinationPath 目標目錄</code></pre>
+<p>腳本會做的事：遞迴複製（<strong>排除任何層級的</strong> <code>.git</code>／<code>bin</code>／<code>obj</code>／<code>.vs</code>／<code>.playwright-cli</code>／<code>output</code>）、把文字檔內的 <code>KnowledgeExtraction</code> 換成新代號、重命名含舊名的資料夾與檔案、清洗敏感值，最後跑一次安全檢查。</p>
+<h3 id="1070-修正了三個會咬人的問題">1.0.70 修正了三個會咬人的問題</h3>
+<div class="tw"><table><thead><tr><th>問題</th><th>修正後</th></tr></thead><tbody><tr><td>敏感值清洗<strong>永遠不命中</strong>（比對固定舊值 <code>"SupportPassword": "support"</code>，但實際值早就不是它）</td><td>改成<strong>以鍵名為準的 regex</strong>，涵蓋 <code>SupportPassword</code>／<code>SupportEmail</code>／<code>SigningKey</code>；安全檢查也改成「讀回值是否等於預期佔位值」</td></tr><tr><td>會把 <code>docs/</code> 下所有 <code>.md</code> 的 <strong>BOM 剝掉</strong>（PowerShell 7 的 <code>Set-Content -Encoding UTF8</code> 是無 BOM），新專案第一次跑 <code>Test-DocsEncoding.ps1</code> 就整批 FAILED</td><td><strong>逐檔保留原本的 BOM 有無</strong></td></tr><tr><td>排除目錄只過濾最上層，巢狀的 <code>src/&lt;方案&gt;/.vs</code> 仍被複製；<code>.vsidx</code> 在 Visual Studio 開著時被鎖定 → <strong>腳本在複製階段就崩潰</strong></td><td>改為逐檔複製並過濾<strong>任何層級</strong>的排除目錄</td></tr></tbody></table></div>
+<h3 id="清洗後仍要人工確認">清洗後仍要人工確認</h3>
+<p>腳本會把這些換成佔位值，但<strong>佔位值不是安全值</strong>，部署前必須改成真正的隨機值：</p>
+<div class="tw"><table><thead><tr><th>設定鍵</th><th>清洗後的佔位值</th></tr></thead><tbody><tr><td><code>BootstrapSettings.SupportPassword</code></td><td><code>change-me</code></td></tr><tr><td><code>BootstrapSettings.SupportEmail</code></td><td><code>support@example.com</code></td></tr><tr><td><code>JwtSettings.SigningKey</code></td><td><code>&lt;新代號&gt;-ChangeThisJwtSigningKey-AtLeast32Chars-ReplaceBeforeProduction</code></td></tr></tbody></table></div>
+<blockquote><p><code>JwtSettings.SigningKey</code> 有 <code>[MinLength(32)]</code> 驗證，替換值必須 ≥32 字元，否則新專案一啟動就設定驗證失敗。</p>
+<p>⚠️ <strong><code>SupportPassword</code> 為什麼重要</strong>：程式<strong>每次啟動</strong>都會用它重設 support 帳號的密碼雜湊（不是只有第一次），所以留著已知值等於內建一組後門帳密。</p></blockquote>
+<p>腳本結尾會列出仍需人工檢視的殘留（例如 docs 裡提到舊金鑰字串的說明文字），並固定提醒一次「請在部署前修改 <code>SupportPassword</code> 與 <code>SigningKey</code>」。</p>
+<hr>
+<h2 id="二改名檢查清單" class="t2">二、改名檢查清單</h2>
+<ul><li>替換 solution、project、namespace 與 assembly 名稱（腳本已做大部分，仍需複查）。</li><li>檢查 <code>src/&lt;新代號&gt;/&lt;新代號&gt;.slnx</code> 內所有 project path 是否同步更新。</li><li>更新 <code>appsettings.json</code> 的 <code>SystemSettings.SystemInformation</code>（系統名稱、描述、版本）。</li><li><code>SystemVersion</code> 是<strong>全系統唯一的版本來源</strong>；本專案慣例是每次完成一次可建置的異動就 +1，並在 commit message 說明。</li><li>更新 README、<code>docs/</code> 與 CI workflow 顯示名稱。</li><li>檢查 UserSecretsId、NLog 路徑（<code>NLog.BasePath</code>，出貨為 <code>C:\temp\Logs</code>）、<code>ExternalFileSystem.*</code> 各資料夾路徑、<code>BootstrapSettings</code> 與部署環境 secret。</li><li><strong>決定是否保留 <code>tools/</code></strong>：目前只有 <code>tools/douyin-audio</code>（抖音下載助手），是本專案特有的外部工具，新系統若不需要抖音轉錄可整個移除（並清掉 <code>OpenAISettings.DouyinHelperScript</code>／<code>NodePath</code> 與健康檢查的相關期待）。</li><li><strong><code>CLAUDE.md</code> 與 <code>AGENTS.md</code> 要依新系統調整</strong>：裡面記載的是本專案的不變量（團隊權控、雙 provider migration、選單/權限位置索引、標籤字串格式…），新系統若架構不同會誤導 AI 協作。</li></ul>
+<hr>
+<h2 id="三api-與-dto-檢查清單" class="t3">三、API 與 DTO 檢查清單</h2>
+<ul><li>Web API request/response 使用 DTO，不直接暴露 Entity。</li><li>所有 API 回應統一封裝為 <code>ApiResult&lt;T&gt;</code>。</li><li>新增業務模組時，同步建立 <code>CreateUpdateDto</code>、<code>Dto</code>、<code>SearchRequestDto</code> 與 mapping。</li><li>新 API 優先使用 <code>/api/v1/...</code>，並保留 <code>/api/...</code> 相容路由直到公告移除。</li></ul>
+<h3 id="用-new-crudmoduleps1-產-crud-骨架">用 <code>New-CrudModule.ps1</code> 產 CRUD 骨架</h3>
+<pre><code>pwsh -File scripts/New-CrudModule.ps1 -Name 模組名稱</code></pre>
+<p><strong>產出位置是 <code>output/crud-modules/&lt;Name&gt;</code>，是「離線骨架」，不會自動加進方案。</strong> 它會產生約 10 個檔案（Entity／Dto／CreateUpdateDto／SearchRequestDto／Repository／Controller／Service／Tests，以及一份 <code>Menu.&lt;Name&gt;.json</code> 片段）。</p>
+<p>⚠️ <strong>搬進方案後，骨架還缺這些本專案的必做事項</strong>（骨架裡沒有，得自己補）：</p>
+<ol><li><strong>套團隊權控</strong> —— 查詢/下載都要經 <code>IRecordAccessScopeProvider</code> ＋ <code>TagStringHelper.BuildTeamAccessPredicate</code>／<code>IsTeamAccessible</code>。漏了就是資安漏洞。</li><li><strong>權限三處同步</strong> —— <code>Share/Helpers/MagicObjectHelper.cs</code>、<code>Business/Services/Other/RolePermissionService.cs</code>、<code>Web/Datas/Menu.json</code> 以<strong>位置索引</strong>對應，三處要一起改（有 <code>MenuPermissionAlignmentTests</code> 守著）。</li><li><strong>雙資料庫 migration</strong> —— SQLite 與 SQL Server 各一支，見 <a href="../../docs/guides/efcore.html">EFCore.md</a>。</li><li><strong>進頁權限檢查</strong> —— <code>AuthenticationStateHelper.CheckAccessPage(...)</code>。</li><li><strong>改用 <code>CrudActionButton</code></strong> 取代骨架的原生按鈕（全站統一的圖示按鈕）。</li><li><strong>改用 <code>NotificationService</code></strong> —— 本專案已禁用 <code>MessageService</code>。</li></ol>
+<p>詳見 <a href="../../docs/guides/new-crud-page.html">建立一個新 CRUD 操作網頁說明</a>。</p>
+<hr>
+<h2 id="四驗收標準" class="t4">四、驗收標準</h2>
+<pre><code># 1) 建置與測試
+dotnet build src/&lt;新代號&gt;/&lt;新代號&gt;.slnx -v:minimal --no-incremental
+dotnet test  src/&lt;新代號&gt;/&lt;新代號&gt;.Tests/&lt;新代號&gt;.Tests.csproj -v:minimal
+
+# 2) 文件編碼（docs/*.md 必須 UTF-8 含 BOM、無亂碼）
+pwsh -File scripts/Test-DocsEncoding.ps1 -DocsPath &lt;新專案&gt;/docs</code></pre>
+<ul><li>Swagger UI 可使用 Bearer token 呼叫受保護 API。</li><li>新專案文件不再殘留不應公開的開發帳號、JWT key 或舊系統名稱。</li><li><code>appsettings.json</code> 的 <code>SystemVersion</code> 已改成新系統的起始版號。</li></ul>
+<hr>
+<h2 id="五備註風險" class="t5">五、備註風險</h2>
+<ul><li>若只改 UI 顯示名稱但未改 namespace，未來套件發布、log 分類與維運追蹤會混淆。</li><li>預設帳號目前仍是腳手架初始化流程的一部分，<strong>正式部署前必須處理</strong>（改 <code>SupportPassword</code>、建立自己的管理員帳號）。</li><li><strong><code>JwtSettings.SigningKey</code> 沒有任何啟動期守門</strong>：1.0.69 已移除 Production 啟動安全檢查，程式<strong>不會</strong>因為你留著開發金鑰而阻止啟動。這一項只能靠人工檢查。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一產生新專案副本">一、產生新專案副本</a><a class="l3" href="#1070-修正了三個會咬人的問題">1.0.70 修正了三個會咬人的問題</a><a class="l3" href="#清洗後仍要人工確認">清洗後仍要人工確認</a><a class="l2" href="#二改名檢查清單">二、改名檢查清單</a><a class="l2" href="#三api-與-dto-檢查清單">三、API 與 DTO 檢查清單</a><a class="l3" href="#用-new-crudmoduleps1-產-crud-骨架">用 New-CrudModule.ps1 產 CRUD 骨架</a><a class="l2" href="#四驗收標準">四、驗收標準</a><a class="l2" href="#五備註風險">五、備註風險</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/腳手架新專案啟動流程.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

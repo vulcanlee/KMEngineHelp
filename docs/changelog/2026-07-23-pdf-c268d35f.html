@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>內容編修對話窗預覽可下載為 PDF（1.0.31）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>內容編修對話窗預覽可下載為 PDF（1.0.31）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-23</li><li>版本：1.0.30 → 1.0.31</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>在共用的內容編修對話窗（<code>ContentEditDialog</code>）右側「預覽」面板的標題列，於既有「複製」按鈕旁 新增一個<strong>下載 PDF</strong>按鈕：把目前<strong>編輯中的內容</strong>（＝預覽所見）轉成 PDF 檔並下載。此對話窗被 「清洗結果」「知識瀏覽（Wiki）」「技能」「文件萃取」「影像辨識」「媒體轉錄」「會議紀錄」等頁面 共用，因此一次讓所有含預覽的對話窗一致擁有此功能。</p>
+<h2 id="內容" class="t2">內容</h2>
+<ul><li><strong>下載預覽所見</strong>：PDF 內容取自左側編輯框的最新文字（含使用者即時修改），與右側 Markdown</li></ul>
+<p>預覽一致；按鈕僅在有預覽（<code>ShowPreview=true</code>）時顯示，純文字模式（如逐字稿）不出現。</p>
+<ul><li><strong>繁體中文不亂碼</strong>：沿用既有伺服器端 QuestPDF 機制，內嵌 Noto Sans TC 字型，A4、1 吋邊界、頁碼。</li><li><strong>一鍵下載</strong>：PDF bytes 透過 Blazor <code>DotNetStreamReference</code> 串流回瀏覽器下載，檔名為</li></ul>
+<p><code>{對話窗標題}_{時間戳}.pdf</code>（標題已濾除檔名不合法字元）。</p>
+<h2 id="實作" class="t3">實作</h2>
+<ul><li><code>Components/Commons/ContentEditDialog.razor</code>：預覽標題列新增「下載 PDF」按鈕；新增</li></ul>
+<p><code>OnDownloadPdfAsync()</code>（沿用既有 <code>ChatPdfExporter.Generate(editingText, Title)</code> 與 <code>keChat.downloadFileFromStream</code>）與 <code>MakeSafeFileName(title)</code> 檔名清理輔助方法。</p>
+<ul><li>沿用既有基礎設施（QuestPDF／QuestPDF.Markdown／內嵌字型／<code>chat.js</code> 下載函式），未新增套件。</li></ul>
+<h2 id="備註" class="t4">備註</h2>
+<ul><li>無資料模型變更，不需要資料庫 migration。</li><li>內容為前端暫存、無持久化 Id，故不新增 controller 端點，直接於元件內產生並串流下載</li></ul>
+<p>（比照 <code>2026-07-10-聊天內容下載PDF.md</code> 的既有決策）。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#內容">內容</a><a class="l2" href="#實作">實作</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-23-預覽下載PDF.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

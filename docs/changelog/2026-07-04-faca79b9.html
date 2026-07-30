@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>產品更名：知識萃取器系統 → 智庫引擎（2026-07-04）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>產品更名：知識萃取器系統 → 智庫引擎（2026-07-04）</h1></header><div class="docwrap"><main><h2 id="背景" class="t1">背景</h2>
+<p>本系統原先的產品名稱為「知識萃取器系統」。為建立更清晰、更具品牌識別度的產品定位，正式將<strong>產品名稱</strong>定名為「<strong>智庫引擎</strong>」，並在登入頁加入新的產品定位文案：</p>
+<blockquote><p>將企業分散的文件、會議與影音資料，轉化為可搜尋、可問答、可傳承的智慧知識庫。</p></blockquote>
+<h2 id="決策邊界" class="t2">決策邊界</h2>
+<p>本次更名<strong>只調整使用者可見的產品名稱</strong>，刻意收斂範圍以降低風險：</p>
+<ul><li><strong>只改產品名</strong>：僅替換明確指「知識萃取器系統」的產品名稱字串。</li><li><strong>保留動詞／概念用法</strong>：如「把知識萃取出來」「知識萃取的核心價值」「知識萃取工具」等描述性用語維持不變。</li><li><strong>保留功能名稱</strong>：知識庫、知識來源、知識蒸餾、知識庫問答等是功能名稱，不是產品名，維持不變。</li><li><strong>技術識別碼全部保留</strong>：<code>namespace KnowledgeExtraction.*</code>、專案名／<code>.csproj</code>、資料夾 <code>KnowledgeExtraction.AI</code>、JWT <code>Issuer</code>/<code>Audience</code>、Redis <code>InstanceName</code>、DB 路徑、<code>KnowledgeExtraction.Web.styles.css</code> 資源名等一律不動。變更這些屬大型重構，且會破壞建置、Git 歷史、既有 JWT token 相容性與 DB 路徑。</li><li><strong>英文名呈現</strong>：文件以「智庫引擎」為主，技術基底英文名 <code>KnowledgeExtraction</code> 在括號或程式碼路徑中保留。</li></ul>
+<h2 id="產品名稱的唯一來源" class="t3">產品名稱的唯一來源</h2>
+<p>登入頁標題、Splash 啟動畫面、側欄品牌名、關於視窗名稱<strong>全部動態繫結</strong>至 <code>appsettings.json</code> 的 <code>SystemSettings.SystemInformation.SystemName</code>。因此只要修改設定檔即全域生效，UI 檔（<code>SplashView.razor</code>／<code>NavMenu.razor</code>／<code>MainLayout.razor</code>）不需逐一修改。</p>
+<h2 id="變更清單" class="t4">變更清單</h2>
+<h3 id="程式碼--設定">程式碼 / 設定</h3>
+<div class="tw"><table><thead><tr><th>檔案</th><th>變更</th></tr></thead><tbody><tr><td><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json</code></td><td><code>SystemName</code> → 「智庫引擎」；<code>SystemDescription</code> → 新定位文案；<code>SystemVersion</code> <code>0.2.152</code> → <code>0.2.153 (2026/07/04)</code></td></tr><tr><td><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Auths/Login.razor</code></td><td>登入頁 <code>brand-description</code> 說明文字改為新定位文案</td></tr><tr><td><code>scripts/Install-ExternalTools.ps1</code></td><td><code>.SYNOPSIS</code> 與 <code>Write-Host</code> 中的產品名 → 「智庫引擎」</td></tr><tr><td><code>scripts/Test-ExternalTools.ps1</code></td><td><code>.SYNOPSIS</code> 與 <code>Write-Host</code> 中的產品名 → 「智庫引擎」</td></tr></tbody></table></div>
+<h3 id="文件">文件</h3>
+<div class="tw"><table><thead><tr><th>檔案</th><th>變更</th></tr></thead><tbody><tr><td><code>README.md</code></td><td>標題改「智庫引擎（KnowledgeExtraction）」；產品名描述 → 「智庫引擎」（技術基底英文名保留）</td></tr><tr><td><code>docs/operations/全新機器部署SOP.md</code></td><td>文件目的中的產品名 → 「智庫引擎」</td></tr><tr><td><code>docs/operations/日誌與設定檔說明.md</code></td><td>範例設定 <code>SystemName</code>／<code>SystemDescription</code> 同步為新值</td></tr><tr><td><code>docs/guides/實作練習手冊-Hands-on Lab.md</code></td><td>登入頁示意圖框內產品名 → 「智庫引擎」</td></tr><tr><td><code>docs/planning/09-開發歷程總覽與未來建議.md</code></td><td>歷程記錄中的產品名括號 → 「智庫引擎」（保留腳手架更名史實）</td></tr></tbody></table></div>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>rg "知識萃取器系統"</code> → 除本文件的說明引用外，無殘留產品名。</li><li>於 <code>src/KnowledgeExtraction</code> 執行 <code>dotnet build</code> → 建置成功。</li><li>啟動 Web，開登入頁 <code>/Auths/Login</code>：標題顯示「智庫引擎」、說明文字為新定位文案；Splash、側欄、關於視窗名稱同步。</li><li><code>pwsh scripts/Test-DocsEncoding.ps1</code> → 所有 docs 維持 UTF-8 含 BOM。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#決策邊界">決策邊界</a><a class="l2" href="#產品名稱的唯一來源">產品名稱的唯一來源</a><a class="l2" href="#變更清單">變更清單</a><a class="l3" href="#程式碼--設定">程式碼 / 設定</a><a class="l3" href="#文件">文件</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-04-產品更名-智庫引擎.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

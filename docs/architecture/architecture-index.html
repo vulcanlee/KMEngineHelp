@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>architecture — 系統架構與設計規範｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 系統架構</p><header class="hero"><div class="kicker">系統架構</div><h1>architecture — 系統架構與設計規範</h1></header><div class="docwrap"><main><p>本目錄收納系統架構、資料模型、API／DTO 設計規範：架構總覽、資料模型、Web API 設計慣例、API Versioning 等。</p>
+<div class="tw"><table><thead><tr><th>文件</th><th>說明</th></tr></thead><tbody><tr><td><a href="../../docs/architecture/dev-conventions.html">開發慣例與限制速查（AI/開發者必讀）</a></td><td>設計慣例、不變量與踩雷點速查</td></tr><tr><td><a href="../../docs/architecture/architecture-overview.html">架構總覽</a></td><td>系統整體架構與已註冊服務（含<strong>七條</strong>非同步背景管線：轉錄／萃取／視覺／清洗／蒸餾／嵌入／會議紀錄產生。原「技能」管線已於 1.0.45 隨 AI 技能產生器一併移除）</td></tr><tr><td><a href="../../docs/architecture/data-model.html">資料模型與資料庫</a></td><td>DbSet 一覽、各 Entity 與關聯、Migration 與 Seed</td></tr><tr><td><a href="../../docs/architecture/dto-boundaries.html">DTO 與模型邊界規範</a></td><td>DTO 與模型邊界規範</td></tr><tr><td><a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例</a></td><td>Web API 設計慣例</td></tr><tr><td><a href="../../docs/architecture/api-versioning.html">API Versioning 策略</a></td><td>API 版本控管策略</td></tr><tr><td><a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a></td><td>LLM 提示詞盤點與 token 用量透明化</td></tr><tr><td><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a></td><td>AI 知識問答 RAG 流程、切塊/檢索/嵌入參數、索引重建與品質調整</td></tr><tr><td><a href="../../docs/architecture/two-stage-threshold.html">AI 知識問答兩段式門檻設計（設計文件）</a></td><td>相似度門檻＋查無依據攔截：需求／決策／處理結果</td></tr><tr><td><a href="../../docs/architecture/knowledge-type-versioning.html">知識型態抽象 × 版本化 × 時效性（設計文件）</a></td><td>知識型態設定層、版本/生效狀態機、時效性與最新來源保證的架構設計提案（VER-1/VER-2 已於 0.3.14 落地）</td></tr><tr><td><a href="../../docs/architecture/rag-rerank-analysis.html">RAG 是否導入 Re-rank 分析與建議</a></td><td>前提釐清＋效益成本＋插入點＋評測驅動的導入條件（結論：未採用、屬評測驅動 P2）</td></tr><tr><td><a href="../../docs/architecture/wiki-vs-cleaned.html">Wiki 與 Cleaned 的角色差異</a></td><td>兩層分工並存＋資料流位置＋維運關鍵，收斂散見說明為單一參照</td></tr><tr><td><a href="../../docs/architecture/data-lifecycle.html">資料生命週期與維護</a></td><td>全鏈資料轉換／關聯／更新刪除級聯／孤兒缺口分析＋可實作清單（新手指南 §十六的技術版）</td></tr></tbody></table></div>
+<blockquote><p>返回 <a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（系統架構）</h3><ul><li><a href="../../docs/architecture/two-stage-threshold.html">AI 知識問答：兩段式相似度門檻與查無依據攔截（設計文件）</a></li><li><a href="../../docs/architecture/knowledge-type-versioning.html">知識型態抽象 × 版本化 × 時效性（設計文件）</a></li><li><a href="../../docs/architecture/api-versioning.html">API Versioning 策略</a></li><li><a href="../../docs/architecture/dto-boundaries.html">DTO 與模型邊界規範</a></li><li><a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a></li><li><a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a></li><li><a href="../../docs/architecture/rag-rerank-analysis.html">RAG 是否導入 Re-rank（二階重排）分析與建議</a></li><li><a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例</a></li><li><a href="../../docs/architecture/wiki-vs-cleaned.html">Wiki 與 Cleaned 的角色差異</a></li><li><a href="../../docs/architecture/architecture-overview.html">架構總覽</a></li><li><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a></li><li><a href="../../docs/architecture/data-model.html">資料模型與資料庫</a></li></ul></div></div></main></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/architecture/README.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

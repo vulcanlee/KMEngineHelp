@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP 問答寫入聊天紀錄並補 Token 用量歸屬（1.0.6 → 1.0.8）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>MCP 問答寫入聊天紀錄並補 Token 用量歸屬（1.0.6 → 1.0.8）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-17</li><li>版本：1.0.6 → 1.0.8（1.0.7 未獨立發布，於本次一併升至 1.0.8）</li><li>類型：新功能（MCP Server 可觀測性補齊：聊天紀錄與 Token 歸屬）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>透過 MCP Server 進來的知識庫問答，先前在 <code>/chat-logs</code> 看不到、<code>/token-usage</code> 報表也認不出是 MCP 來源，形成可觀測性缺口。本次補齊：讓 MCP 問答比照 Blazor 問答一樣被完整記錄與計量，並正確歸屬到呼叫者與作業。設計與使用說明見 <a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a>、<a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書 §6.6</a>。</p>
+<h2 id="變更" class="t2">變更</h2>
+<ul><li><strong>聊天紀錄</strong>：<code>knowledge_ask</code> 每次呼叫寫入 <code>LlmChatLog</code>（<code>Origin=Mcp</code>，標示「MCP Server 問答」），全文含呼叫端 API Key 名稱、問題、回傳給 Agent 的檢索參考資料 context 與出處；明確標註「<strong>伺服器端未生成 AI 答案</strong>」（答案由 MCP 用戶端 LLM 生成）。</li><li><strong>身分解析</strong>：新增 <code>Web/Mcp/McpIdentityResolver.cs</code>——由 <code>HttpContext</code> 的 <code>ClaimTypes.Sid</code> 反查使用者、填入 <code>CurrentUserService</code>，修正 MCP 情境下稽核／紀錄 <code>user=null</code> 的缺口。</li><li><strong>Token 歸屬</strong>：<code>knowledge_ask</code> / <code>knowledge_search</code> 在工具方法自身範圍 <code>OperationContext.Push</code>（<code>Operation=McpKnowledgeAsk</code> / <code>McpKnowledgeSearch</code>），讓檢索的 Embedding／QueryRewrite token 正確歸屬到呼叫者與作業（<code>AsyncLocal</code> 必須與 <code>await</code> 同一 scope 才會流到底層 client）。</li><li><strong>顯示端</strong>：<code>/chat-logs</code> 新增來源標籤與篩選、<code>/token-usage</code> 作業標籤新增 MCP 選項。</li><li><strong>文件</strong>：<code>MCP服務使用說明書</code> §6.6 補「MCP 聊天紀錄與 Token 歸屬」，說明生成 token 在用戶端、不在本系統計量。</li></ul>
+<h2 id="主要異動檔案" class="t3">主要異動檔案</h2>
+<ul><li><code>AccessDatas/Models/LlmChatLog.cs</code>、<code>LlmTokenUsage.cs</code>（新增 MCP 來源／作業常數）</li><li><code>Business/Services/DataAccess/ChatLogService.cs</code></li><li><code>Web/Mcp/McpIdentityResolver.cs</code>（新增）、<code>KnowledgeAskTool.cs</code>、<code>KnowledgeSearchTool.cs</code></li><li><code>Web/Components/Views/ChatLogs/ChatLogsView.razor(.cs)</code>、<code>Views/TokenUsage/TokenUsageView.razor.cs</code></li></ul>
+<h2 id="已知限制" class="t4">已知限制</h2>
+<ul><li><strong>生成 token 不在本系統計量</strong>：MCP 用戶端 LLM 產生的答案 token 由用戶端計量，本系統只計檢索期（Embedding／QueryRewrite）token。</li><li><strong>稽核 account</strong>：<code>KnowledgeBaseQueryAudit</code> 的 account/name 仍以工具日誌 <code>user=</code> 補足；<code>IsAdmin</code>/<code>Teams</code> 正確。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ul><li><strong>無資料庫 migration</strong>（<code>Origin</code>/<code>Operation</code> 皆為字串常數，未新增 Entity 欄位）。</li><li><code>dotnet test</code> 通過（含權控不變量、四工具、<code>LoggingConventionTests</code>）。</li><li><code>appsettings.json</code> 版本標記 1.0.6 → 1.0.8。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l2" href="#主要異動檔案">主要異動檔案</a><a class="l2" href="#已知限制">已知限制</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-17-MCP問答聊天紀錄與Token歸屬.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

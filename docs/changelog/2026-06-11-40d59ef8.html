@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識來源管理清單（KnowledgeSource）（0.2.59）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>知識來源管理清單（KnowledgeSource）（0.2.59）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-11</li><li>版本：0.2.58 → 0.2.59</li><li>對應 PRD：<a href="../../docs/prd/prd-e8b774d3.html">知識來源管理 PRD</a></li><li>對應計畫：<a href="../../docs/superpowers/plans/2026-06-11-knowledge-source-crud-6e918bdb.html">實作計畫</a></li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>新增「資料清洗」階段的第一個入口頁面：<strong>知識來源管理清單</strong>。知識來源（KnowledgeSource） 把零散的匯入素材（音訊轉錄／文件萃取／圖片清單）聚合成有主題、有歸屬、可後續清洗的容器。</p>
+<h2 id="內容" class="t2">內容</h2>
+<ul><li><strong>新側邊選單</strong>：新增父選單「清洗與蒸餾」，其下子頁「知識來源管理清單」（路由 <code>/knowledge-sources</code>）。</li><li><strong>資料模型</strong>：新增 <code>KnowledgeSource</code>（本體：標題／描述／分類／團隊／建立·更新時間）與</li></ul>
+<p><code>KnowledgeSourceItem</code>（成員：以 <code>ItemType + ItemId</code> 軟參照三管線素材，<code>SortOrder</code> 排序， 對來源為 Cascade Delete，<code>(KnowledgeSourceId, ItemType, ItemId)</code> 唯一）。雙 provider migration <code>AddKnowledgeSource</code>（SQLite 與 SQL Server 各一）。</p>
+<ul><li><strong>CRUD ＋ 成員聚合</strong>：<code>KnowledgeSourceService</code> 提供來源 CRUD、加入／移除／上下排序成員、</li></ul>
+<p>以及挑選「已完成」素材的查詢；全程套團隊權控（<code>IRecordAccessScopeProvider</code> ＋ <code>TagStringHelper</code>）。 清單<strong>預設依更新時間由新到舊</strong>；成員增刪／重排會更新 <code>UpdatedAt</code>。刪除來源僅移除成員關聯， 素材原紀錄保留。</p>
+<ul><li><strong>權限</strong>：<code>MagicObjectHelper</code> 新增 <code>角色_清洗與蒸餾</code>、<code>角色_知識來源管理清單</code>；</li></ul>
+<p><code>RolePermissionService</code> 以位置索引新增對應權限群組；<code>Menu.json</code> 同步。既有角色需於 「角色管理」重新勾選才看得到。</p>
+<ul><li><strong>UI</strong>：Blazor Server + Ant Design 頁面（清單、新增／編輯 Modal、成員管理 Modal），不含檔案上傳。</li><li><strong>測試</strong>：新增 <code>KnowledgeSourceServiceTests</code>（排序、團隊權控、成員去重與排序、級聯刪除保留素材、</li></ul>
+<p>可選素材過濾、成員移動）共 6 筆；全測試套件 170 筆綠燈。</p>
+<h2 id="未納入未來延伸" class="t3">未納入（未來延伸）</h2>
+<p>清洗管線（佇列／背景／七步流程）、清洗狀態與進度、信心分數、人工審核、清洗產物下載／預覽、 知識蒸餾與知識庫。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#內容">內容</a><a class="l2" href="#未納入未來延伸">未納入（未來延伸）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-11-知識來源管理.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

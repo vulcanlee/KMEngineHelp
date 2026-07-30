@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>系統健康監控 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>系統健康監控 PRD</h1><p class="sub">定義 /system-health 人工巡檢頁與健康檢查端點的產品需求</p></header><div class="docwrap"><main><ul><li>文件用途：定義 <code>/system-health</code> 人工巡檢頁與健康檢查端點的產品需求</li><li>主要讀者：產品、開發、維運、系統管理員</li><li>文件版本：2.1</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.63</li><li>首次實作版本：0.2.88</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026/06/28</li><li>對應版本：0.2.88 之後（已實作並補強）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<h2 id="一目標與範圍" class="t1">一、目標與範圍</h2>
+<p>提供管理員一個可快速判斷系統是否可用的巡檢頁，並保留部署平台可輪詢的 liveness/readiness 端點。此功能用於上線前檢查、故障排除與依賴設定確認。</p>
+<p>本 PRD 範圍包含 <code>/system-health</code> 頁、<code>/health/live</code>、<code>/health/ready</code>、健康分數、紅黃綠燈、檢查項目與最後 100 筆日誌，以及同屬日誌診斷的 <code>/log-settings</code>（執行期日誌等級切換）與 <code>/log-download</code>（日誌封存下載）。非範圍包含告警推播、歷史趨勢圖、集中式監控平台。</p>
+<h2 id="二使用者與入口" class="t2">二、使用者與入口</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>說明</th></tr></thead><tbody><tr><td>路由</td><td><code>/system-health</code></td></tr><tr><td>選單</td><td>系統管理 → 系統監控 → 系統健康監控（<code>adminOnly</code>）；⚠️ 日誌等級切換 <code>/log-settings</code> 與日誌下載 <code>/log-download</code> 自 1.0.97 起改掛<strong>同層的「診斷與日誌」</strong>群組（原本三者同群組）</td></tr><tr><td>權限</td><td>僅管理員 <code>CheckIsAdmin()</code></td></tr><tr><td>主要使用者</td><td>維運人員、系統管理員</td></tr></tbody></table></div>
+<h2 id="三畫面與檢查項目" class="t3">三、畫面與檢查項目</h2>
+<p>頁面分三區：</p>
+<ul><li>整體摘要：檢查時間、健康百分比、紅黃綠燈。</li><li>檢查項目（共 24 項）：應用程式、API、資料庫、<strong>資料庫大小與資料量（1.0.13 新增，資訊型）</strong>、日誌、身分驗證、檔案系統、主機資源、安全設定、外部工具（ffmpeg/yt-dlp/markitdown/Node.js/抖音助手）與 OpenAI 設定、轉錄儲存目錄、向量索引涵蓋率，<strong>1.0.11 新增的 5 項基礎設施與整合檢查</strong>：MCP Server（端點/policy/scheme/啟用金鑰數；0 金鑰為警示）、分散式快取（Memory 正常，Redis 實測連線）、AI 生成/嵌入 Provider 就緒（依 Cloud/Local 分流）、RAG 檢索設定合理性（權重/門檻）、背景管線（<strong>七條</strong>匯入／處理背景服務是否註冊；預期清單自 1.0.66 起由 <code>PipelineNames</code> 常數反射推導，新增管線自動納入；<strong>自 1.0.72 起另涵蓋 2 支無法推導的寫入服務</strong><code>PipelineProgressWriter</code>／<code>TokenUsageWriter</code>），以及 <strong>1.0.13 新增的 2 項可用性實呼叫檢查</strong>：大語言模型可用性（實呼叫主生成模型、8 秒逾時）、嵌入端點可用性（實嵌入探針文字、回報維度）。</li><li>日誌尾端：顯示 NLog 今日日誌最後 100 筆。</li></ul>
+<h2 id="四內部系統運作" class="t4">四、內部系統運作</h2>
+<p>核心流程為 <code>SystemHealthPage → ISystemHealthService → HealthLogReader</code>。</p>
+<ol><li>進頁檢查登入與管理員身分。</li><li><code>SystemHealthService.GetReportAsync()</code> 逐項檢查依賴。</li><li>每項檢查回傳狀態、燈號、權重、證據與失敗訊息。</li><li>系統依權重計算整體健康分數。</li><li><code>HealthLogReader</code> 讀取今日 NLog 檔案尾端，提供最近日誌。</li><li><code>/health/live</code> 只檢查程序存活；<code>/health/ready</code> 檢查資料庫可用性。</li></ol>
+<h2 id="五llm--rag-互動" class="t5">五、LLM / RAG 互動</h2>
+<p>1.0.13 起，本功能會在「大語言模型可用性」「嵌入端點可用性」兩項檢查中<strong>各實際呼叫一次</strong> LLM 與嵌入端點（極小提示詞/探針文字、8 秒逾時；未設定端點時略過），用量以作業別「健康檢查（HealthCheck）」記錄於 Token 用量。其餘檢查僅讀取設定與環境狀態，間接協助判斷轉錄、清洗、視覺、問答與 RAG 是否具備必要依賴。</p>
+<h2 id="六權限與安全" class="t6">六、權限與安全</h2>
+<ul><li><code>/system-health</code> 僅管理員可看。</li><li>頁尾原始日誌可能包含路徑、帳號或例外訊息，部署時必須確保只有可信管理員可進入。</li><li>日誌規範仍要求不得寫入密碼、token、完整金鑰或完整敏感內容。</li><li>探針端點只回簡短狀態，不提供詳細診斷資料。</li></ul>
+<h2 id="七錯誤與邊界" class="t7">七、錯誤與邊界</h2>
+<ul><li>OpenAI ApiKey 未設定應列為紅燈，因多數 AI 功能無法運作。</li><li>選用工具未設定可列黃燈，不應讓整站不可用。</li><li>日誌檔不存在時頁面仍可顯示健康報表，日誌區顯示無可顯示紀錄。</li></ul>
+<h2 id="八驗收與測試" class="t8">八、驗收與測試</h2>
+<ul><li>管理員可進入 <code>/system-health</code> 並看到健康報表。</li><li>非管理員看到拒絕訊息。</li><li><code>/health/live</code> 與 <code>/health/ready</code> 可供部署平台檢查。</li><li>ApiKey 空白時 OpenAI 檢查為紅燈。</li><li>日誌尾端讀取失敗不影響其他健康項目。</li></ul>
+<h2 id="九相關程式與文件" class="t1">九、相關程式與文件</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Health/SystemHealthService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Health/HealthLogReader.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Pages/SystemHealthPage.razor</code></li><li><a href="../../docs/features/health-monitoring.html">系統健康監控</a></li><li><a href="../../docs/guides/monitoring-health.html">系統監控與健康檢查指南</a></li></ul>
+<h2 id="十現況校正日誌診斷三件組1063-核對" class="t2">十、現況校正：日誌診斷三件組（1.0.63 核對）</h2>
+<p>本能力現由三個管理員頁面組成，皆在「系統管理」底下；⚠️ 自 1.0.97 起<strong>不再同群組</strong>——<code>/system-health</code> 在「系統監控」，<code>/log-settings</code> 與 <code>/log-download</code> 在「診斷與日誌」：</p>
+<ul><li><code>/system-health</code> 顯示健康分數、正常／警示／異常、各檢查的權重與佐證，以及最後 100 筆日誌；健康端點另供部署平台使用。</li><li><code>/log-settings</code>：管理員可在執行期切換 <code>Trace</code>、<code>Debug</code>、<code>Information</code>、<code>Warning</code>、<code>Error</code>，立即生效且免重啟。</li><li><code>/log-download</code>：下載 NLog 封存日誌檔，供離線比對與問題回報；由 <code>LogArchiveController</code> 提供下載端點並套用權控。</li><li>執行期切換只暫時覆蓋 NLog <code>AppCatchAll</code> 規則；重啟後回到 <code>nlog.config</code> 預設 <code>Information</code>。深度診斷結束後必須切回，避免日誌量與敏感情境增加。</li><li>日誌不得記錄 API Key、密碼或 token；外部呼叫需有開始、成功與失敗三點式診斷資訊。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目標與範圍">一、目標與範圍</a><a class="l2" href="#二使用者與入口">二、使用者與入口</a><a class="l2" href="#三畫面與檢查項目">三、畫面與檢查項目</a><a class="l2" href="#四內部系統運作">四、內部系統運作</a><a class="l2" href="#五llm--rag-互動">五、LLM / RAG 互動</a><a class="l2" href="#六權限與安全">六、權限與安全</a><a class="l2" href="#七錯誤與邊界">七、錯誤與邊界</a><a class="l2" href="#八驗收與測試">八、驗收與測試</a><a class="l2" href="#九相關程式與文件">九、相關程式與文件</a><a class="l2" href="#十現況校正日誌診斷三件組1063-核對">十、現況校正：日誌診斷三件組（1.0.63 核對）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/系統健康監控-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

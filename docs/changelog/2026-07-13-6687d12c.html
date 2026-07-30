@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>統計報表第二階段：4 個報表聚合服務＋團隊/分類過濾＋單元測試（0.3.37→0.3.38）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>統計報表第二階段：4 個報表聚合服務＋團隊/分類過濾＋單元測試（0.3.37→0.3.38）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-13</li><li>版本：0.3.37 → 0.3.38</li><li>類型：新功能（基礎建設，統計報表 Business 層）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>延續<a href="../../docs/prd/prd-eda2f75f.html">統計報表</a>規劃，建立 Business 層唯讀聚合服務，供後續報表頁呼叫。本階段不含 UI。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="共用型別">共用型別</h3>
+<ul><li>新增 <code>KnowledgeExtraction.Models/Reports/ReportCommon.cs</code>：<code>ReportRange</code>、<code>LabeledCount</code>、<code>RankRow</code>、<code>DailyPoint</code>（純 DTO，無 EF 相依）。</li></ul>
+<h3 id="報表服務businessservicesdataaccessreports">報表服務（<code>Business/Services/DataAccess/Reports/</code>）</h3>
+<ul><li><code>TokenUsageReportService</code>（<code>LlmTokenUsage</code>）：區間總覽（各類 token 加總＋呼叫次數）、使用者用量排名、依作業別/模型分布；團隊過濾（<code>\n</code> 快照格式）。</li><li><code>ChatReportService</code>（<code>LlmChatLog</code>）：滿意度統計＋依使用者回饋排名＋每日滿意率趨勢（報表 2）；問答量/依來源/使用者活躍度排名/被封鎖/低信心/每日趨勢（報表 3）；團隊過濾。</li><li><code>RetrievalQualityReportService</code>（<code>KnowledgeBaseQueryAudit</code>）：平均 <code>TopScore</code>、平均命中數、命中率、零命中率、信心分布、<code>TopScore</code> 分桶。<strong>因 <code>audit.Teams</code> 為逗號格式（非 <code>\n</code>）且無人以逗號解析，團隊過濾改記憶體端精確比對</strong>；此頁管理員專用故不套記錄權控。</li><li><code>ContentInventoryReportService</code>（三張上游表）：<code>IsLatest</code> 去版本後依媒體型別（影音/音訊、文件、圖片）、團隊、分類、狀態計數；非管理員套 <code>BuildTeamAccessPredicate</code> 權控＋使用者選定團隊/分類過濾（<code>BuildContainsAnyPredicate</code>）。</li><li>每個服務結果 record 與服務同檔定義（比照既有 <code>TokenUsageQueryService</code>）。</li></ul>
+<h3 id="di-與版本">DI 與版本</h3>
+<ul><li><code>ServiceCollectionExtensions</code> 註冊 4 個服務（<code>AddScoped</code>）。</li><li><code>appsettings.json</code> SystemVersion 0.3.37 → 0.3.38。</li></ul>
+<h3 id="測試">測試</h3>
+<ul><li>新增 <code>Tests/Reports/</code>：<code>ReportTestFixture</code>（in-memory SQLite）＋ 4 份服務測試共 24 筆，涵蓋日期/團隊/分類過濾、聚合正確性、<code>IsLatest</code> 去版本、逗號格式團隊過濾精確比對、非管理員團隊權控、null 帳號歸桶。reuse 既有 <code>FakeAccessScopeProvider</code>。</li></ul>
+<h2 id="範圍與已知限制" class="t3">範圍與已知限制</h2>
+<ul><li>本階段無 UI（頁面/選單/PDF 留後續階段）。</li><li>Token/回饋/問答的團隊過濾僅對升版後帶快照的新紀錄有值（沿續第一階段限制）。</li><li>未改 <code>KnowledgeBaseQueryAudit.Teams</code> 逗號格式（記憶體端過濾相容全部歷史列）。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>新增：<code>Models/Reports/ReportCommon.cs</code>、<code>Business/Services/DataAccess/Reports/*.cs</code>（4 服務）、<code>Tests/Reports/*.cs</code>（5 檔）。</li><li>修改：<code>Web/Extensions/ServiceCollectionExtensions.cs</code>、<code>Web/appsettings.json</code>、<code>docs/planning/知識庫統計報表-todo.md</code>。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>dotnet build</code> 0 錯誤。</li><li><code>dotnet test</code> 綠（新增 24 筆報表測試；既有測試不受影響）。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#共用型別">共用型別</a><a class="l3" href="#報表服務businessservicesdataaccessreports">報表服務（Business/Services/DataAccess/Reports/）</a><a class="l3" href="#di-與版本">DI 與版本</a><a class="l3" href="#測試">測試</a><a class="l2" href="#範圍與已知限制">範圍與已知限制</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-13-統計報表第二階段服務層.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>移除健康檢查的「開發預設金鑰」判定（1.0.69）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>移除健康檢查的「開發預設金鑰」判定（1.0.69）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/26</li><li>版本：1.0.68 → <strong>1.0.69</strong></li><li>類型：<strong>功能移除</strong>（依使用者決定）</li><li>影響範圍：<code>/system-health</code> 的「身分驗證」檢查項（權重 15）</li></ul>
+<h2 id="一起因" class="t1">一、起因</h2>
+<p>1.0.68 部署到正式環境後站台正常啟動（移除 <code>StartupSafetyValidator</code> 生效），但 <code>/system-health</code> 的「身分驗證」項顯示<strong>異常</strong>：</p>
+<pre><code>Cookie scheme：True；JWT bearer：True；Issuer：已設定；Audience：已設定；SigningKey 長度：202。
+Cookie/JWT 設定不完整，或 Production 仍使用開發用 JWT key。</code></pre>
+<h3 id="診斷由畫面資訊即可推定">診斷（由畫面資訊即可推定）</h3>
+<p>原本的紅燈條件有四個，畫面顯示前三個都通過（Cookie=True、JWT=True、Issuer／Audience 已設定、長度 202 ≥ 32），所以唯一成立的只剩：</p>
+<pre><code>usesDevelopmentKeyInProduction = environment.IsProduction()
+    &amp;&amp; UnsafeDefaults.IsUnsafeSigningKey(jwtSettings.SigningKey);   // 金鑰以 "DevelopmentOnly-" 開頭</code></pre>
+<p>而 <strong>202 ≠ 倉庫預設的 94</strong>——金鑰確實被改過，但新值仍以 <code>DevelopmentOnly-</code> 開頭（推測是在預設值後面接了東西，而非整個換掉）。</p>
+<h3 id="順帶回答為什麼本機-development-不會警告">順帶回答：為什麼本機 Development 不會警告</h3>
+<p>該判定被 <code>environment.IsProduction()</code> 擋住，<strong>Development 環境下恆為 false</strong>，所以永遠不會紅——這是刻意設計，開發機本來就該用開發金鑰。</p>
+<p>另外兩邊的值其實不同：Development 顯示 <code>SigningKey 長度：94</code>（正好是倉庫預設值），Production 顯示 <code>202</code>。不過即使兩邊完全相同，Development 也一樣不會警告。</p>
+<h2 id="二移除內容" class="t2">二、移除內容</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>處置</th></tr></thead><tbody><tr><td><code>SystemHealthService.CheckAuthentication</code> 的 <code>usesDevelopmentKeyInProduction</code></td><td>刪除；<code>status</code> 改為只看 <code>hasCookie &amp;&amp; hasJwt &amp;&amp; hasRequiredJwtSettings</code></td></tr><tr><td>失敗訊息</td><td>「Cookie/JWT 設定不完整，<strong>或 Production 仍使用開發用 JWT key</strong>。」→ 只保留前半句</td></tr><tr><td><code>Web/Configuration/UnsafeDefaults.cs</code></td><td>刪除（上面那行是它唯一的生產端消費者）</td></tr><tr><td><code>Tests/UnsafeDefaultsTests.cs</code></td><td>刪除（15 個測試）</td></tr></tbody></table></div>
+<p><code>SystemHealthService</code> 的 <code>environment</code> 欄位<strong>保留</strong>——<code>:168</code>（環境名稱）、<code>:177</code>（Swagger）、<code>:387</code>（安全設定 productionRisk）仍在使用。<code>using KnowledgeExtraction.Web.Configuration;</code> 也保留（<code>SwaggerSettings</code>／<code>CacheSettings</code> 共 8 處在用）。</p>
+<p><strong>檢查項總數維持 24 項</strong>，只是「身分驗證」這一項的判定條件變少。</p>
+<h2 id="三移除後的實際狀態" class="t3">三、移除後的實際狀態</h2>
+<p><strong>系統已經沒有任何地方會提示「Production 正在用開發預設金鑰或預設密碼」。</strong></p>
+<p>三道防線在三次變更中依序拆除：</p>
+<div class="tw"><table><thead><tr><th>版本</th><th>拆除的</th><th>原因</th></tr></thead><tbody><tr><td>1.0.68</td><td>啟動安全檢查（<code>StartupSafetyValidator</code>）</td><td>兩度擋住正式部署（HTTP 500.30）</td></tr><tr><td>1.0.68</td><td>緊急跨過開關</td><td>正解比跨過更快，逃生口反而是容易被遺忘的後門</td></tr><tr><td><strong>1.0.69</strong></td><td><strong>健康檢查的金鑰內容判定</strong></td><td><strong>本次</strong></td></tr></tbody></table></div>
+<p><strong>僅剩的補償方式是人工核對</strong>：部署後檢查 <code>appsettings.Production.json</code>／<code>web.config</code> 的實際值——金鑰只要不以 <code>DevelopmentOnly-</code> 開頭、密碼不是 <code>support</code>／<code>1qaz@WSX</code> 即可。已寫入 <code>planning/08</code> backlog 與部署 SOP。</p>
+<blockquote><p>若日後想恢復偵測，建議<strong>只做提示、不要擋啟動</strong>——這正是 1.0.68／1.0.69 兩次移除的教訓。</p></blockquote>
+<h2 id="四驗證" class="t4">四、驗證</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>結果</th></tr></thead><tbody><tr><td><code>dotnet test</code></td><td><strong>653 通過 / 0 失敗</strong>（668 − 15）</td></tr><tr><td>殘留參照</td><td><code>UnsafeDefaults</code> 在 <code>src/</code> 與 <code>docs/</code>（排除 changelog／archive）0 命中</td></tr><tr><td>Production 啟動</td><td>成功，<code>/health/ready</code> 回 200</td></tr></tbody></table></div>
+<blockquote><p><strong>「身分驗證」項轉綠未經畫面目視確認</strong>——<code>/system-health</code> 需管理員登入，curl 只拿得到 Blazor 外殼。但推論是確定的：使用者的 <strong>Development 截圖已顯示「正常」</strong>，且該環境的 Cookie／JWT／Issuer／Audience 條件與 Production 完全相同（金鑰長度 94 亦 ≥32）。Production 唯一多出來的就是本次移除的判定，移除後兩者判定條件已完全一致。</p></blockquote>
+<h2 id="五文件同步" class="t5">五、文件同步</h2>
+<ul><li><code>features/系統健康監控.md</code>：「身分驗證」項改為只描述 Cookie/JWT scheme、Issuer/Audience、金鑰長度，並註明<strong>不檢查金鑰內容</strong>。</li><li><code>operations/全新機器部署SOP.md</code>：移除「上線後可到 <code>/system-health</code> 確認」的建議，改為明確寫出<strong>沒有任何自動偵測</strong>。</li><li><code>security/認證授權與權限機制.md</code>：移除「唯一的提示是 <code>/system-health</code>」，改為「系統已無任何自動提示」。</li><li><code>planning/08</code>：補償措施改寫為人工核對，並寫明核對標準。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一起因">一、起因</a><a class="l3" href="#診斷由畫面資訊即可推定">診斷（由畫面資訊即可推定）</a><a class="l3" href="#順帶回答為什麼本機-development-不會警告">順帶回答：為什麼本機 Development 不會警告</a><a class="l2" href="#二移除內容">二、移除內容</a><a class="l2" href="#三移除後的實際狀態">三、移除後的實際狀態</a><a class="l2" href="#四驗證">四、驗證</a><a class="l2" href="#五文件同步">五、文件同步</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-26-移除健康檢查的開發金鑰判定.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

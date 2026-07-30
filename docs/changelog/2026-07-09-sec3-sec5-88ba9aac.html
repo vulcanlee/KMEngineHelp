@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEC-3 權控標籤傳播修正 + SEC-5 稽核補使用者身分（0.3.10→0.3.11）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>SEC-3 權控標籤傳播修正 + SEC-5 稽核補使用者身分（0.3.10→0.3.11）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-09</li><li>版本：0.3.10 → 0.3.11</li><li>類型：資安補強（RAG 補強清單 SEC 系列）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>補強清單兩項 P1 資安待辦：</p>
+<ul><li><strong>SEC-3（chunk 層 ACL 細緻度）</strong>：<code>VectorEmbedding.Teams</code> 本就是 per-chunk、檢索/評測已 per-chunk 過濾且守門 leak=0，但探索發現一個<strong>實際權控一致性 bug</strong>——<code>KnowledgeSourceService.UpdateAsync</code> 變更來源 <code>Teams</code> 時<strong>不同步</strong> <code>WikiPage.Teams</code>／<code>VectorEmbedding.Teams</code>。由於檢索權控過濾的是向量的 <code>Teams</code>（舊值），把來源改嚴後舊向量仍帶舊（較寬鬆）團隊 → <strong>過度曝露</strong>，且 RagEval 越權檢查用同一舊值、內部一致故抓不到。</li><li><strong>SEC-5（稽核鏈路補全，資安視角）</strong>：EVAL-2 已把問答稽核落表，但 <code>KnowledgeBaseQueryAudit</code> 只記 <code>IsAdmin</code>＋<code>Teams</code>、<strong>無使用者身分</strong>，無法回答 §十⑤「誰問了什麼」。</li></ul>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="sec-3來源團隊變更即時傳播無-migration">SEC-3：來源團隊變更即時傳播（無 migration）</h3>
+<ul><li><code>KnowledgeSourceService.UpdateAsync</code>：團隊變更時以 <code>ExecuteUpdateAsync</code> 直接把新標籤傳播到該來源的 <code>WikiPage.Teams</code> 與 <code>VectorEmbedding.Teams</code>（免重嵌，只改 ACL 標籤），關閉過度曝露窗。</li><li>決策：完整「段落層」差異化標記待具體 JTBD 再導入，現階段維持來源/團隊層並以 leak=0 守底線。見 <code>docs/architecture/知識庫RAG設計與執行.md</code> §六之三。</li></ul>
+<h3 id="sec-5問答稽核補提問者身分雙-migration-adduseridentitytoqueryaudit">SEC-5：問答稽核補提問者身分（雙 migration <code>AddUserIdentityToQueryAudit</code>）</h3>
+<ul><li><code>KnowledgeBaseQueryAudit</code> 新增 <code>UserAccount</code>／<code>UserName</code>（nullable）。</li><li><code>KnowledgeBaseChatService</code> 注入既有 <code>CurrentUserService</code>，<code>WriteQueryAuditAsync</code> 寫入提問者帳號/姓名（null 安全；未登入/API 為 null）。</li><li><code>RagDiagnosticsService.GetAuditRecordsAsync</code> 投影 + <code>KnowledgeBaseQueryAuditRow</code> 加欄；<code>/rag-diagnostics</code> 近期稽核表新增「帳號」欄。</li><li>隱私邊界：僅放寬到「身分」（帳號/姓名），仍不存問句本文/context/chunk 文字。</li></ul>
+<h3 id="測試">測試</h3>
+<ul><li><code>KnowledgeSourceServiceTests.UpdateAsync_TeamsChanged_PropagatesToWikiAndVectors</code>。</li><li><code>KnowledgeBaseChatServiceTests.RetrieveAsync_PersistsAudit_RecordsAskerIdentity</code>。</li><li>全測試 <strong>465 通過、0 失敗</strong>。</li></ul>
+<h2 id="範圍決策誠實記錄" class="t3">範圍決策（誠實記錄）</h2>
+<ul><li>SEC-3 = <strong>修權控傳播落差 + 決策註記</strong>；不做完整 per-chunk 段落標記 UI。</li><li>SEC-5 = <strong>稽核補使用者身分</strong>；匯出(CSV)、不可竄改(immutable)、保留期(retention)、越權/被拒事件稽核列後續。</li><li>兩者皆維持不變量「RagEval 越權洩漏 = 0」。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>進度：SEC-3 ✅、SEC-5 ✅ 完成。詳見 <code>docs/planning/12-...</code> §〇。</li><li>同步更新 <code>docs/architecture/知識庫RAG設計與執行.md</code>（§六之三）、<code>docs/operations/RAG問題診斷手冊.md</code>、<code>docs/planning/12-...</code>。</li><li><code>appsettings.json</code> SystemVersion 0.3.10 → 0.3.11；SEC-5 需套用雙 migration。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>dotnet build</code> 成功、<code>dotnet test</code> 綠燈（465 通過）。</li><li>SEC-3：來源團隊由「甲」改「乙」→ 該來源 <code>VectorEmbedding.Teams</code>／<code>WikiPage.Teams</code> 皆變「乙」→ 以「甲」身分不再命中；越權洩漏仍 0。</li><li>SEC-5：以某帳號問一題 → <code>/rag-diagnostics</code> 近期稽核「帳號」欄顯示該帳號；未登入為「—」不報錯。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#sec-3來源團隊變更即時傳播無-migration">SEC-3：來源團隊變更即時傳播（無 migration）</a><a class="l3" href="#sec-5問答稽核補提問者身分雙-migration-adduseridentitytoqueryaudit">SEC-5：問答稽核補提問者身分（雙 migration AddUserIdentityToQueryAudit）</a><a class="l3" href="#測試">測試</a><a class="l2" href="#範圍決策誠實記錄">範圍決策（誠實記錄）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-09-SEC3權控傳播與SEC5稽核身分.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>操作文件補齊會議新功能練習、新增會議錄音樣本、docs 全庫同步至 1.0.26｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>操作文件補齊會議新功能練習、新增會議錄音樣本、docs 全庫同步至 1.0.26</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/21</li><li>版本：文件同步（對應系統版本 1.0.26，未變更 <code>appsettings.json</code> 版本號）</li><li>類型：文件與練習素材（無 app 程式碼建置變更）</li><li>觸發來源：使用者要求把「上傳會議錄音／會議紀錄納入知識來源／會議紀錄轉工作項目」的練習補進兩份操作文件、產生練習用會議錄音檔，並檢查 docs 是否與現行程式碼同步、一併更新。</li><li>相關：<a href="../../docs/changelog/2026-07-20-ai-34102033.html">會議 AI 自動化</a>、<a href="../../docs/changelog/2026-07-21-toast-4f4b815b.html">Toast 一致化與工作項目來源會議追溯</a>、<a href="../../docs/changelog/2026-07-21-62873529.html">會議紀錄納入知識來源素材</a></li></ul>
+<hr>
+<h2 id="一背景文件落後程式碼" class="t1">一、背景：文件落後程式碼</h2>
+<p>會議模組近期新增 1.0.19（會議欄位）、1.0.20（會議 AI 自動化＝第 8 條背景管線）、1.0.24（工作項目「來源會議」追溯）、1.0.25（會議紀錄成為第四型知識來源素材），但兩份主力操作文件版本停在 1.0.21／1.0.22，且全庫多處仍寫「三型素材」「7 條管線」「音訊 1GB」。</p>
+<h2 id="二新增專屬會議錄音練習樣本" class="t2">二、新增專屬會議錄音練習樣本</h2>
+<ul><li><code>scripts/Build-LabSamples.py</code>：新增 <code>AUDIO_M1_SEGMENTS</code>（客戶A 上線前專案週會，多人對話，含明確決議與 3 個帶負責人、期限的行動項目）、<code>build_audio</code> 產出 <code>客戶A上線前專案週會錄音.mp3</code>（抽出共用的 <code>_concat_segments</code>）、<code>TEXTS</code> 新增同名無金鑰 <code>.txt</code>。</li><li>實際產出 <code>docs/guides/lab-samples/audio/客戶A上線前專案週會錄音.mp3</code>（edge-tts + ffmpeg）與 <code>text-fallback/客戶A上線前專案週會錄音.txt</code>；既有兩支 mp3 位元未動（走暫存目錄＋單檔複製）。</li><li><code>lab-samples/README.md</code>：新增「會議模組練習素材（M1）」小節（標明不計入 5／2／1 完訓矩陣）；音訊上限 1GB→2GB。</li></ul>
+<h2 id="三兩份指定文件補齊會議練習" class="t3">三、兩份指定文件補齊會議練習</h2>
+<ul><li>《實作練習手冊-Hands-on Lab》v2.7→<strong>2.8</strong>、對應 1.0.21→<strong>1.0.26</strong>：第 7 章加 M1 替代樣本、7.4 補「來源會議」追溯（1.0.24）、新增 7.7「會議紀錄納入知識來源」（1.0.25）、驗收卡與附錄 A/B 同步；修正殘留「三條匯入管線」與角色權限表補會議記錄。</li><li>《新手完整操作指南》v2.2→<strong>2.3</strong>、對應 1.0.22→<strong>1.0.26</strong>：§7 管理成員改四型、§15.5 補來源會議、新增 §15.6「會議紀錄納入知識來源」、全畫面總覽表補 1.0.24/1.0.25。</li></ul>
+<h2 id="四docs-全庫同步11-份--3-索引-readme" class="t4">四、docs 全庫同步（11 份 + 3 索引 README）</h2>
+<ul><li><code>architecture/架構總覽.md</code>：非同步管線 7→<strong>8 條</strong>（補「會議紀錄產生」<code>IMeetingMinutesQueue</code>）。</li><li><code>operations/容量邊界與限制.md</code>：音訊／影片轉錄上限 1GB→<strong>2GB</strong>（對齊 <code>MediaTranscriptionService.MaxUploadFileSize</code>）。</li><li>知識來源「素材型別」由三型改<strong>四型（＋會議紀錄）</strong>：<code>guides/知識來源加工與清洗規則設定-使用指南.md</code>、<code>guides/從匯入到知識的操作流程.md</code>、<code>guides/完整操作手冊.md</code>、<code>strategy/10-…</code>、<code>prd/知識來源管理-prd.md</code>。</li><li>版本標註／會議入口補齊：<code>guides/資料匯入指南-音訊文件圖片.md</code>、<code>guides/系統總覽與使用導覽.md</code>、三個索引 README（guides／architecture／operations）。</li></ul>
+<h2 id="五刻意未改經程式碼查證" class="t5">五、刻意未改（經程式碼查證）</h2>
+<ul><li><code>prd/AI技能產生器-prd.md</code> 的「三類素材」<strong>維持不動</strong>：查 <code>SkillDefinitionService.GetSelectableItemsAsync</code> 只支援音訊轉錄／文件萃取／圖片辨識三型，<strong>不含會議紀錄</strong>（第四型只在知識來源 <code>KnowledgeSourceService</code>）。改成四型反而會失真。</li><li><strong>不 bump <code>appsettings.json</code></strong>：本次無 app 程式碼建置變更，appsettings 已是 1.0.26，文件是「追平」到 1.0.26。</li></ul>
+<h2 id="六驗證" class="t6">六、驗證</h2>
+<ul><li>全庫 <code>Test-DocsEncoding.ps1</code> 0 失敗（UTF-8 含 BOM）。</li><li>新樣本 mp3 產出且可播放；既有素材未被更動。</li><li>全庫 grep「三種素材／三型／七條管線／音訊 1GB」殘留已清（技能產生器三型除外，屬正確）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景文件落後程式碼">一、背景：文件落後程式碼</a><a class="l2" href="#二新增專屬會議錄音練習樣本">二、新增專屬會議錄音練習樣本</a><a class="l2" href="#三兩份指定文件補齊會議練習">三、兩份指定文件補齊會議練習</a><a class="l2" href="#四docs-全庫同步11-份--3-索引-readme">四、docs 全庫同步（11 份 + 3 索引 README）</a><a class="l2" href="#五刻意未改經程式碼查證">五、刻意未改（經程式碼查證）</a><a class="l2" href="#六驗證">六、驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-21-操作文件會議練習與全庫同步1.0.26.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

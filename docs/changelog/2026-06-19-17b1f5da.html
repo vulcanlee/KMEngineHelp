@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>修正三條管線狀態決策讀到陳舊追蹤實體（重試／取消／核准等誤判）（0.2.86）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>修正三條管線狀態決策讀到陳舊追蹤實體（重試／取消／核准等誤判）（0.2.86）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-19</li><li>版本：0.2.85 → 0.2.86</li><li>類型：缺陷修正</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p>延續 0.2.85（音訊轉錄重試誤判）的同一根因稽核：在 Blazor Server 中，Service 以建構式注入 元件，其 <code>BackendDBContext</code> 綁定整個 SignalR circuit（長壽命）。背景服務以獨立 scope／獨立 context 更新同一筆資料的 <code>Status</code>。當 circuit 的 context 先前已追蹤過該實體（新增時 <code>AddAsync</code>、 或前次 tracked 查詢），之後用 tracked 查詢且未先 <code>CleanTrackingHelper.Clean</code> 讀回時，EF 會回傳 識別映射中的陳舊實體，使依 <code>Status</code> 的決策出錯——須重新整理網頁才能正確操作。</p>
+<p>0.2.85 只修了 <code>MediaTranscriptionService</code> 的 <code>RetryAsync</code>／<code>CancelAsync</code>；全專案稽核發現其餘三條 管線（文件萃取、圖片解讀、知識來源清洗）的對應方法仍有同型問題。</p>
+<h2 id="根因" class="t2">根因</h2>
+<p>僅四條管線的實體會被背景服務改 <code>Status</code>（高風險）：<code>MediaTranscription</code>、<code>DocumentExtraction</code>、 <code>ImageRecognition</code>、<code>KnowledgeSource</code>。下列方法以 tracked 查詢讀回後直接依 <code>Status</code> 判斷，但未先 清掉本地追蹤：</p>
+<ul><li><code>DocumentExtractionService</code>：<code>RetryAsync</code>、<code>CancelAsync</code></li><li><code>ImageRecognitionService</code>：<code>RetryAsync</code>、<code>CancelAsync</code>（先前僅 <code>EnqueueRecognitionAsync</code> 有防護）</li><li><code>KnowledgeSourceService</code>：<code>TriggerCleaningAsync</code>、<code>CancelCleaningAsync</code>、<code>RetryCleaningAsync</code>、</li></ul>
+<p><code>ApproveAsync</code>、<code>RejectAsync</code></p>
+<h2 id="修正" class="t3">修正</h2>
+<p>在上述 9 個方法的 tracked 查詢前，加入專案既有慣例（CLAUDE.md 載明、<code>MediaTranscriptionService</code> 與 <code>ImageRecognitionService.EnqueueRecognitionAsync</code> 已採用）：</p>
+<pre><code>CleanTrackingHelper.Clean&lt;TEntity&gt;(context);</code></pre>
+<p>強制查詢讀到資料庫最新 <code>Status</code>。<code>UpdateAsync</code>／<code>DeleteAsync</code> 不依 <code>Status</code> 做決策，本次不調整。</p>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>變更檔案：<code>Business/Services/DataAccess/DocumentExtractionService.cs</code>、</li></ul>
+<p><code>ImageRecognitionService.cs</code>、<code>KnowledgeSourceService.cs</code>，以及 <code>appsettings.json</code>（版本號）。</p>
+<ul><li>重用既有 <code>CleanTrackingHelper.Clean&lt;T&gt;</code>，三檔皆已 import，<strong>無模型／資料庫變更，不需 migration</strong>。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>dotnet build</code>、<code>dotnet test</code>（既有約 240 案）全綠。</li><li>同一瀏覽器 session 內，對文件萃取／圖片解讀／知識來源清洗觸發背景失敗後，<strong>不重整</strong>直接按</li></ol>
+<p>重試／取消／核准／退回，應正確執行而非出現「只有失敗或已取消的紀錄可以重試」「正在清洗中」等誤判。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#根因">根因</a><a class="l2" href="#修正">修正</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-19-管線狀態決策修正陳舊追蹤.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

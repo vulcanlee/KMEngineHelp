@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAG 是否導入 Re-rank（二階重排）分析與建議｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 系統架構</p><header class="hero"><div class="kicker">系統架構</div><h1>RAG 是否導入 Re-rank（二階重排）分析與建議</h1><p class="sub">回答「超過 RejectThreshold 的 chunk 是否需要像網路文章／影片說的做 re-rank」，分析在本系統現況下導入 rerank 的效益、成本、插入點與導入條件。</p></header><div class="docwrap"><main><ul><li>文件用途：回答「超過 RejectThreshold 的 chunk 是否需要像網路文章／影片說的做 re-rank」，分析在<strong>本系統現況</strong>下導入 rerank 的效益、成本、插入點與導入條件。</li><li>主要讀者：系統負責人、開發者</li><li>對應版本：0.3.1（結論與觸發條件校對至 0.3.14）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li><li>建立日期：2026/07/08</li></ul>
+<blockquote><p>相關：<a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a>、<a href="../../docs/planning/12-rag-b561e5d2.html">RAG 系統補強總彙整</a>（項次 RQ-3）。</p></blockquote>
+<hr>
+<h2 id="一先釐清一個前提重要" class="t1">一、先釐清一個前提（重要）</h2>
+<p>原始提問是「對於這些<strong>超過 RejectThreshold</strong> 設定值的 chunk，是否也需要 re-rank」。這裡有個常見誤解需先澄清，否則會把 rerank 放錯位置：</p>
+<ul><li><strong><code>RejectThreshold</code> 不是逐一過濾 chunk 的門檻。</strong> 它是對「本回合<strong>最高分</strong>命中 <code>topScore</code>」做的<strong>回合級</strong>判定：<code>topScore &lt; RejectThreshold</code> → 整個回合視為「查無依據」、直接不呼叫 LLM；否則整批通過。它決定「這一題要不要回答」，不決定「留下哪些 chunk」。（見 <code>KnowledgeBaseChatService.RetrieveAsync</code>、設計文件 §四之一。）</li><li><strong>真正決定「哪些 chunk 進 LLM」的是</strong>：<code>RetrievalService</code> 先各取 <code>CandidateTopK=50</code> 候選（向量路徑 + 關鍵字路徑）→ 融合分數 <code>Score = 0.7·向量 + 0.3·關鍵字</code> → 套 <code>MinScore</code> 濾除 → <code>OrderByDescending(Score)</code> → <code>Take(TopK=10)</code>。</li></ul>
+<p>所以 rerank 的正確語意不是「對超過 RejectThreshold 的 chunk 重排」，而是：<strong>在 <code>CandidateTopK</code> 候選集上，用一個更精準的排序器取代（或補強）目前的線性融合分數，再取 <code>TopK</code>。</strong></p>
+<p><strong>目前系統沒有任何 rerank／cross-encoder 實作</strong>；唯一排序就是上述融合分數的線性排序。</p>
+<blockquote><p><strong>召回基準已於 1.0.16 改變，本文結論須據新基準重新驗證。</strong> 在 1.0.16 之前，關鍵字路徑的候選集是<strong>無序截斷</strong>（<code>Take(CandidateTopK)</code> 前無 <code>OrderBy</code>），高命中 chunk 可能根本沒進 <code>CandidateTopK</code>。這代表本文第三、四節「召回夠、排序差」的判定前提在當時<strong>無法成立</strong>——過去若觀察到 Precision@k 偏低，成因可能是召回而非排序。1.0.16 已改為在 DB 端依命中詞數排序後才截斷（見 <a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a> 第四節）。<strong>觸發條件 2 的評測應在 1.0.16 之後重跑，勿沿用舊數據下結論。</strong></p></blockquote>
+<hr>
+<h2 id="二re-rank-是什麼為什麼網路上常推薦" class="t2">二、Re-rank 是什麼、為什麼網路上常推薦</h2>
+<p>典型 RAG 檢索是「雙塔（bi-encoder）」：query 與 chunk 各自獨立編碼成向量，再算 cosine。它快、可預先索引，但<strong>query 與 chunk 沒有交互注意力</strong>，對「語意細膩差異、否定、條件限定」容易排序失準。</p>
+<p>Re-rank（二階重排）通常用 <strong>cross-encoder / reranker 模型</strong>（如 BGE-reranker、Cohere Rerank）：把 (query, chunk) <strong>成對</strong>餵進模型，輸出更貼近人類相關性判斷的分數，對第一階撈回的候選重排。它精準，但<strong>每個候選都要跑一次模型</strong>，故只用於「先用便宜檢索撈 N 個候選 → 對這 N 個重排 → 取前 K」。</p>
+<p>網路推薦 rerank 的前提，多半是「檢索召回還行、但<strong>排序</strong>不夠好，導致最相關段落沒排進前 K」。</p>
+<hr>
+<h2 id="三在本系統現況下的效益評估" class="t3">三、在「本系統現況」下的效益評估</h2>
+<div class="tw"><table><thead><tr><th>面向</th><th>評估</th></tr></thead><tbody><tr><td><strong>是否可能有幫助</strong></td><td>有可能。本系統已是「向量 + 關鍵字」線性融合，rerank 能改善最終 <code>TopK</code> 的<strong>排序精準度</strong>，讓最相關 chunk 更穩定排到前面，對「有命中但答案不準」類問題有潛在幫助。</td></tr><tr><td><strong>目前是否有證據需要它</strong></td><td><strong>仍沒有。</strong> 評測地基已於 0.3.2/0.3.3/0.3.9 完成（EVAL-2 稽核持久化、EVAL-3 topScore 分佈與門檻校準、EVAL-1 評測基線快照），但<strong>尚未跑出「召回夠、排序差」的證據</strong>（相關 chunk 有進候選卻常落在 <code>TopK</code> 之外）。沒有這個證據前導入 rerank 仍是「憑感覺優化」。</td></tr><tr><td><strong>成本：延遲</strong></td><td>每查詢要對 <code>CandidateTopK</code>（預設 50）個候選各跑一次 cross-encoder，明顯增加問答延遲（雲端 API 往返或地端模型推論）。</td></tr><tr><td><strong>成本：部署</strong></td><td>需額外的 reranker：雲端（如 Cohere Rerank，另一組金鑰與費用）或地端（部署 BGE-reranker，吃資源）。與現有「雲端/地端可切換」架構要一致設計。</td></tr><tr><td><strong>與現有替代槓桿比較</strong></td><td>近期<strong>更高效益且更低成本</strong>的槓桿是：① 用真實 <code>topScore</code> 分佈<strong>校準兩段式門檻</strong>（RQ-1）；② <strong>adjacent chunk expansion</strong>（RQ-2）解決「章節被切開、答案缺上下文」；③ 調 <code>VectorWeight</code>／<code>KeywordWeight</code>、<code>TopK</code>、切塊參數。這些多半改設定即可，不需新模型。</td></tr></tbody></table></div>
+<hr>
+<h2 id="四建議有條件的-p2暫緩設定為評測驅動" class="t4">四、建議：有條件的 P2（暫緩，設定為評測驅動）</h2>
+<p><strong>結論：現階段不導入 rerank，列為「有條件的 P2」。</strong> 這與既有多份文件的一致立場相同（planning/08「若融合分數在評測集表現不足再導入」、strategy/12「rerank 列為 v2 選配」）。</p>
+<p><strong>導入的觸發條件（滿足才做）</strong>：</p>
+<ol><li>~~已完成 <strong>EVAL-1</strong>（建立 檢索品質評測基線）與 <strong>EVAL-2/EVAL-3</strong>（稽核持久化 + topScore 分佈）。~~ <strong>✅ 已於 0.3.2/0.3.3/0.3.9 完成。</strong></li><li>評測顯示：召回沒問題（相關 chunk 有進 <code>CandidateTopK</code>），但<strong>排序不佳</strong>（相關 chunk 常落在 <code>TopK</code> 之外或偏後，Precision@k／NDCG 偏低）。<strong>（目前的關卡——尚未出現此證據。）</strong></li><li>先嘗試調融合權重、<code>TopK</code>、切塊、門檻仍無法改善。</li></ol>
+<p>若上述都成立，rerank 才是對症下藥。</p>
+<hr>
+<h2 id="五若未來要導入建議做法供日後實作參考本次不實作" class="t5">五、若未來要導入：建議做法（供日後實作參考，本次不實作）</h2>
+<ul><li><strong>插入點</strong>：<code>RetrievalService.RetrieveAsync</code> 中「融合排序後、<code>Take(TopK)</code> 之前」。對融合後的候選（可略多於 <code>CandidateTopK</code> 或取融合前 K 大者）呼叫 reranker，取 rerank 分數重排後再 <code>Take(TopK)</code>。門檻判定（<code>RejectThreshold</code>）建議改用 rerank 分數或維持融合分數，需一併在評測上驗證。</li><li><strong>可設定開關</strong>：新增 <code>RetrievalSettings.RerankEnabled</code>（預設 false）、<code>RerankModel</code>、<code>RerankCandidateCount</code>、<code>RerankProvider</code>（雲/地端），沿用現有「雲端/地端切換」慣例；未設定或關閉時完全走現有路徑（零風險回退）。</li><li><strong>抽象</strong>：比照 <code>IEmbeddingClient</code>／<code>IVectorStore</code>，定義 <code>IRerankClient</code>，雲端與地端各一實作，便於替換與測試。</li><li><strong>權控不變量</strong>：rerank 只重排「已通過團隊權控的候選」，不得引入越權內容（越權洩漏須維持 0）。</li><li><strong>評測回歸</strong>：導入前後都要跑 檢索品質評測比較 Precision@k／NDCG／延遲，確認「精準度提升 &gt; 延遲成本」。</li><li><strong>成本控制</strong>：<code>CandidateTopK</code> 若為 50，可考慮 rerank 只吃融合前 20–30 個候選以壓低延遲。</li></ul>
+<hr>
+<h2 id="六一句話總結" class="t6">六、一句話總結</h2>
+<blockquote><p>Re-rank 在本系統<strong>可能有用但尚無證據需要</strong>；當務之急是先把「評測基線 + topScore 分佈 + 門檻校準」的地基打好（成本低、效益明確）。把 rerank 列為<strong>評測驅動的有條件 P2</strong>，等數據顯示「召回夠、排序差」時，再以可開關、雲/地端可切換的 <code>IRerankClient</code> 插在「融合後、取 TopK 前」導入。</p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>導入顧問：我要清楚知道這套系統做不到什麼</li></ul></div><div class="card"><h3>同類文件（系統架構）</h3><ul><li><a href="../../docs/architecture/two-stage-threshold.html">AI 知識問答：兩段式相似度門檻與查無依據攔截（設計文件）</a></li><li><a href="../../docs/architecture/knowledge-type-versioning.html">知識型態抽象 × 版本化 × 時效性（設計文件）</a></li><li><a href="../../docs/architecture/api-versioning.html">API Versioning 策略</a></li><li><a href="../../docs/architecture/dto-boundaries.html">DTO 與模型邊界規範</a></li><li><a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a></li><li><a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a></li><li><a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例</a></li><li><a href="../../docs/architecture/wiki-vs-cleaned.html">Wiki 與 Cleaned 的角色差異</a></li><li><a href="../../docs/architecture/architecture-overview.html">架構總覽</a></li><li><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a></li><li><a href="../../docs/architecture/data-model.html">資料模型與資料庫</a></li><li><a href="../../docs/architecture/data-lifecycle.html">資料生命週期與維護（更新、刪除、級聯與孤兒）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一先釐清一個前提重要">一、先釐清一個前提（重要）</a><a class="l2" href="#二re-rank-是什麼為什麼網路上常推薦">二、Re-rank 是什麼、為什麼網路上常推薦</a><a class="l2" href="#三在本系統現況下的效益評估">三、在「本系統現況」下的效益評估</a><a class="l2" href="#四建議有條件的-p2暫緩設定為評測驅動">四、建議：有條件的 P2（暫緩，設定為評測驅動）</a><a class="l2" href="#五若未來要導入建議做法供日後實作參考本次不實作">五、若未來要導入：建議做法（供日後實作參考，本次不實作）</a><a class="l2" href="#六一句話總結">六、一句話總結</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/architecture/RAG-rerank是否導入分析.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP Server 整合 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>MCP Server 整合 PRD</h1><p class="sub">定義以 MCP（Model Context Protocol）對外暴露知識查詢能力的產品需求，讓外部 AI Agent 能安全查詢企業知識庫</p></header><div class="docwrap"><main><ul><li>文件用途：定義以 MCP（Model Context Protocol）對外暴露知識查詢能力的產品需求，讓外部 AI Agent 能安全查詢企業知識庫</li><li>主要讀者：產品、開發、維運、系統管理員、整合開發者</li><li>文件版本：1.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.63</li><li>首次實作版本：1.0.2（Phase 0 骨架）</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026/07/17</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>技術設計與 AI Agent 使用範例見 <a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a>；各家客戶端連線設定與運維見 <a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a>；變更歷程見 <a href="../../docs/changelog/2026-07-16-mcp-server-76e67977.html">MCP Server 實作</a>、<a href="../../docs/changelog/2026-07-17-mcp-token-edb171c9.html">MCP 問答聊天紀錄與 Token 歸屬</a>、<a href="../../docs/changelog/2026-07-17-mcp-apikey-1b67135a.html">MCP API Key 資料庫化與網頁管理</a>。</p></blockquote>
+<h2 id="一產品目標與範圍" class="t1">一、產品目標與範圍</h2>
+<p>以 HTTP（Streamable HTTP）transport 在既有 <code>KnowledgeExtraction.Web</code> 內嵌 MCP Server，讓任何支援 MCP 的外部 AI Agent（Claude Code／Desktop、Codex、Cursor、VS Code 等）把「查詢企業知識庫」當成內建工具直接使用，<strong>不需為每個 Agent 客製 API 串接</strong>，且全面沿用既有團隊權控、聊天紀錄與 Token 歸屬。</p>
+<div class="tw"><table><thead><tr><th>範圍</th><th>內容</th></tr></thead><tbody><tr><td>✅ 目標</td><td>端點 <code>/mcp</code> 暴露 4 個知識查詢工具＋連通診斷；全面套用團隊權控；雙認證；分級日誌與稽核</td></tr><tr><td>✅ 目標</td><td>MCP 問答寫入聊天紀錄並將檢索期 Token 歸屬到呼叫者與作業</td></tr><tr><td>✅ 目標</td><td>API Key 存資料庫，提供管理員網頁 CRUD 與逐把啟用/停用</td></tr><tr><td>❌ 非目標</td><td>寫入型工具（新增／修改知識）、MCP resources／prompts、stdio 本機模式、金鑰簽發/撤銷稽核歷程表</td></tr></tbody></table></div>
+<h2 id="二使用者與入口" class="t2">二、使用者與入口</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>說明</th></tr></thead><tbody><tr><td>對外端點</td><td><code>/mcp</code>（Streamable HTTP），套 <code>McpAccess</code> 授權 policy 與 <code>api</code> 限流</td></tr><tr><td>金鑰管理頁</td><td><code>/mcp-api-keys</code>（系統管理 → AI 與整合 →「MCP 金鑰管理」，僅管理員 <code>CheckIsAdmin()</code>）</td></tr><tr><td>主要使用者</td><td>外部 AI Agent 使用者／整合開發者（呼叫端）；系統管理員（發金鑰、運維）</td></tr><tr><td>憑證</td><td>JWT Bearer（<code>Authorization: Bearer</code>）或 MCP 專用 API Key（<code>X-API-Key</code>）擇一</td></tr></tbody></table></div>
+<h2 id="三對外工具tools" class="t3">三、對外工具（tools）</h2>
+<div class="tw"><table><thead><tr><th>工具</th><th>用途</th></tr></thead><tbody><tr><td><code>knowledge_ping</code></td><td>連通診斷，確認端點與認證可用</td></tr><tr><td><code>knowledge_ask</code></td><td>自然語言問答，回傳含出處與信心的檢索結果（<strong>伺服器端不生成 AI 答案</strong>，答案由用戶端 LLM 生成）</td></tr><tr><td><code>knowledge_search</code></td><td>混合檢索，回傳最相關的原始內容片段</td></tr><tr><td><code>knowledge_list_sources</code></td><td>盤點知識來源（只回 Id/Title/Categories/Teams/Status）</td></tr><tr><td><code>knowledge_get_document</code></td><td>取回單一文件完整（已清洗）內容；對不存在／未清洗／無權統一回 <code>unavailable</code>，不洩漏來源存在性</td></tr></tbody></table></div>
+<p>工具全部複用<strong>已內建團隊權控</strong>的既有服務（<code>KnowledgeBaseChatService</code>、<code>IRetrievalService</code>、<code>KnowledgeSourceService</code>），以 assembly 掃描註冊。</p>
+<h2 id="四認證與團隊權控資安不變量" class="t4">四、認證與團隊權控（資安不變量）</h2>
+<ul><li><code>/mcp</code> 套具名 policy <strong><code>McpAccess</code></strong>，接受 <code>Bearer</code>（JWT）／<code>Cookie</code>／<code>McpApiKey</code> 任一 scheme。</li><li><strong>JWT 方案</strong>：<code>IJwtTokenService</code> 簽發含 <code>ClaimTypes.Sid</code> 的 token；<code>RecordAccessScopeProvider</code> 由 <code>Sid</code> 反查 <code>MyUser</code> 與角色團隊得到 <code>RecordAccessScope</code>。</li><li><strong>API Key 方案（1.0.9 起 DB 型）</strong>：<code>McpApiKeyAuthenticationHandler</code> 經 <code>McpAccessKeyService.FindEnabledMatchAsync</code>（只認<strong>啟用中</strong>金鑰、<code>CryptographicOperations.FixedTimeEquals</code> 常數時間比對）驗證後，發帶 <code>ClaimTypes.Sid = UserId</code> 的身分。</li><li>兩案皆經 <code>McpIdentityResolver</code> 將身分填入 <code>CurrentUserService</code>，<strong>MCP 呼叫沿用與 Blazor／Web API 完全一致的團隊權控</strong>：非管理員只能查到無團隊（公開）或與其角色團隊交集的內容，管理員不受限。</li></ul>
+<h2 id="五可觀測性108-起" class="t5">五、可觀測性（1.0.8 起）</h2>
+<ul><li><strong>聊天紀錄</strong>：<code>knowledge_ask</code> 每次呼叫寫入 <code>LlmChatLog</code>（<code>Origin=Mcp</code>），可於 <code>/chat-logs</code> 以來源標籤篩選查閱；全文含呼叫端金鑰名稱、問題與回傳 context／出處，並標註「伺服器端未生成答案」。</li><li><strong>Token 歸屬</strong>：以 <code>OperationContext.Push</code>（<code>Operation=McpKnowledgeAsk</code>/<code>McpKnowledgeSearch</code>）將檢索期 Embedding／QueryRewrite Token 歸屬至呼叫者與作業，於 <code>/token-usage</code> 以 MCP 作業標籤查閱。生成答案 Token 在用戶端計量，不在本系統。</li><li><strong>分級日誌</strong>：4 工具注入 <code>IHttpContextAccessor</code>，日誌情境帶 <code>user=</code>（已認證身分）與 <code>op=</code>；<code>catch</code> 不靜默。</li></ul>
+<h2 id="六api-key-網頁管理109-起" class="t6">六、API Key 網頁管理（1.0.9 起）</h2>
+<ul><li>入口 <code>/mcp-api-keys</code>，僅管理員。</li><li>功能：新增（自動產生金鑰、可重新產生／複製）、對映使用者下拉、<strong>啟用/停用切換（免重啟即時生效）</strong>、修改、刪除。</li><li>資料表 <code>McpAccessKey</code>（<code>Name</code>/<code>KeyValue</code>/<code>UserId</code>/<code>IsEnabled</code>/<code>CreatedAt</code>/<code>UpdatedAt</code>），模型變更已產雙資料庫 migration（Sqlite <code>20260717053352</code> ／ SqlServer <code>20260717053434</code>）。</li><li>金鑰以明文存 DB，僅管理員可於網頁檢視。</li></ul>
+<h2 id="七錯誤與邊界" class="t7">七、錯誤與邊界</h2>
+<ul><li>認證失敗回 401；停用金鑰立即被拒（免重啟）。</li><li><code>knowledge_get_document</code> 對無權／不存在／未清洗統一回 <code>unavailable</code>，不洩漏來源存在性。</li><li>稽核／紀錄／Token 寫入失敗不得阻斷主要查詢流程，但必須留可診斷日誌。</li><li>不記錄金鑰明文、Bearer token 至日誌。</li></ul>
+<h2 id="八驗收條件" class="t8">八、驗收條件</h2>
+<ol><li>以 JWT 與 API Key 各能通過認證並呼叫五個工具。</li><li>管理員 vs 非管理員呼叫同一問題，回傳內容符合團隊權控差異；非管理員看不到無權來源。</li><li>MCP 問答在 <code>/chat-logs</code> 可查、在 <code>/token-usage</code> 以 MCP 作業歸屬正確。</li><li><code>/mcp-api-keys</code> 可新增、啟用/停用、刪除；停用後連線立即 401、重新啟用又通。</li><li>選單三處（<code>Menu.json</code>、<code>RolePermissionService</code>、<code>MagicObjectHelper</code>）與頁面權限同步。</li><li><code>dotnet test</code> 全套通過（含權控不變量、四工具、認證、日誌守則）。</li></ol>
+<h2 id="九規劃中需求" class="t1">九、規劃中需求</h2>
+<ul><li>尚未實作：寫入型工具、MCP resources／prompts、stdio 本機模式、金鑰簽發/撤銷稽核歷程表、稽核「來源通道」欄位、稽核對 MCP 補記呼叫者 account（目前以工具日誌 <code>user=</code> 補足）。</li></ul>
+<blockquote><p>返回 <a href="../../docs/prd/readme-3c3c34ab.html">PRD 主控台</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li><li><a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一產品目標與範圍">一、產品目標與範圍</a><a class="l2" href="#二使用者與入口">二、使用者與入口</a><a class="l2" href="#三對外工具tools">三、對外工具（tools）</a><a class="l2" href="#四認證與團隊權控資安不變量">四、認證與團隊權控（資安不變量）</a><a class="l2" href="#五可觀測性108-起">五、可觀測性（1.0.8 起）</a><a class="l2" href="#六api-key-網頁管理109-起">六、API Key 網頁管理（1.0.9 起）</a><a class="l2" href="#七錯誤與邊界">七、錯誤與邊界</a><a class="l2" href="#八驗收條件">八、驗收條件</a><a class="l2" href="#九規劃中需求">九、規劃中需求</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/MCP-Server整合-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

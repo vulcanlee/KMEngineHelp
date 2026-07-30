@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>產品需求文件（PRD）：逐字稿依提示詞透過 LLM 產生內容｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>產品需求文件（PRD）：逐字稿依提示詞透過 LLM 產生內容</h1></header><div class="docwrap"><main><ul><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.61</li><li>首次實作版本：0.2.44</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026-06-09</li><li>狀態：已實作（系統版本 0.2.44）</li><li>編碼：UTF-8（繁體中文）</li></ul>
+<hr>
+<h2 id="一背景與目的" class="t1">一、背景與目的</h2>
+<p>影音轉逐字稿頁（<code>/media-transcription</code>）已能產出逐字稿，但逐字稿本身價值有限——使用者真正需要的是「會議紀錄」「工作待辦清單」等衍生產出。本系統已建立「AI 提示詞（Prompt）」基礎資料，且已整合 OpenAI（用於語音轉錄）。本功能把兩者接起來：在每筆「已完成」轉錄的操作區，讓使用者挑一個提示詞、視需要微調後，請 OpenAI 聊天模型依「提示詞 + 逐字稿」產生內容，結果保存於該筆紀錄，可隨時檢視並複製到剪貼簿。</p>
+<hr>
+<h2 id="二需求決策" class="t2">二、需求決策</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>決策</th></tr></thead><tbody><tr><td>觸發位置</td><td>影音轉逐字稿列表操作區，僅在該筆 <code>Status == 已完成</code> 時顯示「依提示詞產生」圖示</td></tr><tr><td>提示詞選擇</td><td>單選可搜尋下拉（AntDesign <code>Select</code> + <code>EnableSearch</code>），來源為「AI 提示詞」中啟用中的項目；選取後將其本文帶入可編輯的多行文字盒</td></tr><tr><td>送出內容</td><td><code>編輯後提示詞 + "\n\n\n"（剛好三個換行）+ 逐字稿</code>，以單一 user 訊息送往 OpenAI Chat Completions</td></tr><tr><td>產生方式</td><td><strong>背景產生</strong>：對話窗立即關閉並提示「正在請 LLM 產生資料」，於獨立 DI scope 執行（離開頁面也不中斷），完成後自動讓「檢視產生結果」圖示出現</td></tr><tr><td>結果保存</td><td><strong>只保留最新一筆</strong>（<code>MediaTranscription.GeneratedContent</code> / <code>GeneratedAt</code>），重新產生即覆寫</td></tr><tr><td>檢視結果</td><td>操作區「檢視產生結果」圖示（僅在已有結果時顯示）開啟唯讀對話窗，提供「複製到剪貼簿」按鈕</td></tr><tr><td>模型</td><td>寫於 <code>appsettings.json</code> 的 <code>OpenAISettings.GenerationModel</code>，預設 <code>gpt-5.4</code>；逾時 <code>GenerationTimeoutSeconds</code>（預設 120 秒）。共用既有 <code>ApiKey</code>／<code>BaseUrl</code></td></tr><tr><td>範圍</td><td>僅影音轉逐字稿頁；不另開設定區段</td></tr></tbody></table></div>
+<hr>
+<h2 id="三使用者流程" class="t3">三、使用者流程</h2>
+<ol><li>在影音轉逐字稿列表，找到狀態為「已完成」的紀錄，點操作區「依提示詞產生」（✨）。</li><li>對話窗開啟：上方為提示詞單選下拉（可輸入關鍵字搜尋），選取後其本文帶入下方多行文字盒；使用者可自由調整文字（Enter 為換行，不會送出）。</li><li>按「產生」：對話窗關閉，畫面右下顯示「正在請 LLM 產生資料」。系統在背景把「提示詞 + 三個換行 + 逐字稿」送往 LLM。</li><li>取得回應後寫回該筆紀錄；完成時顯示「LLM 已完成內容產生」並自動刷新列表，操作區出現「檢視產生結果」（📑）圖示。</li><li>點「檢視產生結果」：對話窗唯讀顯示產生內容，按「複製到剪貼簿」可複製全文。</li><li>再次「依提示詞產生」會以新結果覆寫舊結果。</li></ol>
+<hr>
+<h2 id="四資料模型" class="t4">四、資料模型</h2>
+<p><code>MediaTranscription</code> 實體新增兩欄位（雙 provider migration <code>AddGeneratedContentToMediaTranscription</code>）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>GeneratedContent</td><td>string?（TEXT／nvarchar(max)）</td><td>LLM 產生的最新內容；重新產生即覆寫</td></tr><tr><td>GeneratedAt</td><td>DateTime?</td><td>產生時間</td></tr></tbody></table></div>
+<p><code>MediaTranscriptionAdapterModel</code> 對應新增 <code>GeneratedContent</code>、<code>GeneratedAt</code>，並提供唯讀 <code>HasGeneratedContent</code>（供操作區圖示判斷）。</p>
+<hr>
+<h2 id="五架構與元件" class="t5">五、架構與元件</h2>
+<ul><li><strong>設定</strong> <code>OpenAISettings</code>（<code>KnowledgeExtraction.Models/Systems/OpenAISettings.cs</code>）：新增 <code>GenerationModel</code>（預設 <code>gpt-5.4</code>）、<code>GenerationTimeoutSeconds</code>（預設 120）。共用 <code>ApiKey</code>／<code>BaseUrl</code>。</li><li><strong>聊天用戶端</strong> <code>OpenAIChatCompletionClient</code>（<code>KnowledgeExtraction.Business/Services/Transcription/</code>）：<code>POST chat/completions</code>，Bearer 驗證，請求僅帶 <code>model</code> 與單一 user 訊息（最小欄位，相容 GPT-5 家族）。靜態方法 <code>BuildRequestBody</code>／<code>ParseContent</code> 便於單元測試。<code>AddHttpClient&lt;OpenAIChatCompletionClient&gt;</code>（逾時取 <code>GenerationTimeoutSeconds</code>）。</li><li><strong>產生服務</strong> <code>LlmGenerationService</code>（<code>KnowledgeExtraction.Business/Services/DataAccess/</code>）：<code>static ComposePrompt(editedPrompt, transcript)</code>（三換行規則）；<code>GenerateAsync(id, editedPrompt, transcriptText, ct)</code> 呼叫聊天用戶端並把結果寫回紀錄。<strong>僅依賴 DbContext 與聊天用戶端</strong>，可於背景獨立 DI scope 安全執行。</li><li><strong>逐字稿讀取與權控</strong>：逐字稿文字由 UI 執行緒（具登入權控情境）以 <code>MediaTranscriptionService.GetTranscriptAsync(id)</code>（已內建團隊權控）取得後，再傳入背景產生；背景不依賴目前登入使用者情境。</li><li><strong>View</strong> <code>MediaTranscriptionView</code>：操作區兩圖示（✨ 產生／📑 檢視結果）；產生對話窗為純 <code>Modal</code>（非 EditForm，故 Enter 換行）；背景以 <code>IServiceScopeFactory</code> 開新 scope 執行 <code>LlmGenerationService</code>；剪貼簿以 <code>IJSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", ...)</code>。</li><li><strong>DI</strong>：<code>AddScoped&lt;LlmGenerationService&gt;()</code>；<code>AddHttpClient&lt;OpenAIChatCompletionClient&gt;</code>。</li></ul>
+<hr>
+<h2 id="六設定appsettingsjson" class="t6">六、設定（appsettings.json）</h2>
+<p>於 <code>OpenAISettings</code> 區段新增：</p>
+<pre><code>"GenerationModel": "gpt-5.4",
+"GenerationTimeoutSeconds": 120</code></pre>
+<p><code>ApiKey</code> 仍屬機密，以環境變數或 User Secrets 提供（見<a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a> 第 6 節）。實作建置時 <code>SystemVersion</code> +1（→ <code>0.2.44</code>）。</p>
+<hr>
+<h2 id="七測試" class="t7">七、測試</h2>
+<ul><li><code>LlmGenerationServiceTests</code>：<code>ComposePrompt</code> 在提示詞與逐字稿間剛好放三個換行（載入核心規則）。</li><li><code>OpenAIChatCompletionClientTests</code>：<code>BuildRequestBody</code>（model 與單一 user 訊息）、<code>ParseContent</code>（取 <code>choices[0].message.content</code>、空 choices 拋例外）。</li><li><code>PromptServiceTests</code>：<code>GetAllEnabledAsync</code> 僅回啟用中、依名稱排序、含本文。</li><li>聊天 HTTP 與背景持久化的端到端路徑以手動驗收涵蓋（需設定 <code>OpenAISettings:ApiKey</code>）。</li></ul>
+<hr>
+<h2 id="八驗收條件" class="t8">八、驗收條件</h2>
+<ol><li>僅「已完成」紀錄顯示「依提示詞產生」圖示。</li><li>產生對話窗下拉列出啟用中提示詞，選取後本文帶入文字盒且可編輯；Enter 為換行不送出。</li><li>按「產生」後對話窗關閉並提示「正在請 LLM 產生資料」。</li><li>送往 LLM 的內容為「提示詞 + 三個換行 + 逐字稿」。</li><li>產生完成後自動出現「檢視產生結果」圖示；開啟可見內容並可複製到剪貼簿。</li><li>重新產生覆寫舊結果。</li><li>模型取自 <code>appsettings.json</code> 的 <code>GenerationModel</code>（預設 <code>gpt-5.4</code>）。</li><li><code>dotnet build</code>／<code>dotnet test</code> 綠燈；雙 provider migration 皆已產生；版本升至 0.2.44。</li></ol>
+<hr>
+<h2 id="九風險與邊界" class="t1">九、風險與邊界</h2>
+<ul><li>無逐字稿／無權限：<code>GetTranscriptAsync</code> 回 null → 錯誤提示，不送出。</li><li>未設 <code>ApiKey</code>：聊天用戶端擲中文例外 → 錯誤提示，不致崩潰。</li><li>LLM 逾時／錯誤：背景捕捉並提示，不寫入結果；逾時由 <code>GenerationTimeoutSeconds</code> 限制。</li><li>逐字稿過長超模型 token 上限：API 回錯誤 → 錯誤提示（未來可分段／摘要）。</li><li>離開頁面：背景以獨立 scope 持久化，結果仍會落地，下次載入即可檢視。</li><li>剪貼簿：<code>navigator.clipboard</code> 需安全內容（https／localhost）與使用者手勢；失敗則提示手動複製。</li></ul>
+<hr>
+<h2 id="十未來延伸out-of-scope" class="t2">十、未來延伸（Out of Scope）</h2>
+<ul><li>保留多筆產生歷史與比較。</li><li>過長逐字稿自動分段／摘要再產生。</li><li>將產生結果一鍵建立為「會議紀錄」「工作任務」等紀錄。</li><li>提示詞變數樣板（如 <code>{{transcript}}</code> 佔位符）。</li></ul>
+<h2 id="十一0334-現況校正" class="t3">十一、0.3.34 現況校正</h2>
+<ul><li>影音逐字稿與文件轉文字均可依已啟用提示詞產生衍生內容；文件另可在支援時直接送原始圖片／PDF。</li><li>產生工作在背景執行；觸發前先完成團隊權控與輸入讀取，背景 scope 不自行推測使用者權限。</li><li>產生結果以檔案保存，可檢視、複製、搜尋取代及原地編修；新版本／上游內容改變需重新產生。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景與目的">一、背景與目的</a><a class="l2" href="#二需求決策">二、需求決策</a><a class="l2" href="#三使用者流程">三、使用者流程</a><a class="l2" href="#四資料模型">四、資料模型</a><a class="l2" href="#五架構與元件">五、架構與元件</a><a class="l2" href="#六設定appsettingsjson">六、設定（appsettings.json）</a><a class="l2" href="#七測試">七、測試</a><a class="l2" href="#八驗收條件">八、驗收條件</a><a class="l2" href="#九風險與邊界">九、風險與邊界</a><a class="l2" href="#十未來延伸out-of-scope">十、未來延伸（Out of Scope）</a><a class="l2" href="#十一0334-現況校正">十一、0.3.34 現況校正</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/逐字稿LLM產生-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

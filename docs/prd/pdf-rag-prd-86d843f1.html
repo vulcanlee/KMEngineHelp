@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</h1></header><div class="docwrap"><main><ul><li>文件版本：2.0</li><li>文件狀態：部分實作（通用 RAG 已實作；PDF 結構感知處理規劃中）</li><li>現行系統版本：1.0.62</li><li>首次實作版本：通用 RAG 0.2.123–0.2.128；PDF 走 LLM 轉 Markdown 1.0.54（部分解決「讀懂」面向）；PDF 結構感知藍圖（版面／頁碼／chunk metadata）未實作</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026-06-19</li><li>狀態：<strong>部分實作＋設計藍圖</strong>。通用知識庫 RAG（嵌入索引／混合檢索／跨來源問答／檢索品質評測）已於階段三 <strong>0.2.123–0.2.128 實作</strong>；PDF 走 LLM 轉 Markdown（保留表格語法與圖表描述）已於 <strong>1.0.54 實作</strong>，解決本 PRD「讀懂」面向的一部分；「結構化 PDF 專屬解析（頁碼定位／條款切片／雙欄版面／OCR 分流／chunk metadata）」仍未實作，屬日後增強方向。</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="一背景與目的" class="t1">一、背景與目的</h2>
+<h3 id="11-現況與藍圖界線">1.1 現況與藍圖界線</h3>
+<p><strong>已實作現況（0.2.123–0.2.128 起）</strong>：PDF 可經文件轉文字轉 Markdown；知識來源可聚合／清洗／蒸餾；通用切塊、嵌入、混合檢索、跨來源問答、出處與檢索品質評測均已提供。現況以 <a href="../../docs/prd/markitdown-prd-72bba06f.html">文件轉文字 PRD</a> 與 <a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a> 為準。</p>
+<p><strong>1.0.54 起的部分進展（PDF 走大語言模型轉換）</strong>：<code>MarkItDownSettings:PdfUseLlm</code> 開啟後，PDF 不再經 MarkItDown，而是以 base64 <code>file</code> 內容送 LLM 轉 Markdown。內建提示詞（槽位鍵 <code>文件-PDF轉Markdown</code>）要求：不省略不摘要、<strong>表格轉為 Markdown 表格語法並保留每一格</strong>、<strong>圖片與圖表在原位置以描述段落表達其內容與數值</strong>、標題階層對應原文、數學式以 LaTeX 呈現。</p>
+<p>這解決了本 PRD「<strong>讀懂</strong>」面向的一部分——表格結構與圖表資訊不再於純文字抽取中遺失。但它<strong>不涵蓋</strong>本 PRD 的其餘核心範圍：</p>
+<ul><li>沒有 PDF 類型判斷（原生文字型／掃描型／圖文混排）與 OCR 分流</li><li>沒有頁碼、章節、條款編號等<strong>版面座標與定位資訊</strong></li><li>產出仍是<strong>單一 Markdown 文字</strong>，沒有結構化 chunk metadata（文件ID／頁碼／章節／表格編號／圖片描述）</li><li>因此仍<strong>無法做到「答得出來源在哪一頁、哪一條」的可追溯引用</strong></li></ul>
+<p><strong>規劃中藍圖</strong>：本文件後續的條款、雙欄、掃描 OCR、版面分析、結構化 chunk metadata 與專用 Agent 工具鏈尚未實作。</p>
+<p>當系統未來要讓 agent 對「一堆 PDF」做 RAG（檢索增強生成）時，最常見也最表面的做法是「先轉文字 → 切片 → 丟向量庫」。但真實專案的 PDF 往往不是乾淨純文字，而是合約、財報、掃描件、技術文件，內含條款、表格、圖表、圖片、雙欄排版、流程圖、程式碼區塊、註腳、頁首頁尾。若直接當一般文本抽取，會出現：</p>
+<ul><li><strong>切片斷裂</strong>：標題與正文、表格與上下文被機械式切開。</li><li><strong>表格結構混亂</strong>：欄列關係被攤平成亂序文字。</li><li><strong>頁首頁尾重複召回</strong>：每頁重複的頁眉頁腳被當成內容反覆檢索。</li><li><strong>圖片/圖表資訊遺失</strong>：純文字抽取直接丟棄視覺內容。</li><li><strong>無法追溯引用</strong>：模型即使答對，也說不出來源在哪一頁、哪一章、哪一條。</li></ul>
+<p><strong>本系統現況（基準，1.0.62 核對）：</strong> PDF 有兩條轉換路徑——<code>markitdown</code>（純文字抽取）或 <strong>1.0.54 起的 LLM 轉換</strong>（<code>PdfUseLlm</code>，提示詞要求保留表格語法與圖片描述，見 §1.1）——之後使用已實作的通用清洗、蒸餾、切塊、嵌入、混合檢索、問答與評測。<strong>兩條路徑產出的都是單一 Markdown</strong>：目前仍無 PDF 類型判斷、OCR、版面／頁碼保留及結構化 chunk metadata。系統亦具備多模態 <code>CompleteWithImageAsync</code>／<code>CompleteWithFileAsync</code>，用於圖片解讀與原始檔案模式 LLM 生成，但不等同結構化 PDF RAG。</p>
+<p><strong>目標：</strong> 在 PDF 進入「清洗 → 蒸餾 → 知識庫」之前，先讓它被<strong>正確讀懂、正確切分、正確引用</strong>。本 PRD 強化五階段路線圖（匯入 → 清洗 → 蒸餾 → 建立知識庫 → 智慧應用，見 <a href="../../docs/strategy/dev-roadmap.html">開發建議與路線圖</a>、<a href="../../docs/strategy/architecture-research.html">知識庫架構研究與建議</a>）中的「<strong>匯入</strong>」環節，並為「<strong>階段三：建立知識庫</strong>」產出<strong>結構化、帶 metadata、可追溯</strong>的 chunk。</p>
+<blockquote><p>定位：本 PRD 解決「PDF 型 RAG 的難點」＝<strong>讀懂・切分・引用＋評測</strong>。向量化檢索本身（embedding 供應商抽象、pgvector、混合檢索＋rerank）屬路線圖<strong>階段三</strong>，<strong>不在本 PRD 重複規格</strong>，本 PRD 只負責產出可被階段三索引的結構化 chunk。</p></blockquote>
+<hr>
+<h2 id="二需求決策" class="t2">二、需求決策</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>決策</th></tr></thead><tbody><tr><td>處理起點</td><td><strong>先判斷 PDF 類型，再選解析策略</strong>，不一律抽純文字</td></tr><tr><td>解析方式</td><td>原生文字型→文字解析；掃描型→OCR；圖文混排/表格密集/流程圖→版面分析＋視覺/多模態</td></tr><tr><td>結構保留</td><td>盡量保留頁碼、標題層級、章節關係、段落邊界、表格位置、圖片說明、註腳、頁首頁尾</td></tr><tr><td>切片方式</td><td><strong>依語意與結構切片，非固定字數</strong>；標題不離正文、條款盡量完整、表格與圖表專處理</td></tr><tr><td>chunk 內容</td><td>每個 chunk 帶 metadata（文件ID/頁碼/章節/條款/表格編號/圖片描述/版本時間/來源類型/Teams）</td></tr><tr><td>Agent 取用</td><td><strong>不整份 PDF 塞進 context</strong>；拆成多個工具讓 agent 按需呼叫</td></tr><tr><td>引用</td><td>一律<strong>可追溯引用</strong>（頁碼、章節、原文片段、表格編號），對應 chunk metadata</td></tr><tr><td>品質</td><td>建立<strong>評測閉環</strong>，不只看最終答案，往下拆檢索/頁碼/表格/OCR/圖表/引用等細指標</td></tr><tr><td>向量檢索</td><td>embedding/pgvector/混合檢索＋rerank 沿用路線圖<strong>階段三</strong>，本 PRD 不重複規格</td></tr><tr><td>權控</td><td>chunk <strong>繼承來源 Teams 標籤</strong>，檢索與引用全程套用既有團隊權控</td></tr></tbody></table></div>
+<hr>
+<h2 id="三功能概述與非目標yagni" class="t3">三、功能概述與非目標（YAGNI）</h2>
+<p><strong>本 PRD 涵蓋（PDF 結構化 ingestion 與可追溯基礎）：</strong></p>
+<ol><li>PDF 類型判斷與對應解析策略。</li><li>文件結構還原（頁碼、標題層級、章節、段落、表格、圖片、註腳、頁眉頁腳）。</li><li>語意切片與 chunk metadata。</li><li>表格／圖片／圖表的專門處理。</li><li>Agent 工具鏈介面定義（Search / Read Page / Extract Table / Chart Analysis / Citation）。</li><li>可追溯引用機制。</li><li>評測閉環與品質指標。</li></ol>
+<p><strong>非目標（本 PRD 不做，屬其他階段或未來延伸）：</strong></p>
+<ul><li>❌ Embedding 供應商抽象、向量庫（pgvector）建置、混合檢索＋rerank、完整問答 UI —— 屬路線圖<strong>階段三</strong>。</li><li>❌ 蒸餾為 Wiki 實體頁（知識頁審核） —— 屬路線圖<strong>階段二</strong>（見 strategy/04）。</li><li>❌ 非 PDF 來源（逐字稿、圖片辨識）的結構化 —— 先以 PDF 為主，其餘沿用既有管線。</li><li>❌ 取代既有 <code>markitdown</code> 文件轉文字功能 —— markitdown 保留為「快速純文字」備援路徑。</li></ul>
+<hr>
+<h2 id="四pdf-類型判斷與解析策略" class="t4">四、PDF 類型判斷與解析策略</h2>
+<p>處理一律<strong>先判斷類型</strong>，類型判斷錯，後面切片、檢索、回答都會失真。</p>
+<div class="tw"><table><thead><tr><th>類型</th><th>特徵</th><th>判斷依據（建議）</th><th>解析策略</th></tr></thead><tbody><tr><td><strong>原生文字型</strong></td><td>說明書、產品文件、論文</td><td>可抽取文字字元層充足、文字覆蓋率高、影像佔比低</td><td>直接文字解析＋版面座標</td></tr><tr><td><strong>掃描型</strong></td><td>紙本合約、發票、拍照轉檔</td><td>幾乎無可抽取文字、整頁為影像</td><td><strong>先 OCR</strong> 再做版面/結構還原</td></tr><tr><td><strong>圖文混排/表格密集/流程圖</strong></td><td>財報、型錄、簡報轉檔</td><td>影像/圖表佔比高、表格多、雙欄</td><td>版面分析＋<strong>視覺/多模態</strong>並用</td></tr></tbody></table></div>
+<ul><li>判斷可採「逐頁」粒度（同一份 PDF 可能混合原生頁與掃描頁），逐頁選策略。</li><li>結果記錄每頁的判定類型與信心，供後續除錯與評測。</li></ul>
+<hr>
+<h2 id="五文件結構還原需求" class="t5">五、文件結構還原需求</h2>
+<p>不可把整份文件抽成一大段純文字。生產環境應盡量保留：</p>
+<ul><li><strong>頁碼</strong>（每段內容必須知道自己在第幾頁）。</li><li><strong>標題層級</strong>與<strong>章節關係</strong>（H1/H2/H3… 與所屬章節路徑）。</li><li><strong>段落邊界</strong>。</li><li><strong>表格位置</strong>（頁、座標）與表格邊界。</li><li><strong>圖片說明</strong>（caption）與圖片位置。</li><li><strong>註腳</strong>。</li><li><strong>頁首/頁尾</strong>：須<strong>辨識並標記</strong>，使其<strong>不被當成正文重複召回</strong>（去重的重要來源）。</li></ul>
+<blockquote><p>關鍵不變量：<strong>每一段內容都要記錄它在原文中的位置</strong>（頁碼、座標/bbox、章節路徑），這是後續引用、校驗、來源追蹤的基礎。</p></blockquote>
+<hr>
+<h2 id="六語意切片與-chunk-metadata" class="t6">六、語意切片與 chunk metadata</h2>
+<p><strong>切片原則：依語意與結構，而非機械式固定字數（如每 500/800 字）。</strong></p>
+<div class="tw"><table><thead><tr><th>內容型態</th><th>切片方式</th></tr></thead><tbody><tr><td>標題＋正文</td><td>不拆開；同一標題下的數個段落可組成一個 chunk</td></tr><tr><td>合約條款</td><td>單一條款盡量<strong>完整保留</strong>為一個 chunk</td></tr><tr><td>表格</td><td><strong>單獨</strong>轉為結構化文本成一個 chunk，不當一般段落切</td></tr><tr><td>圖表/圖片</td><td>先生成<strong>摘要/描述</strong>，連同頁碼與標題一起保存</td></tr></tbody></table></div>
+<p><strong>每個 chunk 應附 metadata：</strong></p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>說明</th></tr></thead><tbody><tr><td>文件 ID</td><td>來源 PDF 識別</td></tr><tr><td>頁碼</td><td>起訖頁</td></tr><tr><td>章節標題 / 章節路徑</td><td>所屬標題層級</td></tr><tr><td>條款編號 / 表格編號 / 圖片編號</td><td>結構錨點</td></tr><tr><td>內容型態</td><td>文字 / 表格 / 圖表 / 圖片 / 條款</td></tr><tr><td>圖片描述</td><td>視覺內容摘要（圖表/圖片型 chunk）</td></tr><tr><td>版本時間</td><td>來源版本/匯入時間</td></tr><tr><td>來源類型</td><td>PDF（未來可擴充其他來源）</td></tr><tr><td><strong>Teams 標籤</strong></td><td><strong>繼承來源</strong>，供檢索與引用的團隊權控</td></tr><tr><td>位置錨點</td><td>頁、座標/bbox（供引用定位）</td></tr></tbody></table></div>
+<blockquote><p><strong>可選強化（contextual chunk）：</strong> 為每個 chunk 補一段上下文說明（例如「本段來自某合約的付款條款，主要說明尾款支付條件」），讓檢索回來的片段不只是孤立句子，模型能更快理解它在整份文件中的語意角色。</p></blockquote>
+<hr>
+<h2 id="七表格圖片圖表專門處理" class="t7">七、表格／圖片／圖表專門處理</h2>
+<ul><li><strong>表格</strong>：轉為<strong>結構化文本</strong>（Markdown 表格／HTML／CSV／JSON 擇一），<strong>保留欄列關係</strong>與表頭；附表格編號與頁碼。</li><li><strong>圖片</strong>：以多模態模型生成<strong>視覺描述</strong>（既有 <code>CompleteWithImageAsync</code>），存為可檢索文字＋原圖位置。</li><li><strong>圖表（chart）</strong>：生成<strong>摘要與關鍵數據點</strong>，連同頁碼/標題保存；不直接忽略。</li><li>多模態一律沿用既有 <code>IChatCompletionClient</code>（雲端/地端可切換），不另建新 LLM 客戶端。</li></ul>
+<hr>
+<h2 id="八agent-工具鏈" class="t8">八、Agent 工具鏈</h2>
+<p>到 agent 使用階段，<strong>不建議把整份 PDF 一次塞進 context</strong>（浪費 token、抓不到重點）。應把 PDF 處理能力拆成多個工具，讓 agent 依問題類型按需呼叫：</p>
+<div class="tw"><table><thead><tr><th>工具</th><th>用途</th><th>輸入（草案）</th><th>輸出（草案）</th></tr></thead><tbody><tr><td><strong>Search PDF</strong></td><td>片段檢索</td><td>查詢字串、文件範圍、Teams 範圍</td><td>命中 chunk 清單（含 metadata 與引用錨點）</td></tr><tr><td><strong>Read Page</strong></td><td>讀取指定頁</td><td>文件 ID、頁碼</td><td>該頁結構化內容（文字/表格/圖說）</td></tr><tr><td><strong>Extract Table</strong></td><td>抽取表格</td><td>文件 ID、表格編號/頁碼</td><td>結構化表格（含表頭、欄列）</td></tr><tr><td><strong>Chart / Visual Analysis</strong></td><td>理解圖表/圖片</td><td>文件 ID、圖編號/頁碼</td><td>圖表摘要與數據點</td></tr><tr><td><strong>Citation Source</strong></td><td>回傳引用</td><td>chunk ID / 錨點</td><td>頁碼、章節、原文片段、表格編號</td></tr></tbody></table></div>
+<p>行為原則：簡單問題→先檢索相關段落；跨年度比較/趨勢等複雜問題→定位章節、抽表、歸納；流程圖/圖片問題→交給視覺分析工具，而非只靠文字搜尋。</p>
+<blockquote><p>註：本 PRD 定義工具<strong>介面與職責</strong>；底層檢索引擎（向量/關鍵字/rerank）由路線圖<strong>階段三</strong>提供。Search PDF 在階段三前可先以關鍵字/結構查詢實作，階段三接上向量檢索後增強。</p></blockquote>
+<hr>
+<h2 id="九可追溯引用" class="t1">九、可追溯引用</h2>
+<ul><li>回答<strong>一律附</strong>頁碼、章節、原文片段，必要時附表格編號。</li><li>引用錨點對應 chunk metadata（第六節）的位置欄位，確保「說得出來源」。</li><li>目的：防止模型憑空編造；即使回答自然流暢，也能被驗證。</li></ul>
+<hr>
+<h2 id="十評測閉環" class="t2">十、評測閉環</h2>
+<p>評測<strong>不能只看最終答案對不對</strong>，要往下拆成細指標：</p>
+<div class="tw"><table><thead><tr><th>指標</th><th>量測</th></tr></thead><tbody><tr><td>檢索片段正確率</td><td>檢索回的 chunk 是否切題</td></tr><tr><td>頁碼準確率</td><td>引用頁碼是否正確</td></tr><tr><td>表格解析正確</td><td>表格欄列是否未錯亂</td></tr><tr><td>OCR 漏字率</td><td>掃描件文字是否漏字</td></tr><tr><td>圖表理解正確</td><td>圖表摘要/數據是否正確</td></tr><tr><td>引用支撐度</td><td>原文引用是否真能支撐最終回答</td></tr></tbody></table></div>
+<ul><li>延伸既有「清洗品質評測」精神（見 <a href="../../docs/prd/prd-a1cd6b20.html">資料清洗與品質保證 PRD</a>、<a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：功能、欄位、價值</a>），建立 <strong>PDF-RAG 專屬評測集</strong>（標準問題＋預期引用/頁碼/表格答案）。</li><li>評測為迴歸基準，量到問題即回頭修解析/切片/工具，形成閉環。</li></ul>
+<hr>
+<h2 id="十一資料模型草案供日後實作" class="t3">十一、資料模型（草案，供日後實作）</h2>
+<blockquote><p>以下為規劃草案，實作時再定案；務必遵循<a href="../../docs/architecture/dev-conventions.html">開發慣例與限制速查</a>：<strong>雙資料庫 migration</strong>（Sqlite ＠ <code>AccessDatas/Migrations</code>、SQL Server ＠ <code>AccessDatas.SqlServerMigrations</code> 各一）、<code>Teams</code>/<code>Categories</code> 以分隔字串＋<code>TagStringHelper</code> 轉換、Update/Delete 前 <code>CleanTrackingHelper.Clean&lt;T&gt;</code>。</p></blockquote>
+<ul><li><strong>延伸 <code>DocumentExtraction</code></strong> 或新增 <strong><code>PdfDocument</code></strong>：記錄逐頁類型、解析策略、結構還原狀態、結構化 JSON 相對路徑。</li><li>新增 <strong><code>DocumentChunk</code></strong>：</li></ul>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>Id</td><td>int</td><td>主鍵</td></tr><tr><td>DocumentId</td><td>int</td><td>來源文件</td></tr><tr><td>ChunkType</td><td>string</td><td>文字/表格/圖表/圖片/條款</td></tr><tr><td>Content</td><td>（檔案）</td><td>chunk 正文/結構化文本存檔，DB 存相對路徑</td></tr><tr><td>Page / PageEnd</td><td>int</td><td>起訖頁</td></tr><tr><td>SectionPath</td><td>string</td><td>章節路徑</td></tr><tr><td>AnchorRef</td><td>string</td><td>條款/表格/圖編號、座標 bbox</td></tr><tr><td>ContextNote</td><td>string?</td><td>可選上下文說明</td></tr><tr><td>Teams / Categories</td><td>string</td><td>分隔字串，繼承來源</td></tr><tr><td>VersionAt</td><td>DateTime</td><td>版本時間</td></tr></tbody></table></div>
+<ul><li><strong>儲存策略</strong>：chunk 正文與結構化 JSON <strong>存檔</strong>（沿用 <code>ExternalFileSystem</code> 既有慣例，新增如 <code>PdfStructuredPath</code>），DB 僅存 metadata 與相對路徑（與清洗結果一致）。</li></ul>
+<hr>
+<h2 id="十二技術選型建議具體方案替代" class="t4">十二、技術選型建議（具體方案＋替代）</h2>
+<p>落地方式與現有技術棧對齊：<strong>.NET 主體以 <code>System.Diagnostics.Process</code> 呼叫 Python 工具</strong>（同 markitdown / yt-dlp 模式），多模態沿用 OpenAI。</p>
+<div class="tw"><table><thead><tr><th>環節</th><th>推薦方案</th><th>替代方案</th><th>備註</th></tr></thead><tbody><tr><td>版面/結構解析（座標、頁碼、表格）</td><td><strong>PyMuPDF (fitz)</strong> 或 <strong>pdfplumber</strong></td><td><strong>Docling</strong> / <strong>Unstructured</strong>（版面分析更強）</td><td>markitdown 保留為快速純文字備援</td></tr><tr><td>表格抽取</td><td>pdfplumber / Camelot</td><td>Docling 表格模型</td><td>複雜跨頁表格列為風險</td></tr><tr><td>掃描型 OCR</td><td><strong>PaddleOCR</strong>（中文佳）或 <strong>Tesseract</strong></td><td>雲端 OCR（Azure/Google）</td><td>中文繁體優先</td></tr><tr><td>圖片/圖表理解</td><td><strong>沿用現有 OpenAI vision</strong>（<code>CompleteWithImageAsync</code>/<code>CompleteWithFileAsync</code>）</td><td>地端視覺模型</td><td>已內建，雲端/地端可切換</td></tr><tr><td>語意/結構切片</td><td>自研切片器（依標題/條款/表格邊界）</td><td>LLM 輔助切點</td><td>本 PRD 核心</td></tr><tr><td>向量化檢索（<strong>階段三、不在此實作</strong>）</td><td>pgvector ＋ 混合檢索 ＋ rerank</td><td>其他向量庫</td><td>見 strategy/03、04</td></tr></tbody></table></div>
+<hr>
+<h2 id="十三相依與風險" class="t5">十三、相依與風險</h2>
+<ul><li><strong>外部工具安裝</strong>：版面解析/OCR 需額外本機 Python 工具與安裝（沿用 <a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a> 的路徑設定模式）。</li><li><strong>多模態成本與延遲</strong>：圖表/掃描頁走視覺模型，token 成本與處理時間上升，需控管併發與成本。</li><li><strong>掃描件品質</strong>：OCR 受原稿品質影響，漏字風險→須評測把關。</li><li><strong>複雜表格</strong>：跨頁、合併儲存格、巢狀表格解析難度高。</li><li><strong>座標/頁碼對位</strong>：引用準確度依賴位置對位的正確性。</li><li><strong>效能與大檔</strong>：大型 PDF 解析與切片耗時，需背景化與分段。</li><li><strong>LLM 未設定降級</strong>：未設定 LLM 時，圖表理解/上下文說明等步驟須優雅略過並記註記（沿用清洗管線降級慣例）。</li></ul>
+<hr>
+<h2 id="十四容量與限制" class="t6">十四、容量與限制</h2>
+<p>沿用 <a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a>：</p>
+<ul><li>單檔上傳上限 <strong>1 GB</strong>；文件轉文字逾時 <strong>600s</strong>；多模態單檔 <strong>≤ 20MB</strong>（圖表/掃描頁分頁處理以符合）。</li><li>chunk 大小設<strong>上限</strong>（避免單 chunk 過大影響檢索），具體值實作時依模型上限定案。</li><li>LLM/生成逾時沿用既有設定（120s / 300s）。</li></ul>
+<hr>
+<h2 id="十五與現有架構整合" class="t7">十五、與現有架構整合</h2>
+<ul><li><strong>背景管線模式</strong>：沿用四條既有管線同構設計 <code>I*Queue</code>（Singleton）→ <code>*BackgroundService</code> → <code>*Processor</code>（Scoped），新增 PDF 結構化解析管線；提供 Cleanup/Retry/Cancel。</li><li><strong>團隊權控（資安）</strong>：chunk 繼承來源 Teams；檢索/引用在<strong>查詢層</strong>即過濾（<code>BuildTeamAccessPredicate</code>），非管理員只見「無團隊或與角色團隊交集」。</li><li><strong>選單與權限</strong>：若新增頁面，須<strong>三處同步</strong>（<code>MagicObjectHelper</code>、<code>RolePermissionService</code>、<code>Menu.json</code>，位置索引對應）。</li><li><strong>API</strong>：一律 <code>ApiResult&lt;T&gt;</code>，分頁 <code>PagedResult&lt;T&gt;</code>。</li><li><strong>儲存</strong>：結構化內容存檔、DB 存相對路徑（同清洗結果慣例）。</li><li><strong>文件/版本慣例</strong>：<code>docs/*.md</code> UTF-8 含 BOM；每次可建置異動 <code>SystemVersion</code> +1。</li></ul>
+<hr>
+<h2 id="十六分階段落地建議" class="t8">十六、分階段落地建議</h2>
+<ol><li><strong>MVP</strong>：原生文字型 PDF 的結構還原（頁碼/標題/段落）＋ 語意切片 ＋ chunk metadata ＋ 可追溯引用（Citation Source、Read Page）。</li><li><strong>第二批</strong>：掃描型 OCR ＋ 表格結構化（Extract Table）。</li><li><strong>第三批</strong>：圖表多模態理解（Chart Analysis）＋ 完整 agent 工具鏈 ＋ PDF-檢索品質評測集。</li><li><strong>銜接階段三</strong>：將結構化 chunk 接上向量索引/混合檢索/rerank（路線圖階段三），Search PDF 由關鍵字升級為向量＋關鍵字混合。</li></ol>
+<hr>
+<h2 id="十七驗收條件可量測" class="t1">十七、驗收條件（可量測）</h2>
+<ol><li>系統能對一份 PDF 逐頁判定類型（原生/掃描/混排）並記錄。</li><li>解析輸出保留頁碼、標題層級、章節路徑、段落、表格位置、圖片說明、註腳；頁眉頁腳被標記且不重複召回。</li><li>切片依語意/結構產生，標題不離正文、條款完整、表格獨立、圖表有摘要；每個 chunk 帶完整 metadata 與位置錨點，並繼承 Teams。</li><li>任一檢索結果可回傳<strong>頁碼＋章節＋原文片段（＋表格編號）</strong>的引用。</li><li>具 PDF-檢索品質評測集，可輸出檢索正確率、頁碼準確率、表格解析、OCR 漏字、圖表理解、引用支撐度等指標。</li><li>全程套用團隊權控；非管理員看不到非授權團隊的 chunk 與引用。</li></ol>
+<hr>
+<h2 id="十八涉及檔案規劃供日後實作" class="t2">十八、涉及檔案（規劃，供日後實作）</h2>
+<blockquote><p>以下為實作時的預期檔案，目前<strong>僅為規劃</strong>，本 PRD 不含任何程式碼變更。</p></blockquote>
+<ul><li><strong>新增</strong>：PDF 結構化解析管線（<code>PdfStructureQueue</code>/<code>PdfStructureBackgroundService</code>/<code>PdfStructureProcessor</code>）、Python 解析工具（<code>tools/pdf-structure/…</code>，仿 <code>tools/douyin-audio</code>）、<code>DocumentChunk</code> 實體與雙 migration、agent 工具（Search/Read Page/Extract Table/Chart/Citation）、PDF-檢索品質評測集實體與頁面。</li><li><strong>修改</strong>：<code>DocumentExtraction</code> 實體（增結構欄位）、<code>SystemSettings.ExternalFileSystem</code>（新增 <code>PdfStructuredPath</code>）、<code>appsettings.json</code>（工具路徑與設定）、<code>Menu.json</code>＋<code>MagicObjectHelper</code>＋<code>RolePermissionService</code>（若新增頁面）。</li></ul>
+<hr>
+<h2 id="十九相關文件" class="t3">十九、相關文件</h2>
+<ul><li><a href="../../docs/strategy/dev-roadmap.html">開發建議與路線圖</a>（五階段：匯入→清洗→蒸餾→建立知識庫→智慧應用）</li><li><a href="../../docs/strategy/architecture-research.html">知識庫架構研究與建議</a>（蒸餾＋混合檢索雙層架構）</li><li><a href="../../docs/prd/markitdown-prd-72bba06f.html">文件轉文字（MarkItDown）PRD</a>（現況 PDF→Markdown 基準）</li><li><a href="../../docs/prd/prd-a1cd6b20.html">資料清洗與品質保證 PRD</a>（清洗管線與清洗品質評測精神）</li><li><a href="../../docs/prd/prd-e8b774d3.html">知識來源管理 PRD</a>（聚合與成員）</li><li><a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a></li><li><a href="../../docs/architecture/dev-conventions.html">開發慣例與限制速查</a>（雙 migration、團隊權控、選單權限三處同步、背景管線模式）</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li><li><a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景與目的">一、背景與目的</a><a class="l3" href="#11-現況與藍圖界線">1.1 現況與藍圖界線</a><a class="l2" href="#二需求決策">二、需求決策</a><a class="l2" href="#三功能概述與非目標yagni">三、功能概述與非目標（YAGNI）</a><a class="l2" href="#四pdf-類型判斷與解析策略">四、PDF 類型判斷與解析策略</a><a class="l2" href="#五文件結構還原需求">五、文件結構還原需求</a><a class="l2" href="#六語意切片與-chunk-metadata">六、語意切片與 chunk metadata</a><a class="l2" href="#七表格圖片圖表專門處理">七、表格／圖片／圖表專門處理</a><a class="l2" href="#八agent-工具鏈">八、Agent 工具鏈</a><a class="l2" href="#九可追溯引用">九、可追溯引用</a><a class="l2" href="#十評測閉環">十、評測閉環</a><a class="l2" href="#十一資料模型草案供日後實作">十一、資料模型（草案，供日後實作）</a><a class="l2" href="#十二技術選型建議具體方案替代">十二、技術選型建議（具體方案＋替代）</a><a class="l2" href="#十三相依與風險">十三、相依與風險</a><a class="l2" href="#十四容量與限制">十四、容量與限制</a><a class="l2" href="#十五與現有架構整合">十五、與現有架構整合</a><a class="l2" href="#十六分階段落地建議">十六、分階段落地建議</a><a class="l2" href="#十七驗收條件可量測">十七、驗收條件（可量測）</a><a class="l2" href="#十八涉及檔案規劃供日後實作">十八、涉及檔案（規劃，供日後實作）</a><a class="l2" href="#十九相關文件">十九、相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/PDF型RAG處理-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

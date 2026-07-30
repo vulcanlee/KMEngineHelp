@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>產品需求文件（PRD）：團隊管理（Team）管理｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>產品需求文件（PRD）：團隊管理（Team）管理</h1></header><div class="docwrap"><main><ul><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.63</li><li>首次實作版本：0.2.35</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026-06-05</li><li>狀態：已實作（系統版本 0.2.35）</li><li>編碼：UTF-8（繁體中文）</li></ul>
+<hr>
+<h2 id="一背景與目的" class="t1">一、背景與目的</h2>
+<p>本系統以「團隊管理」集中維護權控標籤，讓紀錄指定可存取團隊；團隊空白代表公開，非管理員只可讀取公開或與角色團隊有交集的資料。</p>
+<p>本功能為一個標準 CRUD 頁面，需具備側邊選單項目、<code>Menu.json</code> 設定與角色權限控制。</p>
+<h3 id="設計範本">設計範本</h3>
+<p>本功能與系統中剛完成的「知識庫分類」(<code>Category</code>) 功能<strong>高度同構</strong>，並以「專案管理」(<code>ProjectPage</code> / <code>ProjectViewView</code>) 為底層分層範本。實作時 <strong>以 Category 功能為主要範本</strong>，沿用其分層架構（Entity → Repository → Service → Controller → DTO → AdapterModel → Blazor View），差異僅在於團隊多一個「團隊代號」欄位。</p>
+<p>可重用的現成模式：</p>
+<ul><li>名稱唯一性檢查：<code>CategoryRepository.ExistsByNameAsync</code> 與 <code>CategoryService.ValidateNameUniqueAsync</code>（皆採 Trim + 忽略大小寫，編輯時排除自身）。</li><li>分頁／搜尋／排序：<code>CategoryRepository.GetPagedAsync</code>、<code>CategoryService.GetAsync</code>，預設 <code>OrderByDescending(UpdatedAt)</code>。</li><li>Blazor UI：<code>CategoryViewView</code> 工具列 + Ant Design <code>Table</code>（遠端資料來源、分頁）+ 新增／編輯 <code>Modal</code>（<code>EditForm</code> + <code>DataAnnotationsValidator</code>）+ 啟用狀態欄位。</li><li>選單與權限：以位置索引對應的 <code>SidebarMenuService.ApplyPermissionStructure</code>、<code>MagicObjectHelper</code> 權限常數、<code>RolePermissionService.GetRoleListPermissionAllName()</code>。</li></ul>
+<hr>
+<h2 id="二需求決策" class="t2">二、需求決策</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>決策</th></tr></thead><tbody><tr><td>範圍</td><td>團隊管理 CRUD，以及團隊名稱作為角色預設團隊與紀錄權控標籤的跨功能規則</td></tr><tr><td>欄位</td><td>名稱（唯一、必填）、團隊代號（選填，有填時需唯一）、描述（選填）、啟用狀態（IsEnabled）、建立時間、更新時間</td></tr><tr><td>名稱唯一性</td><td><strong>忽略大小寫 + 去頭尾空白</strong>；新增與編輯皆驗證（編輯排除自身）</td></tr><tr><td>團隊代號唯一性</td><td><strong>僅在非空白時檢查</strong>；同樣忽略大小寫 + 去頭尾空白；新增與編輯皆驗證（編輯排除自身）</td></tr><tr><td>預設排序</td><td>依「更新時間」(<code>UpdatedAt</code>) 由新到舊（最近更新排最前）</td></tr><tr><td>啟用狀態用途</td><td>可停用而不刪除團隊；停用者供未來其他頁面下拉時過濾，本管理頁仍完整顯示</td></tr><tr><td>刪除方式</td><td>實體刪除（與 Category / ProjectPage 一致）</td></tr><tr><td>選單位置</td><td>「資料定義」主選單（已存在）其下，置於「分類清單」之後</td></tr><tr><td>路由</td><td><code>/teams</code></td></tr><tr><td>UI 框架</td><td>Blazor Server + Ant Design</td></tr></tbody></table></div>
+<hr>
+<h2 id="三功能概述" class="t3">三、功能概述</h2>
+<p>新增「團隊管理」管理頁面，提供團隊項目的新增、查詢、編輯、刪除（CRUD）。每筆團隊包含名稱、團隊代號、描述與啟用狀態。團隊名稱在系統內為唯一值（忽略大小寫並去除頭尾空白後比對）；團隊代號為選填，但若有填寫，亦須為唯一值（相同比對規則）。列表預設依更新時間由新到舊呈現。</p>
+<p>0.3.34 現況已把團隊標籤與權控套用至紀錄、下載、知識來源、Wiki、索引及問答；本 PRD 同時規範基礎資料與跨功能引用邊界。</p>
+<hr>
+<h2 id="四使用者流程" class="t4">四、使用者流程</h2>
+<ol><li>進入「團隊管理」頁面（路由 <code>/teams</code>）；權限不足者不顯示選單、不可進入頁面。</li><li>列表預設依「更新時間」由新到舊排序，最近更新者在最上方；支援關鍵字搜尋（名稱／代號／描述）與分頁。</li><li>點「新增」，於 Modal 中輸入名稱（必填）、團隊代號（選填）、描述（選填），並設定是否啟用（預設啟用）。</li><li>送出時驗證唯一性（忽略大小寫 + 去頭尾空白）：</li><li>名稱重複：拒絕儲存，顯示「團隊名稱已存在」之類的友善訊息（API 回 409 Conflict）。</li><li>團隊代號有填且重複：拒絕儲存，顯示「團隊代號已存在」之類的友善訊息（API 回 409 Conflict）。</li><li>通過：建立紀錄，設定建立時間與更新時間，回到列表。</li><li>點「編輯」載入單筆資料，可修改名稱、代號、描述、啟用狀態；名稱與代號唯一性同樣須通過（比對時排除自身）。</li><li>點「刪除」出現確認對話框，確認後實體刪除該團隊。</li><li>任何新增或編輯成功皆更新 <code>UpdatedAt</code>，故該紀錄會回到列表最前方。</li></ol>
+<hr>
+<h2 id="五資料模型" class="t5">五、資料模型</h2>
+<p>新增實體 <code>Team</code>（<code>KnowledgeExtraction.AccessDatas/Models/Team.cs</code>）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>Id</td><td>int</td><td>主鍵，自動遞增</td></tr><tr><td>Name</td><td>string</td><td>團隊名稱（必填、唯一）</td></tr><tr><td>Code</td><td>string?</td><td>團隊代號（選填；若有填則唯一）</td></tr><tr><td>Description</td><td>string?</td><td>描述（選填）</td></tr><tr><td>IsEnabled</td><td>bool</td><td>是否啟用（預設 <code>true</code>）</td></tr><tr><td>CreatedAt</td><td>DateTime</td><td>建立時間（自動設定）</td></tr><tr><td>UpdatedAt</td><td>DateTime</td><td>最後更新時間（自動設定）</td></tr></tbody></table></div>
+<ul><li>DbSet <code>Team</code> 註冊於 <code>BackendDBContext</code>，並新增對應 EF Core Migration（SqlServer 與 Sqlite 雙 provider，比照 <code>AddCategory</code>）。</li><li>唯一性以應用層檢查為主：名稱 <code>ExistsByNameAsync</code>、代號 <code>ExistsByCodeAsync</code>；比對前先 <code>Trim()</code> 並以忽略大小寫方式比較。</li><li>團隊代號為選填：當輸入為空白時不進行唯一性檢查（允許多筆團隊代號為空）。</li></ul>
+<hr>
+<h2 id="六設定appsettingsjson" class="t6">六、設定（appsettings.json）</h2>
+<p>本功能不需新增任何外部路徑或服務設定。</p>
+<ul><li>依專案規範（CLAUDE.md）：實作完成建置時，<code>SystemSettings.SystemInformation.SystemVersion</code> 版本號 +1（由 <code>0.2.34</code> → <code>0.2.35</code>），並於 commit message 說明版本號變更。</li></ul>
+<hr>
+<h2 id="七架構與元件比照-category" class="t7">七、架構與元件（比照 Category）</h2>
+<p>各層需新增的元件如下（命名與分層比照既有 <code>Category*</code>）：</p>
+<ul><li><strong>Entity</strong> <code>Team</code>（<code>KnowledgeExtraction.AccessDatas/Models/Team.cs</code>）</li><li><strong>Repository</strong> <code>TeamRepository</code>（<code>KnowledgeExtraction.Business/Repositories/TeamRepository.cs</code>）</li><li><code>GetPagedAsync(TeamSearchRequestDto request)</code>：分頁／搜尋／排序，<strong>預設 <code>OrderByDescending(t =&gt; t.UpdatedAt)</code></strong>；支援以名稱／代號／描述關鍵字搜尋。</li><li><code>GetByIdAsync(int id)</code>、<code>AddAsync</code>、<code>UpdateAsync</code>（保留原 <code>CreatedAt</code>、更新 <code>UpdatedAt</code>）、<code>DeleteAsync(int id)</code>。</li><li><code>ExistsByNameAsync(string name, int? excludeId = null)</code>：Trim + 忽略大小寫比對。</li><li><code>ExistsByCodeAsync(string code, int? excludeId = null)</code>：Trim + 忽略大小寫比對；呼叫端於 code 非空白時才檢查。</li><li><strong>Service</strong> <code>TeamService</code>（<code>KnowledgeExtraction.Business/Services/DataAccess/TeamService.cs</code>）：包裝 Repository，提供查詢／新增／編輯／刪除與前置檢查；<code>BeforeAddCheckAsync</code>／<code>BeforeUpdateCheckAsync</code> 驗證名稱唯一性與（代號非空白時的）代號唯一性。</li><li><strong>DTO</strong>（<code>KnowledgeExtraction.Dtos</code>）：<code>TeamDto</code>、<code>TeamCreateUpdateDto</code>（名稱必填驗證、代號選填）、<code>TeamSearchRequestDto</code>（繼承 <code>SearchRequestBaseDto</code>，含關鍵字、分頁、排序、<code>IsEnabled?</code> 過濾）。</li><li><strong>AdapterModel</strong> <code>TeamAdapterModel</code>（<code>KnowledgeExtraction.Models/AdapterModel/TeamAdapterModel.cs</code>）：前端綁定用，含 DataAnnotations 驗證。</li><li><strong>Controller</strong> <code>TeamController</code>（<code>KnowledgeExtraction.Web/Controllers/TeamController.cs</code>）：比照 <code>CategoryController</code>。</li><li><strong>AutoMapper</strong>：於 <code>AutoMapping.cs</code> 新增 <code>Team</code> ↔ <code>TeamAdapterModel</code> / <code>TeamDto</code> / <code>TeamCreateUpdateDto</code> 映射。</li><li><strong>DI 註冊</strong>（<code>ServiceCollectionExtensions.cs</code>）：<code>services.AddScoped&lt;TeamService&gt;();</code>、<code>services.AddScoped&lt;TeamRepository&gt;();</code></li></ul>
+<hr>
+<h2 id="八uiblazor-server--ant-design" class="t8">八、UI（Blazor Server + Ant Design）</h2>
+<ul><li>頁面 <code>TeamPage.razor</code>（<code>@page "/teams"</code>、<code>@layout MainLayout</code>、<code>&lt;PageTitle&gt;團隊清單&lt;/PageTitle&gt;</code>），內嵌 <code>&lt;TeamViewView /&gt;</code>。</li><li>位置：<code>KnowledgeExtraction.Web/Components/Pages/Teams/TeamPage.razor</code></li><li>檢視元件 <code>TeamViewView</code>（<code>.razor</code> / <code>.razor.cs</code> / <code>.razor.css</code>，比照 <code>CategoryViewView</code>）：</li><li>位置：<code>KnowledgeExtraction.Web/Components/Views/Teams/</code></li><li><code>OnInitializedAsync</code> 以 <code>AuthenticationStateHelper.CheckAccessPage(MagicObjectHelper.角色_團隊清單)</code> 控管權限；無權限顯示 <code>你沒有權限存取此頁面</code>。</li><li>工具列：新增按鈕、重新整理按鈕、關鍵字搜尋輸入框 + 搜尋按鈕。</li><li>表格欄位：<strong>名稱、團隊代號、描述、啟用狀態、更新時間、操作（編輯／刪除）</strong>；遠端資料來源、可分頁；<strong>預設依更新時間新到舊</strong>。</li><li>新增／編輯 Modal：<code>EditForm</code> + <code>DataAnnotationsValidator</code> + <code>ValidationSummary</code>：</li><li>名稱：<code>Input</code>（必填）</li><li>團隊代號：<code>Input</code>（選填）</li><li>描述：<code>TextArea</code>（選填）</li><li>啟用狀態：<code>Switch</code>（預設啟用）</li><li>刪除：使用 <code>ModalService.ConfirmAsync()</code> 確認後刪除。</li><li><code>_Imports.razor</code> 新增 <code>@using KnowledgeExtraction.Web.Components.Views.Teams</code>。</li></ul>
+<hr>
+<h2 id="九api-端點" class="t1">九、API 端點</h2>
+<p>新增 <code>TeamController</code>（比照 <code>CategoryController</code>，<code>api/[controller]</code> + <code>api/v1/[controller]</code>，沿用既有授權機制）：</p>
+<ul><li><code>POST {base}/team/search</code>：接收 <code>TeamSearchRequestDto</code>，回傳分頁結果（預設依 <code>UpdatedAt</code> 降冪）。</li><li><code>GET {base}/team/{id}</code>：取得單筆。</li><li><code>POST {base}/team</code>：新增；名稱重複或代號（非空白）重複回 <code>409 Conflict</code>。</li><li><code>PUT {base}/team/{id}</code>：編輯；驗證路由 id 與 payload id 一致；名稱／代號重複（排除自身）回 <code>409 Conflict</code>。</li><li><code>DELETE {base}/team/{id}</code>：刪除。</li></ul>
+<hr>
+<h2 id="十選單與權限需異動處" class="t2">十、選單與權限（需異動處）</h2>
+<blockquote><p><strong>本節為首次實作當時的選單結構，保留原貌。</strong> 現況為「基礎資料設定」(id 6)，子項共 5 項（知識庫分類 61、團隊管理 62、專案分類 63、AI 提示詞 64、清洗規則設定 65），權限群組為 6 個常數，登出為 id 8；一律以 <code>Menu.json</code> 與 <code>RolePermissionService</code> 為準。<strong>權限常數的「值」刻意保留舊選單名（<code>角色_團隊清單 = "團隊清單"</code>），不得變更</strong>——權限以名稱字串存於 <code>RoleView.TabViewJson</code>，改值等同清空所有既有角色的權限。</p></blockquote>
+<ol><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code>：新增權限常數 <code>角色_團隊清單 = "團隊清單"</code>。</li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code>：</li></ol>
+<p>於 <code>GetRoleListPermissionAllName()</code> 既有「資料定義」群組 <code>[角色_資料定義, 角色_分類清單]</code> 末端加入 <code>角色_團隊清單</code>，成為 <code>[角色_資料定義, 角色_分類清單, 角色_團隊清單]</code>。</p>
+<ol><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code>：於既有「資料定義」(id 4) 的 <code>subMenu</code>，在「分類清單」(id 41) 之後新增：</li></ol>
+<pre><code>   {
+     "id": 42,
+     "name": "團隊清單",
+     "icon": "groups",
+     "url": "/teams"
+   }</code></pre>
+<ol><li>建立頁面與檢視元件（見第八節），於 View 加入權限檢查。</li></ol>
+<blockquote><p>權限機制說明：本系統授權以選單為基礎，並以<strong>位置索引</strong>對應（<code>SidebarMenuService.ApplyPermissionStructure</code>）。 「資料定義」子項順序須與 <code>RolePermissionService</code> 中該群組（跳過第一個群組名後）的順序一致：分類清單、團隊清單。 角色實際勾選的權限存於資料庫 <code>RoleView.TabViewJson</code>，既有角色若要存取新頁面，須由角色管理頁重新勾選。</p></blockquote>
+<hr>
+<h2 id="十一編碼需求" class="t3">十一、編碼需求</h2>
+<ul><li>所有新增的程式碼檔以 <strong>UTF-8（繁體中文）</strong> 撰寫，不得有亂碼。</li><li>本 PRD 與所有 <code>docs/*.md</code> 文件須為 <strong>UTF-8（含 BOM）</strong>，以通過 <code>scripts/Test-DocsEncoding.ps1</code> 檢查。</li><li><code>Menu.json</code> 等含中文之設定檔維持 UTF-8 編碼，確保選單名稱顯示正確。</li></ul>
+<hr>
+<h2 id="十二驗收條件" class="t4">十二、驗收條件</h2>
+<ol><li>選單出現「資料定義 &gt; 團隊清單」，且位於「分類清單」之後；無權限角色看不到、無法進入頁面。</li><li>列表預設依「更新時間」由新到舊排序，最近新增／編輯的團隊排在最前面。</li><li>新增團隊：名稱必填；名稱與既有團隊重複（忽略大小寫、去頭尾空白後）時被拒絕並顯示友善訊息。</li><li>團隊代號為選填；若有填且與既有團隊代號重複（同比對規則）時被拒絕；多筆代號為空白應可並存。</li><li>編輯團隊：可修改名稱、代號、描述、啟用狀態；名稱與代號唯一性比對排除自身；儲存後該筆回到列表最前方。</li><li>刪除團隊：確認後實體刪除。</li><li>啟用狀態可於新增／編輯切換，列表正確顯示啟用／停用。</li><li><code>appsettings.json</code> 版本號於實作建置時 +1（0.2.34 → 0.2.35），相關文件同步更新。</li></ol>
+<hr>
+<h2 id="十三涉及檔案實作階段參考" class="t5">十三、涉及檔案（實作階段參考）</h2>
+<p><strong>新增：</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/Models/Team.cs</code> 及 EF Core Migration（SqlServer 與 Sqlite）</li><li><code>KnowledgeExtraction.Models/AdapterModel/TeamAdapterModel.cs</code></li><li><code>KnowledgeExtraction.Dtos/Models/TeamDto.cs</code>、<code>TeamCreateUpdateDto.cs</code></li><li><code>KnowledgeExtraction.Dtos/Commons/TeamSearchRequestDto.cs</code></li><li><code>KnowledgeExtraction.Business/Repositories/TeamRepository.cs</code></li><li><code>KnowledgeExtraction.Business/Services/DataAccess/TeamService.cs</code></li><li><code>KnowledgeExtraction.Web/Controllers/TeamController.cs</code></li><li><code>KnowledgeExtraction.Web/Components/Pages/Teams/TeamPage.razor</code></li><li><code>KnowledgeExtraction.Web/Components/Views/Teams/TeamViewView.razor</code>（<code>.razor.cs</code>、<code>.razor.css</code>）</li><li>（建議）<code>KnowledgeExtraction.Tests/TeamServiceTests.cs</code>：驗證名稱／代號唯一性與預設排序</li></ul>
+<p><strong>修改：</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/BackendDBContext.cs</code>（新增 <code>DbSet&lt;Team&gt;</code>）</li><li><code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code></li><li><code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs</code></li><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code></li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code></li><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code></li><li><code>KnowledgeExtraction.Web/Components/_Imports.razor</code></li><li><code>KnowledgeExtraction.Web/appsettings.json</code>（版本號 +1）</li></ul>
+<hr>
+<h2 id="十四現況與規劃中需求1063-核對" class="t6">十四、現況與規劃中需求（1.0.63 核對）</h2>
+<ul><li>已實作：各類紀錄、來源、Wiki、下載與 RAG 使用團隊標籤；名稱以字串精確比對，重新命名不自動連動。</li><li>團隊的批次匯入／匯出。</li><li>團隊成員、團隊負責人、團隊階層（父子）結構。</li></ul>
+<p>後兩項仍屬規劃中。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li><li><a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景與目的">一、背景與目的</a><a class="l3" href="#設計範本">設計範本</a><a class="l2" href="#二需求決策">二、需求決策</a><a class="l2" href="#三功能概述">三、功能概述</a><a class="l2" href="#四使用者流程">四、使用者流程</a><a class="l2" href="#五資料模型">五、資料模型</a><a class="l2" href="#六設定appsettingsjson">六、設定（appsettings.json）</a><a class="l2" href="#七架構與元件比照-category">七、架構與元件（比照 Category）</a><a class="l2" href="#八uiblazor-server--ant-design">八、UI（Blazor Server + Ant Design）</a><a class="l2" href="#九api-端點">九、API 端點</a><a class="l2" href="#十選單與權限需異動處">十、選單與權限（需異動處）</a><a class="l2" href="#十一編碼需求">十一、編碼需求</a><a class="l2" href="#十二驗收條件">十二、驗收條件</a><a class="l2" href="#十三涉及檔案實作階段參考">十三、涉及檔案（實作階段參考）</a><a class="l2" href="#十四現況與規劃中需求1063-核對">十四、現況與規劃中需求（1.0.63 核對）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/團隊清單-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

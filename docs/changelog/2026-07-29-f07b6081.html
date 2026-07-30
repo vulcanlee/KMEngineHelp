@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>「知識庫」子選單依使用頻率重排、新增分組分隔線（1.0.105 → 1.0.106）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>「知識庫」子選單依使用頻率重排、新增分組分隔線（1.0.105 → 1.0.106）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-29</li><li>版本：1.0.105 → 1.0.106</li><li>類型：使用體驗調整（選單順序）＋ 新機制（選單分組分隔線）＋ 測試補強</li><li><strong>無資料庫 migration、無資料異動、無 API 變更</strong></li></ul>
+<h2 id="變更" class="t1">變更</h2>
+<p>「知識庫」群組的子選單順序由</p>
+<blockquote><p>知識來源加工 → 清洗品質評測 → 知識頁審核 → <strong>AI 知識問答</strong> → 檢索品質評測 → 知識百科 → 知識圖譜審核</p></blockquote>
+<p>改為（並以兩條分隔線分成三組）：</p>
+<pre><code>知識來源加工      /knowledge-sources          ┐ 群組 1：日常入口
+AI 知識問答       /knowledge-base-chat        ┘
+──────────────────────────────
+清洗品質評測      /golden-samples             ┐
+知識頁審核        /knowledge-distillation     ├ 群組 2：品質與審核
+檢索品質評測      /rag-evaluation             ┘
+──────────────────────────────
+知識百科          /knowledge-wiki             ┐ 群組 3：瀏覽與圖譜
+知識圖譜審核      /knowledge-graph-review     ┘</code></pre>
+<p>原順序是按功能加入時間累積而成，不反映實際使用頻率——每天都在用的「AI 知識問答」被排在第 4 位、夾在兩個評測/審核頁之間。</p>
+<p><strong>與 2026-07-25「專案分類選單位置調整」的差異：本次 <code>Menu.json</code> 的 <code>id</code> 刻意不重編號</strong>（維持 41、45、42、44、46、47、48 的非連號狀態）。<code>id</code> 在程式中完全沒有被使用（渲染 key 走陣列位置、選中狀態走 URL 前綴比對），重編號無益，反而會讓既有文件的 id 引用失效。</p>
+<h2 id="三處同步位置索引耦合" class="t2">三處同步（位置索引耦合）</h2>
+<p><code>Menu.json</code> 與 <code>RolePermissionService</code> 權限樹以<strong>位置索引</strong>對應（<code>SidebarMenuService.ApplyChildPermissionStructure</code> 是 <code>permissionNames[index]</code>，名稱不參與比對），因此換序必須成對修改：</p>
+<ol><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code> — 知識庫 <code>subMenu</code> 換序、加 <code>group</code> 欄位。</li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code> — <code>角色_知識庫問答</code> 由第 4 個子權限移到第 1 個；並補上逐項對照註解。兩個動作型權限（<code>角色_知識審核</code>、<code>角色_蒸餾審核</code>，無選單頁）維持在群組末端。</li><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code> — 常數宣告順序同步調整。<code>const</code> 宣告順序無語意，<strong>純為可讀性</strong>；所有字串值一律未動。</li></ol>
+<h3 id="既有角色權限不受影響">既有角色權限不受影響</h3>
+<p>角色權限存於 <code>RoleView.TabViewJson</code>，內容是權限<strong>名稱字串陣列</strong>，不是 id 也不是索引；讀取以 <code>HashSet&lt;string&gt;.Contains</code> 名稱比對，頁面授權 <code>CheckAccessPage(MagicObjectHelper.角色_XXX)</code> 同樣走字串常數。「位置索引」只存在於執行期記憶體，用途是把選單項配對到權限名稱。</p>
+<p><strong>預期副作用</strong>：<code>/roleviews</code> 角色編輯頁的勾選框順序會跟著改變（<code>RoleViewView</code> 直接由 <code>RolePermissionService.InitializePermissionSetting()</code> 建樹）。這是兩邊一致的正確結果。</p>
+<h3 id="守護力已實證反證驗證">守護力已實證（反證驗證）</h3>
+<p>在「只改 <code>Menu.json</code>、未改 <code>RolePermissionService</code>」的中間狀態實測，<code>MenuPermissionAlignmentTests</code> 的另外三個測試全數通過（它們只驗數量，換序時數量不變），<code>EverySubMenuItem_PairsWith_ItsOwnPermissionName</code> 則精準失敗：</p>
+<blockquote><p>[3][1] 選單「AI 知識問答」配到權限「黃金評測」，應為「知識庫問答」；[3][2] 選單「清洗品質評測」配到權限「知識蒸餾」，應為「黃金評測」；[3][3] 選單「知識頁審核」配到權限「知識庫問答」，應為「知識蒸餾」</p></blockquote>
+<p>補上 <code>RolePermissionService</code> 後恢復全綠。</p>
+<h2 id="分隔線機制新增" class="t3">分隔線機制（新增）</h2>
+<h3 id="設計取捨欄位而非陣列元素">設計取捨：欄位而非陣列元素</h3>
+<p>分隔線做成<strong>掛在項目上的 <code>group</code> 欄位</strong>（<code>SidebarMenuItemModel.Group</code>，JSON 寫 <code>"group": N</code>，預設 0＝未分組），<strong>相鄰兩項 <code>group</code> 不同時畫一條線</strong>。</p>
+<p>⚠️ 刻意<strong>不</strong>在 <code>subMenu</code> 陣列插入一筆 divider 元素：那會整段位移權限索引，逼得 <code>ApplyChildPermissionStructure</code> 的計數與四條對齊測試全部要改，且是靜默錯位風險最高的做法。純欄位對位置索引零影響。</p>
+<p>判定集中在純函式 <code>SidebarMenuItemModel.ShouldRenderDividerAfter(siblings, index)</code>，兩條渲染路徑共用。</p>
+<h3 id="為什麼用分組而不是在這一項之後畫線">為什麼用「分組」而不是「在這一項之後畫線」</h3>
+<p><code>ShouldRenderDividerAfter</code> 對<strong>已經過權限過濾的可見清單</strong>求值，因此某一項因無權限被隱藏時，線仍落在正確的分組交界，而不是跟著那一項一起消失、讓兩組合併。由此也自然得到三個保證：結尾不會有孤兒線、開頭不會有線、兩條線不會相鄰。</p>
+<h3 id="兩條獨立的渲染路徑都要改">兩條獨立的渲染路徑都要改</h3>
+<p>側邊選單有兩套完全獨立的渲染實作：</p>
+<div class="tw"><table><thead><tr><th>狀態</th><th>實作</th><th>分隔線</th></tr></thead><tbody><tr><td>展開</td><td>AntDesign <code>&lt;Menu Mode="MenuMode.Inline"&gt;</code> → 遞迴 <code>SidebarMenuNode.razor</code></td><td><code>&lt;MenuDivider /&gt;</code>，寫在<strong>父層迴圈</strong>（＝<code>SubMenu</code> 的 <code>ChildContent</code> 直接子節點），判定需要兄弟清單</td></tr><tr><td>收合</td><td><code>NavMenu.razor</code> 手寫 HTML flyout（不走 AntDesign Menu）</td><td><code>&lt;div class="collapsed-flyout-divider"&gt;</code>（父容器是 <code>&lt;div&gt;</code>，<code>&lt;li&gt;</code> 在此不合法）</td></tr></tbody></table></div>
+<p>AntDesign 1.6.0 的 <code>MenuDivider</code> 沒有 <code>Key</code> 參數、不進 Menu 的 key 簿記，因此不影響 <code>SelectedKeys</code>/<code>OpenKeys</code>。</p>
+<p><strong>樣式歸屬</strong>：<code>&lt;MenuDivider /&gt;</code> 是元件標籤，Blazor 不對元件打 scope 屬性，其 <code>&lt;li&gt;</code> 不帶 scope id，因此樣式<strong>必須</strong>寫在 <code>NavMenu.razor.css</code> 的 <code>.sidebar-menu-shell ::deep .ant-menu-item-divider</code>，無法從 <code>SidebarMenuNode.razor.css</code> 選到。</p>
+<p><strong><code>CloneWith</code> 必須複製 <code>Group</code></strong>：<code>ApplyPermissionStructure</code> 與 <code>FilterMenuItems</code> 各會 clone 一次，漏掉就是「分隔線完全不出現且不報任何錯」——最難查的靜默失效，已由測試釘住。</p>
+<h3 id="範圍限制">範圍限制</h3>
+<p><code>group</code> <strong>只在第二層子選單有效</strong>。頂層與第三層（僅用於 adminOnly 群組）的渲染路徑刻意沒有分隔線邏輯，由 <code>MenuDividerTests.Group_OnlyAppearsAtSecondLevel</code> 擋下誤加。</p>
+<h2 id="測試" class="t4">測試</h2>
+<p>新增 9 條（1048 → 1057）：</p>
+<p><strong><code>SidebarMenuServiceTests</code>（+6）</strong>：分組邊界畫線／同組不畫／最後一項不畫孤兒線／<strong>過濾後邊界仍在</strong>（選擇分組做法的理由）／<code>CloneWith_PreservesGroup</code>＋<code>FilterMenuItems_PreservesGroup</code>（兩次 clone 都不能掉旗標）。</p>
+<p><strong><code>MenuDividerTests</code>（+3，新檔）</strong>：知識庫 subMenu 的 <strong>url 序列</strong>（用路由而非顯示名，顯示名是可調文案）／<code>group</code> 值為 1,1,2,2,2,3,3／<code>group</code> 不得出現在頂層與第三層。</p>
+<p>既有 <code>MenuPermissionAlignmentTests</code>（4）、<code>PermissionConstantCanaryTests</code>、<code>MenuIconTests</code> 皆未修改且全綠——<code>DisplayNameToPermissionName</code> 白名單不需異動（顯示名沒變），icon 也全部沿用原項。</p>
+<h2 id="影響範圍與驗證" class="t5">影響範圍與驗證</h2>
+<ul><li>無 migration、無資料異動、無 API 變更。</li><li><code>appsettings.json</code> <code>SystemVersion</code> 1.0.105 → 1.0.106。</li><li>選單有快取（<code>SidebarMenuService</code> 的 <code>sidebar:menu:raw</code>，預設 30 分），部署後需<strong>重啟站台</strong>才會看到新順序與分隔線。</li></ul>
+<p>已驗證：<code>dotnet build</code> 建置成功、<code>dotnet test</code> 1057 全綠、反證驗證如上、起站無例外且版本正確。</p>
+<p>⚠️ <strong>尚未實機目視確認</strong>：選單需登入才渲染，本次沒有可用的瀏覽器工作階段，因此<strong>兩條分隔線的實際外觀未經目視驗證</strong>。若展開態看不到線（AntDesign 內部樣式壓成 0 高度），備案是把 <code>&lt;MenuDivider /&gt;</code> 換成原生 <code>&lt;li class="sidebar-menu-divider" role="separator"&gt;&lt;/li&gt;</code>，樣式改寫進 <code>SidebarMenuNode.razor.css</code>（原生元素會帶 scope 屬性，不需 <code>::deep</code>），對 AntDesign 內部零相依。另建議以「只勾知識庫問答」的測試角色登入，確認側邊欄只出現「AI 知識問答」——這是唯一能實機抓出權限錯位的驗收步驟。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#變更">變更</a><a class="l2" href="#三處同步位置索引耦合">三處同步（位置索引耦合）</a><a class="l3" href="#既有角色權限不受影響">既有角色權限不受影響</a><a class="l3" href="#守護力已實證反證驗證">守護力已實證（反證驗證）</a><a class="l2" href="#分隔線機制新增">分隔線機制（新增）</a><a class="l3" href="#設計取捨欄位而非陣列元素">設計取捨：欄位而非陣列元素</a><a class="l3" href="#為什麼用分組而不是在這一項之後畫線">為什麼用「分組」而不是「在這一項之後畫線」</a><a class="l3" href="#兩條獨立的渲染路徑都要改">兩條獨立的渲染路徑都要改</a><a class="l3" href="#範圍限制">範圍限制</a><a class="l2" href="#測試">測試</a><a class="l2" href="#影響範圍與驗證">影響範圍與驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-29-知識庫選單重排與分組分隔線.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

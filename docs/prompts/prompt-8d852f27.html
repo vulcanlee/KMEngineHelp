@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>加入 分類與團隊選單｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 提示詞原稿</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">提示詞原稿</div><h1>加入 分類與團隊選單</h1></header><div class="docwrap"><main><p>使用 superpowers 技能</p>
+<p>現在已經有了分類與團隊清單建立的功能，現在需要把這兩個項目，加入到已經存在的頁面中 對於 專案項目、工作項目、會議紀錄、音訊轉錄、文件萃取 紀錄中，需要加入 分類 這個欄位，這個欄位類似一個 Tag 標籤這樣的功能，使用者可以定義這些紀錄屬於哪個 分類 項目，其屬性為字串，不需要做關聯，而且可以為空值，或者為多個 分類，使用類似 ant design 提供的類似 auto completion UI，使用者可以透過下拉選單來選取，也可以輸入關鍵字，並且自動出現符合的分類項目清單來選擇，加入之後，可以看到這筆紀錄有哪些 分類 項目歸屬在這個紀錄內，也可以對某個 分類 做移除，就像一般對待 Tag 標籤這樣的UI依樣，可以看到每個標籤右上方有個 x 圖示，點選後，就會移除該標籤。一旦儲存之後，就會儲存到原先記錄內。另外，對於瀏覽所有紀錄的時候，除了原有的排序、搜尋機制一樣要正常運作之外，還要加入可以選擇一個或者多個 分類 項目來進行過濾紀錄的功能。</p>
+<p>對於 團隊 這個欄位也如同分類一樣，需要加入到上述的五個頁面  專案項目、工作項目、會議紀錄、音訊轉錄、文件萃取  記錄內，條件也要符合上述定義。</p>
+<p>對於使用者角色紀錄上，要加入一個預設 團隊 欄位，該欄位可以設定一個或者多個 團隊 值，一旦使用者進入到 專案項目、工作項目、會議紀錄、音訊轉錄、文件萃取 頁面來瀏覽紀錄的時候，就僅能夠瀏覽該登入使用者授權看到的角色內定義的 團隊 值的紀錄。對於該使用者為 管理員 屬性，則不會受到這樣限制，管理員使用者可以看到所有 團隊 的紀錄。</p>
+<p>這樣的設計是要提供使用者可以快速找到或者瀏覽特定的 分類 紀錄，並且限定該使用者僅能夠看到授權團隊可以看到的紀錄，不在該團隊內的紀錄，要被控制不能讓非授權的使用者看到，畢竟這些資料是有些敏感度的。</p>
+<p>這次的變動範圍有些廣，並且要做到權控的功能，因此，設計上必須要能夠良好的測試或者驗證方法，確保這些需求可以正常做出來</p>
+<p>請依照這樣的需求產生相關說明文件，並且記錄在 docs 目錄下，在 docs 目錄下，若沒有符合的子目錄，建立一個子目錄，將這個檔案儲存在那裏，所有文字需要採用繁體中文 UTF-8 編碼，不能有亂碼，若有不清楚我的意圖，需要反覆向我提問，直到確定這是我想要做的事情。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（提示詞原稿）</h3><ul><li><a href="../../docs/prompts/rag-24ff0a56.html">RAG 的機制討論與調整</a></li><li><a href="../../docs/prompts/prompt-5d8d590f.html">使用手冊製作說明 prompt</a></li><li><a href="../../docs/prompts/hands-on-lab-prompt-77a37df1.html">使用者操作 Hands-on Lab 教學文件 prompt</a></li><li><a href="../../docs/prompts/prompt-34a03994.html">分類清單 prompt</a></li><li><a href="../../docs/prompts/doc-bfe6f17d.html">各階段資料的處理與維護作法說明</a></li><li><a href="../../docs/prompts/doc-e9e9796f.html">圖片清單可以使用壓縮檔案上傳</a></li><li><a href="../../docs/prompts/prompt-c2977554.html">圖片轉文字服務 prompt</a></li><li><a href="../../docs/prompts/prompt-36f5259c.html">團隊清單 prompt</a></li><li><a href="../../docs/prompts/steve-jobs-prompt-6e5c5238.html">客戶用的簡報 Steve Jobs prompt</a></li><li><a href="../../docs/prompts/prompt-8c54be33.html">提示詞清單 prompt</a></li><li><a href="../../docs/prompts/markdown-prompt-0e83373f.html">文件檔案轉換 Markdown 內容 prompt</a></li><li><a href="../../docs/prompts/doc-4b120a6f.html">文件萃取可以上傳壓縮檔案</a></li></ul></div></div></main></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prompts/加入 分類與團隊選單 prompt.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>多客戶、多客製、多型號的知識庫規劃分析｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 策略與規劃</p><header class="hero"><div class="kicker">策略與規劃</div><h1>多客戶、多客製、多型號的知識庫規劃分析</h1></header><div class="docwrap"><main><blockquote><p>撰寫日期：2026-07-29　｜　定位：導入規劃分析報告（可自用、亦可對客戶／實施顧問呈報） 範圍：同一套系統賣給不同客戶、各有客製與不同資料庫／作業系統時，知識該怎麼切；同類商品不同型號時，問答能不能靠型號代碼找對來源；以及真實情境的操作建議與誠實的準確率預估。 說明：本報告所有「本系統現況」主張皆對回程式碼檔案與行號（見 §2 的 F1～F13）。<strong>凡屬推論而非查證者，一律明寫「推論」</strong>；準確率一節<strong>不給單一總體數字</strong>，改為分情境給區間並附推理依據，另附「怎麼量出你自己的真實數字」。 前置閱讀：本文是 <a href="../../docs/strategy/tech-route-analysis.html">14-企業知識庫技術路線分析</a> 的續篇。那一篇已完整處理「本系統的 RAG 技術定位」與「Karpathy LLM Wiki 模式對照」，本文不重複，只補它沒談的一層：<strong>當同一套系統賣給 N 個客戶、同一產品有 N 個型號時，知識該怎麼切</strong>。</p></blockquote>
+<hr>
+<h2 id="一先講企業真實需要" class="t1">一、先講企業真實需要</h2>
+<p>技術討論很容易一開始就跳到「要不要用分類」。但分類只是手段，先確認要解決的到底是什麼。</p>
+<h3 id="11-三個真實痛點">1.1 三個真實痛點</h3>
+<p>一家做專案的軟體公司，賣同一套系統給十家客戶之後，通常會同時出現這三件事：</p>
+<div class="tw"><table><thead><tr><th>痛點</th><th>具體長什麼樣</th><th>現在怎麼解</th></tr></thead><tbody><tr><td><strong>沒人講得清「這家到底改了什麼」</strong></td><td>客戶 A 的簽核流程多兩關、客戶 B 的報表欄位不一樣、客戶 C 用 SQL Server 而其他家用 SQLite</td><td>問當初做的人。他休假就卡住</td></tr><tr><td><strong>客製細節只活在某個人腦裡</strong></td><td>「那個排程要先關掉再升版」這種事，從來沒有寫下來過</td><td>老手離職就永久遺失</td></tr><tr><td><strong>新人接手要翻三個月</strong></td><td>文件散在共用磁碟、Teams、Email、某人的筆電</td><td>靠帶人，成本極高</td></tr></tbody></table></div>
+<p>這三件事的共同結構是：<strong>知識存在，但取用成本高到等於不存在</strong>。知識庫要解的是取用成本，不是儲存問題——儲存從來不是瓶頸。</p>
+<h3 id="12-企業真正要的不是ai-很聰明">1.2 企業真正要的不是「AI 很聰明」</h3>
+<p>導入知識庫最常見的失敗，不是「AI 答不出來」，而是「<strong>AI 很有自信地答錯</strong>」。</p>
+<p>對做專案的公司來說，這件事的代價很具體：工程師照著 AI 給的步驟去客戶 A 的機器上操作，結果那是客戶 B 的流程。這種錯誤比「查無資料」嚴重得多——查無資料會讓人去問人，答錯會讓人直接動手。</p>
+<p>所以企業真正需要的三件事，依序是：</p>
+<ol><li><strong>答錯要能追出處</strong>——每個答案都要能點回原始文件核對。本系統的出處鑽取與原始檔下載就是為此。</li><li><strong>答不出來要老實說</strong>——寧可回「查無相關依據」，也不要硬掰。本系統的兩段式信心門檻（F8）在程式層直接攔截，<strong>不呼叫 LLM</strong>，不依賴 LLM 自律。</li><li><strong>看不到的東西就是看不到</strong>——客戶 A 的人不該看到客戶 B 的任何內容，而且過濾要發生在「找資料」那一步，不是事後遮起來。本系統的團隊權控（F9）在候選階段就過濾。</li></ol>
+<p><strong>這三件事本系統都已內建</strong>。本文接下來要處理的，是第四件事——<strong>怎麼讓它找對「哪一家客戶、哪一個型號」</strong>。這件事系統提供了工具，但<strong>規劃做不對就不會生效</strong>。</p>
+<hr>
+<h2 id="二這套系統實際上怎麼找資料" class="t2">二、這套系統實際上怎麼找資料</h2>
+<p>後面所有建議都建立在這一節。先把機制講清楚，才知道哪些做法有效、哪些是白費力氣。</p>
+<h3 id="21-一次問答的完整路徑">2.1 一次問答的完整路徑</h3>
+<pre><code>你打一個問題
+   ↓
+（視需要）查詢改寫：補全代詞與過短問句
+   ↓
+三路並行找資料：向量 ＋ 關鍵字 ＋ 圖鄰域
+   ↓
+套團隊權控（沒權限的根本不進候選）
+   ↓
+套查詢期篩選（限定知識來源／分類／團隊）
+   ↓
+融合分數排序，取前 TopK 段（預設 10）
+   ↓
+兩段式門檻：最高分太低就直接回「查無依據」，不呼叫 LLM
+   ↓
+組成附出處的參考資料交給 LLM 寫答案</code></pre>
+<h3 id="22-十三個關鍵事實全文論述的地基">2.2 十三個關鍵事實（全文論述的地基）</h3>
+<div class="tw"><table><thead><tr><th>#</th><th>事實</th><th>出處</th></tr></thead><tbody><tr><td><strong>F1</strong></td><td>三路混合檢索，融合分數 <code>= 0.7×向量 + 0.3×關鍵字 + 0.2×圖</code></td><td><code>RetrievalService.cs:80-81</code></td></tr><tr><td><strong>F2</strong></td><td>已內建三個<strong>查詢期硬篩選</strong>：限定知識來源／分類／團隊，向量與關鍵字兩路都套，且<strong>只縮不放</strong>（疊加在權控之上，無法藉此擴權）</td><td><code>RetrievalService.cs:385-396</code></td></tr><tr><td><strong>F3</strong></td><td><strong>分類多選是「或」不是「且」</strong>（<code>BuildContainsAnyPredicate</code> 的定義就是「包含任一」）</td><td><code>TagStringHelper.cs:76-105</code></td></tr><tr><td><strong>F4</strong></td><td><strong>章節標題只存進中繼欄位 <code>AnchorRef</code>，不併進 chunk 本文</strong>。標題那一行會落在該節第一塊，但<strong>第二塊之後只帶 120 字的重疊尾巴</strong></td><td><code>Chunker.cs:76,79-85</code></td></tr><tr><td><strong>F5</strong></td><td>切詞的分隔符<strong>包含連字號 <code>-</code></strong>：<code>EPS-3000</code> 會被切成 <code>EPS</code> ＋ <code>3000</code></td><td><code>RetrievalService.cs:420-425</code></td></tr><tr><td><strong>F6</strong></td><td>關鍵字分數 ＝ 命中詞數 ÷ 總詞數；<strong>中文不斷詞</strong>（整串當一個詞比對）</td><td><code>RetrievalService.cs:408-411,418-441</code></td></tr><tr><td><strong>F7</strong></td><td>交給 LLM 的參考資料，每段前面都有 <code>【來源：{知識來源標題}｜{蒸餾頁或清洗內容}｜{章節錨點}】</code></td><td><code>KnowledgeBaseChatService.cs:235</code></td></tr><tr><td><strong>F8</strong></td><td>兩段式門檻：最高分低於下限 → <strong>程式層直接回查無依據、不呼叫 LLM</strong>；介於兩門檻之間 → 照答但前面加註信心不足</td><td><code>知識庫RAG設計與執行.md</code> §4.1</td></tr><tr><td><strong>F9</strong></td><td><strong>團隊控權限</strong>（無團隊即公開；有團隊則需交集），<strong>分類完全不控權限</strong></td><td><code>TagStringHelper.cs:111-136</code></td></tr><tr><td><strong>F10</strong></td><td>知識圖譜有<strong>別名合併</strong>（查 TSMC 等同查台積電），但只作用於已核可的別名，且屬圖路（權重 0.2）</td><td><code>知識庫RAG設計與執行.md</code> §4.2</td></tr><tr><td><strong>F11</strong></td><td>已有版本化與時點查詢：舊版標記為已汰換並保留、檢索預設只回現行版</td><td><code>知識庫RAG設計與執行.md</code> §2.1</td></tr><tr><td><strong>F12</strong></td><td>檢索品質評測已內建這些指標：<code>PrecisionAtK</code>、<code>RecallAtK</code>、<code>NdcgAtK</code>、<code>Mrr</code>、<code>CitationAccuracy</code>、<code>LeakHits</code>、<code>LatencyMs</code>，且可存基線並記錄當時的參數快照</td><td><code>RagEvaluationModels.cs:25-147</code></td></tr><tr><td><strong>F13</strong></td><td><strong>尚未實作</strong>：重排序（rerank）、假設性文件（HyDE）、多查詢展開、相鄰段落擴展</td><td><code>知識庫RAG設計與執行.md</code> §7</td></tr></tbody></table></div>
+<h3 id="23-由這些事實直接推出的三個結論">2.3 由這些事實直接推出的三個結論</h3>
+<p>這三個結論決定了本文後面所有建議：</p>
+<blockquote><p><strong>結論一（來自 F3）：想用分類做「客戶 × 文件類型」的二維切分，做不到。</strong> 同時選「客戶-台積電」與「文件-佈署」，得到的是<strong>聯集</strong>（台積電的所有文件，加上所有客戶的佈署文件），不是交集。這是本文最重要的一個發現，它直接決定了命名規則該怎麼訂。</p></blockquote>
+<blockquote><p><strong>結論二（來自 F4＋F5＋F1）：光是在問句裡加型號代碼，不可靠。</strong> 關鍵字路的權重上限只有 0.3，而且同一節第二塊之後的 chunk <strong>根本不含型號字樣</strong>。要可靠地鎖定型號，只能靠 F2 的硬篩選。</p></blockquote>
+<blockquote><p><strong>結論三（來自 F7）：命名本身就是給 LLM 的辨識訊號。</strong> 知識來源標題與章節標題都會進入 LLM 看到的參考資料。所以即使檢索撈混了幾個型號，<strong>命名良好時 LLM 仍有機會自己區辨</strong>——但這靠 LLM 自律，是保險不是保證。</p></blockquote>
+<hr>
+<h2 id="三問題一多客戶多客製多資料庫多作業系統" class="t3">三、問題一：多客戶、多客製、多資料庫、多作業系統</h2>
+<h3 id="31-先說為什麼用分類做多維切分一定會失敗">3.1 先說為什麼「用分類做多維切分」一定會失敗</h3>
+<p>直覺的做法是把每個維度都做成分類標籤：</p>
+<pre><code>客戶-客戶A、客戶-客戶B、客戶-客戶C
+文件-使用手冊、文件-工程維運、文件-系統設定、文件-佈署
+環境-SQLServer、環境-SQLite、環境-Windows2025、環境-Ubuntu</code></pre>
+<p>然後問答時同時選「客戶-客戶A」＋「文件-佈署」，期待得到「客戶A 的佈署文件」。</p>
+<p><strong>這行不通。</strong> 因為分類篩選是「或」（F3）。你實際得到的是：</p>
+<pre><code>客戶A 的所有文件（使用手冊、維運、設定、佈署…）
+      ∪
+所有客戶的佈署文件（客戶A、客戶B、客戶C…）</code></pre>
+<p>範圍不但沒縮小，反而<strong>比只選一個還大</strong>。而且畫面上不會有任何提示告訴你這件事——你會以為篩選生效了。</p>
+<p>這是一個很容易踩、而且<strong>踩了不會自己發現</strong>的坑。所以：</p>
+<blockquote><p><strong>分類只能用來表達「一個維度」。想表達多維度的交集，必須換工具。</strong></p></blockquote>
+<h3 id="32-建議的三層切分模型">3.2 建議的三層切分模型</h3>
+<p>正確的做法是讓三種工具各司其職，各自負責一個維度：</p>
+<div class="tw"><table><thead><tr><th>層</th><th>工具</th><th>負責的維度</th><th>為什麼是它</th></tr></thead><tbody><tr><td><strong>第一層：誰能看</strong></td><td><strong>團隊</strong></td><td>客戶／租戶邊界</td><td>這是系統唯一的硬權限（F9）。客戶的人會登入時，這一層是資安紅線</td></tr><tr><td><strong>第二層：問答時鎖定範圍</strong></td><td><strong>知識來源（盒子）</strong></td><td>客戶 × 系統 × 大版本 × 文件族</td><td>這是「限定知識來源」的抓手（F2），也是清洗、蒸餾、索引的處理單位</td></tr><tr><td><strong>第三層：主題篩選</strong></td><td><strong>分類</strong></td><td><strong>只放文件用途</strong>（單一扁平維度）</td><td>受限於 F3 的「或」語意，只能承擔一個維度</td></tr></tbody></table></div>
+<p><strong>核心主張：把「客戶」這個維度放進「知識來源盒子」，不要放進分類。</strong></p>
+<p>理由有三：</p>
+<ol><li><strong>盒子的篩選是硬過濾</strong>（F2），選了就只在那個範圍內找，可靠度 100%。</li><li><strong>盒子的標題會進 LLM 的參考資料</strong>（F7），等於免費多一層辨識訊號。</li><li><strong>盒子本來就是加工單位</strong>——同一個客戶的內容一起清洗、一起蒸餾、一起失效重跑，本來就該裝在一起。</li></ol>
+<h3 id="33-命名規則">3.3 命名規則</h3>
+<p>因為來源標題會進 LLM 的參考資料（F7），<strong>標題必須單獨看得懂</strong>。「佈署手冊」這種名字對 LLM 毫無幫助——它看到十段前綴都是「佈署手冊」，無從分辨。</p>
+<p>建議格式（由粗到細，用全形分隔符隔開，讓人與 LLM 都好讀）：</p>
+<pre><code>{客戶}｜{系統或產品線}｜{大版本}｜{文件族}</code></pre>
+<p>範例（<strong>以下皆為泛例，請自行代換成你們的實際名稱</strong>）：</p>
+<div class="tw"><table><thead><tr><th>來源標題</th><th>說明</th></tr></thead><tbody><tr><td><code>客戶A｜MES｜v3｜佈署與環境建置</code></td><td>客戶 A 的 MES 系統 v3 版佈署文件</td></tr><tr><td><code>客戶A｜MES｜v3｜工程維運與故障排除</code></td><td>同上，但維運面</td></tr><tr><td><code>客戶A｜MES｜v3｜客製差異說明</code></td><td><strong>最有價值的一盒</strong>：這家跟標準版差在哪</td></tr><tr><td><code>客戶B｜MES｜v2｜佈署與環境建置</code></td><td>另一家、另一版</td></tr><tr><td><code>標準版｜MES｜v3｜使用手冊</code></td><td>不綁客戶的共通內容</td></tr></tbody></table></div>
+<p>搭配的分類詞庫（<strong>只有一個維度：文件用途</strong>，控制在 10 個以內）：</p>
+<pre><code>使用手冊、工程維運、系統設定、佈署安裝、客製差異、
+規劃會議、專案管理、教育訓練</code></pre>
+<p><strong>為什麼分類不放客戶、不放型號、不放環境</strong>：那些維度已經由盒子承擔了。分類重複表達同一件事只會讓下拉變長，而且因為「或」語意（F3），多選時反而會擴大範圍。</p>
+<blockquote><p>⚠️ <strong>分類詞庫要刻意維持很小。</strong> 超過 20 個之後，貼標籤的人就開始猜、開始不一致，篩選也就不再可靠。詞庫小、每個詞邊界清楚，比詞庫完整重要得多。</p></blockquote>
+<h3 id="34-環境維度資料庫作業系統怎麼放">3.4 環境維度（資料庫、作業系統）怎麼放</h3>
+<p>這一維最麻煩，因為它跟文件用途<strong>正交</strong>——「佈署文件」與「SQL Server」是兩個獨立維度，而 F3 的「或」語意讓你無法取交集。</p>
+<p>判準不是「重不重要」，而是「<strong>差異佔全文的比例</strong>」：</p>
+<div class="tw"><table><thead><tr><th>情況</th><th>建議做法</th><th>理由</th></tr></thead><tbody><tr><td>環境差異只佔全文一小部分（例如只有連線字串與備份指令不同）</td><td><strong>同一份文件，用章節分</strong>：<code>## SQL Server 設定</code>、<code>## SQLite 設定</code></td><td>章節標題會進 <code>AnchorRef</code> 與出處（F4），使用者看得到答案來自哪一節</td></tr><tr><td>環境差異很大（整套安裝流程、目錄結構、服務註冊方式都不同）</td><td><strong>拆成不同的盒子</strong>：<code>客戶A｜MES｜v3｜佈署-WindowsServer2025</code></td><td>差異大到混在一起時，檢索會兩邊都撈到，LLM 容易混答</td></tr><tr><td>環境是<strong>客戶固定屬性</strong>（客戶 A 永遠是 SQL Server）</td><td><strong>不需要獨立維度</strong>，寫在該客戶的盒子裡即可</td><td>這是最常見的情況。不要為了「架構完整」去建一個實際上不會單獨查詢的維度</td></tr></tbody></table></div>
+<blockquote><p><strong>最後一列最常被忽略。</strong> 多數專案公司的實際情況是「客戶 A 就是那套環境」——環境根本不是獨立維度，而是客戶的屬性。硬把它拆成獨立標籤只會增加維護成本，卻沒有任何查詢會用到它。</p></blockquote>
+<h3 id="35-一份大文件還是拆多份">3.5 一份大文件，還是拆多份？</h3>
+<p>判準<strong>不是長度</strong>，而是這兩個問題：</p>
+<ol><li><strong>它們會不會一起改？</strong> 一起改的放一起，分開改的拆開。</li><li><strong>它們會不會一起失效？</strong> 客戶 A 升到 v4 時，哪些文件同時作廢？那些就是同一盒。</li></ol>
+<p>長度不是判準的原因：切塊器會自動處理長文件（預設每塊約 800 字、重疊 120 字），一份三百頁的手冊不會因為長而檢索不到。真正會出問題的是<strong>該分開的沒分開</strong>——客戶 A 與客戶 B 的內容在同一盒裡，就永遠無法用「限定知識來源」把它們分開。</p>
+<p><strong>維護性的實際考量</strong>：一份文件維護不易是真的，但拆太細也有代價——盒子數量爆炸後，「限定知識來源」的下拉會長到沒人願意用。實務上的平衡點是：</p>
+<blockquote><p><strong>每個客戶 3～6 個盒子</strong>（佈署／維運／客製差異／使用手冊／會議與 PM），而不是每份文件一個盒子。</p></blockquote>
+<h3 id="36-問答時怎麼自動找到指定客戶的文件">3.6 問答時怎麼「自動」找到指定客戶的文件</h3>
+<p>先說結論，避免期待落空：</p>
+<blockquote><p><strong>系統不會自己猜你問的是哪一家客戶。</strong> 「自動」是有條件的，而且有三層，可靠度差很多。</p></blockquote>
+<div class="tw"><table><thead><tr><th>層</th><th>機制</th><th>可靠度</th><th>需要做什麼</th></tr></thead><tbody><tr><td><strong>第一層：硬篩選</strong></td><td>問答頁的「限定知識來源」多選</td><td><strong>100%</strong>（這是資料庫層的過濾條件）</td><td>使用者要自己選。可教育成「問客戶 A 的事之前先選客戶 A」</td></tr><tr><td><strong>第二層：命名進參考資料</strong></td><td>來源標題與章節標題會進 LLM 的參考資料（F7）</td><td>中～高（靠 LLM 判讀）</td><td>標題要含客戶名（§3.3）</td></tr><tr><td><strong>第三層：內容自帶客戶名</strong></td><td>關鍵字路命中（F1，權重 0.3）</td><td>低～中</td><td>文件內容每節都要提到客戶名</td></tr></tbody></table></div>
+<p><strong>建議的實務做法</strong>：</p>
+<ul><li><strong>一般使用者</strong>：養成「先選限定知識來源，再問」的習慣。這是唯一 100% 可靠的做法，而且只多兩秒。</li><li><strong>問題本身就帶客戶名時</strong>（例如「客戶A 的排程服務怎麼重啟」）：第二、三層會發揮作用，但<strong>不要依賴它</strong>——特別是當多家客戶的文件內容高度相似時。</li><li><strong>如果客戶的人會登入自己的系統</strong>：用<strong>團隊</strong>把客戶隔開（F9）。這種情況下他根本看不到別家的內容，「自動」就是天然成立的，因為候選集裡只有他家的資料。</li></ul>
+<blockquote><p>💡 <strong>最乾淨的架構</strong>：如果每個客戶都是獨立部署（各自一套系統、各自一個資料庫），那這整個問題就消失了——一套系統裡只有一家客戶的資料。<strong>多客戶共用一套系統時，才需要本文的所有規劃。</strong> 先確認你是哪一種。</p></blockquote>
+<h3 id="37-會議紀錄與-pm-文件要不要跟手冊放同一盒">3.7 會議紀錄與 PM 文件，要不要跟手冊放同一盒？</h3>
+<p><strong>不要。</strong> 這是實務上代價很高、但很少人事先想到的一個決定。</p>
+<p>原因是<strong>權威性與時效性不同</strong>：</p>
+<div class="tw"><table><thead><tr><th>文件類型</th><th>它說的是什麼</th><th>三個月後還算數嗎</th></tr></thead><tbody><tr><td>使用手冊、佈署文件</td><td><strong>現在的事實</strong></td><td>算數（除非改版）</td></tr><tr><td>規劃會議紀錄</td><td><strong>當時的討論</strong>，可能後來被推翻</td><td><strong>常常不算數</strong></td></tr><tr><td>PM 的專案文件（時程、風險、決議）</td><td>當時的計畫</td><td>部分算數，部分過期</td></tr></tbody></table></div>
+<p>混在同一盒的後果很具體：使用者問「這個功能的規格是什麼」，AI 撈到三個月前那場「初步討論先這樣做」的會議紀錄，於是回答了一個後來已經被推翻的設計。而且<strong>答案有出處、看起來很可信</strong>。</p>
+<p>建議做法：</p>
+<ul><li><strong>分盒</strong>：<code>客戶A｜MES｜v3｜規劃會議與決議</code>、<code>客戶A｜MES｜專案管理文件</code>，與手冊類的盒子分開。</li><li><strong>分類也分開</strong>（<code>規劃會議</code>、<code>專案管理</code>），這樣要排除它們時可以用分類篩掉。</li><li><strong>會議紀錄的標題一定要帶日期</strong>，讓它進 LLM 參考資料時（F7）自帶時間資訊，AI 才有機會說「依 2026-05 的會議紀錄…」。</li><li><strong>善用版本與時效欄位</strong>（F11）：規劃文件定案後，把被推翻的舊版標記失效，避免它繼續被檢索到。</li></ul>
+<blockquote><p>📌 <strong>一個好用的紀律</strong>：會議紀錄與 PM 文件<strong>只進知識庫，不進「標準答案」</strong>。也就是說，允許它們被查到（有價值），但在問答時養成「問現行規格請限定手冊類的盒子」的習慣。</p></blockquote>
+<h3 id="38-匯入路徑這些文件怎麼進系統">3.8 匯入路徑：這些文件怎麼進系統</h3>
+<p>順帶說明各類文件對應的匯入管線：</p>
+<div class="tw"><table><thead><tr><th>文件類型</th><th>匯入方式</th></tr></thead><tbody><tr><td>使用手冊、佈署文件、設定文件（PDF／Word／Excel／簡報）</td><td><strong>文件轉文字</strong>，數量多時用批次上傳壓縮檔</td></tr><tr><td>規劃會議</td><td><strong>會議管理</strong>上傳錄音——會自動產生會議紀錄與待辦草稿，比事後補打字完整得多</td></tr><tr><td>教育訓練、交接說明的錄影錄音</td><td><strong>影音轉逐字稿</strong></td></tr><tr><td>架構圖、錯誤畫面截圖、機房照片</td><td><strong>圖片解讀</strong>（記得給具體的解讀指示）</td></tr><tr><td>PM 的時程表、風險清單</td><td><strong>文件轉文字</strong></td></tr></tbody></table></div>
+<p>匯入之後一律走同一條線：<strong>裝進知識來源盒子 → 清洗 → 蒸餾 → 建立索引</strong>。沒有建立索引，問答就查不到（這是最常見的「怎麼都查無依據」原因）。</p>
+<hr>
+<h2 id="四問題二同類商品不同型號" class="t4">四、問題二：同類商品、不同型號</h2>
+<h3 id="41-直接回答">4.1 直接回答</h3>
+<blockquote><p><strong>能做到，但不是靠「在問句裡加型號代碼」。</strong></p></blockquote>
+<p>問句加型號<strong>會有一些幫助，但不足以依賴</strong>。下面用實際的機制算給你看，然後給可靠的做法。</p>
+<h3 id="42-為什麼問句加型號不可靠三個證據">4.2 為什麼「問句加型號」不可靠：三個證據</h3>
+<p><strong>證據一：連字號會被切開（F5）。</strong></p>
+<p>系統的切詞分隔符包含 <code>-</code>。所以查 <code>EPS-3000</code> 時，實際產生的比對詞是：</p>
+<pre><code>["EPS", "3000", "EPS-3000"(完整問句)]</code></pre>
+<p><strong>證據二：同一節第二塊之後的 chunk 不含型號（F4）。</strong></p>
+<p>切塊器把章節標題存進中繼欄位 <code>AnchorRef</code>，<strong>不併進 chunk 本文</strong>。所以一份「EPS-3000 規格說明」文件切出來的塊是：</p>
+<pre><code>第 1 塊：包含「## EPS-3000 規格」這一行 → 關鍵字找得到
+第 2 塊：只有規格內文 ＋ 前一塊的 120 字尾巴 → 可能已經不含型號
+第 3 塊起：幾乎確定不含型號 → 關鍵字完全找不到</code></pre>
+<p><strong>規格表、參數表這類內容通常很長，也就是說最關鍵的那幾塊，往往正是不含型號的那幾塊。</strong></p>
+<p><strong>證據三：關鍵字權重上限只有 0.3（F1）。</strong></p>
+<p>算一個具體的例子。問「<code>EPS-3000 的保固期是多久</code>」，比對詞是 <code>["EPS", "3000", "的保固期是多久", 完整問句]</code> 共 4 個：</p>
+<div class="tw"><table><thead><tr><th>chunk</th><th>命中的詞</th><th>關鍵字分數</th><th>對融合分數的貢獻</th></tr></thead><tbody><tr><td>EPS-3000 的保固章節</td><td><code>EPS</code>、<code>3000</code></td><td>2 ÷ 4 = 0.50</td><td>0.3 × 0.50 = <strong>0.15</strong></td></tr><tr><td>EPS-5000 的保固章節</td><td><code>EPS</code></td><td>1 ÷ 4 = 0.25</td><td>0.3 × 0.25 = <strong>0.075</strong></td></tr></tbody></table></div>
+<p><strong>差距只有 0.075。</strong> 而兩份文件講的都是「保固期」，向量分數幾乎一樣（推論：內容結構相似時差距通常在 0.05 以內）。</p>
+<p>結果是：<strong>正確型號的內容會排前面一點點，但錯誤型號的內容照樣進入前 10 名、照樣被送進 LLM</strong>。LLM 看到兩個型號的保固條款，可能答對、可能答錯、也可能把兩者混在一起。</p>
+<h3 id="43-四種做法由強到弱">4.3 四種做法，由強到弱</h3>
+<div class="tw"><table><thead><tr><th>#</th><th>做法</th><th>可靠度</th><th>代價</th></tr></thead><tbody><tr><td><strong>①</strong></td><td><strong>每個型號一個知識來源盒子 ＋ 問答時「限定知識來源」</strong></td><td><strong>100%</strong>（資料庫層過濾，F2）</td><td>使用者要多選一次；型號多時下拉會長</td></tr><tr><td><strong>②</strong></td><td><strong>型號當分類 ＋ 問答時「限定分類」</strong></td><td><strong>高</strong>（同樣是硬過濾）</td><td>⚠️ 只有在「分類這個維度只拿來放型號」時才可靠。一旦分類同時放文件用途，多選就會變成「或」（F3）而失效</td></tr><tr><td><strong>③</strong></td><td><strong>文件每一節都重複帶出型號</strong></td><td>中～高</td><td>要改文件寫法；改完要重建索引</td></tr><tr><td><strong>④</strong></td><td><strong>只在問句加型號</strong></td><td><strong>低，不可依賴</strong></td><td>零成本，但如 §4.2 所示效果有限</td></tr></tbody></table></div>
+<p><strong>建議：①為主，③為輔。</strong> ① 保證找對型號，③ 讓萬一沒選篩選時也有機會答對，而且能提升 ① 的盒內排序品質。</p>
+<p><strong>② 要特別小心</strong>：如果你已經照 §3.3 把分類拿來放文件用途，就<strong>不要</strong>再把型號塞進去。兩個維度擠在一個「或」語意的欄位裡，兩邊都會失準。</p>
+<h3 id="44-型號別名">4.4 型號別名</h3>
+<p>知識圖譜有別名合併能力（F10）：把 <code>EPS-3000</code>、<code>EPS3000</code>、<code>eps 3000</code>、<code>EPS 3000 系列</code> 登記成同一個實體的別名之後，查任何一個寫法都等同查全部。</p>
+<p><strong>但要知道它的界線</strong>：</p>
+<ul><li>別名<strong>必須經過人工核可</strong>才生效。</li><li>它作用在<strong>圖檢索路徑</strong>，權重只有 0.2（F1），而且要先有 Wiki 層命中當種子才會啟動。</li><li>所以它是<strong>輔助</strong>，不能取代 §4.3 的 ① 或 ③。</li></ul>
+<p>適合用它的情境：<strong>同一個型號在不同文件裡寫法不一致</strong>（業務寫 <code>EPS3000</code>、工程寫 <code>EPS-3000</code>、客戶叫它「三千型」）。這種情況下別名很有價值。</p>
+<h3 id="45-型號的書寫規約建議寫進你們的文件撰寫規範">4.5 型號的書寫規約（建議寫進你們的文件撰寫規範）</h3>
+<ol><li><strong>型號代碼避免連字號</strong>——寫 <code>EPS3000</code> 而不是 <code>EPS-3000</code>（F5：連字號會被切開）。若既有文件已大量使用連字號，改用 §4.3 ① 的硬篩選，不要指望關鍵字。</li><li><strong>每一個章節標題都帶完整型號</strong>——<code>## EPS3000 保固條款</code>，而不是 <code>## 保固條款</code>。</li><li><strong>長表格的每一列都帶型號</strong>——規格表第一欄放型號，這樣不論切在哪裡，每一塊都含型號。</li><li><strong>文件開頭放一段「適用型號」宣告</strong>，並在每個大段落開頭重述一次。</li><li><strong>不同型號的差異，優先寫成「差異表」而不是分散在各章</strong>——差異集中在一處，檢索與人工查閱都更準。</li></ol>
+<hr>
+<h2 id="五更多真實情境" class="t5">五、更多真實情境</h2>
+<h3 id="51-軟體專案公司的實際情境">5.1 軟體專案公司的實際情境</h3>
+<div class="tw"><table><thead><tr><th>情境</th><th>怎麼規劃</th><th>關鍵提醒</th></tr></thead><tbody><tr><td><strong>老手離職前的交接</strong></td><td>錄一段交接說明 → 影音轉逐字稿 → 進 <code>{客戶}｜{系統}｜客製差異說明</code></td><td>這是<strong>投資報酬率最高的一個情境</strong>。交接錄音通常沒人聽得完，轉成文字後才真的可用</td></tr><tr><td><strong>客訴排查</strong></td><td>建 <code>{客戶}｜{系統}｜工程維運與故障排除</code>，把歷次事件的處理過程放進去</td><td>問答時<strong>一定要限定該客戶的盒子</strong>——別家的故障處理步驟看起來很像，但可能完全不適用</td></tr><tr><td><strong>實施顧問上手新客戶</strong></td><td>讓他先問 <code>{客戶}｜客製差異說明</code> 那一盒</td><td>比翻三個月文件快。<strong>先問「這家跟標準版差在哪」</strong>，而不是從頭讀</td></tr><tr><td><strong>投標與合約</strong></td><td>獨立盒子 ＋ 獨立團隊（通常只有業務與主管該看）</td><td>⚠️ 合約含金額與條款，<strong>團隊一定要設對</strong>，這是資安問題不是分類問題</td></tr><tr><td><strong>教育訓練</strong></td><td>訓練錄影 → 影音轉逐字稿 → 進 <code>標準版｜{系統}｜教育訓練</code></td><td>用「標準版」而非特定客戶，因為訓練內容通常是共通的</td></tr><tr><td><strong>跨客戶經驗複用</strong></td><td>問答時<strong>不限定</strong>知識來源，讓它跨所有客戶找</td><td>這是唯一「刻意不篩選」的情境：「有沒有別家遇過類似問題？」</td></tr><tr><td><strong>版本升級評估</strong></td><td>用版本與時效欄位（F11）保留舊版，問答預設只回現行版</td><td>需要回溯「三個月前規格怎麼寫」時，用時點查詢</td></tr></tbody></table></div>
+<h3 id="52-跨行業通用情境">5.2 跨行業通用情境</h3>
+<div class="tw"><table><thead><tr><th>行業</th><th>情境</th><th>切分方式（對應本文的三層模型）</th></tr></thead><tbody><tr><td><strong>製造業</strong></td><td>同一產線多台機台、各有型號與 SOP</td><td>團隊＝廠區；盒子＝<code>{廠區}｜{機台型號}｜{SOP或故障排除}</code>；分類＝文件用途</td></tr><tr><td><strong>醫療器材</strong></td><td>同一儀器多個機種，操作與保養手冊不同</td><td>盒子＝<code>{機種}｜{操作或保養}</code>；⚠️ 法規版本用時效欄位管理</td></tr><tr><td><strong>金融</strong></td><td>同一產品多個方案、各有適用條款</td><td>團隊＝分行或事業處；盒子＝<code>{產品}｜{方案}｜條款</code>；⚠️ 客戶個資靠清洗遮罩</td></tr><tr><td><strong>零售連鎖</strong></td><td>同一 POS 系統，各門市設定不同</td><td>盒子＝<code>{區域}｜POS｜{設定或作業手冊}</code>；門市數量多時<strong>用區域而非單店</strong>切，否則盒子爆炸</td></tr><tr><td><strong>系統整合商</strong></td><td>同一解決方案整合不同廠牌設備</td><td>盒子＝<code>{解決方案}｜{設備廠牌型號}</code>；廠牌型號的別名（F10）在此特別有價值</td></tr></tbody></table></div>
+<h3 id="53-會出錯的反例最值得先看的一節">5.3 會出錯的反例（最值得先看的一節）</h3>
+<p>以下每一項都是<strong>規劃階段就決定、事後很難補救</strong>的錯誤。</p>
+<div class="tw"><table><thead><tr><th>#</th><th>反例</th><th>會發生什麼</th><th>為什麼難補救</th></tr></thead><tbody><tr><td><strong>1</strong></td><td><strong>一個盒子裝十家客戶的文件</strong></td><td>問答永遠分不出是哪一家；限定知識來源失去意義</td><td>要拆就得重建盒子、重跑清洗蒸餾索引，等於重來</td></tr><tr><td><strong>2</strong></td><td><strong>分類爆炸成兩百個</strong></td><td>沒人貼得準，篩選不再可靠；下拉長到沒人用</td><td>已貼的標籤散在成千上萬筆資料裡，要收斂得逐筆重貼</td></tr><tr><td><strong>3</strong></td><td><strong>用分類做客戶隔離</strong></td><td><strong>資安事故</strong>。分類完全不控權限（F9），客戶 A 的人照樣查得到客戶 B</td><td>發現時通常已經外洩過了</td></tr><tr><td><strong>4</strong></td><td><strong>多維標籤同時多選，以為是交集</strong></td><td>範圍反而變大（F3），而且畫面不會提示</td><td>不會有錯誤訊息，只會覺得「AI 好像怪怪的」</td></tr><tr><td><strong>5</strong></td><td><strong>改完內容不重建索引</strong></td><td>問答繼續用舊內容回答，<strong>完全沒有警告</strong></td><td>系統會標記「內容已過時」，但不會自動重跑（要花 AI 費用）。不看就不知道</td></tr><tr><td><strong>6</strong></td><td><strong>把可調參數寫進知識庫文件</strong></td><td>參數改了、文件沒改，工程師照著設定錯的值</td><td>這也是本專案 in-app 說明刻意不寫參數的原因</td></tr><tr><td><strong>7</strong></td><td><strong>會議紀錄與手冊放同一盒</strong></td><td>AI 拿被推翻的討論當現行規格答（§3.7）</td><td>答案有出處、看起來可信，錯得很隱蔽</td></tr><tr><td><strong>8</strong></td><td><strong>型號用連字號、章節不帶型號</strong></td><td>關鍵字路幾乎失效（F4、F5）</td><td>要改就得改全部文件並重建索引</td></tr><tr><td><strong>9</strong></td><td><strong>只靠問句加型號，不用硬篩選</strong></td><td>錯誤型號照樣進前 10 名（§4.2）</td><td>平時測起來「好像會對」，出錯時才發現不穩定</td></tr><tr><td><strong>10</strong></td><td><strong>沒建立索引就開始驗收</strong></td><td>一律「查無相關依據」，被誤判成系統不能用</td><td>系統健康監控的「向量索引涵蓋率」會示警，但要有人去看</td></tr><tr><td><strong>11</strong></td><td><strong>導入時沒出考題，全憑感覺調參數</strong></td><td>調了不知道變好變壞，最後回不去</td><td>沒有基線就沒有對照，只能重新開始（§7）</td></tr></tbody></table></div>
+<blockquote><p><strong>反例 3 與反例 7 是後果最嚴重的兩個</strong>：一個是資安事故，一個是會讓人照著錯誤資訊動手。規劃階段一定要先確認這兩件事。</p></blockquote>
+<hr>
+<h2 id="六預估準確率" class="t6">六、預估準確率</h2>
+<blockquote><p>⚠️ <strong>以下全部是推論值，不是你的實測數字。</strong> 推論依據寫在每一項底下。真實數字請照 §7 用系統內建的檢索品質評測跑出來——那才是可以拿去對客戶承諾的數字。</p></blockquote>
+<p>先定義兩個要分開看的準確率，混在一起談是多數討論失焦的原因：</p>
+<ul><li><strong>對象正確率</strong>：撈到的內容，是不是<strong>正確那家客戶／正確那個型號</strong>的？</li><li><strong>段落正確率</strong>：在對象正確的前提下，有沒有撈到<strong>回答得了這個問題</strong>的那一段？</li></ul>
+<h3 id="61-四種情境">6.1 四種情境</h3>
+<div class="tw"><table><thead><tr><th>情境</th><th>對象正確率（推論）</th><th>說明與推理依據</th></tr></thead><tbody><tr><td><strong>A. 什麼都不做</strong>&lt;br&gt;多客戶多型號混一盒、不用篩選、文件不帶名</td><td><strong>約 20%～50%</strong>（N＝3～5 家時）</td><td><strong>推理</strong>：內容高度相似時，向量分數（權重 0.7）差距極小，排序接近由細微差異決定；關鍵字路因 chunk 不含客戶名／型號（F4）而幾乎不貢獻。期望值接近 <code>1/N</code>，因部分 chunk（每節第一塊）確實含名而略高。&lt;br&gt;⚠️ <strong>最危險的不是低準確率，而是它不會被攔截</strong>——主題確實相關，最高分很高，不會觸發查無依據（F8），所以它會<strong>很有自信地答錯</strong></td></tr><tr><td><strong>B. 只在問句加客戶名／型號</strong>&lt;br&gt;其他都不做</td><td><strong>約 50%～75%</strong>（chunk 帶名率高時）&lt;br&gt;<strong>幾乎無提升</strong>（chunk 不帶名時）</td><td><strong>推理</strong>：如 §4.2 算式，關鍵字路最多帶來約 0.075～0.15 的分數差距。這足以把正確內容往前推，<strong>但不足以把錯誤內容排除在前 10 名之外</strong>。實際效果幾乎完全取決於「chunk 到底帶不帶名」（F4）</td></tr><tr><td><strong>C. 用「限定知識來源」硬篩</strong></td><td><strong>100%</strong></td><td><strong>這不是推論，是定義</strong>：篩選是資料庫層的過濾條件（F2），不在範圍內的資料根本不會進入候選集。剩下的誤差全部落在段落正確率</td></tr><tr><td><strong>D. 硬篩 ＋ 每節帶名 ＋ 型號別名</strong></td><td><strong>100%</strong>（對象）&lt;br&gt;段落正確率回到一般 RAG 水準</td><td>對象由 C 保證；③ 與別名（F10）提升的是盒內的排序品質</td></tr></tbody></table></div>
+<h3 id="62-段落正確率能到多少">6.2 段落正確率能到多少</h3>
+<p>這一項<strong>與本文的規劃無關</strong>，取決於一般的 RAG 品質（文件寫得好不好、切塊參數、嵌入模型、門檻校準）。</p>
+<p>業界對「良好整理過的企業語料」常見的驗收區間是 <strong>Recall@10 落在 0.7～0.9</strong>（<strong>這是業界經驗範圍，不是本系統的實測值</strong>）。本系統尚未實作重排序（F13），所以在候選品質不佳時沒有補救機制，實務上建議<strong>先把文件寫法與切分做對，再談調參數</strong>。</p>
+<h3 id="63-驗收門檻的建議起點">6.3 驗收門檻的建議起點</h3>
+<p><strong>這些是建議起點，不是保證值。</strong> 請用你自己的考題跑出基線後再校準：</p>
+<div class="tw"><table><thead><tr><th>指標</th><th>建議起點</th><th>說明</th></tr></thead><tbody><tr><td><code>LeakageTotal</code>（越權洩漏總數）</td><td><strong>必須為 0</strong></td><td>🔴 <strong>紅線，沒有折衷空間</strong>。任何非 0 都是資安事故，不是品質問題</td></tr><tr><td><code>AvgRecallAtK</code></td><td>≥ 0.80</td><td>期望的來源有沒有被撈到</td></tr><tr><td><code>AvgPrecisionAtK</code></td><td>≥ 0.60</td><td>撈到的內容裡有多少是相關的</td></tr><tr><td><code>AvgCitationAccuracy</code></td><td>≥ 0.70</td><td>出處指到的章節對不對</td></tr><tr><td><code>AvgMrr</code></td><td>≥ 0.70</td><td>第一個正確答案排多前面</td></tr></tbody></table></div>
+<h3 id="64-一句話總結">6.4 一句話總結</h3>
+<blockquote><p><strong>想要「一定找對客戶／型號」，唯一可靠的做法是硬篩選（限定知識來源）。</strong> 文件寫法與型號別名能改善排序品質，但它們是<strong>加分項，不是保證</strong>。 任何宣稱「AI 會自己分辨」的說法，在這套系統的實際機制下都不成立。</p></blockquote>
+<hr>
+<h2 id="七怎麼量出你自己的真實數字" class="t7">七、怎麼量出你自己的真實數字</h2>
+<p>§6 是推論。真正能拿去對客戶承諾的數字，要用系統內建的<strong>檢索品質評測</strong>（<code>/rag-evaluation</code>）跑出來。</p>
+<h3 id="71-步驟">7.1 步驟</h3>
+<ol><li><strong>出考題（20～30 題）</strong>。從真實使用者實際會問的問題出發，不要自己想。來源建議：</li><li><code>/reports/qa-activity</code> 的「<strong>被封鎖數</strong>」——那些是使用者想知道、但系統答不出來的題目，是現成的考題清單。</li><li><code>/chat-logs</code>（問答稽核明細）裡使用者實際問過的話。</li><li><strong>每一題標註</strong>：</li><li><strong>期望命中的知識來源</strong>（標題）——這正好對應「有沒有找對客戶／型號」。</li><li><strong>期望的章節錨點</strong>（可選）——用來量出處準不準。</li><li><strong>模擬的團隊身分</strong>——用來測越權洩漏。<strong>每個客戶至少出一題跨客戶的題目</strong>（模擬客戶 A 的身分，問客戶 B 才有的東西，期望撈不到）。</li><li><strong>存基線</strong>。系統會一併記錄當時的參數快照（F12），日後才知道那組數字是在哪組設定下跑出來的。</li><li><strong>調整之後重跑，跟基線比對</strong>。</li></ol>
+<h3 id="72-可用的指標名稱與系統一致">7.2 可用的指標（名稱與系統一致）</h3>
+<div class="tw"><table><thead><tr><th>指標</th><th>回答什麼</th></tr></thead><tbody><tr><td><code>PrecisionAtK</code></td><td>撈到的內容裡，有多少是期望來源的</td></tr><tr><td><code>RecallAtK</code></td><td>期望的來源，有多少被撈到了</td></tr><tr><td><code>NdcgAtK</code></td><td>考慮名次的綜合品質</td></tr><tr><td><code>Mrr</code></td><td>第一個正確結果排在第幾名</td></tr><tr><td><code>CitationAccuracy</code></td><td>出處指到的章節對不對</td></tr><tr><td><code>LeakHits</code></td><td>🔴 <strong>越權洩漏筆數，必須為 0</strong></td></tr><tr><td><code>LatencyMs</code></td><td>檢索延遲</td></tr></tbody></table></div>
+<h3 id="73-針對本文兩個問題的專用量法">7.3 針對本文兩個問題的專用量法</h3>
+<blockquote><p><strong>這是本節最實用的一段。</strong></p></blockquote>
+<p>因為 <code>PrecisionAtK</code> 比對的正是「<strong>命中的來源標題是否在期望清單內</strong>」，只要你照 §3.2 把「一個客戶／一個型號 ＝ 一個知識來源盒子」，那麼：</p>
+<blockquote><p><strong><code>PrecisionAtK</code> 與 <code>RecallAtK</code> 就直接等於「有沒有找對客戶／找對型號」的準確率。</strong></p></blockquote>
+<p>不需要另外建立量測機制。做法：</p>
+<ol><li>出一組題目，每題只標<strong>一個</strong>期望來源（該客戶／該型號的盒子）。</li><li><strong>不開任何篩選</strong>跑一次 → 得到情境 A／B 的真實數字。</li><li><strong>開「限定知識來源」</strong>再跑一次 → 驗證情境 C 是否真的 100%。</li><li>兩組數字的差距，就是「硬篩選」對你們的實際價值。</li></ol>
+<h3 id="74-其他可用的觀察工具">7.4 其他可用的觀察工具</h3>
+<ul><li><strong><code>/rag-diagnostics</code> 的「試檢索」</strong>：可以單獨看向量分、關鍵字分、圖分三路的分項貢獻。想驗證 §4.2 的算式在你們資料上是否成立，用這個最直接。</li><li><strong><code>/reports/retrieval-quality</code></strong>：看真實問答的零命中比例與分數分布。⚠️ 但它<strong>不能用來比較調整前後</strong>（使用者問法會變，不是乾淨的對照組），比較一律用 §7.1 的基線。</li><li><strong><code>/system-health</code> 的向量索引涵蓋率</strong>：驗收前先確認索引不是空的（反例 10）。</li></ul>
+<hr>
+<h2 id="八需要改程式才能解的限制" class="t8">八、需要改程式才能解的限制</h2>
+<p>以上全部是「不改程式、現在就能做」。以下是<strong>規劃再怎麼做也繞不過去</strong>的底層限制，附優先序與預估效益。</p>
+<div class="tw"><table><thead><tr><th>優先</th><th>限制</th><th>建議改法</th><th>預估效益</th><th>風險與成本</th></tr></thead><tbody><tr><td><strong>P1</strong></td><td><strong>分類篩選是「或」，無法取交集</strong>（F3）</td><td>讓「限定分類」多選支援「且」語意，或加一個「全部符合／符合任一」切換</td><td><strong>最高</strong>。直接解掉 §3.1 的根本問題，多維標籤就能用了</td><td>改動集中在 <code>BuildContainsAnyPredicate</code> 的呼叫端；⚠️ 語意改變會影響既有使用者的預期，建議做成可切換而非直接改掉</td></tr><tr><td><strong>P2</strong></td><td><strong>chunk 不含章節標題</strong>（F4）</td><td>切塊時把當前標題（或標題路徑）前置進 chunk 本文</td><td><strong>高</strong>。同時改善型號辨識與一般檢索品質；能讓 §4.3 的做法 ③ 自動生效，不必靠人工改文件</td><td><strong>需要重建全部索引</strong>；chunk 會變長，切塊參數要重新校準；建議先用 §7 的基線量出實際增益再決定</td></tr><tr><td><strong>P3</strong></td><td><strong>切詞會切開連字號</strong>（F5）</td><td>分隔符移除 <code>-</code>，或加型號代碼樣式的保留規則</td><td>中。解掉 <code>EPS-3000</code> 被切開的問題</td><td>改動小；⚠️ 會改變既有的關鍵字分數分布，<strong>兩段式門檻要重新校準</strong>（F8）</td></tr><tr><td><strong>P4</strong></td><td>中文不斷詞（F6）</td><td>導入中文斷詞</td><td>中～高，但影響面廣</td><td>成本高於前三項；建議先做完 P1～P3 量過再評估</td></tr><tr><td><strong>P5</strong></td><td>無重排序（F13）</td><td>導入 rerank</td><td>視資料而定</td><td>已有專題分析，見 <a href="../../docs/architecture/rag-rerank-analysis.html">RAG rerank 是否導入分析</a></td></tr><tr><td><strong>P6</strong></td><td>無「多維標籤」資料模型</td><td>把分類從單一字串欄位改成具名維度</td><td>架構最乾淨</td><td><strong>成本最高</strong>（資料模型、migration、UI、既有資料轉換全都要動）。<strong>只有在 P1 做完仍不夠用時才考慮</strong></td></tr></tbody></table></div>
+<blockquote><p><strong>建議的推進順序：先做 P1，再用 §7 的基線量 P2 的實際增益。</strong> P1 成本低效益高；P2 效益高但要重建索引，值得先量再做。<strong>不要一開始就跳到 P6</strong>——多數情況 P1＋P2 就夠了。</p></blockquote>
+<hr>
+<h2 id="九落地檢查清單" class="t1">九、落地檢查清單</h2>
+<p>依序做，不要跳。前面沒做好，後面會白費。</p>
+<p><strong>第一階段：先想清楚（不碰系統）</strong></p>
+<ul class="check"><li><span class="box">☐</span>確認是<strong>多客戶共用一套系統</strong>還是<strong>各自獨立部署</strong>。獨立部署的話，本文大半內容不需要</li><li><span class="box">☐</span>列出所有客戶／型號，確認實際會有幾個盒子</li><li><span class="box">☐</span>決定分類詞庫（<strong>上限 10 個</strong>，只放文件用途）</li><li><span class="box">☐</span>決定來源命名規則（§3.3），寫成一頁規範發給所有會建資料的人</li><li><span class="box">☐</span>確認環境維度（資料庫／作業系統）是<strong>獨立維度</strong>還是<strong>客戶屬性</strong>（§3.4）</li></ul>
+<p><strong>第二階段：建骨架</strong></p>
+<ul class="check"><li><span class="box">☐</span>建團隊（客戶會登入時，這是資安紅線）</li><li><span class="box">☐</span>建角色，設定預設團隊</li><li><span class="box">☐</span>建分類（照第一階段決定的詞庫，不要多建）</li><li><span class="box">☐</span>建使用者，指派角色</li></ul>
+<p><strong>第三階段：先驗證再推廣</strong></p>
+<ul class="check"><li><span class="box">☐</span><strong>只匯入第一個客戶</strong>的資料，走完清洗 → 蒸餾 → 知識頁審核 → 建立索引</li><li><span class="box">☐</span>確認 <code>/system-health</code> 的向量索引涵蓋率正常（反例 10）</li><li><span class="box">☐</span>出 20～30 題考題，存基線（§7）</li><li><span class="box">☐</span><strong>跑越權測試</strong>：模擬該客戶身分，確認 <code>LeakHits = 0</code></li><li><span class="box">☐</span>驗證「不開篩選」與「開限定知識來源」的數字差距（§7.3）</li><li><span class="box">☐</span>數字可接受，<strong>才推廣到其他客戶</strong></li></ul>
+<p><strong>第四階段：長期維運</strong></p>
+<ul class="check"><li><span class="box">☐</span>訂下「問特定客戶的事，先選限定知識來源」的使用紀律</li><li><span class="box">☐</span>定期看 <code>/data-consistency</code>（過時來源是靜默的，不看不會知道）</li><li><span class="box">☐</span>定期看 <code>/reports/qa-activity</code> 的被封鎖數，補使用者真正要的資料</li><li><span class="box">☐</span>每次調整檢索設定前後，都跑一次基線比對</li></ul>
+<hr>
+<h2 id="十相關文件" class="t2">十、相關文件</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>用途</th></tr></thead><tbody><tr><td><a href="../../docs/strategy/tech-route-analysis.html">14-企業知識庫技術路線分析：RAG × LLM Wiki × Graph／Agentic RAG</a></td><td><strong>本文的前置閱讀</strong>。RAG 技術定位與 Karpathy LLM Wiki 模式對照</td></tr><tr><td><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a></td><td><strong>權威版</strong>。三路混合檢索、可調參數、兩段式門檻、權控的完整說明</td></tr><tr><td><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色與使用者</a></td><td>第二階段「建骨架」的操作步驟</td></tr><tr><td><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></td><td>限定知識來源／分類／團隊的實際操作</td></tr><tr><td><a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定：使用指南</a></td><td>盒子怎麼建、清洗規則怎麼設</td></tr><tr><td><a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a></td><td>§7 量測步驟的完整操作說明</td></tr><tr><td><a href="../../docs/guides/knowledge-graph.html">知識圖譜（Graph RAG）使用指南</a></td><td>§4.4 型號別名的設定方式</td></tr><tr><td><a href="../../docs/architecture/rag-rerank-analysis.html">RAG rerank 是否導入分析</a></td><td>§8 的 P5 專題分析</td></tr><tr><td><a href="../../docs/strategy/market-analysis.html">13-知識庫產品市場分析與擴展方向</a></td><td>含兩客戶案的架構建議，可與本文 §3 對照</td></tr></tbody></table></div>
+<hr>
+<blockquote><p><strong>本文的一句話結論</strong>：多客戶與多型號的問題，<strong>不是靠 AI 更聰明來解，而是靠切分與命名在資料進來之前就決定好</strong>。切分對了，硬篩選就能給你 100% 的對象正確率；切分錯了，之後再怎麼調參數都補不回來。</p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>導入顧問：客戶問我不好回答的問題</li><li>導入顧問：我要幫客戶規劃知識該怎麼切</li><li>導入顧問：我要清楚知道這套系統做不到什麼</li></ul></div><div class="card"><h3>同類文件（策略與規劃）</h3><ul><li><a href="../../docs/strategy/scope-and-vision.html">計畫範圍與遠景</a></li><li><a href="../../docs/strategy/business-value.html">商業價值與行銷策略</a></li><li><a href="../../docs/strategy/architecture-research.html">知識庫架構研究與建議</a></li><li><a href="../../docs/strategy/dev-roadmap.html">開發建議與路線圖</a></li><li><a href="../../docs/strategy/open-questions-risks.html">待釐清問題與技術風險清單</a></li><li><a href="../../docs/strategy/expected-deliverables.html">期望產出清單</a></li><li><a href="../../docs/strategy/gstack-playbook.html">以 gstack 技能精煉計畫的執行流程（Playbook）</a></li><li><a href="../../docs/strategy/cleaning-stage-design.html">資料清洗階段設計與分析</a></li><li><a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a></li><li><a href="../../docs/strategy/source-cleaning-value.html">知識來源管理與資料清洗：功能、價值與行銷</a></li><li><a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：功能、欄位、價值與行銷</a></li><li><a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一先講企業真實需要">一、先講企業真實需要</a><a class="l3" href="#11-三個真實痛點">1.1 三個真實痛點</a><a class="l3" href="#12-企業真正要的不是ai-很聰明">1.2 企業真正要的不是「AI 很聰明」</a><a class="l2" href="#二這套系統實際上怎麼找資料">二、這套系統實際上怎麼找資料</a><a class="l3" href="#21-一次問答的完整路徑">2.1 一次問答的完整路徑</a><a class="l3" href="#22-十三個關鍵事實全文論述的地基">2.2 十三個關鍵事實（全文論述的地基）</a><a class="l3" href="#23-由這些事實直接推出的三個結論">2.3 由這些事實直接推出的三個結論</a><a class="l2" href="#三問題一多客戶多客製多資料庫多作業系統">三、問題一：多客戶、多客製、多資料庫、多作業系統</a><a class="l3" href="#31-先說為什麼用分類做多維切分一定會失敗">3.1 先說為什麼「用分類做多維切分」一定會失敗</a><a class="l3" href="#32-建議的三層切分模型">3.2 建議的三層切分模型</a><a class="l3" href="#33-命名規則">3.3 命名規則</a><a class="l3" href="#34-環境維度資料庫作業系統怎麼放">3.4 環境維度（資料庫、作業系統）怎麼放</a><a class="l3" href="#35-一份大文件還是拆多份">3.5 一份大文件，還是拆多份？</a><a class="l3" href="#36-問答時怎麼自動找到指定客戶的文件">3.6 問答時怎麼「自動」找到指定客戶的文件</a><a class="l3" href="#37-會議紀錄與-pm-文件要不要跟手冊放同一盒">3.7 會議紀錄與 PM 文件，要不要跟手冊放同一盒？</a><a class="l3" href="#38-匯入路徑這些文件怎麼進系統">3.8 匯入路徑：這些文件怎麼進系統</a><a class="l2" href="#四問題二同類商品不同型號">四、問題二：同類商品、不同型號</a><a class="l3" href="#41-直接回答">4.1 直接回答</a><a class="l3" href="#42-為什麼問句加型號不可靠三個證據">4.2 為什麼「問句加型號」不可靠：三個證據</a><a class="l3" href="#43-四種做法由強到弱">4.3 四種做法，由強到弱</a><a class="l3" href="#44-型號別名">4.4 型號別名</a><a class="l3" href="#45-型號的書寫規約建議寫進你們的文件撰寫規範">4.5 型號的書寫規約（建議寫進你們的文件撰寫規範）</a><a class="l2" href="#五更多真實情境">五、更多真實情境</a><a class="l3" href="#51-軟體專案公司的實際情境">5.1 軟體專案公司的實際情境</a><a class="l3" href="#52-跨行業通用情境">5.2 跨行業通用情境</a><a class="l3" href="#53-會出錯的反例最值得先看的一節">5.3 會出錯的反例（最值得先看的一節）</a><a class="l2" href="#六預估準確率">六、預估準確率</a><a class="l3" href="#61-四種情境">6.1 四種情境</a><a class="l3" href="#62-段落正確率能到多少">6.2 段落正確率能到多少</a><a class="l3" href="#63-驗收門檻的建議起點">6.3 驗收門檻的建議起點</a><a class="l3" href="#64-一句話總結">6.4 一句話總結</a><a class="l2" href="#七怎麼量出你自己的真實數字">七、怎麼量出你自己的真實數字</a><a class="l3" href="#71-步驟">7.1 步驟</a><a class="l3" href="#72-可用的指標名稱與系統一致">7.2 可用的指標（名稱與系統一致）</a><a class="l3" href="#73-針對本文兩個問題的專用量法">7.3 針對本文兩個問題的專用量法</a><a class="l3" href="#74-其他可用的觀察工具">7.4 其他可用的觀察工具</a><a class="l2" href="#八需要改程式才能解的限制">八、需要改程式才能解的限制</a><a class="l2" href="#九落地檢查清單">九、落地檢查清單</a><a class="l2" href="#十相關文件">十、相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/strategy/2026-07-29-多客戶多型號知識庫規劃分析.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

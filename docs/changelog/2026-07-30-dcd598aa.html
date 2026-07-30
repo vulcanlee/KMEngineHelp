@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>說明網站收錄修正與提示詞檔名更正（1.0.114 → 1.0.115）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>說明網站收錄修正與提示詞檔名更正（1.0.114 → 1.0.115）</h1></header><div class="docwrap"><main><ul><li>變更日期：2026/07/30</li><li>版本：1.0.114 → <strong>1.0.115</strong></li><li>性質：<strong>收尾修正</strong>。無程式邏輯變更、無模型變更、無新表、無 migration；只動 <code>scripts/help_site_data.py</code> 的資料區、一個檔名與其兩處引用。</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="一為什麼有這一版" class="t1">一、為什麼有這一版</h2>
+<p>規模守門三項（1.0.112～1.0.114）交付後盤點整批工作，查出<strong>兩個先前造成的小疏漏</strong>，一併修掉。</p>
+<h2 id="二b-4說明網站漏收了自己的維運文件" class="t2">二、B-4：說明網站漏收了自己的維運文件</h2>
+<p><strong>問題</strong>：建說明網站（1.0.111）時，忘記把同一批交付的 <code>docs/operations/文件說明網站產生與佈署.md</code> 加進 <code>CURATED_SLUGS</code>，也沒有任何角色情境引用它。結果是：</p>
+<ul><li>它拿到自動雜湊檔名（<code>doc-xxxxxxxx.html</code>）而不是可讀的英文檔名</li><li>只能從「全部文件索引」翻到，角色導覽完全看不到它</li></ul>
+<p><strong>這份文件的讀者正是會用到說明網站的人，卻是網站上最難找到的一份。</strong></p>
+<p><strong>修正</strong>（<code>scripts/help_site_data.py</code>）：</p>
+<div class="tw"><table><thead><tr><th>改什麼</th><th>內容</th></tr></thead><tbody><tr><td><code>CURATED_SLUGS</code></td><td>新增 <code>"docs/operations/文件說明網站產生與佈署.md": "help-site-build"</code> → 輸出改為 <code>docs/operations/help-site-build.html</code></td></tr><tr><td><code>SCENARIOS["consultant"]</code> 的「部署到客戶機器」</td><td>文件清單末尾新增一筆，用途寫「產出並交付客戶要看的說明網站（注意：給客戶一律用對外版）」</td></tr></tbody></table></div>
+<p>放在顧問的部署情境，是因為<strong>顧問就是實際會去產這個網站、並把對外版交給客戶的人</strong>。</p>
+<blockquote><p><strong>順帶查證但刻意不修</strong>：策展目錄內另有 2 份沒有英文 slug 的 md，都在 <code>guides/lab-samples/documents/擴充-純文字/</code> 底下（虛構的 ERP FAQ 之類）。它們是 <strong>Hands-on Lab 的練習素材、不是說明文件</strong>，自動 slug 才是正確的。</p></blockquote>
+<h2 id="三b-5提示詞檔名錯字" class="t3">三、B-5：提示詞檔名錯字</h2>
+<p><code>docs/prompts/說明文件的網頁**板**需求.md</code> → <code>說明文件的網頁**版**需求.md</code>。</p>
+<p>以 <code>git mv</code> 改名（git 識別為 <code>R</code> rename，保留檔案歷史）。兩處引用同步更新：</p>
+<div class="tw"><table><thead><tr><th>引用處</th><th>性質</th><th>為什麼要改</th></tr></thead><tbody><tr><td><code>docs/prompts/README.md</code></td><td><strong>真正的 Markdown 連結</strong></td><td>不改會讓 <code>Test-DocLinks.py</code> 紅燈</td></tr><tr><td><code>docs/changelog/2026-07-30-角色導向說明網站產生器.md</code></td><td>行內碼裡的路徑文字，<strong>不是連結</strong></td><td>不改不會紅燈，但讀者照著找會找不到檔案</td></tr></tbody></table></div>
+<blockquote><p><strong>為什麼可以動歷史 changelog</strong>：那一處不是對當時事實的陳述，只是「需求來源在哪」的路徑指標。留舊路徑只會讓人找不到檔案。改名這件事已在該處與本篇同時註明（<code>（1.0.115 由「網頁板」更正檔名）</code>），軌跡完整，不是偷偷改掉歷史。</p>
+<p>另已確認 <code>scripts/</code> 下<strong>沒有</strong>任何腳本寫死這個檔名，改名不影響建置。</p></blockquote>
+<h2 id="四驗證" class="t4">四、驗證</h2>
+<ul><li><code>python scripts/Build-HelpSite.py --check</code> → <code>validate_data</code> 通過（證明新增的兩處路徑正確）、<strong>無法解析的文件連結 0</strong></li><li><code>python scripts/Test-DocLinks.py</code> → <strong>硬性失敗 0</strong></li><li><code>pwsh -File scripts/Test-DocsEncoding.ps1</code> → 全綠</li><li>實際建站：產出 <code>docs/operations/help-site-build.html</code>（不再是雜湊檔名）、<code>roles/consultant.html</code> 內含指向它的連結</li><li><code>git status</code> 顯示 <code>R</code>（rename）而非「刪除＋新增」</li><li><strong>未跑 <code>dotnet test</code></strong>：本次未動任何 <code>src/</code> 程式碼，僅 <code>appsettings.json</code> 的版本字串</li></ul>
+<h2 id="五盤點後仍待決定的事本次不做需另行決定" class="t5">五、盤點後仍待決定的事（本次不做，需另行決定）</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>說明</th></tr></thead><tbody><tr><td><strong>蒸餾也會被輸出上限截斷</strong></td><td>已查證仍用 <code>CompleteStreamingAsync</code>、無偵測。P1 刻意不含它——截斷後會降級成單一 Wiki 頁並留註記，比清洗好一點，但<strong>根因不會被指出</strong>。三項之外最有價值的候選</td></tr><tr><td><strong>這個 repo 沒有 CI</strong></td><td>沒有 <code>.github/workflows</code>。<code>dotnet test</code>、<code>Test-DocLinks.py</code>、<code>Test-DocsEncoding.ps1</code> 全靠人記得跑；這幾輪新增了 41 條測試與兩支守門腳本，它們的價值完全取決於有人執行</td></tr><tr><td>兩支 HTML 產生器重疊</td><td><code>Build-OnboardingDocsHtml.py</code> 的 5 份伴生 HTML 已被說明網站涵蓋，可考慮退役</td></tr><tr><td><code>/reports/content-inventory</code> 加字數維度</td><td>P2 的選配項，明確未做</td></tr><tr><td>說明網站的 GitHub Pages 佈署</td><td>需決定分支與是否納管輸出</td></tr><tr><td>「上次比值偏低就警告」</td><td>比大小門檻聰明，但屬新需求</td></tr><tr><td><strong>1.0.112 之前清洗的資料</strong></td><td>可能已被靜默截斷且無從分辨，需決定是否挑幾盒重新清洗</td></tr><tr><td><strong>兩處 UI 未實機驗證</strong></td><td>說明網站與兩個對話窗（含「勾選前 OK 鈕停用」）——環境的 Playwright 未安裝瀏覽器</td></tr></tbody></table></div>
+<hr>
+<blockquote><p>返回 <a href="../../docs/changelog/readme-436e4418.html">changelog 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一為什麼有這一版">一、為什麼有這一版</a><a class="l2" href="#二b-4說明網站漏收了自己的維運文件">二、B-4：說明網站漏收了自己的維運文件</a><a class="l2" href="#三b-5提示詞檔名錯字">三、B-5：提示詞檔名錯字</a><a class="l2" href="#四驗證">四、驗證</a><a class="l2" href="#五盤點後仍待決定的事本次不做需另行決定">五、盤點後仍待決定的事（本次不做，需另行決定）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-30-說明網站收錄修正與檔名更正.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>釐清「評測用哪些紀錄」：黃金評測 vs RAG 評測（0.2.138）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>釐清「評測用哪些紀錄」：黃金評測 vs RAG 評測（0.2.138）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-27</li><li>版本：0.2.137 → 0.2.138</li><li>類型：文件 / 可理解性改善</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>使用者詢問「按『評測』時用哪些紀錄？是不是整份知識來源管理清單？」這是常見誤解。經程式碼確認，兩種評測用的紀錄不同，且都不是「整份知識來源清單」：</p>
+<ul><li><strong>黃金評測</strong>（<code>GoldenSampleService.EvaluateOneAsync</code>）：評的是<strong>黃金樣本自己貼的「輸入文字」</strong>＋標準答案，用全域清洗提示詞重跑再比對；<strong>完全不讀知識來源管理清單</strong>。評測此筆＝該筆；評測全部＝目前頁所有黃金樣本。</li><li><strong>RAG 評測</strong>（<code>RagEvaluationService</code> → <code>RetrievalService.RetrieveAsync</code> → <code>RagEvaluator</code>）：評的是<strong>你建立的問句樣本</strong>；按評測時把問句送進混合檢索，打<strong>整個已索引知識庫</strong>（所有向量 chunk），依該樣本<strong>模擬的團隊權限</strong>過濾——非單一來源、非未索引清單列。<strong>純檢索、不經 LLM 生成</strong>；結果只寫回樣本指標，<strong>不改索引或實際問答／搜尋</strong>。</li></ul>
+<h2 id="調整內容" class="t2">調整內容</h2>
+<ul><li><code>docs/guides/完整操作手冊.md</code>：§八 黃金評測、§十二 RAG 評測 各補一段「評測用哪些紀錄？」明確說明。</li><li><code>docs/guides/實作練習手冊-Hands-on Lab.md</code>：第 8 章、第 12 章 各補一則 <code>📌 評測用哪些紀錄</code> callout。</li><li><code>docs/guides/檢索品質評測使用指南.md</code>（1.0 → 1.1）：§一 補「評測用哪些紀錄？」與「對系統有沒有影響？」，明確化資料來源與唯讀/量測性質。</li><li><code>docs/guides/清洗品質評測使用指南.md</code>：§二 運作原理步驟 1 補一句「完全不讀知識來源管理清單」，直擊誤解。</li></ul>
+<h2 id="驗證" class="t3">驗證</h2>
+<ul><li><code>scripts/Test-DocsEncoding.ps1</code> 通過（相關指南與本紀錄皆 BOM、無亂碼）。</li><li><code>dotnet test</code> 367 筆全綠（本次未動 C#）。</li></ul>
+<h2 id="備註" class="t4">備註</h2>
+<p>純文件＋版本號，未改程式碼、資料模型、權限、路由；不需 migration、不需權限三處同步。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#調整內容">調整內容</a><a class="l2" href="#驗證">驗證</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-27-評測資料來源說明.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

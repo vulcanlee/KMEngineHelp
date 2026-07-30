@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP Server 整合設計與使用指南｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 系統架構</p><header class="hero"><div class="kicker">系統架構</div><h1>MCP Server 整合設計與使用指南</h1></header><div class="docwrap"><main><blockquote><p>本文件為<strong>技術設計規格 + AI Agent 使用指南</strong>。說明如何在 KnowledgeExtraction.AI（智庫引擎）加入 <strong>MCP（Model Context Protocol）Server</strong>，讓外部 AI Agent（Claude、其他 MCP client）能直接、安全地查詢企業知識庫。</p>
+<p>狀態：<strong>已實作</strong>（1.0.1→1.0.9；MCP 核心 Phase 0–5 於 1.0.1→1.0.6，變更歷程見 <a href="../../docs/changelog/2026-07-16-mcp-server-76e67977.html">changelog</a>）。四個知識工具（<code>knowledge_ask</code>/<code>knowledge_search</code>/<code>knowledge_list_sources</code>/<code>knowledge_get_document</code>）＋連通診斷 <code>knowledge_ping</code>、JWT/API Key 雙認證、分級日誌與稽核皆已落地並有測試。<strong>1.0.8 起</strong> MCP 問答會寫入聊天紀錄並補 Token 用量歸屬（見 <a href="../../docs/changelog/2026-07-17-mcp-token-edb171c9.html">changelog</a>）；<strong>1.0.9 起</strong> API Key 改存資料庫並提供 <code>/mcp-api-keys</code> 網頁啟用/停用管理，<strong>已新增 <code>McpAccessKey</code> Entity 與雙資料庫 migration</strong>（Sqlite <code>20260717053352</code> ／ SqlServer <code>20260717053434</code>，見 <a href="../../docs/changelog/2026-07-17-mcp-apikey-1b67135a.html">changelog</a>）。以下部分程式碼為<strong>設計骨架示意</strong>，實際簽章以原始碼為準。</p>
+<p><strong>1.0.91（Graph RAG P9）起暴露圖譜能力</strong>：<code>knowledge_ask</code> 新增 <code>mode</code> 參數（<code>local</code> 預設／<code>global</code> 走社群摘要全域問答），並新增第五個知識工具 <strong><code>knowledge_graph_neighbors</code></strong>（查某實體的 N 跳鄰域關係）。詳見 §5.6、§5.7 與 <a href="../../docs/changelog/2026-07-27-graphrag-p9-ae8c1474.html">changelog</a>。</p></blockquote>
+<hr>
+<h2 id="1-概述與目標" class="t1">1. 概述與目標</h2>
+<h3 id="11-什麼是-mcp">1.1 什麼是 MCP</h3>
+<p>MCP（Model Context Protocol）是一套由 Anthropic 提出、開放的用戶端／伺服器協定，讓大型語言模型（LLM）驅動的 <strong>AI Agent</strong> 能以標準化方式呼叫外部系統的「工具（tools）」、「資源（resources）」與「提示（prompts）」。AI Agent 是 <strong>MCP Client</strong>，我們的系統對外提供能力就是 <strong>MCP Server</strong>。</p>
+<p>一旦本系統成為 MCP Server，任何支援 MCP 的 AI 工具（Claude Desktop、Claude Code、其他 Agent 平台）即可把「查詢企業知識庫」當作內建工具使用，而<strong>不需為每個 Agent 客製一套 API 串接</strong>。</p>
+<h3 id="12-為何在本知識庫加入-mcp">1.2 為何在本知識庫加入 MCP</h3>
+<p>本系統已具備完整 RAG 檢索能力（混合檢索、團隊權控、出處回溯），但這些能力目前<strong>只透過 Blazor 頁面（Interactive Server circuit）呼叫</strong>，尚未對外以 HTTP API 暴露。MCP 正好補上這道橋接：</p>
+<ul><li><strong>對外賦能</strong>：讓客戶端的 AI Agent 直接問答企業知識，成為「客戶端 AI 代理人服務」的落地介面。</li><li><strong>零重寫</strong>：MCP 工具可直接注入既有服務（<code>KnowledgeBaseChatService</code>、<code>IRetrievalService</code>、<code>KnowledgeSourceService</code>），不需重寫檢索邏輯。</li><li><strong>權控一致</strong>：走 HTTP transport 時可沿用既有 JWT 認證與團隊權控，安全邊界與現有 Web API 完全一致。</li></ul>
+<h3 id="13-目標與非目標">1.3 目標與非目標</h3>
+<div class="tw"><table><thead><tr><th>範圍</th><th>內容</th></tr></thead><tbody><tr><td>✅ 目標</td><td>以 HTTP transport 在既有 Web 專案內嵌 MCP Server，暴露知識查詢工具（初版 4 個；<strong>1.0.91 起 5 個</strong>，新增 <code>knowledge_graph_neighbors</code>），全面套用團隊權控</td></tr><tr><td>✅ 目標</td><td>提供 AI Agent 連線設定與使用範例</td></tr><tr><td>❌ 非目標（本階段）</td><td>提供「寫入型」工具（新增/修改知識）；提供 MCP resources/prompts；stdio 本機模式</td></tr></tbody></table></div>
+<hr>
+<h2 id="2-套件選型" class="t2">2. 套件選型</h2>
+<h3 id="21-官方且最主流的套件modelcontextprotocol">2.1 官方且最主流的套件：<code>ModelContextProtocol</code></h3>
+<p>.NET 生態中，官方且使用人數最多的 MCP SDK 是 <strong><code>ModelContextProtocol</code></strong>（GitHub：<a href="https://github.com/modelcontextprotocol/csharp-sdk" rel="noopener" target="_blank"><code>modelcontextprotocol/csharp-sdk</code></a>），由 <strong>Anthropic 與 Microsoft 官方合作維護</strong>。NuGet 上以此為主流實作，其他第三方套件皆非官方、活躍度遠低於此。</p>
+<p>該 SDK 拆成三個 NuGet 套件：</p>
+<div class="tw"><table><thead><tr><th>套件</th><th>用途</th><th>是否採用</th></tr></thead><tbody><tr><td><a href="https://www.nuget.org/packages/ModelContextProtocol.Core" rel="noopener" target="_blank"><code>ModelContextProtocol.Core</code></a></td><td>只需 client 或低階 server API、最少相依</td><td>否</td></tr><tr><td><a href="https://www.nuget.org/packages/ModelContextProtocol" rel="noopener" target="_blank"><code>ModelContextProtocol</code></a></td><td>主套件，含 hosting／DI 擴充（適合 stdio 伺服器與 AI 整合）</td><td>間接相依</td></tr><tr><td><a href="https://www.nuget.org/packages/ModelContextProtocol.AspNetCore" rel="noopener" target="_blank"><code>ModelContextProtocol.AspNetCore</code></a></td><td><strong>HTTP-based MCP server</strong>（Streamable HTTP / SSE）</td><td><strong>✅ 採用</strong></td></tr></tbody></table></div>
+<h3 id="22-結論">2.2 結論</h3>
+<p>本系統為 <strong>ASP.NET Core（Blazor Server + MVC）Web 應用</strong>，MCP Server 內嵌其中最自然，故採 <strong><code>ModelContextProtocol.AspNetCore</code></strong>（會一併帶入主套件）。這讓 MCP endpoint 與現有 API 共用同一 Kestrel、同一認證管線、同一 DI 容器。</p>
+<blockquote><p>版本策略：本 SDK 已進入 1.x 穩定線。實作時以當下 NuGet 最新穩定版為準（<code>dotnet add package ModelContextProtocol.AspNetCore</code>），並與專案 <code>net10.0</code> 相容性確認。</p></blockquote>
+<hr>
+<h2 id="3-整體架構" class="t3">3. 整體架構</h2>
+<h3 id="31-落點">3.1 落點</h3>
+<p>MCP Server 內嵌於 <strong><code>KnowledgeExtraction.Web</code></strong> 專案，新增一個 MCP endpoint（預設對映路徑 <code>/mcp</code>），與既有 <code>MapControllers()</code>、<code>MapRazorComponents&lt;App&gt;()</code> 並存。</p>
+<pre><code>外部 AI Agent (MCP Client)
+        │  Streamable HTTP + JWT Bearer
+        ▼
+┌────────────────────────────────────────────┐
+│ KnowledgeExtraction.Web  (Kestrel)          │
+│                                             │
+│  app.MapMcp("/mcp")  ← 新增                 │
+│      │ .RequireAuthorization()              │
+│      ▼                                       │
+│  MCP 工具類 (McpServerToolType)              │
+│   knowledge_ask / knowledge_search /         │
+│   knowledge_list_sources / knowledge_get_    │
+│      │  建構式注入（per-request scope）       │
+│      ▼                                       │
+│  既有 Scoped 服務（不修改）                    │
+│   KnowledgeBaseChatService                   │
+│   IRetrievalService                          │
+│   KnowledgeSourceService                     │
+│   IRecordAccessScopeProvider ← 團隊權控關鍵   │
+│      │                                        │
+│      ▼                                        │
+│  DualDbVectorStore → Sqlite / SqlServer       │
+└────────────────────────────────────────────┘</code></pre>
+<h3 id="32-資料流以-rag-問答為例">3.2 資料流（以 RAG 問答為例）</h3>
+<ol><li>AI Agent 呼叫 <code>knowledge_ask</code>，帶 JWT 於 <code>Authorization</code> header。</li><li>MCP endpoint（<code>.RequireAuthorization()</code>）驗證 JWT → 建立 request scope。</li><li>工具方法建構式注入 <code>KnowledgeBaseChatService</code>。</li><li><code>RetrieveAsync</code> 內部每輪呼叫 <code>IRecordAccessScopeProvider.GetAsync()</code>，由 <code>HttpContext</code> 的 <code>Sid</code> claim 解析使用者與角色團隊。</li><li>混合檢索（向量 + 關鍵字）<strong>在檢索層即套團隊權控</strong>：非管理員只取回「無團隊（公開）或與角色團隊交集」的向量片段。</li><li>組附出處 context 回傳給 Agent。</li></ol>
+<p><strong>關鍵：權控發生在檢索層，越權內容永遠不會被取回，MCP 工具無從繞過。</strong></p>
+<hr>
+<h2 id="4-mcp-server-註冊programcs" class="t4">4. MCP Server 註冊（Program.cs）</h2>
+<p>服務註冊統一落在既有的 <code>ServiceCollectionExtensions.AddApplicationServices()</code>（由 <code>Program.cs</code> 呼叫）。endpoint 對映則加在中介軟體管線的 <code>MapControllers()</code> 附近。</p>
+<pre><code>// ── 服務註冊（AddApplicationServices 內或 Program.cs 服務段） ──
+builder.Services
+    .AddMcpServer()
+    .WithHttpTransport()          // Streamable HTTP transport
+    .WithToolsFromAssembly();     // 掃描 [McpServerToolType] 工具類
+
+// IHttpContextAccessor 已由既有程式註冊（RecordAccessScopeProvider 依賴它）；
+// 若尚未註冊需補 builder.Services.AddHttpContextAccessor();
+
+// ── 中介軟體管線（UseAuthentication/UseAuthorization 之後） ──
+app.MapMcp("/mcp")
+   .RequireAuthorization();        // 沿用既有授權；預設 JWT/Cookie 皆可
+   // .RequireRateLimiting("api");  // 可選：與現有 API 共用限流政策</code></pre>
+<blockquote><p>註：<code>app.MapMcp("/mcp")</code> 對映 Streamable HTTP 端點於 <code>/mcp</code>。<code>.RequireAuthorization()</code> 讓未帶有效憑證的呼叫被擋在工具執行之前。</p></blockquote>
+<hr>
+<h2 id="5-工具定義設計" class="t5">5. 工具定義設計</h2>
+<p>各工具皆定義為 <code>[McpServerToolType]</code> 類別，方法標 <code>[McpServerTool]</code>（初版四個，1.0.91 新增第五個 <code>knowledge_graph_neighbors</code>，見 §5.7）。工具類由 DI 於<strong>每次呼叫時</strong>建立（request scope），因此可用<strong>建構式注入</strong>既有 Scoped 服務——與本專案「建構式注入 Service」的慣例一致。</p>
+<blockquote><p>型別對照（實作時務必與既有簽章一致）：</p>
+<ul><li><code>KnowledgeBaseChatService.RetrieveAsync(string query, IEnumerable&lt;ChatMessage&gt;? history, IReadOnlyList&lt;int&gt;? sourceIds, IReadOnlyList&lt;string&gt;? categories, IReadOnlyList&lt;string&gt;? teams, CancellationToken)</code> → <code>KnowledgeBaseQueryResult(ContextText, Sources, Confidence, TopScore, DiagnosticHint)</code></li><li><code>IRetrievalService.RetrieveAsync(string queryText, RetrievalQuery query, CancellationToken)</code> → <code>IReadOnlyList&lt;RetrievalHit&gt;</code></li><li><code>KnowledgeSourceService.GetAsync(DataRequest)</code> → <code>DataRequestResult&lt;KnowledgeSourceAdapterModel&gt;</code>；<code>GetAsync(int id)</code> → <code>KnowledgeSourceAdapterModel</code></li><li><code>IRecordAccessScopeProvider.GetAsync()</code> → <code>RecordAccessScope(bool IsAdmin, IReadOnlyList&lt;string&gt; Teams)</code></li></ul></blockquote>
+<h3 id="51-knowledge_ask--ai-知識問答rag-qa">5.1 <code>knowledge_ask</code> — AI 知識問答（RAG Q&amp;A）</h3>
+<p>輸入問句（可帶對話歷史），回傳「含出處的參考資料 context」與信心判定。<strong>這是最核心的工具。</strong></p>
+<pre><code>[McpServerToolType]
+public sealed class KnowledgeAskTool
+{
+    private readonly KnowledgeBaseChatService chatService;
+
+    public KnowledgeAskTool(KnowledgeBaseChatService chatService)
+        =&gt; this.chatService = chatService;
+
+    [McpServerTool(Name = "knowledge_ask")]
+    [Description("向企業知識庫提出自然語言問題，回傳含出處的參考資料與信心判定。結果已依呼叫者所屬團隊過濾，只含其有權存取的內容。")]
+    public async Task&lt;object&gt; AskAsync(
+        [Description("使用者的問題，例如：公司差旅報銷的流程是什麼？")] string question,
+        [Description("可選：限定的分類名稱清單；null 或空＝不限")] string[]? categories = null,
+        [Description("可選：限定的團隊名稱清單（只會縮小、不會擴權）；null 或空＝不限")] string[]? teams = null,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await chatService.RetrieveAsync(
+            question,
+            history: null,
+            sourceIds: null,
+            categories: categories,
+            teams: teams,
+            cancellationToken);
+
+        return new
+        {
+            answerContext = result.ContextText,
+            confidence = result.Confidence.ToString(),   // Insufficient / LowConfidence / Sufficient
+            topScore = result.TopScore,
+            sources = result.Sources                      // 出處清單（標題、來源層別等）
+        };
+    }
+}</code></pre>
+<blockquote><p>多輪追問：可另加一個帶 <code>history</code>（<code>ChatMessage[]</code>，role = user/assistant）的多輪版本，或讓本工具接受選填的 <code>history</code> 參數對映到 <code>RetrieveAsync</code> 的 <code>history</code>。</p></blockquote>
+<h3 id="52-knowledge_search--知識搜尋檢索片段">5.2 <code>knowledge_search</code> — 知識搜尋（檢索片段）</h3>
+<p>回傳與問句最相關的原始 chunk 片段與分數，讓 Agent 自行組織答案（比 <code>knowledge_ask</code> 更低階、更透明）。</p>
+<pre><code>[McpServerTool(Name = "knowledge_search")]
+[Description("對知識庫做混合檢索（向量語意＋關鍵字），回傳最相關的內容片段與出處。結果已套團隊權控。")]
+public async Task&lt;object&gt; SearchAsync(
+    [Description("查詢語句")] string query,
+    [Description("回傳片段數上限；null＝用系統預設 TopK")] int? topK = null,
+    CancellationToken cancellationToken = default)
+{
+    var scope = await accessScope.GetAsync();            // IRecordAccessScopeProvider 注入
+    var hits = await retrievalService.RetrieveAsync(
+        query,
+        new RetrievalQuery(scope, TopK: topK),
+        cancellationToken);
+
+    return hits.Select(h =&gt; new
+    {
+        text = h.Entity.ChunkText,
+        sourceLayer = h.Entity.SourceLayer,              // Wiki / Cleaned
+        score = h.Score,
+        vectorScore = h.VectorScore,
+        keywordScore = h.KeywordScore
+    });
+}</code></pre>
+<h3 id="53-knowledgelistsources--列出查詢知識來源">5.3 <code>knowledge_list_sources</code> — 列出／查詢知識來源</h3>
+<p>分頁列出呼叫者可存取的知識來源（可加關鍵字、分類、團隊過濾）。</p>
+<pre><code>[McpServerTool(Name = "knowledge_list_sources")]
+[Description("分頁列出呼叫者有權存取的知識來源清單，可依關鍵字過濾。結果已套團隊權控。")]
+public async Task&lt;object&gt; ListSourcesAsync(
+    [Description("關鍵字（比對標題/描述）；可為 null")] string? search = null,
+    [Description("頁碼，從 1 起")] int page = 1,
+    [Description("每頁筆數")] int pageSize = 20,
+    CancellationToken cancellationToken = default)
+{
+    var request = new DataRequest { Search = search, /* 分頁欄位依 DataRequest 定義帶入 */ };
+    var result = await sourceService.GetAsync(request);   // 內建團隊權控
+    return new { total = result.Count, items = result.Result };
+}</code></pre>
+<blockquote><p><code>DataRequest</code>／<code>DataRequestResult&lt;T&gt;</code> 為既有分頁 DTO，實作時對照 <code>KnowledgeSourceService.GetAsync</code> 的欄位使用方式。</p></blockquote>
+<h3 id="54-knowledgegetdocument--取得完整文件內容">5.4 <code>knowledge_get_document</code> — 取得完整文件內容</h3>
+<p>依知識來源 ID 取回清洗後全文。<strong>直接複用 <code>KnowledgeSourceService.GetCleanedContentAsync</code>（已內建團隊權控）</strong>，不重複權控檢查。</p>
+<p><strong>實作採單一 <code>unavailable</code> 錯誤碼</strong>：因既有服務對「不存在／未清洗／無權／缺檔」皆回 <code>null</code>，且強行區分 <code>forbidden</code> 與 <code>not_found</code> 會<strong>洩漏來源存在性</strong>，故收斂為單一 <code>unavailable</code>（權控拒絕的 Warning 已由 service 內部記錄）。</p>
+<pre><code>[McpServerTool(Name = "knowledge_get_document")]
+[Description("依知識來源 Id 取回清洗後的完整內容。若不存在、尚未清洗完成或您無權存取，回傳 error=unavailable。")]
+public async Task&lt;KnowledgeDocumentResult&gt; GetDocumentAsync(
+    [Description("知識來源 Id")] int sourceId,
+    CancellationToken cancellationToken = default)
+{
+    var content = await sourceService.GetCleanedContentAsync(sourceId); // 內建權控；null＝不存在/未清洗/無權/缺檔
+    if (content is null)
+        return new KnowledgeDocumentResult(sourceId, null, null, "unavailable");
+
+    var source = await sourceService.GetAsync(sourceId); // 權控已於上一步驗證，取標題
+    return new KnowledgeDocumentResult(sourceId, source.Title, content, null);
+}</code></pre>
+<h3 id="55-knowledge_ping--連通性診斷保留">5.5 <code>knowledge_ping</code> — 連通性診斷（保留）</h3>
+<p>Phase 0 起提供的最小工具，回傳固定訊息（<code>"KnowledgeExtraction MCP server is alive."</code>），供部署後快速確認「連得上、被列舉、能呼叫」。無業務邏輯、不碰資料；亦受 <code>McpAccess</code> 授權保護。</p>
+<h3 id="56-knowledge_ask-的-mode-參數graph-rag-p91091">5.6 <code>knowledge_ask</code> 的 <code>mode</code> 參數（Graph RAG P9，1.0.91）</h3>
+<p><code>knowledge_ask</code> 新增選填參數 <code>mode</code>：</p>
+<div class="tw"><table><thead><tr><th>mode</th><th>行為</th></tr></thead><tbody><tr><td><code>local</code>（預設，省略即此值）</td><td>精準檢索：向量＋關鍵字＋圖鄰域三路混合，回傳含出處的片段。與 1.0.90 之前完全相同。</td></tr><tr><td><code>global</code></td><td>全域問答：對「呼叫者有權的社群摘要」做 map-reduce（Graph RAG P3），適合「綜觀全部／整體趨勢／系統性根因」類問題。</td></tr></tbody></table></div>
+<p><strong><code>global</code> 模式的回傳差異（呼叫端必須知道）</strong>：</p>
+<ul><li><code>sources</code> <strong>恆為空</strong>、<code>topScore</code> <strong>恆為 0</strong>——社群摘要沒有 chunk 層出處，也沒有相似度可言。</li><li><code>confidence</code> 僅表示「有無取到可用的社群重點」（<code>Sufficient</code> / <code>Insufficient</code>）。</li><li>取用的社群改由新欄位 <code>usedCommunities</code>（標題清單）回報。</li><li><strong>不套用 <code>categories</code> / <code>teams</code> 篩選</strong>（社群是跨來源的全域聚合，逐社群篩選沒有意義）。</li><li>無可用社群時 <code>answerContext</code> 會帶回可行動的原因（提示管理員需先建立社群摘要），而非空字串。</li></ul>
+<p>無法辨識的 <code>mode</code> 值會<strong>明確拋錯</strong>，不靜默退回 <code>local</code>——否則呼叫端會以為自己走了 global。</p>
+<h3 id="57-knowledgegraphneighbors--實體-n-跳鄰域graph-rag-p91091">5.7 <code>knowledge_graph_neighbors</code> — 實體 N 跳鄰域（Graph RAG P9，1.0.91）</h3>
+<p>查詢某實體在知識圖譜中的鄰域關係，供 Agent 回答「A 和 B 有什麼關聯」這類問題。</p>
+<ul><li>參數：<code>entityName</code>（別名自動解析，查「TSMC」等同查「台積電」）、<code>maxHops</code>（1～3，預設 2）。</li><li>回傳：<code>nodes</code>（實體名＋跳數，0＝查詢實體本身）、<code>relations</code>（主詞—關係—受詞＋跳數）、<code>found</code>、<code>truncated</code>。</li><li>只回傳<strong>已經人工核可</strong>的三元組；節點上限 100，達上限時 <code>truncated=true</code>（<strong>不靜默截斷</strong>）。</li><li>本工具為<strong>純資料庫查詢、不呼叫 LLM</strong>，故不推 <code>OperationContext</code>、不記 Token 用量。</li></ul>
+<blockquote><p>⚠️ 這與檢索的圖遍歷是<strong>兩張不同的圖</strong>：檢索遍歷「頁」（<code>WikiPage</code>），本工具遍歷「實體」（正規化名稱）。</p></blockquote>
+<hr>
+<h2 id="6-團隊權控整合硬性不變量" class="t6">6. 團隊權控整合（硬性不變量）</h2>
+<p><code>CLAUDE.md</code> 將團隊權控列為<strong>最關鍵不變量</strong>（違反會造成資安漏洞）。所有 MCP 工具必須遵守：</p>
+<ul><li><strong>優先複用既有服務內建的權控</strong>：<code>KnowledgeBaseChatService.RetrieveAsync</code>、<code>IRetrievalService.RetrieveAsync</code>（需帶 <code>RetrievalQuery.Scope</code>）、<code>KnowledgeSourceService.GetAsync</code>、<code>GraphTripleService.GetNeighborhoodAsync</code> <strong>皆已在查詢層套權控</strong>，MCP 工具直接呼叫即可，不得另走繞過權控的低階查詢。</li></ul>
+<blockquote><p>⚠️ <strong><code>mode=global</code> 的權控路徑（P9 的紅線，已由 <code>McpAccessScopeTests</code> 釘住）</strong></p>
+<p>全域問答的 ACL 由 <code>GraphCommunityService.GetAccessibleSummariesAsync</code> 把關，它經 <code>IRecordAccessScopeProvider</code> 取 scope。 而 <code>RecordAccessScopeProvider</code> 在 MCP 情境（無 Blazor circuit）下有三條解析路徑，<strong>三條都安全</strong>：</p>
+<ol><li><code>McpIdentityResolver.ResolveAsync</code> 已填入 <code>CurrentUserService</code>（含 <code>IsAdmin</code>／<code>TeamList</code>）→ 直接用它。</li><li>未填時 fallback 到 <code>HttpContext</code> 的 <code>Sid</code> claim（MCP 的 API Key／JWT 認證會帶）→ 從 DB 取回角色團隊。</li><li>兩者皆無法解析 → 回 <code>(false, [])</code>＝<strong>fail-closed</strong>，只看得到公開內容。</li></ol>
+<p>前提是<strong>工具必須先 <code>ResolveAsync</code> 再呼叫 <code>GlobalMapAsync</code></strong>（<code>KnowledgeAskTool</code> 已是此順序）。 另注意社群摘要的 ACL <strong>比一般紀錄更嚴</strong>：需社群 <code>Teams</code> 聯集 <strong>⊆</strong> 使用者團隊，或社群純公開—— 因此「甲隊∪乙隊」的社群對只屬甲隊的呼叫者<strong>也不可見</strong>。</p></blockquote>
+<ul><li><strong>自行查詢時</strong>必須套用標準 pattern：</li></ul>
+<pre><code>var scope = await accessScope.GetAsync();
+if (!scope.IsAdmin)
+    dataSource = dataSource.Where(
+        TagStringHelper.BuildTeamAccessPredicate&lt;KnowledgeSource&gt;(x =&gt; x.Teams, scope.Teams));</code></pre>
+<ul><li><strong>單筆記憶體端檢查</strong>用 <code>TagStringHelper.IsTeamAccessible(stored, allowedTeams, isAdmin)</code>（管理員恆 true）——見 §5.4 取全文。</li><li>規則語意：<strong>非管理員只能看「無團隊（公開）或與角色團隊交集」的紀錄；管理員不受限</strong>。</li></ul>
+<blockquote><p>⚠️ MCP 工具<strong>不得</strong>新增任何略過 <code>IRecordAccessScopeProvider</code> 的查詢路徑。新增工具時，把「是否已套權控」列為 code review 必檢項。</p></blockquote>
+<hr>
+<h2 id="7-認證與權控方案兩案皆已實作" class="t7">7. 認證與權控方案（兩案皆已實作）</h2>
+<p>MCP client 需要一種方式證明身分，系統才能解析其團隊範圍。<strong>兩案皆已落地</strong>：<code>/mcp</code> 端點套具名授權 policy <strong><code>McpAccess</code></strong>，允許 <code>Bearer</code>（JWT）／<code>Cookie</code>／<code>McpApiKey</code> 任一 scheme 認證通過（見 §4）。</p>
+<h3 id="方案-ajwt-bearer推薦">方案 A：JWT Bearer（<strong>推薦</strong>）</h3>
+<p>MCP client 於每次請求帶 <code>Authorization: Bearer &lt;JWT&gt;</code>。JWT 由既有 <code>IJwtTokenService</code> 依 <code>JwtSettings</code> 簽發。<strong>實作補上 <code>ClaimTypes.Sid</code> claim</strong>（原先缺漏，導致 JWT 非管理員只見公開內容）；<code>RecordAccessScopeProvider</code> 從 <code>HttpContext.User</code> 的 <code>Sid</code> 反查 <code>MyUser</code> + 角色團隊（<code>RoleView.DefaultTeamsJson</code>），得到 <code>RecordAccessScope</code>。</p>
+<ul><li>優點：與現有 Web API <strong>完全一致</strong>的認證與權控，零新機制；每位使用者天然對映其團隊範圍；可複用限流、稽核。</li><li>缺點：JWT 有期限，Agent 端需處理取得/更新 token（可用既有 <code>Auth</code> / <code>ExternalAuth</code> 端點換發）。</li></ul>
+<h3 id="方案-bmcp-專用-api-key">方案 B：MCP 專用 API Key</h3>
+<p><strong>實作為 DB 型金鑰（1.0.9 起）</strong>：client 以專用標頭 <strong><code>X-API-Key: &lt;金鑰&gt;</code></strong> 帶入（避免與 JWT 的 <code>Authorization</code> 衝突）。金鑰存於資料庫 <code>McpAccessKey</code> 表（<code>{ Name, KeyValue, UserId, IsEnabled, CreatedAt, UpdatedAt }</code>），由管理員於 <code>/mcp-api-keys</code> 網頁 CRUD 與啟用/停用。自訂 <code>McpApiKeyAuthenticationHandler</code> 經 <code>McpAccessKeyService.FindEnabledMatchAsync</code>（載入<strong>啟用中</strong>金鑰、定時比對 <code>CryptographicOperations.FixedTimeEquals</code>）驗證後，發帶 <code>ClaimTypes.Sid = UserId</code> 的身分 → <strong><code>RecordAccessScopeProvider</code> 沿用不變</strong>，金鑰對映到某個既有帳號的團隊範圍。</p>
+<ul><li>優點：對機器對機器（M2M）整合友善，無 token 過期問題；可為每個外部客戶發一把 key；<strong>可即時啟用/停用單一金鑰（免重啟）</strong>；沿用既有權控（免改）。</li><li>缺點：金鑰以明文存 DB（僅管理員可於網頁檢視），team 範圍綁在對映帳號上。<strong>（1.0.6 初版為設定型金鑰 <code>appsettings.json</code> <code>Mcp:ApiKeys</code>，1.0.9 已改為 DB 型並移除該設定路徑。）</strong></li></ul>
+<h3 id="比較">比較</h3>
+<div class="tw"><table><thead><tr><th>面向</th><th>方案 A：JWT Bearer</th><th>方案 B：MCP API Key</th></tr></thead><tbody><tr><td>開發成本</td><td>低（複用既有）</td><td>中（需新機制）</td></tr><tr><td>權控粒度</td><td>每使用者（精準）</td><td>每 key（粗）</td></tr><tr><td>到期/更新</td><td>需刷新 token</td><td>不過期（需撤銷機制）</td></tr><tr><td>稽核</td><td>沿用既有身分稽核</td><td>需自建 key 稽核</td></tr><tr><td>適用</td><td>有登入身分的互動型 Agent</td><td>M2M / 固定客戶整合</td></tr></tbody></table></div>
+<p><strong>現況</strong>：兩案皆已落地，可依 client 型態擇一——互動型 Agent 用 JWT、固定 M2M 整合用 API Key。</p>
+<hr>
+<h2 id="8-ai-agent-如何使用此-mcp-server" class="t8">8. AI Agent 如何使用此 MCP Server</h2>
+<p>MCP Server 上線後，AI Agent 端只需在其 MCP 設定中新增一個「HTTP / Streamable HTTP」型伺服器，指向 <code>/mcp</code> 端點並帶授權標頭。</p>
+<h3 id="81-通用-mcp-client-設定json-示意">8.1 通用 MCP client 設定（JSON 示意）</h3>
+<pre><code>{
+  "mcpServers": {
+    "knowledge-extraction": {
+      "type": "http",
+      "url": "https://your-host.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer &lt;你的 JWT&gt;"
+      }
+    }
+  }
+}</code></pre>
+<h3 id="82-取得-jwt">8.2 取得 JWT</h3>
+<p>呼叫既有登入端點（例如 <code>POST api/Auth/...</code>）以帳密換取 JWT，將回傳的 token 填入上方 <code>Authorization</code>。Token 到期後重新換發。</p>
+<h3 id="83-連線後-agent-會看到的工具">8.3 連線後 Agent 會看到的工具</h3>
+<p>連線成功後，Agent 會在工具清單中看到：<code>knowledge_ask</code>、<code>knowledge_search</code>、<code>knowledge_list_sources</code>、<code>knowledge_get_document</code>、<code>knowledge_graph_neighbors</code>（1.0.91 起），並可依各工具的 <code>Description</code> 自動判斷何時呼叫。</p>
+<h3 id="84-透過-mcp-server-能做到哪些事">8.4 透過 MCP Server 能做到哪些事</h3>
+<ul><li>用自然語言<strong>問答企業知識</strong>，並取得<strong>出處</strong>（可追溯到來源）。</li><li><strong>檢索原始片段</strong>，讓 Agent 自行彙整、比對、摘要。</li><li><strong>盤點知識來源</strong>（有哪些文件、屬於哪些分類/團隊）。</li><li><strong>取回單一文件全文</strong>做深入閱讀或再加工。</li><li>以上全部<strong>自動套用呼叫者的團隊權限</strong>——Agent 永遠看不到使用者無權存取的內容。</li></ul>
+<hr>
+<h2 id="9-使用範例含預期回傳結果" class="t1">9. 使用範例（含預期回傳結果）</h2>
+<blockquote><p>以下 <code>answerContext</code>／<code>sources</code> 內容為示意，實際依知識庫資料而定。</p></blockquote>
+<h3 id="例-1ai-知識問答rag-qa">例 1：AI 知識問答（RAG Q&amp;A）</h3>
+<ul><li>情境：員工問差旅報銷流程。</li><li>呼叫：<code>knowledge_ask({ "question": "公司差旅報銷的流程是什麼？" })</code></li><li>預期回傳：</li></ul>
+<pre><code>{
+  "answerContext": "差旅報銷須於行程結束後 7 個工作天內於差旅系統提出，附電子發票與行程單，經直屬主管簽核後由財務於次月 15 日撥款……",
+  "confidence": "Sufficient",
+  "topScore": 0.82,
+  "sources": [
+    { "title": "差旅管理辦法 v3", "sourceLayer": "Cleaned" },
+    { "title": "報銷作業 Wiki", "sourceLayer": "Wiki" }
+  ]
+}</code></pre>
+<h3 id="例-2知識搜尋檢索片段">例 2：知識搜尋（檢索片段）</h3>
+<ul><li>情境：找出所有提到「資安通報」的段落。</li><li>呼叫：<code>knowledge_search({ "query": "資安事件通報 窗口 時限", "topK": 3 })</code></li><li>預期回傳：</li></ul>
+<pre><code>[
+  { "text": "發現資安事件應於 1 小時內通報資安窗口 security@...", "sourceLayer": "Cleaned", "score": 0.79, "vectorScore": 0.74, "keywordScore": 0.91 },
+  { "text": "資安通報分級：P0 立即電話通報……", "sourceLayer": "Wiki", "score": 0.71, "vectorScore": 0.70, "keywordScore": 0.66 },
+  { "text": "年度資安演練包含通報流程驗證……", "sourceLayer": "Cleaned", "score": 0.55, "vectorScore": 0.58, "keywordScore": 0.40 }
+]</code></pre>
+<h3 id="例-3列出知識來源">例 3：列出知識來源</h3>
+<ul><li>情境：列出與「新人」相關、呼叫者可見的知識來源。</li><li>呼叫：<code>knowledge_list_sources({ "search": "新人", "page": 1, "pageSize": 10 })</code></li><li>預期回傳：</li></ul>
+<pre><code>{
+  "total": 2,
+  "items": [
+    { "id": 12, "title": "新人到職手冊", "categories": ["人資"], "teams": [] },
+    { "id": 34, "title": "新人 IT 設備申請指南", "categories": ["資訊"], "teams": ["資訊部"] }
+  ]
+}</code></pre>
+<h3 id="例-4取得完整文件內容">例 4：取得完整文件內容</h3>
+<ul><li>情境：取回《新人到職手冊》全文。</li><li>呼叫：<code>knowledge_get_document({ "sourceId": 12 })</code></li><li>預期回傳：</li></ul>
+<pre><code>{
+  "id": 12,
+  "title": "新人到職手冊",
+  "content": "# 新人到職手冊\n\n## 第一天\n- 報到地點：一樓大廳……\n## 系統帳號申請……"
+}</code></pre>
+<h3 id="例-5團隊權控示範越權被過濾">例 5：團隊權控示範（越權被過濾）</h3>
+<ul><li>情境：<strong>非管理員</strong>、僅屬「行銷部」的使用者，詢問只屬「財務部」的機密薪酬政策。</li><li>呼叫：<code>knowledge_ask({ "question": "公司薪酬級距與調薪政策細節？" })</code></li><li>預期回傳（機密來源被過濾，可能落到查無依據）：</li></ul>
+<pre><code>{
+  "answerContext": "",
+  "confidence": "Insufficient",
+  "topScore": 0.0,
+  "sources": []
+}</code></pre>
+<blockquote><p>對照：同一問題由管理員或財務部成員提出，才會取回對應來源。<strong>權控在檢索層生效，MCP 工具無法繞過。</strong></p></blockquote>
+<h3 id="例-6多輪追問帶對話歷史">例 6：多輪追問（帶對話歷史）</h3>
+<ul><li>情境：先問報銷，再追問「那如果超過期限呢？」。</li><li>呼叫（第二輪）：<code>knowledge_ask({ "question": "如果超過報銷期限怎麼辦？", "history": [ {"role":"user","content":"公司差旅報銷的流程是什麼？"}, {"role":"assistant","content":"……7 個工作天內提出……"} ] })</code></li><li>預期回傳：</li></ul>
+<pre><code>{
+  "answerContext": "逾期報銷需檢附逾期說明並經部門主管與財務主管雙簽核，逾 30 天原則上不予受理……",
+  "confidence": "Sufficient",
+  "topScore": 0.77,
+  "sources": [ { "title": "差旅管理辦法 v3", "sourceLayer": "Cleaned" } ]
+}</code></pre>
+<hr>
+<h2 id="10-分級日誌與稽核設計" class="t2">10. 分級日誌與稽核設計</h2>
+<p>MCP Server 被呼叫時，<strong>每個重要動作都要寫入日誌</strong>，並依嚴重性分到不同等級（Level），以利日後除錯與分析。設計<strong>完全沿用專案既有日誌慣例</strong>（<code>docs/operations/日誌與設定檔說明.md</code>、<code>docs/architecture/開發慣例與限制速查.md</code> §1.1），不新增另一套機制。</p>
+<h3 id="101-沿用既有基礎設施">10.1 沿用既有基礎設施</h3>
+<ul><li><strong>框架與輸出</strong>：NLog（<code>nlog.config</code>），單組每日檔案 target（<code>AppCatchAll</code> 規則、<code>minlevel</code> 為唯一等級開關、<code>autoReload</code> 改檔即生效），可經 <code>/log-settings</code> 頁面熱切等級。MCP 日誌自然落入同一檔案，無需新增 target。</li><li><strong>Layout 情境欄位</strong>：既有 layout 每筆帶 <code>${aspnet-TraceIdentifier}</code>（每 HTTP 請求的關聯 id，MCP 呼叫天然具備）＋ <code>user=/op=/id=</code> 三個情境欄位（來自 <code>BeginScope</code>）。</li><li><strong>情境 scope helper</strong>：每個工具方法開頭用 <code>LogScope.Of</code> 建立作業情境，讓下游所有日誌自動帶上「誰、做什麼操作、哪筆 Id」：</li></ul>
+<pre><code>using var _ = logger.BeginScope(LogScope.Of("McpAsk",
+    ("UserAccount", userAccount), ("RecordId", sourceId)));</code></pre>
+<blockquote><p><code>UserAccount</code> 由 <code>IRecordAccessScopeProvider</code>／<code>HttpContext</code> 身分解析取得；<code>op</code> 用 <code>McpAsk</code>/<code>McpSearch</code>/<code>McpListSources</code>/<code>McpGetDocument</code> 區分工具。</p></blockquote>
+<h3 id="102-各工具三點式呼叫日誌開始--成功--失敗">10.2 各工具「三點式」呼叫日誌（開始 / 成功 / 失敗）</h3>
+<p>比照專案「外部呼叫三點式」鐵則，<strong>每次工具呼叫</strong>都記開始、成功或失敗三態：</p>
+<pre><code>[McpServerTool(Name = "knowledge_ask")]
+public async Task&lt;object&gt; AskAsync(string question, /* … */ CancellationToken ct)
+{
+    using var _ = logger.BeginScope(LogScope.Of("McpAsk", ("UserAccount", userAccount)));
+    logger.LogInformation("MCP 工具呼叫開始。tool=knowledge_ask questionLen={Len}", question?.Length ?? 0);
+    try
+    {
+        var result = await chatService.RetrieveAsync(question, /* … */ ct);
+        logger.LogInformation(
+            "MCP 工具呼叫成功。tool=knowledge_ask 命中數={HitCount} 最高分={TopScore} 信心={Confidence}",
+            result.Sources.Count, result.TopScore, result.Confidence);
+        return /* … */;
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "MCP 工具呼叫失敗。tool=knowledge_ask");
+        throw;
+    }
+}</code></pre>
+<h3 id="103-各等級level記什麼">10.3 各等級（Level）記什麼</h3>
+<div class="tw"><table><thead><tr><th>等級</th><th>MCP 情境（記什麼）</th></tr></thead><tbody><tr><td><strong>Trace</strong></td><td>逐工具參數細節、檢索中間值（預設關，深度除錯才臨時開）</td></tr><tr><td><strong>Debug</strong></td><td>工具進入點與<strong>參數摘要</strong>（<code>topK</code>、分類/團隊過濾值、<code>sourceId</code>）、身分解析結果（<code>IsAdmin</code>、團隊數量）（Prod 不開）</td></tr><tr><td><strong>Information</strong></td><td><strong>里程碑</strong>：工具呼叫開始、呼叫成功（帶 metrics：命中數/最高分/信心/耗時）、MCP endpoint 連線建立</td></tr><tr><td><strong>Warning</strong></td><td><strong>可恢復/預期失敗</strong>：<code>knowledge_get_document</code> <strong>無法取得（<code>unavailable</code>：不存在／未清洗／無權）</strong>、查無依據（Insufficient）、稽核寫入失敗、API Key 無效、JWT/授權未過</td></tr><tr><td><strong>Error</strong></td><td>例外、檢索/DB 失敗、下游服務（OpenAI 嵌入）錯誤（<code>LogError(ex, …)</code>）</td></tr><tr><td><strong>Critical</strong></td><td>幾乎無法運作（如 DB 完全不可用），沿用既有全域處理</td></tr></tbody></table></div>
+<blockquote><p><strong>權控拒絕務必記 Warning</strong>：這是資安可歸責事件（誰嘗試存取越權來源），對照既有 <code>KnowledgeSourceService</code> 的權控拒絕 Warning 慣例。</p></blockquote>
+<h3 id="104-稽核audit比照-knowledgebasequeryaudit">10.4 稽核（Audit）——比照 <code>KnowledgeBaseQueryAudit</code></h3>
+<p>MCP 問答（<code>knowledge_ask</code>）應寫入既有 <code>KnowledgeBaseQueryAudit</code> 稽核表（EVAL-2 + SEC-5），與 Blazor 問答同軌，並沿用其三大不變量：</p>
+<ul><li><strong>只存身分＋metrics，不存本文</strong>：記 <code>UserAccount</code>/<code>UserName</code>/<code>IsAdmin</code>/<code>Teams</code>、查詢長度、<code>HitCount</code>/<code>TopScore</code>/<code>Confidence</code>、命中明細（<code>{id, layer, score}</code>）；<strong>不存問句本文、context 或 chunk 文字</strong>。</li><li><strong>日誌＋DB 雙軌</strong>：寫 DB 前先記一筆結構化 <code>LogInformation</code>（<code>IsAdmin=… Teams=… 命中數=… 最高分=… 信心=…</code>）。</li><li><strong>稽核失敗不得影響主流程</strong>：整段以 try/catch 包裹，失敗只記 <code>LogWarning(ex, "MCP 問答稽核持久化失敗（不影響回答）。")</code>。</li></ul>
+<blockquote><p>可選：於稽核加一個「來源通道」欄位以區分 <code>Blazor</code>/<code>MCP</code>（需動 Entity → 須補<strong>雙資料庫 migration</strong>）；若不想動 Entity，改以日誌 <code>op=McpAsk</code> 區分即可。此為實作時的取捨點。</p></blockquote>
+<h3 id="105-遮罩與隱私不變量">10.5 遮罩與隱私（不變量）</h3>
+<ul><li><strong>不記</strong> JWT／API Key／密碼／token，<strong>不記</strong>問句本文與回傳內容本文；情境 scope 只放帳號/團隊名/操作/Id（沿用 <code>LogScope.Of</code> 註解約束）。</li><li><code>catch</code> <strong>不得靜默</strong>：即使吞例外也要留 <code>Warning</code>/<code>Debug</code> 與原因（受 <code>LoggingConventionTests</code> 守則測試把關）。</li></ul>
+<hr>
+<h2 id="11-安全性與限制" class="t3">11. 安全性與限制</h2>
+<ul><li><strong>權控不可繞過</strong>：見 §6。所有工具皆須經 <code>IRecordAccessScopeProvider</code>；新增工具的 code review 必檢此項。</li><li><strong>限流</strong>：可對 <code>/mcp</code> 套 <code>.RequireRateLimiting("api")</code>，與現有 API 共用限流政策，避免濫用。</li><li><strong>稽核與日誌</strong>：見 §10。MCP 問答寫入 <code>KnowledgeBaseQueryAudit</code>，重要動作分級寫日誌，與現有 SEC-5 稽核、日誌可診斷化強化一致。</li><li><strong>提示注入防護</strong>：知識內容作為 context 回傳給外部 Agent 時，沿用既有 SEC-1/SEC-2 的注入防護與遮罩不變量觀念。</li><li><strong>為何不用 stdio</strong>：stdio transport 無 <code>HttpContext</code>，無法沿用 JWT 身分解析與團隊權控，且不適合對外多租戶場景；故本設計採 HTTP transport。</li></ul>
+<hr>
+<h2 id="12-實作狀態已完成" class="t4">12. 實作狀態（已完成）</h2>
+<ul><li>✅ 加套件 <code>ModelContextProtocol.AspNetCore 1.4.1</code>（Phase 0）。</li><li>✅ 4 個 <code>[McpServerToolType]</code> 工具類（<code>Web/Mcp/</code>）＋連通診斷 <code>knowledge_ping</code>，建構式注入既有服務；三點式分級日誌（<code>McpToolLog</code> 情境 scope 帶 <code>user=</code>/<code>op=</code>）。</li><li>✅ <code>AddApplicationServices()</code> 註冊 <code>AddMcpServer().WithHttpTransport().WithToolsFromAssembly()</code>（<code>AddHttpContextAccessor()</code> 既有）。</li><li>✅ <code>app.MapMcp("/mcp").RequireAuthorization("McpAccess").RequireRateLimiting("api")</code>。</li><li>✅ 方案 A（JWT，補 <code>Sid</code>）＋方案 B（<code>X-API-Key</code> 金鑰）皆落地；<code>McpAccess</code> policy 接受兩者。<strong>1.0.9 起金鑰改為 DB 型</strong>（<code>McpAccessKey</code> 表＋<code>/mcp-api-keys</code> 網頁 CRUD／啟用停用），1.0.6 初版的 <code>appsettings.json</code> <code>Mcp:ApiKeys</code> 設定型金鑰已移除。</li><li>✅ MCP 問答經 <code>RetrieveAsync</code> 自動寫入 <code>KnowledgeBaseQueryAudit</code>（日誌＋DB 雙軌、失敗不影響主流程）。<strong>未加稽核「來源通道」欄位</strong>——以日誌 <code>op=McpAsk/…</code> 區分來源（此項免 migration）。</li><li>✅ <strong>1.0.8 起</strong> MCP 問答寫入 <code>LlmChatLog</code>（<code>Origin=Mcp</code>）並以 <code>OperationContext</code> 將檢索 token 歸屬至呼叫者（<code>Operation=McpKnowledgeAsk</code>/<code>McpKnowledgeSearch</code>）；<code>McpIdentityResolver</code> 由 <code>Sid</code> claim 反查填入 <code>CurrentUserService</code>。</li><li>✅ 測試：權控不變量、四工具 happy path、認證、<code>catch</code> 不靜默（<code>LoggingConventionTests</code>）；<code>dotnet test</code> 通過。</li><li>✅ 版本 1.0.1→1.0.9；<strong>1.0.9 新增 <code>McpAccessKey</code> Entity → 已產雙資料庫 migration</strong>（Sqlite <code>20260717053352</code> ／ SqlServer <code>20260717053434</code>）。MCP 核心（1.0.1→1.0.6）與聊天紀錄/Token 歸屬（1.0.8）本身未動 Entity。</li></ul>
+<p><strong>日後增強</strong>：稽核「來源通道」欄位、稽核對 MCP 補記呼叫者 account（目前 account 由工具日誌 <code>user=</code> 補足，稽核記 IsAdmin/Teams）；金鑰稽核（簽發/撤銷歷程）。</p>
+<hr>
+<h2 id="13-rest-對應knowledgegraphcontroller1096" class="t5">13. REST 對應：<code>KnowledgeGraphController</code>（1.0.96）</h2>
+<p>§5.6（<code>knowledge_ask</code> 的 <code>mode=global</code>）與 §5.7（<code>knowledge_graph_neighbors</code>）那兩項圖譜能力，1.0.96 起<strong>對等開放給一般 REST 呼叫端</strong>，供無法講 MCP 協定的系統整合（<code>Controllers/KnowledgeGraphController.cs</code>，雙路由 <code>api/[controller]</code> 與 <code>api/v1/[controller]</code>，<code>[Authorize(JwtBearer)]</code>）。</p>
+<div class="tw"><table><thead><tr><th>MCP 工具</th><th>REST 端點</th><th>行為差異</th></tr></thead><tbody><tr><td><code>knowledge_ask</code>（<code>mode=global</code>）</td><td><code>POST /api/v1/KnowledgeGraph/global-ask</code></td><td><strong>LLM 未設定時回 503</strong>（MCP 是拋工具錯誤）。兩者都<strong>只做 map 不做 reduce</strong></td></tr><tr><td><code>knowledge_graph_neighbors</code></td><td><code>GET /api/v1/KnowledgeGraph/neighbors?entityName=&amp;maxHops=</code></td><td><strong><code>maxHops</code> 超出 1～3 回 400</strong>；MCP 則靜默夾住</td></tr></tbody></table></div>
+<p><strong>兩處刻意不同，不是不一致：</strong></p>
+<ol><li><strong><code>maxHops</code> 超界</strong>：REST 以 <code>[Range(1, GraphTripleService.MaxNeighborhoodHops)]</code> 明確回 400；MCP 靜默夾住。理由是呼叫端性質不同——MCP 的呼叫端是 LLM，夾住比報錯更能讓對話繼續；REST 的呼叫端是程式，明確報錯才能讓 bug 及早浮現。慣例見 <a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例</a>。</li><li><strong>LLM 未設定</strong>：回 <strong>503</strong>（服務依賴未備妥）而非 500。同上文件。</li></ol>
+<p><strong>共用與刻意不共用：</strong></p>
+<ul><li>✅ <strong>身分解析重用 <code>McpIdentityResolver</code></strong>：由 <code>Sid</code> claim 反查填入 <code>CurrentUserService</code>，與 MCP 走<strong>同一條把關程式碼</strong>。權控完全交給既有服務（<code>GraphTripleService</code>／<code>GraphCommunityService</code>），控制器本身不做任何權限判斷——這是刻意的，避免權控邏輯出現第二份實作。</li><li>❌ <strong>Token 作業別刻意不重用 Blazor 常數</strong>：用專屬的 <code>LlmTokenUsage.OperationApiGraphGlobalAsk</code> 並標記 <code>LlmChatLog.OriginApi</code>，否則報表上分不出是網頁使用者還是外部程式打的。見 <a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化 §5</a>。</li><li>❌ <strong>DTO 刻意不含 <code>sources</code> 與 <code>topScore</code></strong>：全域模式本來就沒有 chunk 層出處與相似度，留空欄位只會讓呼叫端誤以為「這次剛好沒有」。改回傳 <code>usedCommunities</code>。</li></ul>
+<p><strong>非目標（與 MCP 一致）</strong>：<strong>沒有寫入型端點</strong>——無法透過 REST 新增或核可三元組。審核是治理動作，刻意只留在網頁上。</p>
+<p>⚠️ <strong>已知限制</strong>：</p>
+<ul><li><code>global-ask</code> <strong>沒有 HTTP 層的 leak=0 端到端測試</strong>（服務層已覆蓋）；上線前建議手動以非管理員帳號驗一次。</li><li><strong>沒有 API 專用節流</strong>，成本只靠 <code>Retrieval.GraphGlobalCommunityCap</code>（預設 20）控管。對外開放時請在前端閘道加限流。</li></ul>
+<p>操作說明見 <a href="../../docs/guides/knowledge-graph.html">知識圖譜（Graph RAG）使用指南 §十</a>。</p>
+<hr>
+<h2 id="參考" class="t6">參考</h2>
+<ul><li>官方 C# SDK：&lt;https://github.com/modelcontextprotocol/csharp-sdk&gt;</li><li>SDK 文件：&lt;https://csharp.sdk.modelcontextprotocol.io/&gt;</li><li>NuGet：<a href="https://www.nuget.org/packages/ModelContextProtocol.AspNetCore" rel="noopener" target="_blank"><code>ModelContextProtocol.AspNetCore</code></a></li><li>.NET Blog：<a href="https://devblogs.microsoft.com/dotnet/build-a-model-context-protocol-mcp-server-in-csharp/" rel="noopener" target="_blank">Build a Model Context Protocol (MCP) server in C#</a></li><li>本專案不變量與慣例：<code>docs/architecture/開發慣例與限制速查.md</code>、<code>CLAUDE.md</code></li><li>既有 RAG 設計：<code>docs/architecture/知識庫RAG設計與執行.md</code></li><li>圖譜能力的使用者說明：<a href="../../docs/guides/knowledge-graph.html">知識圖譜（Graph RAG）使用指南</a></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>導入顧問：客戶問能不能跟 ERP／PLM／MES 整合</li></ul></div><div class="card"><h3>同類文件（系統架構）</h3><ul><li><a href="../../docs/architecture/two-stage-threshold.html">AI 知識問答：兩段式相似度門檻與查無依據攔截（設計文件）</a></li><li><a href="../../docs/architecture/knowledge-type-versioning.html">知識型態抽象 × 版本化 × 時效性（設計文件）</a></li><li><a href="../../docs/architecture/api-versioning.html">API Versioning 策略</a></li><li><a href="../../docs/architecture/dto-boundaries.html">DTO 與模型邊界規範</a></li><li><a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a></li><li><a href="../../docs/architecture/rag-rerank-analysis.html">RAG 是否導入 Re-rank（二階重排）分析與建議</a></li><li><a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例</a></li><li><a href="../../docs/architecture/wiki-vs-cleaned.html">Wiki 與 Cleaned 的角色差異</a></li><li><a href="../../docs/architecture/architecture-overview.html">架構總覽</a></li><li><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a></li><li><a href="../../docs/architecture/data-model.html">資料模型與資料庫</a></li><li><a href="../../docs/architecture/data-lifecycle.html">資料生命週期與維護（更新、刪除、級聯與孤兒）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#1-概述與目標">1. 概述與目標</a><a class="l3" href="#11-什麼是-mcp">1.1 什麼是 MCP</a><a class="l3" href="#12-為何在本知識庫加入-mcp">1.2 為何在本知識庫加入 MCP</a><a class="l3" href="#13-目標與非目標">1.3 目標與非目標</a><a class="l2" href="#2-套件選型">2. 套件選型</a><a class="l3" href="#21-官方且最主流的套件modelcontextprotocol">2.1 官方且最主流的套件：ModelContextProtocol</a><a class="l3" href="#22-結論">2.2 結論</a><a class="l2" href="#3-整體架構">3. 整體架構</a><a class="l3" href="#31-落點">3.1 落點</a><a class="l3" href="#32-資料流以-rag-問答為例">3.2 資料流（以 RAG 問答為例）</a><a class="l2" href="#4-mcp-server-註冊programcs">4. MCP Server 註冊（Program.cs）</a><a class="l2" href="#5-工具定義設計">5. 工具定義設計</a><a class="l3" href="#51-knowledge_ask--ai-知識問答rag-qa">5.1 knowledge_ask — AI 知識問答（RAG Q&amp;A）</a><a class="l3" href="#52-knowledge_search--知識搜尋檢索片段">5.2 knowledge_search — 知識搜尋（檢索片段）</a><a class="l3" href="#53-knowledgelistsources--列出查詢知識來源">5.3 knowledgelistsources — 列出／查詢知識來源</a><a class="l3" href="#54-knowledgegetdocument--取得完整文件內容">5.4 knowledgegetdocument — 取得完整文件內容</a><a class="l3" href="#55-knowledge_ping--連通性診斷保留">5.5 knowledge_ping — 連通性診斷（保留）</a><a class="l3" href="#56-knowledge_ask-的-mode-參數graph-rag-p91091">5.6 knowledge_ask 的 mode 參數（Graph RAG P9，1.0.91）</a><a class="l3" href="#57-knowledgegraphneighbors--實體-n-跳鄰域graph-rag-p91091">5.7 knowledgegraphneighbors — 實體 N 跳鄰域（Graph RAG P9，1.0.91）</a><a class="l2" href="#6-團隊權控整合硬性不變量">6. 團隊權控整合（硬性不變量）</a><a class="l2" href="#7-認證與權控方案兩案皆已實作">7. 認證與權控方案（兩案皆已實作）</a><a class="l3" href="#方案-ajwt-bearer推薦">方案 A：JWT Bearer（推薦）</a><a class="l3" href="#方案-bmcp-專用-api-key">方案 B：MCP 專用 API Key</a><a class="l3" href="#比較">比較</a><a class="l2" href="#8-ai-agent-如何使用此-mcp-server">8. AI Agent 如何使用此 MCP Server</a><a class="l3" href="#81-通用-mcp-client-設定json-示意">8.1 通用 MCP client 設定（JSON 示意）</a><a class="l3" href="#82-取得-jwt">8.2 取得 JWT</a><a class="l3" href="#83-連線後-agent-會看到的工具">8.3 連線後 Agent 會看到的工具</a><a class="l3" href="#84-透過-mcp-server-能做到哪些事">8.4 透過 MCP Server 能做到哪些事</a><a class="l2" href="#9-使用範例含預期回傳結果">9. 使用範例（含預期回傳結果）</a><a class="l3" href="#例-1ai-知識問答rag-qa">例 1：AI 知識問答（RAG Q&amp;A）</a><a class="l3" href="#例-2知識搜尋檢索片段">例 2：知識搜尋（檢索片段）</a><a class="l3" href="#例-3列出知識來源">例 3：列出知識來源</a><a class="l3" href="#例-4取得完整文件內容">例 4：取得完整文件內容</a><a class="l3" href="#例-5團隊權控示範越權被過濾">例 5：團隊權控示範（越權被過濾）</a><a class="l3" href="#例-6多輪追問帶對話歷史">例 6：多輪追問（帶對話歷史）</a><a class="l2" href="#10-分級日誌與稽核設計">10. 分級日誌與稽核設計</a><a class="l3" href="#101-沿用既有基礎設施">10.1 沿用既有基礎設施</a><a class="l3" href="#102-各工具三點式呼叫日誌開始--成功--失敗">10.2 各工具「三點式」呼叫日誌（開始 / 成功 / 失敗）</a><a class="l3" href="#103-各等級level記什麼">10.3 各等級（Level）記什麼</a><a class="l3" href="#104-稽核audit比照-knowledgebasequeryaudit">10.4 稽核（Audit）——比照 KnowledgeBaseQueryAudit</a><a class="l3" href="#105-遮罩與隱私不變量">10.5 遮罩與隱私（不變量）</a><a class="l2" href="#11-安全性與限制">11. 安全性與限制</a><a class="l2" href="#12-實作狀態已完成">12. 實作狀態（已完成）</a><a class="l2" href="#13-rest-對應knowledgegraphcontroller1096">13. REST 對應：KnowledgeGraphController（1.0.96）</a><a class="l2" href="#參考">參考</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/architecture/MCP-Server-整合設計與使用指南.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

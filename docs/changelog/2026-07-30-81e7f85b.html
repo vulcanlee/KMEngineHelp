@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>基礎設定內容設計指南與企業實戰情境劇本（1.0.107 → 1.0.108）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>基礎設定內容設計指南與企業實戰情境劇本（1.0.107 → 1.0.108）</h1></header><div class="docwrap"><main><ul><li>變更日期：2026/07/30</li><li>版本：1.0.107 → <strong>1.0.108</strong></li><li>性質：<strong>純文件＋版本字串</strong>。無程式邏輯變更、無新表、無 migration、無 UI 變更。</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="一為什麼做" class="t1">一、為什麼做</h2>
+<p>這是三階段導入前準備文件組的第二階段（主體）。第一階段（1.0.107）補上了「名字該怎麼取」，但還缺兩層：</p>
+<ol><li><strong>欄位裡的內容該怎麼想</strong>——既有 <a href="../../docs/guides/setup-guide.html">基礎設定指南</a> 教的是六個設定畫面怎麼操作，沒有教「分類詞庫怎麼設計」「遮罩提示詞怎麼寫」。</li><li><strong>各部門今天實際怎麼用</strong>——既有 <a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a> 是<strong>未來可開發的藍圖</strong>（多數尚未實作），不是今天的操作指引。</li></ol>
+<h2 id="二新增文件" class="t2">二、新增文件</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>內容</th></tr></thead><tbody><tr><td><a href="../../docs/guides/setup-content-design.html">guides/基礎設定內容設計指南-分類詞庫團隊與提示詞撰寫</a></td><td>知識邊界表（團隊設計的唯一輸入）＋團隊三種切法與失效情境＋分類詞庫四步設計法與三套現成詞庫＋角色與預設團隊＋<strong>五段清洗提示詞的輸出格式契約</strong>與破壞後果＋遮罩與分類提示詞的「差→好」對照＋圖片解讀與 PDF 萃取提示詞要點＋清洗設定檔何時該建＋評測題庫出題法＋設定盤點交付表</td></tr><tr><td><a href="../../docs/guides/department-playbook.html">guides/企業實戰情境劇本-依部門的資料準備與操作</a></td><td>虛構製造業「眾宇精密機電」（<code>EPS-3000</code>／<code>EPS-5000</code>，180 人）貫穿四組部門，每組八段結構；全公司設定藍圖（8 團隊／8 分類／3 角色／14 盒）；跨部門八個失敗模式；系統做不到的事三層總表；未來整合藍圖；導入順序評分法與第一個月里程碑</td></tr></tbody></table></div>
+<h2 id="三本次新查證到的系統行為" class="t3">三、本次新查證到的系統行為</h2>
+<p>以下是撰寫過程中對程式確認、且既有文件未記載的行為。<strong>兩項都屬「不會報錯」類。</strong></p>
+<div class="tw"><table><thead><tr><th>#</th><th>行為</th><th>出處</th><th>對使用者的意義</th></tr></thead><tbody><tr><td><strong>C1</strong></td><td>清洗第三步「分類」的 AI 建議結果會<strong>直接合併寫回</strong> <code>source.Categories</code>，<strong>完全不檢查該名稱是否存在於分類主檔</strong></td><td><code>CleaningProcessor.cs:169-175</code>（<code>TagStringHelper.ToStored(merged)</code>）</td><td>產生「幽靈分類」</td></tr><tr><td><strong>C2</strong></td><td>兩個「分類下拉」的資料來源<strong>不同</strong>：各清單頁的分類過濾讀<strong>分類主檔</strong>（<code>CategoryService</code>，見 <code>KnowledgeSourceView.razor.cs:22,98</code>）；AI 知識問答的「限定分類」讀<strong>已索引內容裡實際用到的分類</strong>（<code>KnowledgeBaseChatService.GetFilterCategoriesAsync</code>，由 <code>VectorEmbedding.Categories</code> 取 Distinct）</td><td>同左</td><td>幽靈分類會<strong>出現在問答頁下拉、卻不在清單頁下拉</strong>；兩邊詞彙不一致且無任何警告</td></tr></tbody></table></div>
+<p><strong>解法已寫入文件</strong>：分類提示詞要明列詞庫並要求「只能從清單挑、逐字相符、不得自創」（<a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南 §5.4</a>）。</p>
+<blockquote><p>既有 <a href="../../docs/guides/setup-guide.html">基礎設定指南 §四</a> 已記載 C2 的其中一半（「問答頁下拉不是讀主檔」），本次補齊另一半（<strong>反向</strong>也成立：AI 造的分類會出現在問答頁下拉）以及 C1 這個成因。</p></blockquote>
+<h2 id="四五段清洗提示詞的輸出契約文件內容的事實基礎" class="t4">四、五段清洗提示詞的輸出契約（文件內容的事實基礎）</h2>
+<p>取自 <code>LlmPromptDefaults.cs</code> 的內建預設與 <code>CleaningEnhancer.cs</code> 的接手處理：</p>
+<div class="tw"><table><thead><tr><th>步驟</th><th>輸出契約</th><th>失敗行為</th><th>出處</th></tr></thead><tbody><tr><td>去重</td><td>清洗後內容本身，無任何說明前後綴</td><td>可降級：沿用未去重內容並記備註</td><td><code>CleaningEnhancer.cs</code> try/catch</td></tr><tr><td>遮罩</td><td>敏感資訊以 <code>【已遮罩】</code> 取代</td><td>⚠️ <strong>不吞例外——整筆清洗失敗</strong>（刻意的安全設計）</td><td><code>MaskAsync</code>（無 try/catch 包覆）</td></tr><tr><td>分類</td><td>名稱以「、」分隔於<strong>同一行</strong></td><td>可降級：不給分類</td><td><code>ParseCategories</code>（分隔符含 <code>、, ，\n ; ；</code>）</td></tr><tr><td>摘要</td><td>一段摘要＋另起一行 <code>關鍵實體：</code></td><td>可降級：無摘要</td><td><code>LlmPromptDefaults.CleaningSummary</code></td></tr><tr><td>信心</td><td><strong>只有一個 0～1 小數</strong></td><td>解析不出 → <code>null</code> → <strong>整筆轉「待審核」</strong></td><td><code>ParseConfidence</code>；<code>CleaningEnhancer.cs</code> 註解明載</td></tr></tbody></table></div>
+<p>另記四層提示詞覆蓋順序（<code>CleaningEnhancer.cs:132-136</code> 的 <code>promptResolver.ResolveAsync</code>）：<strong>清洗設定檔欄位 → 提示詞清單同名保留鍵 → appsettings → 程式 fallback</strong>。<code>appsettings.json</code> 的 <code>LlmPrompts</code> 區段目前 20 個鍵<strong>全為空字串</strong>，所以實際生效的預設值來自 <code>LlmPromptDefaults</code>。</p>
+<h2 id="五同步更新" class="t5">五、同步更新</h2>
+<ul><li><code>docs/README.md</code>：guides 區新增兩筆；changelog 區新增本篇。</li><li><code>docs/guides/README.md</code>：新增兩列，並明寫與 <code>基礎設定指南</code>／<code>企業應用情境型錄</code> 的分工。</li><li><code>docs/changelog/README.md</code>：新增本篇索引列。</li><li><code>appsettings.json</code> 的 <code>SystemVersion</code>：<code>1.0.107 (2026/07/30)</code> → <code>1.0.108 (2026/07/30)</code>。</li><li>1.0.107 遺留的兩個未解析連結（指向本次兩份新文件）<strong>已全部補齊</strong>。</li></ul>
+<h2 id="六驗證" class="t6">六、驗證</h2>
+<ul><li><code>pwsh -File scripts/Test-DocsEncoding.ps1</code> 全綠。</li><li>四份新文件的 md 相對連結<strong>全部解析成功</strong>（自動掃描 <code>](*.md)</code>，含 URL 編碼還原）。</li><li>情境劇本引用的 <strong>18 個頁面路由全部對應到實際 <code>@page</code></strong>（自動比對 razor 檔）。</li><li>驗收門檻數字沿用 <a href="../../docs/strategy/multi-tenant-planning.html">多客戶多型號規劃分析 §6.3</a>，未自行發明數字。</li></ul>
+<h2 id="七後續階段" class="t7">七、後續階段</h2>
+<p><strong>1.0.109</strong>：知識傳承與經驗累積方法論＋導入實施顧問手冊（對內，放 <code>docs/strategy/</code>）＋五份 HTML（速查卡與四份客戶版）。</p>
+<hr>
+<blockquote><p>返回 <a href="../../docs/changelog/readme-436e4418.html">changelog 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一為什麼做">一、為什麼做</a><a class="l2" href="#二新增文件">二、新增文件</a><a class="l2" href="#三本次新查證到的系統行為">三、本次新查證到的系統行為</a><a class="l2" href="#四五段清洗提示詞的輸出契約文件內容的事實基礎">四、五段清洗提示詞的輸出契約（文件內容的事實基礎）</a><a class="l2" href="#五同步更新">五、同步更新</a><a class="l2" href="#六驗證">六、驗證</a><a class="l2" href="#七後續階段">七、後續階段</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-30-基礎設定內容設計與企業實戰情境劇本.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

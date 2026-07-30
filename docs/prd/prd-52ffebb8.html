@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>角色管理 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>角色管理 PRD</h1><p class="sub">定義「角色管理」頁的需求、權限樹、預設團隊與選單權限對應</p></header><div class="docwrap"><main><ul><li>文件用途：定義「角色管理」頁的需求、權限樹、預設團隊與選單權限對應</li><li>主要讀者：產品、開發、系統管理員</li><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.63</li><li>首次實作版本：既有腳手架核心功能</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026/06/28</li><li>對應版本：既有腳手架核心功能（已實作）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<h2 id="一目標與範圍" class="t1">一、目標與範圍</h2>
+<p>讓管理員建立與維護角色，決定使用者可見的頁面、可執行的動作，以及登入後套用的預設團隊。角色管理是頁面權限與團隊資料權控的交會點。</p>
+<p>本 PRD 範圍包含 <code>/roleviews</code> 頁面、角色 CRUD、權限樹勾選、預設團隊多選、角色 JSON 儲存。非範圍包含欄位級權限、資料列級自訂規則、權限繼承。</p>
+<h2 id="二使用者與入口" class="t2">二、使用者與入口</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>說明</th></tr></thead><tbody><tr><td>路由</td><td><code>/roleviews</code></td></tr><tr><td>選單</td><td>系統管理 → 權限管理 → 角色管理（1.0.42 起「系統管理」下分三個子群組，本頁位於「權限管理」）</td></tr><tr><td>權限</td><td>僅管理員 <code>CheckIsAdmin()</code></td></tr><tr><td>主要使用者</td><td>系統管理員</td></tr></tbody></table></div>
+<h2 id="三畫面與欄位" class="t3">三、畫面與欄位</h2>
+<p>角色欄位為名稱、權限 JSON（<code>TabViewJson</code>）、預設團隊（<code>DefaultTeamsJson</code>）與建立／更新時間，<strong>無說明欄位、無啟用停用狀態</strong>。權限樹由 <code>RolePermissionService.InitializePermissionSetting()</code> 產生，預設團隊由啟用中的團隊管理提供多選。</p>
+<h2 id="四內部系統運作" class="t4">四、內部系統運作</h2>
+<p>核心流程為 <code>RoleViewView → RoleViewService → RolePermissionService → BackendDBContext</code>。</p>
+<ol><li>進頁檢查登入與管理員身分。</li><li>載入啟用團隊名稱作為預設團隊選項。</li><li>權限樹由 <code>RolePermissionService.GetRoleListPermissionAllName()</code> 生成，外層順序需與 <code>Menu.json</code> 頂層一致。</li><li>儲存時將勾選權限序列化到 <code>RoleView.TabViewJson</code>。</li><li>預設團隊以 JSON 陣列儲存在 <code>RoleView.DefaultTeamsJson</code>，透過 <code>TeamJsonHelper</code> 轉換。</li><li>使用者登入時，<code>AuthenticationStateHelper.Check</code> 解析角色權限與預設團隊到 <code>CurrentUser.RoleList</code> / <code>TeamList</code>。</li></ol>
+<h2 id="五llm--rag-互動" class="t5">五、LLM / RAG 互動</h2>
+<p>本功能不呼叫 LLM、不使用 embedding，但會決定所有 LLM/RAG 功能的可見資料範圍。例如 AI 知識問答與檢索品質評測的團隊權控皆依登入者角色團隊或樣本模擬團隊運作。</p>
+<h2 id="六權限與安全" class="t6">六、權限與安全</h2>
+<ul><li>僅管理員可管理角色。</li><li><code>Menu.json</code>、<code>MagicObjectHelper</code>、<code>RolePermissionService</code> 三處順序必須同步，因側邊選單以位置索引對應。</li><li>動作型權限必須排在頁面型權限之後，避免占用選單索引。</li><li>預設團隊名稱需與團隊管理精確相符，否則團隊權控會失效或看不到資料。</li></ul>
+<h2 id="七錯誤與邊界" class="t7">七、錯誤與邊界</h2>
+<ul><li>權限 JSON 無法解析時，登入檢查應拒絕該使用者。</li><li>刪除角色前需評估是否仍有使用者指派（角色無停用機制，只能刪除）。</li><li>新增頁面時若未同步三處，會造成選單顯示或授權錯亂。</li></ul>
+<h2 id="八驗收與測試" class="t8">八、驗收與測試</h2>
+<ul><li>管理員可新增、編輯、刪除與搜尋角色。</li><li>權限勾選後，使用者登入可取得正確頁面權限。</li><li>預設團隊可影響紀錄清單與 AI 知識問答可見範圍。</li><li>選單順序與權限樹順序一致。</li></ul>
+<h2 id="九相關程式與文件" class="t1">九、相關程式與文件</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/Admins/RoleViewView.razor.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/RoleViewService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code></li><li><a href="../../docs/security/auth-and-permissions.html">認證授權與權限機制</a></li></ul>
+<h2 id="十現況校正1063-核對" class="t2">十、現況校正（1.0.63 核對）</h2>
+<ul><li>權限樹覆蓋所有<strong>非 <code>adminOnly</code></strong> 的正式選單頁。<code>adminOnly</code> 群組（系統管理、統計報表）<strong>改以管理員身分把關、不進權限樹</strong>：<code>SidebarMenuService.FilterMenuItems</code> 對 <code>adminOnly</code> 項目直接以 <code>AdminOnly</code> 決定可見性、略過角色權限比對，頁面本身也只呼叫 <code>CheckIsAdmin()</code>。權限樹中「統計報表」與「系統管理」群組僅保留<strong>佔位常數</strong>以維持與 <code>Menu.json</code> 的位置索引對齊，<code>MenuPermissionAlignmentTests</code> 已將 <code>adminOnly</code> 項豁免於逐項對應的不變量。</li><li><code>知識審核</code>、<code>蒸餾審核</code> 等無選單動作型權限必須排在群組頁面權限之後，避免位置索引占用選單項。</li><li>預設團隊為名稱 JSON 陣列，與團隊管理精確相符；管理員豁免與「角色剛好含所有現有團隊」不是同一語意。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目標與範圍">一、目標與範圍</a><a class="l2" href="#二使用者與入口">二、使用者與入口</a><a class="l2" href="#三畫面與欄位">三、畫面與欄位</a><a class="l2" href="#四內部系統運作">四、內部系統運作</a><a class="l2" href="#五llm--rag-互動">五、LLM / RAG 互動</a><a class="l2" href="#六權限與安全">六、權限與安全</a><a class="l2" href="#七錯誤與邊界">七、錯誤與邊界</a><a class="l2" href="#八驗收與測試">八、驗收與測試</a><a class="l2" href="#九相關程式與文件">九、相關程式與文件</a><a class="l2" href="#十現況校正1063-核對">十、現況校正（1.0.63 核對）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/角色管理-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

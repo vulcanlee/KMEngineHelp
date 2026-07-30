@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識來源規模守門開發代辦清單 TODO｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 開發代辦</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">開發代辦</div><h1>知識來源規模守門開發代辦清單 TODO</h1></header><div class="docwrap"><main><blockquote><p>對應文件：<a href="../../docs/guides/source-scale-limits.html">知識來源分盒與規模上限指南</a>（使用者側的規避方法）、<a href="../../docs/operations/capacity-limits.html">容量邊界與限制 §七</a>（邊界事實）。 鐵則：本清單三項<strong>皆不需要模型變更、不需要 migration</strong>（P2／P3 若加入可設定門檻，只動 <code>appsettings.json</code> 的既有 <code>SystemSettings</code> 區段）；每次可建置產出 <code>appsettings.json</code> 版本 +1；文件 UTF-8 含 BOM（<code>scripts/Test-DocsEncoding.ps1</code>）。 建立日期：2026/07/30　｜　狀態：✅ <strong>三項全數完成</strong>（P1 → 1.0.112、P2 → 1.0.113、P3 → 1.0.114） 查證紀錄：2026/07/30 逐項對回原始碼確認三項皆未實作（<code>finish_reason</code> 僅存在於 <code>PdfMarkdownLlmClient</code>、無任何彙整量顯示、無清洗前警告），隨後開始實作。</p></blockquote>
+<hr>
+<h2 id="一為什麼需要這組守門" class="t1">一、為什麼需要這組守門</h2>
+<p>知識來源的聚合對<strong>成員數與內容總量完全沒有上限</strong>（<code>KnowledgeSourceContentAggregator.BuildAsync</code>），而清洗的去重與遮罩兩步要把<strong>整份內容重新輸出一遍</strong>（<code>CleaningEnhancer.ComposeStepPrompt</code> ＝ <code>prompt + "\n\n\n" + 整份全文</code>）。於是規模過大會有三種結果：</p>
+<div class="tw"><table><thead><tr><th>模式</th><th>行為</th><th>目前有無守門</th></tr></thead><tbody><tr><td>A 輸入超限</td><td>遮罩丟 HTTP 400 → 非暫時性 → 不重試、直接失敗</td><td>✅ 有（失敗且訊息可見）</td></tr><tr><td><strong>B 輸出被截斷</strong></td><td>串流正常結束、內容非空 → 被當成功，狀態「已清洗」、無任何註記</td><td>✅ <strong>1.0.112 已修</strong>（P1）</td></tr><tr><td>C 檢索稀釋</td><td>候選 50 → 只有 <code>TopK=10</code> 段進 LLM，兩段式門檻不會攔</td><td>❌ 無（屬規劃層問題，可用分盒繞過；見 §四「刻意不做的」）</td></tr></tbody></table></div>
+<p><strong>B 曾是全系統唯一完全無痕跡的失敗，已於 1.0.112 修正（P1）。</strong> 在那之前，後果是整條 RAG（切塊／嵌入／問答）建立在殘缺內容上，而使用者的感受是「明明有這份文件卻查不到」——會被誤判為檢索問題，然後去調檢索參數（無效）。⚠️ <strong>1.0.112 之前清洗的資料仍可能已被截斷</strong>，需人工檢查或重新清洗。</p>
+<p>本清單三項的目標依序是：<strong>先讓它被發現（P1）→ 再讓它能被預先判斷（P2）→ 最後在使用者按下去之前攔住（P3）</strong>。</p>
+<hr>
+<h2 id="二待辦項目" class="t2">二、待辦項目</h2>
+<h3 id="p1--清洗的去重遮罩加上輸出截斷偵測--已完成10112">P1 — 清洗的去重／遮罩加上輸出截斷偵測 ✅ <strong>已完成（1.0.112）</strong></h3>
+<ul class="check"><li><span class="box">☑</span>在<strong>清洗的去重與遮罩兩步</strong>偵測模型是否因輸出上限截斷（<code>finish_reason == "length"</code>）。</li></ul>
+<p><strong>實作結果（1.0.112）</strong></p>
+<div class="tw"><table><thead><tr><th>位置</th><th>做了什麼</th></tr></thead><tbody><tr><td><code>IChatCompletionClient.CompleteStreamingCheckedAsync</code></td><td>新增方法，<strong>帶預設實作</strong>回報「未截斷」→ 既有測試假件與另 10 個呼叫端一行都不用改</td></tr><tr><td><code>OpenAIChatCompletionClient</code></td><td><code>StreamAsync</code> 本體抽成 <code>StreamCoreAsync(…, onFinishReason)</code>（公開簽章與行為不變）；SSE 迴圈擷取 <code>choices[0].finish_reason</code>；覆寫 <code>CompleteStreamingCheckedAsync</code></td></tr><tr><td><code>CleaningEnhancer</code> 去重</td><td>截斷 → <strong>不採用</strong>輸出、退回未去重原文、加 <code>&gt; 註記：</code></td></tr><tr><td><code>CleaningEnhancer.MaskAsync</code></td><td>截斷 → <strong>擲例外、整筆清洗失敗</strong>（截斷尾段未經遮罩，必然有未遮到的個資／機密）</td></tr></tbody></table></div>
+<p><strong>測試（新增 10 條，全量 1057 → 1067 全綠）</strong>：<code>length</code> 判為截斷；<strong>反證</strong> <code>stop</code>／<code>tool_calls</code>／<code>content_filter</code>／無 <code>finish_reason</code> 皆不誤判；大小寫不敏感；<code>CompleteStreamingAsync</code> 被截斷時行為不變（釘住另 10 個呼叫端）；去重截斷退回原文並留註記且<strong>遮罩收到的是原文</strong>；遮罩截斷擲例外且不再跑後續三步；未截斷時行為與加偵測前完全一致。</p>
+<p><strong>原始規劃備註（保留供對照）</strong></p>
+<p><strong>為什麼是最高優先</strong>：成本最低、效益最大。它把唯一的靜默失敗變成大聲失敗——不需要使用者學任何新知識，也不需要改變作業習慣。</p>
+<p><strong>現成可重用的東西</strong>：<code>PdfMarkdownLlmClient.IsTruncatedByOutputLimit(string responseJson)</code> 已是 <strong><code>public static</code></strong>，判定邏輯（讀 <code>choices[0].finish_reason</code>）可直接重用，不必重寫。</p>
+<p><strong>要注意的兩件事</strong>：</p>
+<ol><li>⚠️ <strong>不要直接改共用的 <code>OpenAIChatCompletionClient.ParseContent</code>。</strong> <code>PdfMarkdownLlmClient.cs:85-115</code> 的 remarks 已說明原因：該方法另有 4 個呼叫端（一般對話、查詢改寫、圖片、手動送檔產生），那些路徑被截斷未必要當失敗，改共用方法會把行為變更擴散到整站。<strong>本專案「外科式變更」原則的既有實例，照著做。</strong></li><li>清洗走的是<strong>串流</strong>路徑（<code>CompleteStreamingAsync</code> → <code>StreamAsync</code>），現成的 <code>IsTruncatedByOutputLimit</code> 吃的是<strong>完整的非串流回應 JSON</strong>。SSE 的 <code>finish_reason</code> 出現在最後幾個 chunk 的 <code>choices[0].finish_reason</code>，需要在串流迴圈中額外解析並回傳給呼叫端（例如讓 <code>CompleteStreamingAsync</code> 回 <code>(string Text, bool Truncated)</code>，或另開一個帶截斷旗標的多載，避免改動既有簽章影響其他呼叫端）。</li></ol>
+<p><strong>驗證方式</strong>：</p>
+<ul><li>單元測試：模擬 SSE 最後一塊帶 <code>"finish_reason":"length"</code>，斷言清洗擲例外／標記失敗。</li><li>反證測試：<code>finish_reason</code> 為 <code>stop</code> 時<strong>不得</strong>誤判為截斷（避免把正常清洗改成失敗，這個迴歸很嚴重）。</li><li>實跑：拿一份刻意過大的素材跑清洗，確認狀態變「失敗」且錯誤訊息說明是輸出截斷。</li></ul>
+<p><strong>風險</strong>：若判定寫錯方向（把正常當截斷），會讓所有清洗失敗。<strong>上線前必須有反證測試。</strong></p>
+<hr>
+<h3 id="p2--讓彙整後內容量看得到--已完成10113">P2 — 讓「彙整後內容量」看得到 ✅ <strong>已完成（1.0.113）</strong></h3>
+<ul class="check"><li><span class="box">☑</span>在「管理成員」與「確認清洗」兩個對話窗顯示該盒的<strong>估計彙整位元組</strong>。</li><li><span class="box">☐</span>（選配，<strong>未做</strong>）<code>/reports/content-inventory</code> 加上字數維度 —— 報表仍只統計筆數。</li></ul>
+<p><strong>實作結果（1.0.113）</strong></p>
+<div class="tw"><table><thead><tr><th>位置</th><th>做了什麼</th></tr></thead><tbody><tr><td><code>KnowledgeSourceContentAggregator</code></td><td><strong>先重構</strong>：把「成員 → 候選內容檔完整路徑」抽成 <code>ResolveMemberPathsAsync</code>，讓讀內容與量大小<strong>共用同一份對應規則</strong>（含影音類「逐字稿為空 → 退回依提示詞產生」的 fallback）。再新增 <code>MeasureAsync</code>，<strong>只讀 <code>FileInfo.Length</code>、不讀內容</strong></td></tr><tr><td><code>KnowledgeSourceService.MeasureAsync(id)</code></td><td>包一層給 UI，<strong>套團隊權控</strong>；一併回傳清洗後檔案大小</td></tr><tr><td><code>KnowledgeSourceSizeAdapterModel</code></td><td>新增；含 <code>CleanedRatio</code>（清洗後 ÷ 彙整前，四捨五入 2 位）</td></tr><tr><td><code>CompactNumberHelper.ToByteSize</code></td><td>新增（<code>1.2 KB</code>／<code>3.5 MB</code>）；與 token 計數用的 <code>ToCompact</code> 分開</td></tr><tr><td>管理成員對話窗</td><td><code>彙整量：約 X（Y 個可用成員，Z 個略過）</code>；加入／移除／上下移後重新量測</td></tr><tr><td>確認清洗對話窗</td><td>同上；已清洗過者多一行 <code>上次清洗後：X（比值 0.62）</code>——即分盒指南的「比長度」檢查，出現在最需要它的時機</td></tr></tbody></table></div>
+<p>⚠️ <strong>一個刻意保留的近似</strong>：<code>BuildAsync</code> 判定成員可用是「讀進來的內容不是空白」，<code>MeasureAsync</code> 為了不讀檔改用「檔案存在且長度 &gt; 0」。所以「檔案只含空白字元」時量測會算可用、彙整會略過。畫面文案因此一律寫「約」，並有一條測試把這個<strong>已知差異釘住</strong>（<code>MeasureAsync_WhitespaceOnlyFile_IsKnownDivergenceFromBuild</code>）。</p>
+<p>⚠️ <strong>刻意不做的兩件事</strong>：不加列表欄位（一頁 20 筆 × 每盒 15 成員＝每次渲染 300 次檔案查詢）；不加 DB 欄位存彙整量（需雙 migration，即時量測已足夠）。</p>
+<p><strong>測試（新增 20 條，全量 1067 → 1087 全綠）</strong>：四型素材位元組加總；未完成／無檔案成員計入略過；空來源回 0；🔴 <strong>一致性測試</strong> <code>MeasureAsync</code> 可用數 == <code>BuildAsync</code> 採用數且標題確實出現／不出現在彙整本文；影音 fallback 兩邊取同一個檔；空白檔的已知差異；服務層的清洗後比值、未清洗時為 null、<strong>團隊權控拒絕與允許</strong>；<code>ToByteSize</code> 的 B／KB／MB／GB 邊界。</p>
+<p><strong>原始規劃備註（保留供對照）</strong></p>
+<p><strong>為什麼</strong>：目前<strong>沒有任何畫面</strong>顯示這個數字——<code>ContentInventoryReportService</code> 只統計筆數（依媒體型別／團隊／分類／狀態），沒有字數或位元組。使用者要判斷規模只能自己去 <code>SystemSettings.ExternalFileSystem</code> 各路徑下人工比對檔案大小，門檻太高，實務上等於沒人會做。</p>
+<p><strong>效益</strong>：讓 <a href="../../docs/guides/source-scale-limits.html">分盒與規模上限指南 §五</a> 的實測步驟與 §十 的「比長度」檢查變成點兩下就能做的事，而不是維運任務。</p>
+<p><strong>實作注意</strong>：</p>
+<ul><li>成員的萃取輸出是<strong>檔案</strong>（不在 DB），所以字數要讀檔取得。⚠️ <strong>不要在列表頁同步讀大量檔案</strong>——一頁 20 筆盒子、每盒 15 個成員就是 300 次檔案 I/O。建議用 <code>FileInfo.Length</code> 取位元組（不必讀內容）並快取，或在清洗完成時把統計值寫回 DB 欄位（後者需 migration，屬另一個決策）。</li><li>顯示「位元組」比「字數」便宜得多（不必讀檔內容），而且對判斷規模已經足夠。<strong>建議先做位元組版。</strong></li></ul>
+<p><strong>驗證方式</strong>：對照人工在檔案系統加總的數字；量測列表頁載入時間沒有明顯退化。</p>
+<hr>
+<h3 id="p3--清洗前的軟上限警告--已完成10114">P3 — 清洗前的軟上限警告 ✅ <strong>已完成（1.0.114）</strong></h3>
+<ul class="check"><li><span class="box">☑</span>按「清洗」時，若估計彙整量超過門檻，於對話窗提示並要求勾選確認才能送出。</li></ul>
+<p><strong>實作結果（1.0.114）</strong></p>
+<div class="tw"><table><thead><tr><th>位置</th><th>做了什麼</th></tr></thead><tbody><tr><td><code>CleaningSettings.AggregateWarnBytes</code></td><td>新增，預設 <strong>200_000</strong>；<strong>0 或負數＝停用</strong>。XML 註解寫明「保守起點，需以實測校準」</td></tr><tr><td><code>appsettings.json</code></td><td><code>SystemSettings.Cleaning</code> 補該鍵</td></tr><tr><td><code>KnowledgeSourceSizeAdapterModel</code></td><td>新增 <code>WarnBytes</code> 與純計算屬性 <code>ExceedsWarnThreshold</code>（<code>WarnBytes &gt; 0 &amp;&amp; TotalBytes &gt; WarnBytes</code>）——刻意做成模型上的純函式，邊界才能用不碰 DB／UI 的測試釘住</td></tr><tr><td><code>KnowledgeSourceService</code></td><td>建構式取出門檻（與 <code>cleanedRootPath</code> 同風格），<code>MeasureAsync</code> 填入 <code>WarnBytes</code></td></tr><tr><td>確認清洗對話窗</td><td>超過門檻時顯示黃色警示（講「會發生什麼／撞到會怎樣／怎麼辦」三件事）＋勾選框；<code>OkButtonProps</code> 的 <code>Disabled</code> 擋住 OK 鈕（沿用 <code>ContentEditDialog</code> 的既有模式）；<strong>每次開啟對話窗重設勾選狀態</strong></td></tr></tbody></table></div>
+<p><strong>三道防線的分工</strong>：P3 事前提醒 → P2 事中可見 → P1 事後大聲失敗。</p>
+<p>⚠️ <strong>刻意不做硬阻擋</strong>，也<strong>不在服務層或管線層擋清洗</strong>（<code>TriggerCleaningAsync</code> 行為完全不變）——判準取決於模型，硬擋會擋到正常使用。</p>
+<p><strong>測試（新增 11 條，全量 1087 → 1098 全綠）</strong>：邊界（小於／<strong>等於不警告</strong>／大於才警告）；門檻 <code>0</code>／負數／<code>long.MinValue</code> 一律停用；未量測時不警告；程式預設值為 200_000；🔴 <strong>設定漂移守門</strong>——直接讀 repo 真實 <code>appsettings.json</code>，斷言該鍵存在且與程式預設一致（沿用 <code>UnsafeDefaultsTests</code> 的作法，防止「程式加了設定、設定檔沒加」）；服務層門檻流通與停用。</p>
+<p><strong>原始規劃備註（保留供對照）</strong></p>
+<p><strong>為什麼</strong>：P1 讓失敗被發現、P2 讓規模看得到，但兩者都是<strong>事後</strong>。P3 是在使用者按下去之前就攔住——尤其對「一次加了 40 個成員」這種情況，事前提示能省下十幾分鐘的清洗與一次失敗。</p>
+<p><strong>設計要點</strong>：</p>
+<ul><li>門檻必須<strong>可設定</strong>（<code>SystemSettings.Cleaning</code> 下新增一項，例如聚合位元組警告門檻），且<strong>預設值要保守但不能擋住正常使用</strong>——這是軟警告，不是硬阻擋。</li><li>文案要說明「為什麼」與「怎麼辦」，並指向 <a href="../../docs/guides/source-scale-limits.html">分盒與規模上限指南</a>，不要只說「內容過大」。</li><li><strong>依賴 P2</strong>（要先有估計值才能比門檻），所以順序上排最後。</li></ul>
+<p><strong>驗證方式</strong>：門檻設低時出現提示且可繼續；設高時不出現；文案在對話窗內不破版。</p>
+<hr>
+<h2 id="三建議推進順序" class="t3">三、建議推進順序</h2>
+<p><strong>P1 → P2 → P3。</strong></p>
+<ul><li><strong>P1 單獨做就有價值</strong>，而且不依賴其他兩項。若只做一項，做這個。</li><li><strong>P2 是 P3 的前置</strong>。</li><li><strong>C（檢索稀釋）不在本清單</strong>：它可以用分盒與「限定知識來源」完全繞過，屬規劃層問題；若要在程式層改善，見 <a href="../../docs/strategy/multi-tenant-planning.html">多客戶多型號規劃分析 §8</a> 的 P1（分類多選支援「且」語意）與 P2（chunk 併入章節標題），那兩項的效益更廣。</li></ul>
+<h2 id="四刻意不做的" class="t4">四、刻意不做的</h2>
+<div class="tw"><table><thead><tr><th>不做</th><th>理由</th></tr></thead><tbody><tr><td>在聚合階段自動截斷或自動分批送 LLM</td><td>自動分批會讓「去重」失去跨批視野（重複段落跨批就抓不到），而自動截斷等於把靜默失敗變成<strong>內建行為</strong>。<strong>寧可失敗，不要自動殘缺。</strong></td></tr><tr><td>硬性限制成員數</td><td>不同素材的內容密度差異可達百倍（掃描 PDF 對純文字檔），用成員數當硬上限會既擋到正常使用、又擋不住真正超大的情況</td></tr><tr><td>在請求裡帶 <code>max_tokens</code></td><td><code>PdfMarkdownLlmClient.cs</code> 的既有註解已說明：模型預設輸出上限通常大於我們能合理硬設的值，硬設反而會<strong>更早</strong>截斷。目標是「截斷要被發現」，不是「提高上限」</td></tr></tbody></table></div>
+<hr>
+<blockquote><p>返回 <a href="../../docs/planning/readme-04c0bd48.html">planning 目錄索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（開發代辦）</h3><ul><li><a href="../../docs/planning/07-todo-f1c7d6cc.html">資料清洗開發代辦清單 TODO</a></li><li><a href="../../docs/planning/08-todo-74ef467f.html">優化建議清單 TODO</a></li><li><a href="../../docs/planning/09-c4d93ce1.html">開發歷程總覽與未來建議</a></li><li><a href="../../docs/planning/12-rag-b561e5d2.html">RAG 系統補強：總彙整與優先序清單</a></li><li><a href="../../docs/planning/2026-07-28-graphrag-3db703d7.html">Graph RAG 待辦盤點（P1～P9 完成後）</a></li><li><a href="../../docs/planning/todo-19efa315.html">專案協作模組強化開發代辦清單 TODO</a></li><li><a href="../../docs/planning/todo-f4f1025f.html">知識庫統計報表開發代辦清單 TODO</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一為什麼需要這組守門">一、為什麼需要這組守門</a><a class="l2" href="#二待辦項目">二、待辦項目</a><a class="l3" href="#p1--清洗的去重遮罩加上輸出截斷偵測--已完成10112">P1 — 清洗的去重／遮罩加上輸出截斷偵測 ✅ 已完成（1.0.112）</a><a class="l3" href="#p2--讓彙整後內容量看得到--已完成10113">P2 — 讓「彙整後內容量」看得到 ✅ 已完成（1.0.113）</a><a class="l3" href="#p3--清洗前的軟上限警告--已完成10114">P3 — 清洗前的軟上限警告 ✅ 已完成（1.0.114）</a><a class="l2" href="#三建議推進順序">三、建議推進順序</a><a class="l2" href="#四刻意不做的">四、刻意不做的</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/planning/知識來源規模守門-todo.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

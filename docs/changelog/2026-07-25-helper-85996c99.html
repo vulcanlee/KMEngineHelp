@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>作業別中文標籤抽為共用 helper，並統一三處顯示（1.0.67）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>作業別中文標籤抽為共用 helper，並統一三處顯示（1.0.67）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/25</li><li>版本：1.0.66 → <strong>1.0.67</strong></li><li>類型：重用整理 ＋ 顯示一致性修正</li><li>影響範圍：首頁儀表板、Token 用量明細、統計報表「Token 用量統計」（含 PDF 匯出）</li></ul>
+<h2 id="一問題" class="t1">一、問題</h2>
+<p><code>OperationLabel</code>（LLM 作業常數 → 中文標籤）有<strong>兩份逐字相同的 17 分支 switch</strong>：</p>
+<ul><li><code>Web/Components/Views/Dashboard/DashboardView.razor.cs</code></li><li><code>Web/Components/Views/TokenUsage/TokenUsageView.razor.cs</code></li></ul>
+<p>前者的註解自己就寫著「與 TokenUsageView.OperationLabel 對照一致；<strong>日後可抽共用 helper</strong>」。1.0.58 的選單改名兩份都得各改一次，是持續漂移來源。</p>
+<h3 id="查證時發現的第三處更嚴重">查證時發現的第三處（更嚴重）</h3>
+<p><strong>統計報表 → Token 用量統計（<code>/reports/token-usage-report</code>）的「依作業別」根本沒套標籤</strong>，畫面與 PDF 匯出都直接顯示英文常數：</p>
+<ul><li><code>.razor</code> 的 <code>&lt;ReportBarList Items="report.ByOperation" /&gt;</code> —— 該共用元件直接渲染 <code>@item.Label</code></li><li><code>.razor.cs</code> 的 PDF 匯出用 <code>x.Label</code> 原值</li></ul>
+<p>資料源 <code>TokenUsageReportService.GroupSumAsync</code> 的 <code>Label = g.Key</code>（raw 常數）。因此同一份「依作業別」統計，<strong>首頁儀表板與 Token 用量明細顯示中文、統計報表顯示 <code>KnowledgeBaseChat</code></strong>——使用者在三個頁面看到同一件事的三種不同名字。</p>
+<h2 id="二修正" class="t2">二、修正</h2>
+<h3 id="21-新增-webcomponentscommonsoperationlabelhelpercs">2.1 新增 <code>Web/Components/Commons/OperationLabelHelper.cs</code></h3>
+<p><code>ToLabel(string operation)</code> 即原本的 17 分支 switch 原樣搬移（保留 <code>_ =&gt; operation</code> fallthrough，未知作業仍顯示原值而非空白）。放在 <code>Components/Commons/</code>——該目錄已有 <code>ChatPdfExporter</code>、<code>MarkdownRenderer</code>、<code>InputWatcher</code> 等非元件的靜態輔助類別，三個消費端都在 Web 專案，不引入新的專案相依。</p>
+<blockquote><p>為什麼不放 <code>KnowledgeExtraction.Share</code>：該專案<strong>沒有任何 <code>ProjectReference</code></strong>，取用不到 <code>AccessDatas</code> 的 <code>LlmTokenUsage</code> 常數；改用字串字面值會失去常數連結，反而更容易漂移。</p></blockquote>
+<h3 id="22-全部-10-個顯示點改用共用-helper">2.2 全部 10 個顯示點改用共用 helper</h3>
+<div class="tw"><table><thead><tr><th>頁面</th><th>顯示點</th></tr></thead><tbody><tr><td>首頁儀表板</td><td>功能熱門度（1 處）</td></tr><tr><td>Token 用量明細</td><td>篩選下拉、依作業分頁、表格欄、明細 Modal、PDF 的兩處與副標題（7 處）</td></tr><tr><td>統計報表 Token 用量統計</td><td><strong>新套用</strong>：畫面長條列表、PDF 匯出（2 處）</td></tr></tbody></table></div>
+<p>報表頁的畫面部分，在 code-behind 先產生已標籤化的 <code>LabeledCount</code> 清單再交給 <code>ReportBarList</code>——<strong>沒有改動 <code>ReportBarList</code> 元件本身</strong>，它被多份報表共用，改它會影響無關的區塊（依模型、信心分布等）。</p>
+<h2 id="三新增-operationlabeltests5-個測試" class="t3">三、新增 <code>OperationLabelTests</code>（5 個測試）</h2>
+<p>沿用 1.0.65／1.0.66 建立的模式：<strong>用測試強制同步</strong>。</p>
+<ul><li><strong>每個 <code>LlmTokenUsage.Operation*</code> 常數都有專屬中文標籤</strong>——以反射逐一檢查有沒有落入 fallthrough。新增作業常數卻忘了加分支會立刻紅燈，而不是默默在畫面上顯示英文原值。</li><li><strong>標籤不重複</strong>——兩個作業對到同一個中文名，在報表的分布圖上會看起來像同一件事。</li><li><strong>未知作業回傳原值</strong>（fallthrough 行為明確化）。</li><li><strong><code>SkillGeneration</code> 仍有中文標籤</strong>——AI 技能產生器已於 1.0.45 移除，但常數與標籤刻意保留讓歷史用量資料列仍顯示中文。這條刻意寫死，守住「不要順手清掉」這個決定。</li></ul>
+<h2 id="四驗證" class="t4">四、驗證</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>結果</th></tr></thead><tbody><tr><td><code>dotnet test</code></td><td><strong>680 通過 / 0 失敗</strong>（675 → 680，新增 5）</td></tr><tr><td><strong>測試真的會抓到漏標</strong></td><td>暫時在 <code>LlmTokenUsage</code> 加假常數 <code>OperationFoo</code> → 測試立刻紅燈；移除後恢復全綠</td></tr><tr><td>顯示點全數收斂</td><td>grep 確認 10 個顯示點全部走 <code>OperationLabelHelper.ToLabel</code>，程式中不再有第二份對應表</td></tr><tr><td>三頁啟動</td><td>Development 下 <code>/App</code>、<code>/token-usage</code>、<code>/reports/token-usage-report</code> 皆回 200</td></tr></tbody></table></div>
+<blockquote><p>未做的驗證：三個頁面的<strong>實際渲染內容</strong>沒有逐一目視比對——這些頁面需管理員登入且 Blazor Server 的內容經 SignalR 渲染，curl 只拿得到外殼。標籤正確性由單元測試與「全部走同一個 helper」的靜態確認涵蓋。</p></blockquote>
+<h2 id="五文件同步" class="t5">五、文件同步</h2>
+<ul><li><code>planning/08-優化建議清單-TODO.md</code>：該項標記完成，並記錄順帶修掉的報表顯示不一致。</li><li><code>prd/知識庫統計報表-prd.md</code>：註明作業別以中文標籤顯示（1.0.67 起），對應表與其他兩頁共用。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一問題">一、問題</a><a class="l3" href="#查證時發現的第三處更嚴重">查證時發現的第三處（更嚴重）</a><a class="l2" href="#二修正">二、修正</a><a class="l3" href="#21-新增-webcomponentscommonsoperationlabelhelpercs">2.1 新增 Web/Components/Commons/OperationLabelHelper.cs</a><a class="l3" href="#22-全部-10-個顯示點改用共用-helper">2.2 全部 10 個顯示點改用共用 helper</a><a class="l2" href="#三新增-operationlabeltests5-個測試">三、新增 OperationLabelTests（5 個測試）</a><a class="l2" href="#四驗證">四、驗證</a><a class="l2" href="#五文件同步">五、文件同步</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-作業別標籤抽共用helper.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

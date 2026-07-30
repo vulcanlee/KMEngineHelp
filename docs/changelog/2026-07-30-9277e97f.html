@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識來源的彙整量在畫面上看得到（1.0.112 → 1.0.113）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>知識來源的彙整量在畫面上看得到（1.0.112 → 1.0.113）</h1></header><div class="docwrap"><main><ul><li>變更日期：2026/07/30</li><li>版本：1.0.112 → <strong>1.0.113</strong></li><li>性質：<strong>程式變更</strong>（<code>src/</code>）＋測試＋文件。<strong>無模型變更、無新表、無 migration</strong>。</li><li>對應待辦：<a href="../../docs/planning/todo-720ef565.html">知識來源規模守門 TODO</a> 的 <strong>P2</strong>（三項中的第二項）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="一解決什麼" class="t1">一、解決什麼</h2>
+<p>清洗的去重與遮罩要把整份彙整內容重新輸出一遍，所以真正的天花板是模型的<strong>輸出</strong>上限。使用者需要在按下「清洗」之前知道這一盒有多大——但在此之前<strong>系統沒有任何畫面顯示這個數字</strong>：</p>
+<ul><li><code>/reports/content-inventory</code> 只統計<strong>筆數</strong>（依媒體型別／團隊／分類／狀態）</li><li>要判斷規模只能自己去 <code>SystemSettings.ExternalFileSystem</code> 各路徑下人工比對檔案大小</li></ul>
+<p>門檻太高，實務上等於沒人會做。1.0.113 起這個數字在畫面上。</p>
+<h2 id="二看得到什麼" class="t2">二、看得到什麼</h2>
+<div class="tw"><table><thead><tr><th>在哪裡</th><th>顯示</th></tr></thead><tbody><tr><td>知識來源加工 → <strong>管理成員</strong></td><td><code>彙整量：約 1.2 MB（12 個可用成員，2 個略過）</code>。加入／移除／上下移成員後<strong>即時更新</strong></td></tr><tr><td>知識來源加工 → <strong>清洗</strong>（確認清洗對話窗）</td><td>同一行；若已清洗過，再多一行 <code>上次清洗後：780 KB（比值 0.62）</code></td></tr></tbody></table></div>
+<p><strong>清洗對話窗那一行比值就是 <a href="../../docs/guides/source-scale-limits.html">分盒指南 §4.2</a> 的「比長度」檢查</strong>，而且出現在最需要它的時機——你要（重新）清洗之前，先知道上次是不是被截斷了。</p>
+<h2 id="三程式變更" class="t3">三、程式變更</h2>
+<div class="tw"><table><thead><tr><th>檔案</th><th>變更</th></tr></thead><tbody><tr><td><code>Business/Services/Cleanings/KnowledgeSourceContentAggregator.cs</code></td><td><strong>① 先重構</strong>：把「成員 → 候選內容檔完整路徑（依優先序）」抽成 <code>ResolveMemberPathsAsync</code>，讓「讀內容」與「量大小」<strong>共用同一份對應規則</strong>；<code>ReadFileAsync</code> 改吃完整路徑。<strong>② 新增 <code>MeasureAsync</code></strong>：回 <code>(TotalBytes, UsableCount, SkippedCount)</code>，<strong>只讀 <code>FileInfo.Length</code>、不讀檔案內容</strong></td></tr><tr><td><code>Business/Services/DataAccess/KnowledgeSourceService.cs</code></td><td>新增 <code>MeasureAsync(int id)</code>：<strong>套團隊權控</strong>（<code>IsTeamAccessible</code>，紀錄查詢一律要套）；一併回傳清洗後檔案大小。找不到或無權限時回全 0、不擲例外（顯示用途不該讓對話窗開不起來）</td></tr><tr><td><code>Models/AdapterModel/KnowledgeSourceSizeAdapterModel.cs</code></td><td><strong>新增</strong>；含計算屬性 <code>CleanedRatio</code>（清洗後 ÷ 彙整前，2 位小數）</td></tr><tr><td><code>Share/Helpers/CompactNumberHelper.cs</code></td><td>新增 <code>ToByteSize</code>（<code>820 B</code>／<code>1.2 KB</code>／<code>3.5 MB</code>／<code>1.08 GB</code>）。與 token 計數用的 <code>ToCompact</code> 分開——位元組要帶單位才看得懂</td></tr><tr><td><code>Web/…/KnowledgeSources/KnowledgeSourceView.razor(.cs/.css)</code></td><td>兩個對話窗顯示；成員變動後重新量測；新增 <code>.ks-size-line</code> 樣式</td></tr></tbody></table></div>
+<h3 id="為什麼先重構才加功能">為什麼先重構才加功能</h3>
+<p><code>BuildAsync</code> 與 <code>MeasureAsync</code> 若各自維護一份「成員 → 檔案」的 switch，遲早會漂移成「<strong>量到的檔案和實際彙整的不是同一批</strong>」——而那種錯誤在畫面上看不出來，只會讓使用者依一個錯的數字做分盒決定。抽出 <code>ResolveMemberPathsAsync</code> 之後，兩邊連影音類的 fallback 順序（逐字稿優先、空的才退回「依提示詞產生」的內容）都是同一份規則，並有一致性測試釘住。</p>
+<h3 id="一個刻意保留的近似">⚠️ 一個刻意保留的近似</h3>
+<div class="tw"><table><thead><tr><th></th><th>判定「成員可用」的方式</th></tr></thead><tbody><tr><td><code>BuildAsync</code>（彙整）</td><td><strong>讀進來的內容不是空白</strong></td></tr><tr><td><code>MeasureAsync</code>（量測）</td><td><strong>檔案存在且長度 &gt; 0</strong>（為了不讀檔）</td></tr></tbody></table></div>
+<p>所以「檔案只含空白字元」時，量測會算它可用、彙整會略過。這是有意識的取捨——列表與對話窗不該為了一個數字去讀數 MB 內容。處置：</p>
+<ul><li>畫面文案一律寫「<strong>約</strong>」</li><li>程式註解與 <code>KnowledgeSourceSizeAdapterModel</code> 的 XML 註解都寫明</li><li><strong>有一條測試把這個差異釘成已知行為</strong>（<code>MeasureAsync_WhitespaceOnlyFile_IsKnownDivergenceFromBuild</code>），而不是日後才被發現的迴歸</li></ul>
+<h3 id="刻意不做的">刻意不做的</h3>
+<div class="tw"><table><thead><tr><th>不做</th><th>理由</th></tr></thead><tbody><tr><td>列表欄位顯示彙整量</td><td>一頁 20 筆 × 每盒 15 成員 ＝ 每次渲染 300 次檔案查詢</td></tr><tr><td>加 DB 欄位存彙整量</td><td>需雙資料庫 migration；即時量測已足夠</td></tr><tr><td>讀檔案內容來量測</td><td>同上的 I/O 理由</td></tr><tr><td>比值用顏色暗示好壞</td><td>「0.5～1.0 才正常」會隨模型與素材類型變動，寫進 UI 樣式就會過時。判準留在 <a href="../../docs/guides/source-scale-limits.html">分盒指南</a></td></tr><tr><td><code>/reports/content-inventory</code> 加字數維度</td><td>選配項，本次未做；報表仍只統計筆數</td></tr></tbody></table></div>
+<h2 id="四測試新增-20-條全量-1067--10870-失敗" class="t4">四、測試（新增 20 條；全量 1067 → <strong>1087</strong>，0 失敗）</h2>
+<p>新檔 <code>KnowledgeSourceMeasureTests.cs</code>（自帶夾具，設齊四個素材根目錄＋清洗根目錄；<strong>不動既有夾具</strong>）：</p>
+<ul><li>四型素材（文件／逐字稿／圖片解讀／會議紀錄）的位元組加總</li><li>未完成、檔案不存在的成員計入 <code>SkippedCount</code>；空來源回 0</li><li>🔴 <strong>一致性測試（本組最重要）</strong>：<code>MeasureAsync</code> 的可用數 <strong>等於</strong> <code>BuildAsync</code> 的採用數，且可用者的標題確實出現在彙整本文、不可用者不出現</li><li>影音 fallback：逐字稿為空時兩邊都取「依提示詞產生」的那一個檔，且量到的位元組等於該檔內容</li><li><strong>已知差異釘樁</strong>：空白檔案 → 量測算可用、彙整略過</li><li>服務層：清洗後大小與比值（0.50）、未清洗時比值為 null、<strong>團隊權控拒絕（回全 0）與允許（有交集）</strong></li><li><code>CompactNumberHelper.ToByteSize</code>：B／KB／MB／GB 邊界與 0</li></ul>
+<p>⚠️ <strong>既有測試一條都沒有修改。</strong> 既有的 <code>SpyEmbeddingIndexQueue</code> 是 <code>public</code>，直接重用而不重複實作。</p>
+<h2 id="五文件更新" class="t5">五、文件更新</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>改什麼</th></tr></thead><tbody><tr><td><a href="../../docs/planning/todo-720ef565.html">planning/知識來源規模守門-todo</a></td><td>P2 標記完成、記錄實作與那個空白檔案的已知近似、刻意不做的項目</td></tr><tr><td><a href="../../docs/guides/source-scale-limits.html">guides/知識來源分盒與規模上限指南</a></td><td><strong>§二「怎麼看到真正的數字」改寫</strong>（兩個對話窗直接看得到；舊的檔案系統做法收進可折疊區塊，仍保留給要寫批次盤點腳本的人）；§五 實測步驟改為「從畫面抄數字」；§十 檢查表第 1 條</td></tr><tr><td><a href="../../docs/operations/capacity-limits.html">operations/容量邊界與限制</a></td><td>§7.3 的「沒有內建的內容量統計」→ 更新為已有，並保留「報表仍只統計筆數」的事實與「刻意不做列表欄位」的理由</td></tr><tr><td>說明網站</td><td>重跑 <code>python scripts/Build-HelpSite.py --both</code></td></tr></tbody></table></div>
+<blockquote><p>顧問手冊本次<strong>無需修改</strong>——它的事實表（S1～S5）沒有「畫面看不到彙整量」這一列。</p></blockquote>
+<h2 id="六驗證" class="t6">六、驗證</h2>
+<ul><li><code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.slnx</code> → <strong>1087 通過／0 失敗</strong></li><li><code>dotnet build</code> → 0 錯誤</li><li><code>python scripts/Test-DocLinks.py</code> → 硬性失敗 0</li><li><code>pwsh -File scripts/Test-DocsEncoding.ps1</code> → 全綠</li><li><code>python scripts/Build-HelpSite.py --both</code> → 無法解析的文件連結 0</li></ul>
+<h3 id="一項無法完成的驗證">❌ 一項無法完成的驗證</h3>
+<p><strong>兩個對話窗的實際外觀沒有實機確認。</strong> 環境的 Playwright 未安裝瀏覽器，無法自動截圖；安裝需下載數百 MB，未經同意不執行。</p>
+<p>程式面可保證：編譯 0 錯誤、量測數字正確（有加總與一致性測試）、權控有測試。<strong>版面與文案的呈現需人工開畫面看一眼</strong>。</p>
+<h2 id="七後續" class="t7">七、後續</h2>
+<p>同一份 TODO 剩最後一項：<strong>P3</strong> 清洗前的軟上限警告（1.0.114 預計，門檻預設 200,000 位元組，依賴本次的量測結果）。</p>
+<hr>
+<blockquote><p>返回 <a href="../../docs/changelog/readme-436e4418.html">changelog 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一解決什麼">一、解決什麼</a><a class="l2" href="#二看得到什麼">二、看得到什麼</a><a class="l2" href="#三程式變更">三、程式變更</a><a class="l3" href="#為什麼先重構才加功能">為什麼先重構才加功能</a><a class="l3" href="#一個刻意保留的近似">⚠️ 一個刻意保留的近似</a><a class="l3" href="#刻意不做的">刻意不做的</a><a class="l2" href="#四測試新增-20-條全量-1067--10870-失敗">四、測試（新增 20 條；全量 1067 → 1087，0 失敗）</a><a class="l2" href="#五文件更新">五、文件更新</a><a class="l2" href="#六驗證">六、驗證</a><a class="l3" href="#一項無法完成的驗證">❌ 一項無法完成的驗證</a><a class="l2" href="#七後續">七、後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-30-彙整量可見.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

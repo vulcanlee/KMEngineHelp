@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>待釐清問題與技術風險清單｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 策略與規劃</p><header class="hero"><div class="kicker">策略與規劃</div><h1>待釐清問題與技術風險清單</h1><p class="sub">列出開發前須確認的問題、技術抉擇與風險</p></header><div class="docwrap"><main><ul><li>文件用途：列出開發前須確認的問題、技術抉擇與風險</li><li>主要讀者：決策層、技術負責人、開發團隊</li><li>文件版本：1.1</li><li>建立日期：2026/06/08</li><li>最後更新：2026/06/12（新增 §五 資料清洗品質門檻鎖定）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>每項標註：問題 / 影響 / 建議決策方向。決策後請回填結論並更新相關文件。</p></blockquote>
+<hr>
+<h2 id="〇需求驗證office-hours-結論最高優先" class="t1">〇、需求驗證（office-hours 結論，最高優先）</h2>
+<blockquote><p>來源：2026/06/08 office-hours 診斷。設計稿存於 gstack：<code>~/.gstack/projects/vulcanlee-KnowledgeExtraction.AI/oh-main-design-20260608-123704.md</code>。</p></blockquote>
+<blockquote><p><strong>🟢 驗證結果更新（2026/06/08，作業回報）</strong>：需求<strong>已通過行為門檻並更強</strong>。</p>
+<ul><li><strong>具名客戶</strong>：光陽機車（KYMCO）、英業達（Inventec）設計部門主管（多次訪談）；另 2 家合作廠商的客戶也提知識庫需求。</li><li><strong>行為證據</strong>：客戶交出真實材料；已做出結果並展示，客戶<strong>「十分滿意」</strong>。</li><li><strong>楔子轉向（重要）</strong>：真正咬住的痛不是「通用傳承問答包」，而是 <strong>AI 審圖</strong>——每月約 1000 張設計圖、僅 2 位資深審圖員、離職即斷層；需求是「<strong>把資深審圖員的判斷規模化執行</strong>」（屬旗艦 #2 Agent 領域，非 #1 問答）。</li><li><strong>🔥 最強訊號已達成</strong>：客戶<strong>有意願做付費 PoC</strong>——不只是滿意，是願意編預算。需求＝真且有付費意願。</li><li><strong>下一步</strong>：把「願意」變「簽下來」——擬定 <strong>AI 審圖付費 PoC 提案/SOW</strong>（範圍、成功指標、價格、人機分工與責任、時程），完成簽署與啟動。</li><li><strong>新增關鍵風險</strong>：審圖屬高責任領域——<strong>AI 審圖準確率、最終責任歸屬、人機分工</strong>是成交與交付關鍵，須在 PoC 範圍內定義清楚（見 §三 風險）。</li></ul></blockquote>
+<ul><li><strong>最大風險（已從『需求未驗證』再下修）</strong>：需求已驗證且有付費意願。現在的最大風險＝<strong>PoC 能否達到約定的審圖準確率/成功指標</strong>、<strong>責任歸屬與人機分工</strong>，以及 <strong>PoC 成功後能否規模化/複製到其他客戶</strong>。</li><li><strong>首要楔子假設（待驗證，非定論）</strong>：知識傳承——把某位即將離開/超載專家的知識做成可問答的「傳承包」。替代買家（合規/客服/onboarding/稽核/提案）僅在此假設被否證或耗盡後才測。</li><li><strong>驗證方式</strong>：人工 concierge 試點（開發者本人手工，≤1 天/份 pack），先攻 1 個具名傳承主管。</li><li><strong>成功門檻（分層，非單一 LOI）</strong>：對象願意花時間（指名專家、排 30 分鐘訪談、交 3–10 份材料）＝行為門檻；看完 pack 要求與預算負責人開第二次會＝強訊號；付費/簽 LOI＝最強。先求 3–5 個對象達行為門檻以上。</li><li><strong>市場證據（deep-research 2026/06/08，單一來源未交叉驗證；該輪自動查證故障）</strong>：傳承痛<strong>真且有預算</strong>（退休潮、C-suite 擔憂、多數組織未捕捉），<strong>但非藍海</strong>——已有 KNOWRON、Dozuki CreatorPro AI 等產品。⇒ 楔子可續，但需對既有競品（多偏製造/前線垂直）想清差異（通用＋真地端＋影音匯入）。</li><li><strong>競品定位校正</strong>：主流大廠助理多為純雲端；<strong>Glean 可自架於客戶雲但非真地端</strong>。我方對外差異化應主打<strong>真・地端/離線（含地端 LLM）＋完整閉環(清洗＋蒸餾)</strong>，而非僅「私有部署」。</li><li><strong>對文件的影響</strong>：在拿到行為證據前，對外定位<strong>刻意保持「通用知識庫＋傳承楔子假設」並陳</strong>，不全面押定位（全面收斂屬 Approach B，待證據後再做）。</li></ul>
+<hr>
+<h2 id="一待確認問題商務決策" class="t2">一、待確認問題（商務／決策）</h2>
+<h3 id="q1-llm-與-embedding-供應商策略">Q1. LLM 與 Embedding 供應商策略</h3>
+<ul><li><strong>問題</strong>：雲端模式用哪家？地端模式用哪些開源模型／經何種內部閘道？</li><li><strong>影響</strong>：架構抽象範圍、品質、成本、合規。</li><li><strong>建議方向</strong>：先以雲端供應商驗證品質，同時定義 <code>IEmbeddingProvider</code>/<code>IChatCompletionProvider</code> 抽象，地端模型擇期評估。</li></ul>
+<h3 id="q2-預算與時程上限">Q2. 預算與時程上限</h3>
+<ul><li><strong>問題</strong>：近期 3–6 個月的人力、雲端用量與授權預算上限？</li><li><strong>影響</strong>：路線圖階段取捨、是否一次做滿四項清洗能力。</li><li><strong>建議方向</strong>：先確認上限，再決定階段一是否四項清洗全做或分批。</li></ul>
+<h3 id="q3-合規與資料治理範圍">Q3. 合規與資料治理範圍</h3>
+<ul><li><strong>問題</strong>：哪些資料屬敏感、遮罩規則為何、稽核保留期多久、是否受特定法規規範？</li><li><strong>影響</strong>：遮罩規則設計、稽核欄位、地端 vs 雲端取捨。</li><li><strong>建議方向</strong>：與資安/法務確認遮罩清單與稽核需求，作為清洗與稽核設計輸入。</li></ul>
+<h3 id="q4-對外定價模型">Q4. 對外定價模型</h3>
+<ul><li><strong>問題</strong>：地端授權 vs 雲端訂閱的計費單位與級距？</li><li><strong>影響</strong>：商品化路線、行銷話術。</li><li><strong>建議方向</strong>：依目標客群付費意願與成本結構，於商品化前細化（見 <a href="../../docs/strategy/business-value.html">02</a>）。</li></ul>
+<h3 id="q5-簡報-pptx-是否需可編輯文字--已確認">Q5. 簡報 PPTX 是否需「可編輯文字」 ✅ 已確認</h3>
+<ul><li><strong>問題</strong>：Marp 產出的 PPTX 為圖片式投影片（文字不可編輯）；是否需可編輯的原生 PowerPoint？</li><li><strong>結論（2026/06/08）</strong>：<strong>需可在 PowerPoint 中修改內容</strong> → 改採 <code>python-pptx</code> 程式化建構原生可編輯投影片（HTML 仍由 Marp 產出）。</li></ul>
+<hr>
+<h2 id="二技術抉擇" class="t3">二、技術抉擇</h2>
+<h3 id="t1-向量庫拓樸">T1. 向量庫拓樸</h3>
+<ul><li><strong>問題</strong>：知識庫向量索引與現有 SQLite(開發)/SQL Server(正式) 的關係？是否獨立 PostgreSQL＋pgvector？</li><li><strong>影響</strong>：部署複雜度、地端友善度、維運。</li><li><strong>建議方向</strong>：向量索引獨立採 PostgreSQL＋pgvector（地端/雲端皆可），業務資料庫維持現況；最終拓樸定案後更新 <a href="../../docs/strategy/architecture-research.html">03</a>。</li></ul>
+<h3 id="t2-切塊策略">T2. 切塊策略</h3>
+<ul><li><strong>問題</strong>：chunk 大小/重疊/邊界（依段落、語意或固定長度）？</li><li><strong>影響</strong>：檢索召回品質與成本。</li><li><strong>建議方向</strong>：先採段落感知切塊，依實測召回調整。</li></ul>
+<h3 id="t3-混合檢索融合與-rerank">T3. 混合檢索融合與 rerank</h3>
+<ul><li><strong>問題</strong>：向量與關鍵字分數如何融合？是否導入 rerank 模型？</li><li><strong>影響</strong>：檢索準確度與延遲。</li><li><strong>建議方向</strong>：先做分數融合，再評估 rerank 帶來的準確度/延遲取捨。</li></ul>
+<h3 id="t4-chunk-級權控落地">T4. chunk 級權控落地</h3>
+<ul><li><strong>問題</strong>：chunk 如何繼承並在檢索層套用 Teams 權控？</li><li><strong>影響</strong>：資安（越權外洩）與查詢效能。</li><li><strong>建議方向</strong>：chunk 帶來源 Teams 標籤，沿用 <code>TagStringHelper</code> 述詞於檢索條件過濾，並以測試驗證越權不外洩。</li></ul>
+<hr>
+<h2 id="三風險清單" class="t4">三、風險清單</h2>
+<div class="tw"><table><thead><tr><th>風險</th><th>說明</th><th>影響</th><th>緩解方向</th></tr></thead><tbody><tr><td>地端模型品質/算力</td><td>地端 LLM/Embedding 品質與硬體需求不確定</td><td>地端模式可用性</td><td>先雲端驗證；地端先小範圍評估、保留閘道彈性</td></tr><tr><td>越權內容外洩</td><td>檢索/上下文若未在檢索層過濾，可能洩漏跨團隊內容</td><td>資安重大</td><td>檢索層即過濾、回覆遮罩、測試覆蓋</td></tr><tr><td>遮罩準確率</td><td>漏遮（外洩）或過遮（破壞可用性）</td><td>合規與可用性</td><td>訂準確率門檻、抽樣驗證、人工複核機制（門檻見 §五）</td></tr><tr><td>混合檢索調校</td><td>融合權重/切塊不當導致召回差</td><td>答案品質</td><td>建小型評測集、迭代調參</td></tr><tr><td>成本控管</td><td>Embedding/LLM 用量隨資料與查詢成長</td><td>營運成本</td><td>快取、批次、用量監控、地端選項</td></tr><tr><td>範圍蔓延</td><td>願景全集（全來源/全應用）誘使一次做滿</td><td>時程風險</td><td>嚴守近期範圍，願景項目分期</td></tr><tr><td>既有慣例陷阱</td><td>雙 migration、權限三處同步、<code>MyTas</code>≠<code>MyTask</code> 等</td><td>改壞風險</td><td>遵循 <code>開發慣例與限制速查</code> 與 <a href="../../docs/strategy/dev-roadmap.html">04</a> 盤點</td></tr><tr><td>AI 審圖準確率與責任</td><td>審圖屬高責任領域，AI 審錯有工程/安全後果；最終責任歸屬不清會卡成交</td><td>成交與法律風險</td><td>定位為「輔助審查＋人覆核」、訂準確率/召回門檻（清洗門檻見 §五，審圖門檻於 PoC SOW 另定）、保留人為最終簽核、稽核可追溯</td></tr><tr><td>滿意未轉付費</td><td>客戶「十分滿意」可能含 demo 興奮/客套，未必付費</td><td>商業化風險</td><td>下一步要求付費試點/編預算/真實上線，作為更強訊號</td></tr></tbody></table></div>
+<hr>
+<h2 id="四決策回填區" class="t5">四、決策回填區</h2>
+<blockquote><p>各項確認後在此記錄結論與日期，並同步更新對應文件。</p></blockquote>
+<ul><li>Q1：_待填_</li><li>Q2：_待填_</li><li>Q3：_待填_</li><li>Q4：_待填_</li><li>Q5：✅ 需可由 PowerPoint 編輯 → 採 python-pptx 產製（2026/06/08）</li><li>T1：_待填_</li></ul>
+<hr>
+<h2 id="五資料清洗品質門檻鎖定qa-234" class="t6">五、資料清洗品質門檻鎖定（QA-2/3/4）</h2>
+<blockquote><p><strong>狀態</strong>：✅ 已鎖定（2026/06/12，對應 <a href="../../docs/planning/07-todo-f1c7d6cc.html">planning/07</a> 第四階段、v0.2.68）。 本節即 <a href="../../docs/strategy/cleaning-stage-design.html">strategy/08</a> L141／L189「門檻數值待於 05 補登後鎖定」所指之處。 <strong>決議依據（合規優先）</strong>：遮罩漏遮＝敏感資訊外洩（合規重大），故<strong>召回率優先於精準度</strong>；分類與摘要錯誤屬低危害，採較寬的參考門檻；最終以人工審核關卡（QA-3）兜底。</p></blockquote>
+<h3 id="51-鎖定門檻一覽">5.1 鎖定門檻一覽</h3>
+<div class="tw"><table><thead><tr><th>指標</th><th>鎖定門檻</th><th>性質</th><th>對應程式（現況）</th></tr></thead><tbody><tr><td>信心自動門檻 ConfidenceThreshold</td><td><strong>0.70</strong></td><td><strong>強制</strong>（已套用）</td><td><code>SystemSettings.Cleaning.ConfidenceThreshold</code>（<code>appsettings.json</code>）；套用於 <code>CleaningProcessor</code>：信心 ≥ 0.70 自動「已清洗」，否則「待審核」</td></tr><tr><td>校準目標精準度 targetPrecision</td><td><strong>0.90</strong></td><td>校準建議用</td><td><code>CleaningEvaluator.RecommendThreshold(targetPrecision: 0.90)</code>：在達此精準度的列取最低門檻為建議值</td></tr><tr><td>遮罩召回率 MaskRecall</td><td><strong>≥ 0.98（理想 1.0）</strong></td><td><strong>合規關鍵</strong>（量測）</td><td><code>CleaningEvaluator.MaskRecall</code> =（應遮數−漏遮數）/ 應遮數</td></tr><tr><td>必留詞保留 MustKeepOk</td><td><strong>100%（必過）</strong></td><td>二元（量測）</td><td><code>CleaningEvaluator.MustKeepOk</code>：所有必留詞須仍在輸出中</td></tr><tr><td>分類 F1</td><td><strong>≥ 0.70</strong></td><td>參考（量測）</td><td><code>CleaningEvaluator.ClassifyF1</code>（相對人工標註分類集合）</td></tr><tr><td>摘要關鍵實體涵蓋率 SummaryCoverage</td><td><strong>≥ 0.60</strong></td><td>參考・啟發式（量測）</td><td><code>CleaningEvaluator.SummaryCoverage</code> = 命中關鍵實體數 / 應含實體數</td></tr></tbody></table></div>
+<blockquote><p>門檻掃描範圍固定為 <code>{0.5, 0.6, 0.7, 0.8, 0.9}</code>（<code>CleaningEvaluator.DefaultThresholds</code>），清洗品質評測頁據此產生「建議門檻 vs 現行門檻（0.70）」對照。</p></blockquote>
+<h3 id="52-量測-vs-硬閘重要">5.2 量測 vs 硬閘（重要）</h3>
+<ul><li><strong>強制（硬閘）</strong>：僅「信心自動門檻 0.70」與「遮罩步驟失敗即整筆失敗、必留詞缺失視為失敗」會實際改變流程。</li><li><strong>量測（非硬閘）</strong>：MaskRecall、ClassifyF1、SummaryCoverage 目前<strong>只在清洗品質評測集量化、不會自動阻擋單筆清洗</strong>。低於門檻時的把關方式為：</li><li><strong>清洗品質評測回歸</strong>——指標跌破上表門檻即視為回歸失敗，須檢討 prompt／門檻；</li><li><strong>人工審核關卡（QA-3）</strong>——低信心或可疑來源轉「待審核」由人覆核。</li><li><strong>未來另案（本次不做）</strong>：把「遮罩召回率低於門檻強制轉待審核」做成單筆硬閘（需另設計與測試）。</li></ul>
+<h3 id="53-回歸用法">5.3 回歸用法</h3>
+<ul><li>於應用內「清洗品質評測」頁載入／評測黃金樣本，檢視彙總：<code>AvgMaskRecall</code>、<code>MustKeepOkRate</code>、<code>AvgClassifyF1</code>、<code>AvgSummaryCoverage</code> 與「建議門檻 vs 現行門檻」。</li><li>任一彙總指標跌破 5.1 門檻、或建議門檻與現行 0.70 顯著背離時，視為品質回歸 → 調整 prompt 或門檻。</li><li>套用新門檻＝人工修改 <code>appsettings.json</code> 的 <code>SystemSettings.Cleaning.ConfidenceThreshold</code> 後重啟（無程式自動套用，比照 <code>DatabaseProvider</code> 範式）。</li></ul>
+<h3 id="54-交叉參照">5.4 交叉參照</h3>
+<ul><li>設計與步驟：<a href="../../docs/strategy/cleaning-stage-design.html">strategy/08 §資料清洗階段設計</a>（L141／L189 之門檻於此鎖定）。</li><li>待辦與驗收：<a href="../../docs/planning/07-todo-f1c7d6cc.html">planning/07 第四階段</a>。</li><li>設定鍵與切換：<a href="../../docs/operations/logging-and-settings.html">operations/日誌與設定檔說明</a>。</li><li>變更紀錄：<a href="../../docs/changelog/2026-06-12-50d21907.html">changelog/2026-06-12-清洗門檻鎖定</a>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（策略與規劃）</h3><ul><li><a href="../../docs/strategy/scope-and-vision.html">計畫範圍與遠景</a></li><li><a href="../../docs/strategy/business-value.html">商業價值與行銷策略</a></li><li><a href="../../docs/strategy/architecture-research.html">知識庫架構研究與建議</a></li><li><a href="../../docs/strategy/dev-roadmap.html">開發建議與路線圖</a></li><li><a href="../../docs/strategy/expected-deliverables.html">期望產出清單</a></li><li><a href="../../docs/strategy/gstack-playbook.html">以 gstack 技能精煉計畫的執行流程（Playbook）</a></li><li><a href="../../docs/strategy/cleaning-stage-design.html">資料清洗階段設計與分析</a></li><li><a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a></li><li><a href="../../docs/strategy/source-cleaning-value.html">知識來源管理與資料清洗：功能、價值與行銷</a></li><li><a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：功能、欄位、價值與行銷</a></li><li><a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格</a></li><li><a href="../../docs/strategy/market-analysis.html">知識庫產品市場分析與擴展方向</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#〇需求驗證office-hours-結論最高優先">〇、需求驗證（office-hours 結論，最高優先）</a><a class="l2" href="#一待確認問題商務決策">一、待確認問題（商務／決策）</a><a class="l3" href="#q1-llm-與-embedding-供應商策略">Q1. LLM 與 Embedding 供應商策略</a><a class="l3" href="#q2-預算與時程上限">Q2. 預算與時程上限</a><a class="l3" href="#q3-合規與資料治理範圍">Q3. 合規與資料治理範圍</a><a class="l3" href="#q4-對外定價模型">Q4. 對外定價模型</a><a class="l3" href="#q5-簡報-pptx-是否需可編輯文字--已確認">Q5. 簡報 PPTX 是否需「可編輯文字」 ✅ 已確認</a><a class="l2" href="#二技術抉擇">二、技術抉擇</a><a class="l3" href="#t1-向量庫拓樸">T1. 向量庫拓樸</a><a class="l3" href="#t2-切塊策略">T2. 切塊策略</a><a class="l3" href="#t3-混合檢索融合與-rerank">T3. 混合檢索融合與 rerank</a><a class="l3" href="#t4-chunk-級權控落地">T4. chunk 級權控落地</a><a class="l2" href="#三風險清單">三、風險清單</a><a class="l2" href="#四決策回填區">四、決策回填區</a><a class="l2" href="#五資料清洗品質門檻鎖定qa-234">五、資料清洗品質門檻鎖定（QA-2/3/4）</a><a class="l3" href="#51-鎖定門檻一覽">5.1 鎖定門檻一覽</a><a class="l3" href="#52-量測-vs-硬閘重要">5.2 量測 vs 硬閘（重要）</a><a class="l3" href="#53-回歸用法">5.3 回歸用法</a><a class="l3" href="#54-交叉參照">5.4 交叉參照</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/strategy/05-待釐清問題與技術風險清單.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

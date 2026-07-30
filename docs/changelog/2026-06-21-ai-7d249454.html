@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-06-21 知識來源「AI 對話」（ChatGPT 風格、多輪、串流）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>2026-06-21 知識來源「AI 對話」（ChatGPT 風格、多輪、串流）</h1></header><div class="docwrap"><main><p>版本：0.2.104 → <strong>0.2.105</strong></p>
+<h2 id="變更摘要" class="t1">變更摘要</h2>
+<p>於知識來源管理清單新增「AI 對話」功能：可針對<strong>清洗後 Markdown 內容</strong>或<strong>原始來源彙整內容</strong>，開啟獨立全頁、ChatGPT 風格的多輪對話介面，回覆以 SSE 即時逐字串流呈現，並可自由輸入或選用既有提示詞作為系統提示詞。對話僅存記憶體，未變更資料模型（<strong>無 migration</strong>）。</p>
+<h2 id="後端" class="t2">後端</h2>
+<ul><li><code>KnowledgeExtraction.Models/AdapterModel/ChatMessage.cs</code>：新增多輪訊息模型（role/content）。</li><li><code>IChatConversationClient</code>（<code>Business/Services/Transcription</code>）：新增多訊息 SSE 串流介面，與單輪 <code>IChatCompletionClient</code> 並存，皆由 <code>OpenAIChatCompletionClient</code> 實作（<code>stream=true</code>、<code>HttpCompletionOption.ResponseHeadersRead</code>、逐行解析 <code>data:</code> 的 <code>choices[0].delta.content</code>）。</li><li><code>KnowledgeSourceContentAggregator</code>（<code>Business/Services/Cleanings</code>）：抽出原始來源彙整邏輯（簡轉繁、型別標頭、各成員讀檔），由 <code>CleaningProcessor</code> 與對話功能共用，行為與原清洗管線一致。</li><li><code>KnowledgeSourceService.GetOriginalContentAsync</code>：鏡像 <code>GetCleanedContentAsync</code>，含團隊權控（<code>IsTeamAccessible</code>）。</li><li><code>KnowledgeSourceChatService</code>：載入上下文、組多輪訊息（system＝系統提示詞＋參考資料，並帶入先前所有輪次達成多輪記憶）、委派串流。</li></ul>
+<h2 id="前端" class="t3">前端</h2>
+<ul><li>路由頁 <code>Components/Pages/KnowledgeSources/KnowledgeSourceChatPage.razor</code>（<code>/knowledge-sources/{id}/chat?mode=cleaned|original</code>）。</li><li>視窗元件 <code>Components/Views/KnowledgeSources/KnowledgeSourceChatView.razor(.cs/.css)</code>：ChatGPT 風格氣泡排版、逐字串流（節流約 60ms）、Markdown 渲染（<code>MarkdownRenderer</code>）、停止生成、系統提示詞自由輸入＋既有提示詞下拉、內容來源切換（清空重來）。沿用 <code>角色_知識來源管理清單</code> 權限，未新增選單節點。</li><li>清單頁 <code>KnowledgeSourceView.razor</code> 操作欄新增「AI 對話」下拉（對清洗後內容／對原始來源），以 <code>NavigationManager</code> 導向對話頁。</li><li><code>wwwroot/js/chat.js</code>＋<code>App.razor</code>：訊息容器自動捲到底的小型 JS interop。</li></ul>
+<h2 id="測試與建置" class="t4">測試與建置</h2>
+<ul><li>既有 <code>CleaningProcessorTests</code>、<code>KnowledgeSourceServiceTests</code> 建構子隨彙整服務抽出而更新；全部 266 筆測試通過、建置成功。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#變更摘要">變更摘要</a><a class="l2" href="#後端">後端</a><a class="l2" href="#前端">前端</a><a class="l2" href="#測試與建置">測試與建置</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-21-知識來源AI對話.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

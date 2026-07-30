@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>階段三步驟 4：混合檢索（IRetrievalService）（0.2.126）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>階段三步驟 4：混合檢索（IRetrievalService）（0.2.126）</h1></header><div class="docwrap"><main><ul><li>日期：2026/06/26</li><li>版本：0.2.125 → 0.2.126</li><li>對應設計：<a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格 §7、§8</a>；路線圖步驟：strategy/12 §12.2 步驟 4</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>階段三第四步驟：建立<strong>混合檢索服務</strong>。對使用者問句同時做<strong>向量（語意）+ 全文（關鍵字）檢索</strong>、<strong>加權分數融合</strong>取 topK，並在<strong>檢索層即套團隊權控</strong>——越權內容永不進入候選與結果（規格 §8.3）。作為步驟 5 跨來源問答取數的底座。</p>
+<h2 id="設計重點" class="t2">設計重點</h2>
+<ul><li><strong>provider 無關</strong>：沿用步驟 2 方向。向量路徑走既有 <code>IVectorStore.SearchAsync</code>（cosine + 權控）；全文路徑以 <code>VectorEmbedding.ChunkText.Contains</code>（EF→LIKE，SQLite/SQL Server 皆通）。</li><li><strong>權控即過濾（資安關鍵）</strong>：兩路皆套 <code>TagStringHelper.BuildTeamAccessPredicate</code>（非管理員只見公開或交集團隊；管理員不限）。越權 0 命中。</li><li><strong>分數融合</strong>：<code>fused = VectorWeight×cosine + KeywordWeight×(命中詞數/總詞數)</code>，缺一方以 0 計；過 <code>MinScore</code> 門檻、遞減取 <code>TopK</code>。權重/topK/門檻為可調參數（規格 T3）。</li><li><strong>降級</strong>：未設定嵌入端點時向量路徑略過，退化為關鍵字檢索（不擲例外）。</li><li><strong>雙層</strong>：<code>RetrievalQuery.SourceLayer</code> 可只取 Wiki 或 Cleaned，或 null 雙層皆檢索。</li></ul>
+<h2 id="變更內容" class="t3">變更內容</h2>
+<ul><li><strong>設定</strong>：<code>SystemSettings</code> 新增 <code>Retrieval</code> 群組（<code>TopK</code>/<code>CandidateTopK</code>/<code>VectorWeight</code>/<code>KeywordWeight</code>/<code>MinScore</code>）；<code>appsettings.json</code> 同步新增區段。</li><li><strong>檢索服務</strong>（<code>KnowledgeExtraction.Business/Services/Embeddings/</code>）：<code>IRetrievalService</code> + <code>RetrievalQuery</code>/<code>RetrievalHit</code>；<code>RetrievalService</code>（向量路徑 + 全文路徑〔含私有 <code>ChunkText</code> OR 述詞建構器〕+ 切詞 + 融合）。</li><li><strong>DI</strong>：<code>ServiceCollectionExtensions</code> 註冊 <code>AddScoped&lt;IRetrievalService, RetrievalService&gt;()</code>。</li><li><strong>測試</strong>：<code>RetrievalServiceTests</code>（<strong>越權 0 命中</strong>、管理員全得、無團隊只得公開、融合分項分數、未設定嵌入退化關鍵字檢索、TopK、SourceLayer 過濾）。全套 346 個測試綠燈。本步驟無模型變更、不需 migration。</li></ul>
+<h2 id="後續" class="t4">後續</h2>
+<p>依 strategy/12 §12.2，下一步為<strong>步驟 5</strong>：跨來源問答 <code>KnowledgeBaseChatService</code>（取 scope → 檢索 → 組 context〔Wiki 導引在前、Cleaned 佐證在後〕→ 四層提示詞 + RAG 槽位 → 串流）＋ 知識庫問答頁（出處面板與鑽取下載）＋ 權限三處同步。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#設計重點">設計重點</a><a class="l2" href="#變更內容">變更內容</a><a class="l2" href="#後續">後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-26-階段三混合檢索.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

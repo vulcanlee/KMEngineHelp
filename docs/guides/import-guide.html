@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>資料匯入指南：音訊／影片、文件、圖片｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>資料匯入指南：音訊／影片、文件、圖片</h1><p class="sub">教你把素材匯入系統並轉成文字——三種一般匯入管線（音訊/影片、文件、圖片）加上會議錄音（第四條匯入管道，1.0.20，見第四章），涵蓋支援格式與大小上限、影片連結來源、依提示詞產生內容、背景作業狀態與重試/取消、編修，以及「挑選好素材」的準則——讓你能持續匯入更多有價值的資料。</p></header><div class="docwrap"><main><ul><li>文件用途：教你把素材匯入系統並轉成文字——三種一般匯入管線（音訊/影片、文件、圖片）加上<strong>會議錄音（第四條匯入管道，1.0.20，見第四章）</strong>，涵蓋支援格式與大小上限、影片連結來源、依提示詞產生內容、背景作業狀態與重試/取消、編修，以及「挑選好素材」的準則——讓你能持續匯入更多有價值的資料。</li><li>主要讀者：操作人員、知識庫管理者、導入顧問</li><li>文件版本：1.4</li><li>建立日期：2026/06/26</li><li>更新日期：2026/07/26</li><li>對應系統版本：1.0.71（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>相關：上手地圖見 <a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a>；匯入後的下一步（聚合成知識來源並清洗）見 <a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定指南</a>。</p></blockquote>
+<hr>
+<h2 id="一為什麼從好素材開始" class="t1">一、為什麼從「好素材」開始</h2>
+<p>知識的品質上限由素材決定——<strong>垃圾進、垃圾出</strong>。清楚的錄音、結構完整的文件、清晰的圖片，能讓後續清洗、蒸餾、問答都更準。匯入是整條知識管線的第一站，值得把素材選好、命名好、標好分類與團隊。</p>
+<hr>
+<h2 id="二匯入管線總覽" class="t2">二、匯入管線總覽</h2>
+<blockquote><p>前三個畫面都在左側選單的「<strong>資料匯入</strong>」群組下（1.0.17 起；先前隸屬已拆分的「專案管理」群組）。第四條走的是會議管理頁，見第三章之後的「四、會議錄音」。</p></blockquote>
+<div class="tw"><table><thead><tr><th>管線</th><th>路由</th><th>輸入來源</th><th>產出</th></tr></thead><tbody><tr><td>影音轉逐字稿</td><td><code>/media-transcription</code></td><td>上傳音訊/影片檔，或貼影片連結（YouTube/抖音/小紅書等）</td><td>逐字稿（文字）</td></tr><tr><td>文件轉文字</td><td><code>/document-extraction</code></td><td>上傳文件檔</td><td>Markdown</td></tr><tr><td>圖片解讀</td><td><code>/image-recognition</code></td><td>上傳圖片</td><td>AI 視覺解讀文字</td></tr><tr><td><strong>會議錄音</strong>（1.0.20）</td><td><code>/meeting</code>（清單列「上傳錄音」）</td><td>上傳會議錄音/錄影</td><td>逐字稿 ＋ <strong>AI 會議紀錄</strong> ＋ 待辦草稿</td></tr></tbody></table></div>
+<p>前三者共通：每筆都可設<strong>標題、描述、分類、團隊</strong>；皆為<strong>背景佇列作業</strong>（上傳後排隊處理，可離開頁面）；完成後才能被加進知識來源。</p>
+<blockquote><p>此處的「分類」是<strong>知識庫分類</strong>（<code>/categories</code>）；專案管理／工作任務／會議管理用的是另一份<strong>專案分類</strong>（<code>/work-categories</code>），兩者資料獨立、各自維護（1.0.18 起）。</p></blockquote>
+<hr>
+<h2 id="三影音轉逐字稿media-transcription" class="t3">三、影音轉逐字稿（<code>/media-transcription</code>）</h2>
+<p><strong>支援格式</strong>（單檔上限 <strong>2GB</strong>，1.0.20 起由 1GB 放寬）：<code>.flac、.m4a、.mp3、.mp4、.mpeg、.mpga、.oga、.ogg、.wav、.webm</code></p>
+<p><strong>兩種來源</strong>：</p>
+<ul><li><strong>上傳檔案</strong>：選本機音訊/影片檔。</li><li><strong>影片連結</strong>：貼 YouTube／抖音／小紅書等影片網址，系統會自動抓取並轉錄（連結來源需網路可達且可下載）。</li></ul>
+<p><strong>操作步驟</strong>：</p>
+<ol><li>進 <code>/media-transcription</code> → 「新增」。</li><li>選來源（上傳檔 或 貼連結），填標題/描述，選<strong>分類</strong>與<strong>團隊</strong>。</li><li>選語言（繁體中文／英文／自動偵測）。</li><li>送出 → 進入背景佇列，列上顯示狀態與進度。</li><li>完成後可：<strong>檢視/編修逐字稿</strong>、<strong>下載原始檔與逐字稿</strong>、<strong>依提示詞產生內容</strong>（見下）。</li></ol>
+<p><strong>依提示詞產生內容</strong>：對已完成的逐字稿，可挑一個<a href="../../docs/guides/setup-guide.html">提示詞</a>讓 LLM 產生衍生內容（如會議摘要、決議清單）。重新產生會覆寫上一版。</p>
+<p><strong>注意事項</strong>：</p>
+<ul><li>狀態機：等待中 → 處理中 → 已完成／失敗／已取消；失敗或取消可<strong>重試</strong>，處理中可<strong>取消</strong>。</li><li>連結來源需要系統已安裝對應外掛工具（見安裝手冊第三方工具一節）。</li><li>語言選錯可能影響轉錄品質；不確定時用「自動」。</li></ul>
+<hr>
+<h2 id="四會議錄音自動轉錄與-ai-會議紀錄1020" class="t4">四、會議錄音自動轉錄與 AI 會議紀錄（1.0.20）</h2>
+<p>這是<strong>第四條匯入管道</strong>，入口不在「資料匯入」群組，而在 <strong>會議管理頁</strong>（<code>/meeting</code>）的清單列。它與第三章的一般影音轉逐字稿最大的差別是：<strong>轉錄完成後會自動接上 AI 產生會議紀錄</strong>，一般影音轉逐字稿不會。</p>
+<p><strong>操作步驟</strong>：</p>
+<ol><li>進 <code>/meeting</code>，在要掛錄音的那一列點「<strong>上傳錄音</strong>」。</li><li>選檔（格式與上限同第三章，單檔 <strong>2GB</strong>；對話窗會列出支援格式與上限，檔案選擇器也只列得出支援的格式）→ 送出。</li><li>系統自動建立一筆轉錄紀錄（<strong>繼承該會議的分類與團隊</strong>）並排入轉錄佇列，你可以離開頁面。</li><li>清單的「<strong>會議紀錄狀態</strong>」欄<strong>每 5 秒自動更新</strong>（1.0.21 起），依序經過：<strong>轉錄中 → 轉錄完成 → 產生中 → 已產生</strong>；完成時右下角跳出通知告知下一步。</li><li>狀態變「已產生」後，該列會多出兩顆鈕：</li><li><strong>檢視會議紀錄</strong>：看 AI 產出的 Markdown，可直接在頁內編修並存回。</li><li><strong>待辦確認</strong>：看 AI 從逐字稿抓出的待辦草稿。</li></ol>
+<p><strong>待辦怎麼變成工作任務</strong>：AI <strong>不會自動建立</strong>工作任務（它可能把閒聊誤判成待辦）。你要在「待辦確認」對話窗<strong>逐筆勾選</strong>，按確定才會建立。勾選前可就地修改<strong>事項標題／負責人／期限</strong>，並用「<strong>工作狀態</strong>」下拉決定建出來的工作起始狀態（預設「未開始」）——這些編輯自 1.0.21 起會確實存入（1.0.20 會被丟棄）。建出來的工作<strong>繼承這場會議的專案、團隊、分類</strong>。已建立過的草稿在「建立狀態」欄標示「已建立」並停用，尚未建立的顯示「待建立」。</p>
+<p><strong>摘要欄位的行為（容易誤會，請留意）</strong>：</p>
+<ul><li>自動產生時，<strong>只會填原本空白的</strong>「摘要／決議事項／出席者」欄位，<strong>絕不覆寫你已經寫好的內容</strong>。因為自動觸發時沒有人在現場，不可能跳出確認視窗問你。</li><li>如果你想改用 AI 的版本，按該列的「<strong>套用 AI 結果</strong>」——那會跳確認視窗，確認後才覆寫這三個欄位。</li></ul>
+<p><strong>注意事項</strong>：</p>
+<ul><li>若 AI 沒有照格式回應，系統會<strong>降級</strong>把整份回應當成會議紀錄存起來（狀態仍是「已產生」），摘要類欄位則留空，由你人工整理。</li><li>一般從 <code>/media-transcription</code> 上傳的音訊<strong>不會</strong>觸發會議紀錄產生，兩條路徑互不干擾。</li><li>需要已設定 OpenAI 金鑰才能產生會議紀錄；未設定時轉錄仍會完成，但不會有 AI 會議紀錄。</li></ul>
+<hr>
+<h2 id="五文件轉文字document-extraction" class="t5">五、文件轉文字（<code>/document-extraction</code>）</h2>
+<p><strong>支援格式</strong>（單檔上限 <strong>1GB</strong>）：<code>.pdf、.docx、.doc、.pptx、.ppt、.xlsx、.xls、.csv、.txt、.md、.json、.xml、.html、.htm、.yaml、.yml、.epub、.zip</code>，以及常見圖片 <code>.jpg、.jpeg、.png、.gif、.bmp、.tiff、.webp</code>。系統會把文件轉成 <strong>Markdown</strong>。</p>
+<p><strong>操作步驟</strong>：</p>
+<ol><li>進 <code>/document-extraction</code> → 「新增」→ 上傳檔案，填標題/描述、選分類/團隊。</li><li>送出 → 背景轉檔為 Markdown。</li><li>完成後可：<strong>檢視/編修 Markdown</strong>、<strong>下載</strong>、<strong>依提示詞產生內容</strong>（可選「萃取文字」或「原始檔案」兩種輸入模式）、失敗可<strong>重試</strong>、可<strong>取消</strong>、可看<strong>錯誤訊息</strong>。</li></ol>
+<h3 id="51-pdf-走的是-ai-路徑其他格式不是1054-起">5.1 PDF 走的是 AI 路徑，其他格式不是（1.0.54 起）</h3>
+<p>這是本頁最容易誤解的一點：<strong>「文件轉文字」不是單一條路，PDF 與其他格式走的是完全不同的機制。</strong></p>
+<div class="tw"><table><thead><tr><th></th><th>PDF</th><th>PDF 以外的格式</th></tr></thead><tbody><tr><td>轉換方式</td><td><strong>把整份 PDF 送給大語言模型</strong>轉 Markdown</td><td>用 <strong>markitdown</strong>（本機執行）忠實萃取</td></tr><tr><td>需要金鑰？</td><td><strong>需要</strong></td><td><strong>不需要</strong></td></tr><tr><td>計入 Token 用量？</td><td><strong>會</strong>（作業別「文件轉文字」、型別 <code>File</code>）</td><td>不會</td></tr><tr><td>圖片/圖表</td><td>在原位以 <code>&gt; **[圖片]**</code> 開頭描述內容；可還原成數據的圖表另外輸出 Markdown 表格</td><td>通常直接遺失</td></tr></tbody></table></div>
+<p>控制它的設定是 <code>MarkItDownSettings.PdfUseLlm</code>。<strong>本專案的出貨設定是開啟（<code>true</code>）</strong>，用的模型是 <code>PdfLlmModel</code>（出貨為 <code>gpt-5.4</code>），逾時 600 秒，<strong>只嘗試一次</strong>。（程式屬性的預設值其實是 <code>false</code>，是本專案的設定檔把它打開的。）</p>
+<p><strong>沒有金鑰、或 AI 解析失敗，不會讓這筆工作失敗。</strong> 系統會自動降級改用 markitdown，狀態仍是「已完成」，但會在該筆的錯誤訊息欄留下：</p>
+<blockquote><p><code>AI 解析 PDF 失敗，已自動改用 MarkItDown 轉換：{原因}</code></p></blockquote>
+<p><strong>看到這行就代表這份 PDF 走的是純本機路徑</strong>，品質與 AI 路徑不同（尤其表格與圖表）。若你在意萃取品質，先確認有沒有這行再往下走。</p>
+<p>要刻意關掉 AI 路徑（例如離線環境、或要求逐字忠實不容 AI 重述），把 <code>PdfUseLlm</code> 設成 <code>false</code>。</p>
+<blockquote><p>PDF 轉 Markdown 用的提示詞鍵是 <strong><code>文件-PDF轉Markdown</code></strong>，可在「AI 提示詞」<code>/prompts</code> 建同名項目覆寫。</p></blockquote>
+<p><strong>其他注意事項</strong>：</p>
+<ul><li>掃描型 PDF（純影像、無文字層）：<strong>走 AI 路徑時效果已大幅改善</strong>（大語言模型看得懂影像內容），不再需要先 OCR；但若 AI 路徑被關閉或降級成 MarkItDown，純影像 PDF 仍幾乎萃取不到文字，此時可改走「圖片解讀」。</li><li>結構複雜的表格/排版在轉 Markdown 時可能走樣，建議轉完<strong>檢視並小幅編修</strong>。</li></ul>
+<h3 id="52-批次上傳壓縮檔">5.2 批次上傳壓縮檔</h3>
+<p>工具列有「<strong>批次上傳壓縮檔</strong>」：上傳一個 <code>.zip</code>，系統會為裡面每個支援的檔案各建立一筆記錄（標題取自檔名）。</p>
+<ul><li><strong>子資料夾會被遞迴取出</strong>（不保留資料夾結構）。</li><li>上限：<strong>500 個檔案</strong>、解壓後總計 <strong>2GB</strong>。</li><li>不支援的檔案與巢狀壓縮檔會被略過。</li></ul>
+<hr>
+<h2 id="六圖片解讀image-recognition" class="t6">六、圖片解讀（<code>/image-recognition</code>）</h2>
+<p><strong>支援格式</strong>（單檔上限 <strong>50MB</strong>）：<code>.jpg、.jpeg、.png、.webp、.gif</code></p>
+<p><strong>操作步驟（分兩段，這裡最容易卡住）</strong>：</p>
+<ol><li>進 <code>/image-recognition</code> → 「新增」→ 填<strong>標題</strong>（必填）、描述、分類/團隊，上傳<strong>圖片檔案</strong>（必填）→ 存檔。</li><li>⚠️ <strong>新增表單裡沒有提示詞欄位</strong>，存檔後狀態是「<strong>未解讀</strong>」（不是「已完成」），<strong>也不會自動開始解讀</strong>。</li><li>回到清單，按該列的「<strong>解讀圖片</strong>」→ 跳出「解讀圖片：{標題}」視窗：</li><li>在「<strong>選擇提示詞</strong>」下拉挑一個，或直接在「<strong>提示詞內容（可自行調整）</strong>」修改。</li><li><strong>提示詞是必填</strong>，兩者都留空按下去會被擋，訊息是 <code>請先選擇或輸入提示詞。</code></li><li>按視窗的「<strong>解讀</strong>」→ 狀態才轉為「等待中」進入背景佇列。</li><li>完成後可<strong>檢視/編修解讀文字</strong>、<strong>看原圖</strong>、失敗<strong>重試</strong>、處理中<strong>取消</strong>。</li></ol>
+<p><strong>批次上傳壓縮檔</strong>：工具列也有這顆按鈕，上傳 <code>.zip</code> 會為裡面每張支援的圖片各建立一筆「<strong>未解讀</strong>」記錄（標題取自原始檔名）；上限 <strong>500 張</strong>、解壓後 <strong>2GB</strong>。<strong>解讀同樣要於建立後自行觸發</strong>（一筆一筆按「解讀圖片」）。</p>
+<p><strong>注意事項</strong>：解讀品質取決於圖片清晰度與提示詞；針對流程圖/表格/截圖，提示詞講清楚你要抽什麼會更準。解讀文字只保留最新一筆，重新解讀即覆寫。</p>
+<hr>
+<h2 id="七四條管線共通要點" class="t7">七、四條管線共通要點</h2>
+<ul><li><strong>標題/描述</strong>：給清楚、可辨識的名稱，後續在知識來源挑成員時才好找。</li><li><strong>分類/團隊（重要）</strong>：<strong>團隊是資料權控的根</strong>——標錯團隊會讓不該看的人看到、或讓該看的人看不到。匯入時就標對。觀念見 <a href="../../docs/guides/setup-guide.html">基礎設定指南 §八</a>。</li><li><strong>背景作業</strong>：上傳後可離開頁面，回來看狀態；大量匯入時逐筆排隊處理。</li><li><strong>上傳時會出現進度視窗（1.0.50 起）</strong>：四條管道在讀取檔案時都會彈出「<strong>上傳檔案中</strong>」視窗，顯示檔名、進度條與「已上傳 X / Y」。</li><li>這個 X / Y 是<strong>資料量</strong>（MB/GB），<strong>不是「第幾個檔案」</strong>——批次 zip 顯示的也是那個 zip 檔的讀取進度。</li><li>視窗<strong>不能用 X、點遮罩或 Esc 關閉</strong>，只能按「<strong>取消</strong>」；進度到 100% 後取消鈕會失效。</li><li><strong>取消是乾淨的</strong>：這個階段只是把檔案讀進記憶體、還沒送到後端，取消<strong>不會留下任何檔案或資料列</strong>，不需要事後清理。</li><li><strong>素材版本鏈</strong>：三條管線的每筆記錄都可按「<strong>上傳新版本</strong>」上傳改版檔案 —— 版本欄顯示 <code>v{n}</code>、舊版標「（已被取代）」，可按「<strong>版本歷史</strong>」查看各版本。<strong>知識來源會自動沿版本鏈指向最新版</strong>，所以文件改版後不必重建知識來源，重跑清洗即可。</li><li><strong>失敗排查</strong>：先看該筆的錯誤訊息；常見原因＝格式不支援、檔案過大、連結抓不到、外部工具未安裝、語言設定不當。PDF 另見 §5.1 的降級訊息。</li></ul>
+<hr>
+<h2 id="八下一步把素材變成知識" class="t8">八、下一步：把素材變成知識</h2>
+<p>匯入完成的素材只是「原料」。接著到 <strong>知識來源加工</strong>（<code>/knowledge-sources</code>）建立一個主題、把這些成員聚合進來、標上團隊，再按「清洗」去敏與結構化。完整作法見 <a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定指南</a>。</p>
+<hr>
+<h2 id="九挑選與準備素材的準則建議" class="t1">九、挑選與準備素材的準則（建議）</h2>
+<ul><li><strong>挑「資訊密度高、雜訊少」的素材</strong>：清楚的錄音、定稿的文件、清晰的圖，勝過冗長閒聊或模糊掃描。</li><li><strong>命名一致</strong>：用「主題-日期-來源」之類規則，方便日後在成員清單辨識。</li><li><strong>分類/團隊在匯入時就標對</strong>：避免事後逐筆補。同主題素材用一致的團隊標籤，才能正確聚合與權控。</li><li><strong>連結來源先確認可用性與授權</strong>：影片連結要可下載、且你有權使用其內容。</li><li><strong>大檔先評估</strong>：超過上限（音訊／影片 2GB、文件 1GB、圖片 50MB）要先切分或壓縮；過長音訊可先分段。</li><li><strong>同一主題多素材</strong>：分批匯入後，於知識來源用「管理成員」聚合，並注意成員順序會影響清洗時的合併順序。</li></ul>
+<hr>
+<h2 id="十常見問題faq" class="t2">十、常見問題（FAQ）</h2>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>解法</th></tr></thead><tbody><tr><td>上傳被擋／格式不支援</td><td>副檔名不在允許清單</td><td>改用支援格式（見各節）；文件可先另存為 PDF/Docx</td></tr><tr><td>上傳失敗（太大）</td><td>超過單檔上限</td><td>音訊／影片 ≤2GB、文件 ≤1GB、圖片 ≤50MB；先切分/壓縮</td></tr><tr><td>影片連結抓不到</td><td>連結失效、地區限制、外部工具未裝</td><td>確認連結可開、已安裝對應工具（見安裝手冊）</td></tr><tr><td>逐字稿語言怪怪的</td><td>語言選錯</td><td>重試並選正確語言或「自動」</td></tr><tr><td>轉出來的 Markdown 走樣</td><td>原檔排版/表格複雜或為掃描影像</td><td>先確認該筆有沒有「已自動改用 MarkItDown 轉換」的降級訊息；若是走 AI 路徑仍走樣，檢視後手動編修或調整 <code>文件-PDF轉Markdown</code> 提示詞；純影像檔可改走「圖片解讀」</td></tr><tr><td>卡在「處理中」很久</td><td>佇列排隊或檔案大</td><td>稍候；必要時取消後重試</td></tr></tbody></table></div><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：我要把各種格式的資料匯進來</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一為什麼從好素材開始">一、為什麼從「好素材」開始</a><a class="l2" href="#二匯入管線總覽">二、匯入管線總覽</a><a class="l2" href="#三影音轉逐字稿media-transcription">三、影音轉逐字稿（/media-transcription）</a><a class="l2" href="#四會議錄音自動轉錄與-ai-會議紀錄1020">四、會議錄音自動轉錄與 AI 會議紀錄（1.0.20）</a><a class="l2" href="#五文件轉文字document-extraction">五、文件轉文字（/document-extraction）</a><a class="l3" href="#51-pdf-走的是-ai-路徑其他格式不是1054-起">5.1 PDF 走的是 AI 路徑，其他格式不是（1.0.54 起）</a><a class="l3" href="#52-批次上傳壓縮檔">5.2 批次上傳壓縮檔</a><a class="l2" href="#六圖片解讀image-recognition">六、圖片解讀（/image-recognition）</a><a class="l2" href="#七四條管線共通要點">七、四條管線共通要點</a><a class="l2" href="#八下一步把素材變成知識">八、下一步：把素材變成知識</a><a class="l2" href="#九挑選與準備素材的準則建議">九、挑選與準備素材的準則（建議）</a><a class="l2" href="#十常見問題faq">十、常見問題（FAQ）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/資料匯入指南-音訊文件圖片.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

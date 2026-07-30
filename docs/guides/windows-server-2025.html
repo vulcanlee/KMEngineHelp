@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KMEngine Windows Server 2025 安裝與設定手冊｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>KMEngine Windows Server 2025 安裝與設定手冊</h1><p class="sub">將以 .NET 10、ASP.NET Core、Blazor 開發的 KMEngine 部署到 Windows Server 2025 與 IIS</p></header><div class="docwrap"><main><ul><li>文件用途：將以 .NET 10、ASP.NET Core、Blazor 開發的 KMEngine 部署到 Windows Server 2025 與 IIS</li><li>Web 專案目錄：<code>C:\KMEngine</code></li><li>可攜式工具目錄：<code>C:\KMEngineTools</code></li><li>適用作業系統：Windows Server 2025（建議 Desktop Experience、64 位元）</li><li>文件版本：1.1（新增 §7.2 正式環境必改項、PDF LLM 設定與排錯、可攜工具腳本、MCP 部署、日誌下載）</li><li>更新日期：2026/07/26</li><li>對應系統版本：1.0.71</li><li>主要讀者：系統管理員、部署人員、維運人員</li></ul>
+<blockquote><p>本手冊以 <code>publish.zip</code> 與 <code>KMEngineTools.zip</code> 為部署來源。正式安裝前，請確認壓縮檔來自可信來源，並保留原始檔與 SHA-256 雜湊值供日後稽核。</p></blockquote>
+<hr>
+<h2 id="1-部署完成後的架構" class="t1">1. 部署完成後的架構</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>位置／名稱</th><th>用途</th></tr></thead><tbody><tr><td>IIS 網站</td><td><code>Default Web Site</code></td><td>對外提供 KMEngine Web 服務</td></tr><tr><td>Application Pool</td><td><code>KMEngineAppPool</code></td><td>執行 ASP.NET Core 應用程式</td></tr><tr><td>Web 實體目錄</td><td><code>C:\KMEngine</code></td><td><code>publish.zip</code> 解壓後的網站檔案</td></tr><tr><td>外部工具目錄</td><td><code>C:\KMEngineTools</code></td><td><code>KMEngineTools.zip</code> 解壓後的可攜工具</td></tr><tr><td>應用程式資料</td><td><code>C:\temp\KnowledgeExtraction</code></td><td>SQLite、上傳檔、轉錄、Markdown、圖片與清洗結果</td></tr><tr><td>系統記錄</td><td><code>C:\temp\Logs</code></td><td>NLog 記錄檔</td></tr><tr><td>YouTube Cookie</td><td><code>C:\KMEngineTools\cookies\youtube-cookies.txt</code></td><td>yt-dlp 使用的登入 Cookie</td></tr><tr><td>抖音設定檔</td><td><code>C:\KMEngineTools\cookies\pw-douyin-profile</code></td><td>保存抖音登入狀態</td></tr></tbody></table></div>
+<p>目前發佈檔是 framework-dependent deployment，<code>KnowledgeExtraction.Web.runtimeconfig.json</code> 指定：</p>
+<ul><li><code>Microsoft.NETCore.App 10.0.0</code></li><li><code>Microsoft.AspNetCore.App 10.0.0</code></li><li>Target Framework：<code>net10.0</code></li></ul>
+<p>因此伺服器必須安裝相容的 .NET 10 Runtime；在 IIS 上執行時，還必須安裝 .NET 10 Hosting Bundle，讓 IIS 取得 ASP.NET Core Module V2。</p>
+<hr>
+<h2 id="2-安裝前準備" class="t2">2. 安裝前準備</h2>
+<p>請準備：</p>
+<ol><li>Windows Server 2025 系統管理員帳號。</li><li><code>publish.zip</code>。</li><li><code>KMEngineTools.zip</code>。</li><li>OpenAI API Key。</li><li>若要下載 YouTube：可登入 YouTube 的 Microsoft Edge。</li><li>若要下載抖音：可互動登入抖音的桌面工作階段。</li><li>建議建立 <code>C:\Install</code>，把兩個 ZIP 放入此目錄。</li></ol>
+<p>檢查檔案並記錄 SHA-256：</p>
+<pre><code>Get-FileHash "C:\Install\publish.zip" -Algorithm SHA256
+Get-FileHash "C:\Install\KMEngineTools.zip" -Algorithm SHA256</code></pre>
+<h3 id="21-管理命令列">2.1 管理命令列</h3>
+<p>IIS 角色安裝與 IIS 設定，請使用以系統管理員身分執行的 Windows PowerShell 5.1（<code>powershell.exe</code>）。安裝 PowerShell 7 後，日常維運可使用 <code>pwsh</code>；但 <code>WebAdministration</code> 的 <code>IIS:\</code> Provider 在 Windows PowerShell 5.1 最直接。</p>
+<h3 id="22-確認-winget">2.2 確認 WinGet</h3>
+<p>Windows Server 2025 Desktop Experience 內含 WinGet，但第一次登入後可能尚未完成註冊：</p>
+<pre><code>winget --version</code></pre>
+<p>若找不到 <code>winget</code>，先嘗試：</p>
+<pre><code>Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe</code></pre>
+<p>重新開啟 PowerShell 後再檢查。Server Core 不提供完整 Desktop Experience；本專案的抖音／YouTube 互動登入流程建議使用 Desktop Experience。</p>
+<hr>
+<h2 id="3-安裝與設定-iis" class="t3">3. 安裝與設定 IIS</h2>
+<p>原始需求中的 <code>Web-Server</code> 指令重複，可合併成一個命令。以系統管理員開啟 Windows PowerShell 5.1，執行：</p>
+<pre><code>Import-Module ServerManager
+
+Install-WindowsFeature `
+  -Name Web-Server,Web-WebSockets,Web-Scripting-Tools `
+  -IncludeManagementTools</code></pre>
+<p>其中：</p>
+<ul><li><code>Web-Server</code>：IIS Web Server。</li><li><code>Web-WebSockets</code>：Blazor／SignalR 連線所需。</li><li><code>Web-Scripting-Tools</code>：IIS PowerShell 管理工具。</li><li><code>-IncludeManagementTools</code>：安裝 IIS Manager。</li></ul>
+<p>驗證：</p>
+<pre><code>Get-WindowsFeature Web-Server,Web-WebSockets,Web-Scripting-Tools,Web-Mgmt-Console |
+  Select-Object Name,InstallState</code></pre>
+<p>四項應顯示 <code>Installed</code>。</p>
+<hr>
+<h2 id="4-安裝-net-10-與系統工具" class="t4">4. 安裝 .NET 10 與系統工具</h2>
+<h3 id="41-套件必要性">4.1 套件必要性</h3>
+<div class="tw"><table><thead><tr><th>套件</th><th>IIS 正式執行是否必要</th><th>說明</th></tr></thead><tbody><tr><td>.NET 10 Hosting Bundle</td><td>必要</td><td>包含 .NET Runtime、ASP.NET Core Shared Framework 與 IIS ASP.NET Core Module</td></tr><tr><td>.NET 10 ASP.NET Core Runtime</td><td>Hosting Bundle 已包含</td><td>可獨立安裝，但重複</td></tr><tr><td>.NET 10 SDK</td><td>非必要</td><td>只有伺服器要編譯／發佈原始碼時才需要</td></tr><tr><td>Visual C++ v14 Runtime x64</td><td>工具包建議必要</td><td>MarkItDown 的 onnxruntime 等原生模組需要</td></tr><tr><td>PowerShell 7</td><td>建議</td><td>執行維運與檢查腳本</td></tr><tr><td>Notepad++</td><td>建議</td><td>編輯 JSON、XML 與記錄檔</td></tr><tr><td>7-Zip</td><td>建議</td><td>解壓部署檔</td></tr></tbody></table></div>
+<blockquote><p>請先安裝 IIS，再安裝 Hosting Bundle。若順序相反，Microsoft 建議在 IIS 安裝後重新執行／修復 Hosting Bundle。</p></blockquote>
+<h3 id="42-最小正式部署腳本建議">4.2 最小正式部署腳本（建議）</h3>
+<pre><code>winget install --id Microsoft.DotNet.HostingBundle.10 -e --source winget --silent `
+  --accept-source-agreements --accept-package-agreements --disable-interactivity
+
+winget install --id Microsoft.VCRedist.2015+.x64 -e --source winget --silent `
+  --accept-source-agreements --accept-package-agreements --disable-interactivity
+
+winget install --id Microsoft.PowerShell -e --source winget --installer-type wix --silent `
+  --accept-source-agreements --accept-package-agreements --disable-interactivity
+
+winget install --id Notepad++.Notepad++ -e --source winget --silent `
+  --accept-source-agreements --accept-package-agreements --disable-interactivity
+
+winget install --id 7zip.7zip -e --source winget --silent `
+  --accept-source-agreements --accept-package-agreements --disable-interactivity</code></pre>
+<h3 id="43-若伺服器也需要-net-10-sdk">4.3 若伺服器也需要 .NET 10 SDK</h3>
+<p>只有需要在伺服器執行 <code>dotnet build</code>、<code>dotnet publish</code> 時才安裝：</p>
+<pre><code>winget install --id Microsoft.DotNet.SDK.10 -e --source winget --silent `
+  --accept-source-agreements --accept-package-agreements --disable-interactivity</code></pre>
+<p>若組織政策要求明確安裝 ASP.NET Core Runtime，可再執行；但 Hosting Bundle 已包含它：</p>
+<pre><code>winget install --id Microsoft.DotNet.AspNetCore.10 -e --source winget --silent `
+  --accept-source-agreements --accept-package-agreements --disable-interactivity</code></pre>
+<h3 id="44-重新載入-iis-與驗證">4.4 重新載入 IIS 與驗證</h3>
+<p>Hosting Bundle 安裝完成後，建議重新啟動伺服器。若暫時不能重新啟動：</p>
+<pre><code>net stop was /y
+net start w3svc</code></pre>
+<p>驗證：</p>
+<pre><code>dotnet --list-sdks
+dotnet --list-runtimes
+pwsh --version</code></pre>
+<p><code>dotnet --list-runtimes</code> 至少應看到 <code>Microsoft.AspNetCore.App 10.0.x</code> 與 <code>Microsoft.NETCore.App 10.0.x</code>。</p>
+<hr>
+<h2 id="5-解壓網站與工具" class="t5">5. 解壓網站與工具</h2>
+<h3 id="51-建立目錄">5.1 建立目錄</h3>
+<pre><code>New-Item -ItemType Directory -Path "C:\KMEngine" -Force
+New-Item -ItemType Directory -Path "C:\KMEngineTools" -Force
+New-Item -ItemType Directory -Path "C:\temp\KnowledgeExtraction" -Force
+New-Item -ItemType Directory -Path "C:\temp\Logs" -Force</code></pre>
+<h3 id="52-首次部署完整解壓所有檔案">5.2 首次部署：完整解壓所有檔案</h3>
+<p>下列方式只適用於第一次安裝且 <code>C:\KMEngine</code> 是全新或空白目錄。第一次部署必須把 <code>publish.zip</code> 的所有內容完整解壓，包括 <code>appsettings.json</code> 與 <code>appsettings.Production.json</code>：</p>
+<pre><code>Expand-Archive -LiteralPath "C:\Install\publish.zip" `
+  -DestinationPath "C:\KMEngine" -Force
+
+Expand-Archive -LiteralPath "C:\Install\KMEngineTools.zip" `
+  -DestinationPath "C:\KMEngineTools" -Force
+
+if (-not (Test-Path "C:\KMEngine\appsettings.Production.json")) {
+    throw "首次部署缺少 appsettings.Production.json，請檢查 publish.zip。"
+}</code></pre>
+<p>也可以用 7-Zip：</p>
+<ol><li>把 <code>publish.zip</code> 的全部內容解壓到 <code>C:\KMEngine</code>，不要取消選取任何設定檔。</li><li>把 <code>KMEngineTools.zip</code> 內容解壓到 <code>C:\KMEngineTools</code>。</li></ol>
+<blockquote><p><strong>重要：</strong>「完整解壓」只適用於首次部署。日後更新不得直接把新版 ZIP 解壓到 <code>C:\KMEngine</code>，否則可能覆蓋正式環境的 API Key、工具路徑及其他設定。後續更新必須依第 13.1 節及附錄 B 排除 <code>appsettings.Production.json</code>。</p></blockquote>
+<h3 id="53-確認沒有多一層目錄">5.3 確認沒有多一層目錄</h3>
+<p>網站根目錄必須直接看到：</p>
+<pre><code>C:\KMEngine\web.config
+C:\KMEngine\KnowledgeExtraction.Web.dll
+C:\KMEngine\KnowledgeExtraction.Web.runtimeconfig.json
+C:\KMEngine\appsettings.json
+C:\KMEngine\appsettings.Production.json</code></pre>
+<p>若檔案位於 <code>C:\KMEngine\publish\web.config</code>，表示多解壓了一層；請把 <code>publish</code> 內的檔案移到 <code>C:\KMEngine</code> 根目錄。</p>
+<p>工具根目錄至少應看到：</p>
+<pre><code>C:\KMEngineTools\ffmpeg
+C:\KMEngineTools\yt-dlp
+C:\KMEngineTools\node
+C:\KMEngineTools\python
+C:\KMEngineTools\ms-playwright
+C:\KMEngineTools\douyin-audio
+C:\KMEngineTools\youtube</code></pre>
+<hr>
+<h2 id="6-設定-iis-application-pool-與網站" class="t6">6. 設定 IIS Application Pool 與網站</h2>
+<h3 id="61-使用-iis-manager">6.1 使用 IIS Manager</h3>
+<ol><li>開啟 IIS Manager。</li><li>進入 <code>Application Pools</code>。</li><li>新增 Application Pool：</li><li>Name：<code>KMEngineAppPool</code></li><li>.NET CLR version：<code>No Managed Code</code></li><li>Managed pipeline mode：<code>Integrated</code></li><li>選取 <code>KMEngineAppPool</code>，開啟 <code>Advanced Settings</code>：</li><li><code>Process Model &gt; Idle Time-out (minutes)</code>：從 20 改為 <code>0</code></li><li><code>General &gt; Enable 32-Bit Applications</code>：維持 <code>False</code></li><li>選取 <code>Default Web Site</code>，點選 <code>Basic Settings</code>：</li><li>Application Pool：<code>KMEngineAppPool</code></li><li>Physical Path：<code>C:\KMEngine</code></li><li>確認網站已啟動。</li></ol>
+<h3 id="62-使用腳本完成相同設定">6.2 使用腳本完成相同設定</h3>
+<p>請在系統管理員 Windows PowerShell 5.1 執行：</p>
+<pre><code>Import-Module WebAdministration
+
+if (-not (Test-Path "IIS:\AppPools\KMEngineAppPool")) {
+    New-WebAppPool -Name "KMEngineAppPool"
+}
+
+Set-ItemProperty "IIS:\AppPools\KMEngineAppPool" `
+  -Name managedRuntimeVersion -Value ""
+
+Set-ItemProperty "IIS:\AppPools\KMEngineAppPool" `
+  -Name processModel.idleTimeout -Value ([TimeSpan]::Zero)
+
+Set-ItemProperty "IIS:\AppPools\KMEngineAppPool" `
+  -Name enable32BitAppOnWin64 -Value $false
+
+Set-ItemProperty "IIS:\Sites\Default Web Site" `
+  -Name applicationPool -Value "KMEngineAppPool"
+
+Set-ItemProperty "IIS:\Sites\Default Web Site" `
+  -Name physicalPath -Value "C:\KMEngine"</code></pre>
+<h3 id="63-設定檔案權限">6.3 設定檔案權限</h3>
+<p>網站程式只需要讀取／執行程式與工具；資料與記錄目錄需要修改權限：</p>
+<pre><code>icacls "C:\KMEngine" /grant "IIS AppPool\KMEngineAppPool:(OI)(CI)RX" /T
+icacls "C:\KMEngineTools" /grant "IIS AppPool\KMEngineAppPool:(OI)(CI)RX" /T
+icacls "C:\temp\KnowledgeExtraction" /grant "IIS AppPool\KMEngineAppPool:(OI)(CI)M" /T
+icacls "C:\temp\Logs" /grant "IIS AppPool\KMEngineAppPool:(OI)(CI)M" /T</code></pre>
+<p>權限不足時，SQLite 可能出現 <code>readonly database</code>，上傳／轉錄也可能出現 <code>Access denied</code>。</p>
+<hr>
+<h2 id="7-設定-appsettings" class="t7">7. 設定 appsettings</h2>
+<h3 id="71-應修改哪個檔案">7.1 應修改哪個檔案</h3>
+<p>目前發佈套件同時包含 <code>appsettings.json</code> 與 <code>appsettings.Production.json</code>。第一次部署時兩個檔案都必須複製到 <code>C:\KMEngine</code>；正式環境的 API Key、工具路徑、資料目錄及其他環境差異，統一在 <code>C:\KMEngine\appsettings.Production.json</code> 調整。</p>
+<ul><li><code>appsettings.json</code>：應用程式共用預設值，可隨新版程式更新。</li><li><code>appsettings.Production.json</code>：伺服器專屬正式設定；完成初次設定後視為持久設定，後續發佈不得覆蓋。</li><li>如果首次部署後找不到 <code>appsettings.Production.json</code>，請先停止設定與啟動作業，回頭檢查 ZIP 內容及解壓層級，不要直接把 API Key 改寫到不明檔案。</li></ul>
+<p>ASP.NET Core 未另行指定環境時，預設為 <code>Production</code>。</p>
+<h3 id="72--正式環境必改項上線前一定要做">7.2 ⚠️ 正式環境必改項（上線前一定要做）</h3>
+<p><strong>這一節的項目沒有任何程式守門會擋你。</strong> 1.0.69 移除了 Production 啟動安全檢查，所以<strong>即使你留著出廠的開發預設值，程式也會正常啟動、不會警告</strong>。只能靠人工檢查。</p>
+<div class="tw"><table><thead><tr><th>設定鍵</th><th>出廠值</th><th>為什麼一定要改</th></tr></thead><tbody><tr><td><strong><code>JwtSettings.SigningKey</code></strong></td><td><code>DevelopmentOnly-ChangeThisJwtSigningKey-AtLeast32CharsSigningKeySigningKey...</code></td><td><strong>最高風險</strong>。這是簽發 JWT 的密鑰，出廠值是公開在原始碼裡的。不改＝任何看過這個專案的人都能自己簽出合法 token 冒充任何使用者（含管理員）。必須換成<strong>至少 32 字元的隨機值</strong>（有 <code>[MinLength(32)]</code> 驗證）</td></tr><tr><td><strong><code>BootstrapSettings.SupportPassword</code></strong></td><td><code>1qaz@WSX</code></td><td>內建 <code>support</code> 管理帳號的密碼。<strong>程式每次啟動都會用這個值重設該帳號的密碼雜湊</strong>（不是只有第一次），所以「登入後改密碼」沒有用——一定要改設定檔</td></tr><tr><td><code>JwtSettings.Issuer</code> / <code>Audience</code></td><td><code>KnowledgeExtraction</code> / <code>KnowledgeExtraction.WebApi</code></td><td>多系統並存時建議改成本站識別，避免跨站 token 互通</td></tr><tr><td><code>Swagger.EnabledInProduction</code></td><td><code>false</code></td><td>出廠已是安全值，<strong>確認沒有被改成 <code>true</code></strong></td></tr><tr><td><code>Security.ReturnExceptionDetails</code></td><td><code>null</code></td><td>出廠已是安全值（不回傳例外細節給用戶端），確認沒被打開</td></tr><tr><td><code>Cors.AllowedOrigins</code></td><td><code>[]</code></td><td>出廠是空陣列（不開放跨網域）。若確實需要，<strong>逐一列出網域，不要用 <code>*</code></strong></td></tr></tbody></table></div>
+<p>產生一個安全的 <code>SigningKey</code>：</p>
+<pre><code># 產生 64 字元隨機字串
+[Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(48))</code></pre>
+<p>把它與密碼一起寫進 <code>C:\KMEngine\appsettings.Production.json</code>：</p>
+<pre><code>{
+  "JwtSettings": {
+    "SigningKey": "（貼上剛才產生的隨機字串）",
+    "Issuer": "KMEngine",
+    "Audience": "KMEngine.WebApi"
+  },
+  "BootstrapSettings": {
+    "SupportPassword": "（改成強密碼）"
+  }
+}</code></pre>
+<blockquote><p><strong>更好的做法</strong>：把這兩個值放<strong>環境變數</strong>而不是設定檔，避免它們進到備份與版控。ASP.NET Core 的階層用 <code>__</code> 對應 <code>:</code>：</p>
+<pre><code>[Environment]::SetEnvironmentVariable('JwtSettings__SigningKey', '（隨機值）', 'Machine')
+[Environment]::SetEnvironmentVariable('BootstrapSettings__SupportPassword', '（強密碼）', 'Machine')</code></pre>
+<p>設完要重啟 IIS（<code>iisreset</code>）讓應用程式集區重新讀取。</p></blockquote>
+<p>改完後，登入系統<strong>先建立你自己的管理員帳號</strong>日常使用，不要用 <code>support</code>。</p>
+<h3 id="73-設定-openai-api-key">7.3 設定 OpenAI API Key</h3>
+<p>先備份原始設定，再使用 Notepad++ 開啟正式設定檔：</p>
+<pre><code>Copy-Item "C:\KMEngine\appsettings.Production.json" `
+  "C:\KMEngine\appsettings.Production.json.initial.bak" -Force
+
+&amp; "C:\Program Files\Notepad++\notepad++.exe" `
+  "C:\KMEngine\appsettings.Production.json"</code></pre>
+<p>找到並依正式環境需求調整：</p>
+<pre><code>{
+  "OpenAISettings": {
+    "ApiKey": "在此填入 OpenAI API Key"
+  }
+}</code></pre>
+<p>注意：</p>
+<ul><li>不要把真實 API Key 貼到工單、Email、聊天或記錄檔。</li><li>JSON 的最後一個屬性不能多一個逗號。</li><li>修改完成後先驗證 JSON，再執行 <code>iisreset</code>：</li></ul>
+<pre><code>Get-Content "C:\KMEngine\appsettings.Production.json" -Raw `
+  | ConvertFrom-Json | Out-Null
+
+iisreset</code></pre>
+<p>命令沒有顯示錯誤才表示 JSON 語法可解析；這只驗證格式，不會驗證 API Key 是否有效。</p>
+<h3 id="74-確認工具路徑">7.4 確認工具路徑</h3>
+<p>設定檔應包含：</p>
+<pre><code>{
+  "OpenAISettings": {
+    "FfmpegPath": "C:\\KMEngineTools\\ffmpeg\\bin\\ffmpeg.exe",
+    "YtDlpPath": "C:\\KMEngineTools\\yt-dlp\\yt-dlp.exe",
+    "NodePath": "C:\\KMEngineTools\\node\\node.exe",
+    "DouyinHelperScript": "C:\\KMEngineTools\\douyin-audio\\get-douyin-audio.mjs",
+    "DouyinTimeoutSeconds": 150
+  },
+  "MarkItDownSettings": {
+    "MarkItDownPath": "C:\\KMEngineTools\\python\\Scripts\\markitdown.exe",
+    "TimeoutSeconds": 600,
+    "PdfUseLlm": true,
+    "PdfLlmModel": "gpt-5.4",
+    "PdfLlmTimeoutSeconds": 600
+  }
+}</code></pre>
+<p>目前預設資料位置是 <code>C:\temp\KnowledgeExtraction</code>，記錄位置是 <code>C:\temp\Logs</code>。若改到其他磁碟，請同步修改 ACL。</p>
+<h4 id="pdf-轉檔預設會呼叫外部-llm影響離線與封閉網路環境">⚠️ PDF 轉檔預設會呼叫外部 LLM（影響離線與封閉網路環境）</h4>
+<p><strong><code>PdfUseLlm</code> 的出貨值是 <code>true</code></strong>，代表「文件轉文字」在處理 <strong>PDF</strong> 時會<strong>把整份 PDF 送到 OpenAI</strong>（模型 <code>PdfLlmModel</code>，出貨為 <code>gpt-5.4</code>），而不是用本機的 markitdown。部署時要知道三件事：</p>
+<ol><li><strong>PDF 轉檔需要 <code>OpenAISettings.ApiKey</code> 與對外網路</strong>，而且會計入 Token 用量。</li><li><strong>失敗不會讓工作失敗</strong>：沒有金鑰、被防火牆擋、或逾時（600 秒）時，系統會自動降級改用 markitdown，該筆狀態仍是「已完成」，但錯誤訊息欄會留下</li></ol>
+<p><code>AI 解析 PDF 失敗，已自動改用 MarkItDown 轉換：{原因}</code>。 <strong>所以「PDF 轉出來品質不如預期」時，第一件事是去看有沒有這行訊息</strong>，而不是先懷疑 markitdown。</p>
+<ol><li><strong>封閉網路 / 不允許文件外送的環境，請明確關閉它</strong>：</li></ol>
+<pre><code>{
+  "MarkItDownSettings": {
+    "PdfUseLlm": false
+  }
+}</code></pre>
+<p>（程式屬性的預設值本來就是 <code>false</code>，是本專案的設定檔把它打開的。）<strong>PDF 以外的格式一律走本機 markitdown，不受此設定影響。</strong></p>
+<hr>
+<h2 id="8-kmenginetools-功能與檢查" class="t8">8. KMEngineTools 功能與檢查</h2>
+<div class="tw"><table><thead><tr><th>目錄</th><th>功能</th><th>使用情境</th></tr></thead><tbody><tr><td><code>ffmpeg</code></td><td>音訊／影片轉碼、抽取音軌；<code>ffprobe</code> 檢查媒體</td><td>本機媒體、YouTube、抖音</td></tr><tr><td><code>yt-dlp</code></td><td>下載 YouTube 等媒體；<code>yt-dlp.conf</code> 保存驗證設定</td><td>線上影片連結</td></tr><tr><td><code>node</code></td><td>可攜 Node.js 與 npm</td><td>YouTube JS challenge、Playwright、抖音</td></tr><tr><td><code>npm</code>、<code>npm-cache</code></td><td>npm 套件與快取</td><td>Playwright 與 Node 工具</td></tr><tr><td><code>ms-playwright</code></td><td>Playwright Chromium</td><td>抖音登入與瀏覽器輔助</td></tr><tr><td><code>python</code></td><td>可攜 Python 3.12</td><td>MarkItDown</td></tr><tr><td><code>python\Scripts\markitdown.exe</code></td><td>PDF、Word、Excel、PPT 轉 Markdown</td><td>文件轉文字</td></tr><tr><td><code>douyin-audio</code></td><td>抖音登入、原聲擷取、下載與轉碼</td><td>抖音轉錄</td></tr><tr><td><code>youtube</code></td><td>YouTube Cookie 匯出助手</td><td>YouTube 登入下載</td></tr><tr><td><code>bgutil-ytdlp-pot-provider-*</code></td><td>產生 YouTube PO Token</td><td>YouTube 驗證</td></tr></tbody></table></div>
+<h3 id="81-快速版本檢查">8.1 快速版本檢查</h3>
+<p><strong>若手上有原始程式碼（repo），建議直接用專案附的檢測腳本</strong>，它會一次檢查所有工具、<strong>並驗證 IIS 應用程式集區身分對工具目錄的存取權限</strong>（這正是「本機跑得動、部署到 IIS 就轉檔失敗」最常見的原因）：</p>
+<pre><code>pwsh -File scripts/Test-PortableTools.ps1 -InstallDir C:\KMEngineTools -AppPoolName KMEngineAppPool</code></pre>
+<p>安裝／重建可攜工具目錄也有對應腳本（會把工具集中裝到 <code>C:\KMEngineTools</code>，正好是設定檔的預設路徑）：</p>
+<pre><code>pwsh -File scripts/Install-PortableTools.ps1 -InstallDir C:\KMEngineTools</code></pre>
+<blockquote><p>另有 <code>scripts/Install-ExternalTools.ps1</code>／<code>Test-ExternalTools.ps1</code>，但那組是用 winget/pip 裝到<strong>使用者家目錄</strong>，<strong>不適合 IIS</strong>（服務帳號讀不到）。伺服器一律用 Portable 版那組。</p>
+<p>更詳細的 IIS 與可攜工具設定見 <a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定</a>；本機單機安裝見 <a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊 §3.5</a>。</p></blockquote>
+<p>若沒有 repo，逐項手動檢查：</p>
+<pre><code>&amp; "C:\KMEngineTools\ffmpeg\bin\ffmpeg.exe" -version
+&amp; "C:\KMEngineTools\ffmpeg\bin\ffprobe.exe" -version
+&amp; "C:\KMEngineTools\yt-dlp\yt-dlp.exe" --version
+&amp; "C:\KMEngineTools\node\node.exe" --version
+&amp; "C:\KMEngineTools\python\python.exe" --version
+&amp; "C:\KMEngineTools\python\Scripts\markitdown.exe" --version</code></pre>
+<p>應顯示版本，不應出現 <code>DLL load failed</code> 或 <code>MODULE_NOT_FOUND</code>。</p>
+<h3 id="82-markitdown-測試與排錯">8.2 MarkItDown 測試與排錯</h3>
+<pre><code>&amp; "C:\KMEngineTools\python\Scripts\markitdown.exe" `
+  "C:\Test\sample.pdf" `
+  -o "C:\Test\sample.md"</code></pre>
+<p>若顯示 <code>Unsupported Windows version (2025server)</code> 但仍完成，通常只是 onnxruntime 的版本辨識警告。</p>
+<p>若顯示 <code>ImportError: DLL load failed while importing onnxruntime_pybind11_state</code>，請安裝／修復 <code>Microsoft.VCRedist.2015+.x64</code>。</p>
+<p><code>Couldn't find ffmpeg or avconv</code> 主要影響 MarkItDown 處理音訊／影片；一般 PDF、Word、Excel 不受影響。KMEngine 本身以絕對路徑使用 ffmpeg。</p>
+<h4 id="markitdown-faq">MarkItDown FAQ</h4>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>檢查與處理</th></tr></thead><tbody><tr><td><code>ImportError: DLL load failed while importing onnxruntime_pybind11_state</code></td><td>Microsoft Visual C++ Runtime 缺少、損壞或程序尚未重新載入 DLL</td><td>安裝／修復 <code>Microsoft.VCRedist.2015+.x64</code>，關閉原 PowerShell 後重新開啟，再執行 <code>markitdown.exe --version</code>。</td></tr><tr><td><code>Unsupported Windows version (2025server)</code></td><td>onnxruntime 尚未辨識 Windows Server 2025 的版本字串</td><td>若版本命令與實際轉換仍成功，可將它視為警告；若同時有 DLL 錯誤，仍須修復 VC++ Runtime。</td></tr><tr><td><code>Couldn't find ffmpeg or avconv</code></td><td>可攜 Python 的 PATH 沒有 FFmpeg</td><td>PDF、Office 文件可先忽略；處理影音時，確認 <code>C:\KMEngineTools\ffmpeg\bin\ffmpeg.exe</code> 存在，並由 KMEngine 使用完整路徑。</td></tr><tr><td><code>FileNotFoundError</code></td><td>範例路徑或來源檔不存在</td><td>不要照抄 <code>C:\路徑\文件.pdf</code>；先用 <code>Test-Path "實際檔案路徑"</code> 確認檔案。</td></tr><tr><td>轉換成功但 Markdown 幾乎空白</td><td>PDF 是掃描影像、內容受保護或格式不支援</td><td>先確認來源可正常開啟；必要時改用 OCR／Document Intelligence，再檢查輸出檔大小。<strong>若 <code>PdfUseLlm=true</code>，AI 路徑通常看得懂掃描影像</strong>——空白多半代表已降級走 markitdown，見下一列。</td></tr><tr><td><strong>PDF 品質不如預期，或明明有金鑰卻像沒用到 AI</strong></td><td><strong>PDF 走的是 LLM 路徑（<code>PdfUseLlm=true</code>），失敗會靜默降級成 markitdown</strong></td><td>到該筆紀錄看錯誤訊息欄有沒有 <code>AI 解析 PDF 失敗，已自動改用 MarkItDown 轉換：{原因}</code>。常見原因：<code>OpenAISettings.ApiKey</code> 沒填／防火牆擋住對外連線／超過 <code>PdfLlmTimeoutSeconds</code>（600 秒）。詳見 §7.4。</td></tr><tr><td><strong>離線環境所有 PDF 都變慢或都出現降級訊息</strong></td><td>每份 PDF 都先嘗試呼叫 LLM、失敗才降級（等於每份都白等一次逾時）</td><td>封閉網路請直接把 <code>MarkItDownSettings.PdfUseLlm</code> 設為 <code>false</code>，跳過嘗試。</td></tr></tbody></table></div>
+<p>檢查命令：</p>
+<pre><code>&amp; "C:\KMEngineTools\python\python.exe" --version
+&amp; "C:\KMEngineTools\python\Scripts\markitdown.exe" --version
+Test-Path "C:\KMEngineTools\python\Lib\site-packages\onnxruntime"</code></pre>
+<p>相關記錄：KMEngine 的文件轉文字錯誤查看 <code>C:\temp\Logs</code>；命令列測試的完整錯誤請直接保留 PowerShell 輸出。</p>
+<h3 id="83-共通安裝權限與更新-faq">8.3 共通安裝、權限與更新 FAQ</h3>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>檢查與處理</th></tr></thead><tbody><tr><td>KMEngine 顯示工具不存在</td><td>ZIP 多解壓一層或 <code>appsettings.Production.json</code> 路徑錯誤</td><td>確認工具直接位於 <code>C:\KMEngineTools\ffmpeg</code>、<code>yt-dlp</code>、<code>node</code> 等目錄，並核對第 7.3 節。</td></tr><tr><td>命令列可執行，網站卻顯示 <code>Access denied</code></td><td><code>KMEngineAppPool</code> 沒有讀取／執行權限</td><td>重新執行第 6.3 節對 <code>C:\KMEngineTools</code> 的 <code>icacls</code>，再回收 App Pool。</td></tr><tr><td>EXE 或腳本被封鎖／消失</td><td>防毒軟體、SmartScreen 或下載檔案封鎖</td><td>確認 ZIP 來源與 SHA-256 後，檢查 Windows Security 的 Protection history；只能對確認可信的檔案解除封鎖或建立最小範圍例外。</td></tr><tr><td>更新工具包後功能異常</td><td>新舊檔案混用、程序仍鎖定舊版本</td><td>停止轉錄工作與 App Pool，備份整個工具目錄，再完整部署同一版工具包並重跑版本測試。</td></tr><tr><td>工具可執行但資料無法寫入</td><td>輸出目錄缺少修改權限</td><td>確認 <code>C:\temp\KnowledgeExtraction</code> 與 <code>C:\temp\Logs</code> 對 App Pool 具有 <code>(OI)(CI)M</code>。</td></tr></tbody></table></div>
+<p>共通檢查：</p>
+<pre><code>Get-ChildItem "C:\KMEngineTools" -Force
+icacls "C:\KMEngineTools"
+icacls "C:\temp\KnowledgeExtraction"
+Get-ChildItem "C:\KMEngineTools" -Recurse -File `
+  | Get-FileHash -Algorithm SHA256</code></pre>
+<p>相關記錄：<code>C:\temp\Logs</code>、Event Viewer → Windows Logs → Application，以及 Windows Security → Protection history。</p>
+<h3 id="84-ffmpegffprobe-faq">8.4 FFmpeg／ffprobe FAQ</h3>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>檢查與處理</th></tr></thead><tbody><tr><td><code>ffmpeg not found</code>／系統找不到指定檔案</td><td>執行路徑錯誤或工具包不完整</td><td>確認 <code>C:\KMEngineTools\ffmpeg\bin\ffmpeg.exe</code> 存在，並核對正式設定及 <code>yt-dlp.conf</code>。</td></tr><tr><td><code>Output file does not contain any stream</code></td><td>來源只有視訊軌，沒有音訊軌</td><td>先用 ffprobe 查看 <code>codec_type</code>；若只有 <code>video</code>，不能直接轉 MP3，應改抓含音訊的來源。</td></tr><tr><td><code>Invalid argument</code> 或輸出檔無法開啟</td><td>輸出路徑、檔名、權限或前一步沒有有效串流</td><td>確認父目錄存在且可寫，路徑加雙引號，並先解決前面的 stream 錯誤。</td></tr><tr><td><code>Unknown decoder</code>／<code>Unknown encoder</code></td><td>目前 FFmpeg build 不含需要的編解碼器</td><td>執行 <code>ffmpeg -decoders</code>、<code>ffmpeg -encoders</code> 檢查；使用工具包指定版本或更新整個工具包。</td></tr><tr><td>轉檔完成但檔案為 0 bytes</td><td>來源下載不完整、磁碟空間不足或程序被中止</td><td>檢查來源及輸出大小、剩餘磁碟空間，再單獨執行同一 FFmpeg 命令測試。</td></tr></tbody></table></div>
+<p>檢查命令：</p>
+<pre><code>&amp; "C:\KMEngineTools\ffmpeg\bin\ffmpeg.exe" -version
+&amp; "C:\KMEngineTools\ffmpeg\bin\ffprobe.exe" `
+  -v error -show_streams -show_format "C:\Test\sample.mp4"
+Get-Item "C:\Test\sample.mp4" | Select-Object FullName,Length</code></pre>
+<p>相關記錄：<code>C:\temp\Logs</code>、抖音助手錯誤中的「ffmpeg 輸出（後 800 字元）」及手動命令的 stderr。</p>
+<h3 id="85-yt-dlp-faq">8.5 yt-dlp FAQ</h3>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>檢查與處理</th></tr></thead><tbody><tr><td>YouTube 要求登入／<code>Sign in to confirm</code></td><td>Cookie 過期、未匯出登入工作階段或 Cookie 檔無法讀取</td><td>依第 10 節重新登入並匯出 Cookie，確認 <code>youtube-cookies.txt</code> 存在且非空白。</td></tr><tr><td><code>No supported JavaScript runtime</code></td><td><code>yt-dlp.conf</code> 的 Node 路徑錯誤</td><td>確認 <code>--js-runtimes node:C:/KMEngineTools/node/node.exe</code>，再執行 Node 版本檢查。</td></tr><tr><td><code>Requested format is not available</code></td><td>指定格式不適用於該影片或驗證資訊不足</td><td>先用 <code>-F</code> 列出格式；更新 yt-dlp、Cookie 與 PO Token provider 後再選可用格式。</td></tr><tr><td><code>ffmpeg not found</code></td><td><code>--ffmpeg-location</code> 遺失或目錄錯誤</td><td>確認設定為 <code>C:/KMEngineTools/ffmpeg/bin</code>，並執行 FFmpeg 版本檢查。</td></tr><tr><td>HTTP 403、429 或下載中斷</td><td>Cookie／PO Token 過期、來源限流或網路代理問題</td><td>不要連續高速重試；更新 Cookie，檢查 BgUtils，稍後再試並確認伺服器可連線至 YouTube。</td></tr><tr><td>更新後參數不相容</td><td>單獨替換 EXE，卻沿用舊 plugin／provider</td><td>優先整包更新 KMEngineTools；更新後執行 <code>--version</code> 與標題測試。</td></tr></tbody></table></div>
+<p>檢查命令：</p>
+<pre><code>&amp; "C:\KMEngineTools\yt-dlp\yt-dlp.exe" --version
+Get-Content "C:\KMEngineTools\yt-dlp\yt-dlp.conf"
+&amp; "C:\KMEngineTools\yt-dlp\yt-dlp.exe" -v --simulate `
+  --print title "https://www.youtube.com/watch?v=影片ID"</code></pre>
+<p>相關記錄：<code>C:\temp\Logs</code> 與 yt-dlp <code>-v</code> 的完整輸出；分享記錄前要遮蔽 Cookie、Token 與私人影片網址。</p>
+<h3 id="86-youtube-cookie-匯出更新工具-faq">8.6 YouTube Cookie 匯出／更新工具 FAQ</h3>
+<p>此工具是從已登入的 Edge <strong>匯出</strong> Cookie 給 yt-dlp 使用，不會把 Cookie 匯入瀏覽器，也不會代替使用者登入。</p>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>檢查與處理</th></tr></thead><tbody><tr><td><code>找不到 Edge 工作階段</code>／無法連線 9222</td><td>Edge 不是以遠端偵錯參數啟動、連接埠被占用或專用 Edge 已關閉</td><td>完全關閉先前的 Edge，再依第 10.1 節啟動專用 Edge；用瀏覽器開啟 <code>http://127.0.0.1:9222/json/version</code> 檢查。</td></tr><tr><td>已登入但 <code>hasLoginSession=false</code></td><td>登入的是不同 Edge profile、尚未完成 YouTube 登入或頁面 Cookie 尚未建立</td><td>在同一個專用 Edge 視窗開啟 YouTube、確認右上角帳號，重新整理後再匯出。</td></tr><tr><td>Cookie 檔未產生或為空白</td><td>目標目錄不存在、執行帳號無寫入權限或腳本失敗</td><td>建立 <code>C:\KMEngineTools\cookies</code>，授權執行帳號與 App Pool，再重新執行匯出工具。</td></tr><tr><td>Cookie 剛更新仍要求登入</td><td>Cookie 沒有完整匯出、帳號安全驗證或 yt-dlp 仍使用其他設定</td><td>檢查 <code>yt-dlp.conf</code> 的 <code>--cookies</code> 路徑；重新啟動下載工作，必要時在 Edge 完成額外驗證後再匯出。</td></tr><tr><td>Cookie 外洩疑慮</td><td>Cookie 檔等同暫時登入憑證</td><td>僅授權必要的系統管理員與 App Pool 存取，不得貼到聊天、Email、工單或版本控制；疑似外洩時登出所有工作階段並重新登入。</td></tr></tbody></table></div>
+<p>檢查命令：</p>
+<pre><code>Invoke-RestMethod "http://127.0.0.1:9222/json/version"
+&amp; "C:\KMEngineTools\node\node.exe" `
+  "C:\KMEngineTools\youtube\youtube-edge-cookie-export.mjs"
+Get-Item "C:\KMEngineTools\cookies\youtube-cookies.txt" `
+  | Select-Object FullName,Length,LastWriteTime</code></pre>
+<p>相關記錄：Cookie 匯出工具的 PowerShell 輸出及 yt-dlp <code>-v</code> 輸出。不要在記錄中顯示 Cookie 檔內容。</p>
+<h3 id="87-nodejsnpm-與-npm-cache-faq">8.7 Node.js、npm 與 npm-cache FAQ</h3>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>檢查與處理</th></tr></thead><tbody><tr><td><code>node</code> 不是內部或外部命令</td><td>使用了 PATH，而不是工具包的完整路徑</td><td>統一呼叫 <code>C:\KMEngineTools\node\node.exe</code>，並核對 <code>appsettings.Production.json</code>。</td></tr><tr><td><code>MODULE_NOT_FOUND</code>／<code>Cannot find module</code></td><td><code>npm</code> 目錄不完整、腳本引用錯誤位置或只複製部分工具包</td><td>確認目標模組確實存在；不要在正式伺服器任意全域安裝，優先重新部署同版完整工具包。</td></tr><tr><td>npm 快取錯誤或安裝重複失敗</td><td><code>npm-cache</code> 損壞或沒有寫入權限</td><td>停止相關程序，備份後使用可攜 npm 的 cache verify；只有確認需重建時才清理快取。</td></tr><tr><td>命令列成功、IIS 失敗</td><td>App Pool 看不到相同環境變數或沒有目錄權限</td><td>使用絕對路徑，不依賴使用者 PATH；檢查 App Pool 的 RX 權限。</td></tr></tbody></table></div>
+<p>檢查命令：</p>
+<pre><code>&amp; "C:\KMEngineTools\node\node.exe" --version
+Test-Path "C:\KMEngineTools\npm"
+Test-Path "C:\KMEngineTools\npm-cache"
+Get-ChildItem "C:\KMEngineTools\npm\node_modules" -ErrorAction SilentlyContinue</code></pre>
+<p>相關記錄：Node 腳本的 PowerShell stdout/stderr、<code>C:\temp\Logs</code>；npm 詳細記錄通常位於所設定的 cache 目錄下 <code>_logs</code>。</p>
+<h3 id="88-playwrightchromium-faq">8.8 Playwright／Chromium FAQ</h3>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>檢查與處理</th></tr></thead><tbody><tr><td>Browser executable doesn't exist</td><td><code>ms-playwright</code> 沒有完整解壓或腳本指向其他版本</td><td>確認 <code>C:\KMEngineTools\ms-playwright</code> 內有 Chromium 目錄；重新部署完整工具包。</td></tr><tr><td>Chromium 無法啟動</td><td>執行帳號權限、VC++ 元件、防毒封鎖或 Server Core 無桌面</td><td>使用 Desktop Experience，在互動式管理員工作階段手動測試，並檢查 Event Viewer／Protection history。</td></tr><tr><td><code>profile is in use</code>／設定檔被鎖定</td><td>同一個 Playwright profile 正被其他瀏覽器或工作使用</td><td>關閉該專用瀏覽器與相關 Node 程序，確認沒有進行中的任務後再重試；不要同時共用同一 profile。</td></tr><tr><td>IIS 背景工作無法顯示登入視窗</td><td>IIS Session 0 是非互動式工作階段</td><td>抖音與 YouTube 首次登入必須由已登入桌面的使用者執行初始化工具；IIS 只使用保存後的狀態。</td></tr></tbody></table></div>
+<p>檢查命令：</p>
+<pre><code>Get-ChildItem "C:\KMEngineTools\ms-playwright" -Directory
+Get-Process node,msedge,chrome -ErrorAction SilentlyContinue `
+  | Select-Object Id,ProcessName,Path</code></pre>
+<p>相關記錄：Playwright／Node 的終端輸出、<code>C:\temp\Logs</code>、Event Viewer 與 Windows Security Protection history。</p>
+<h3 id="89-抖音助手-faq">8.9 抖音助手 FAQ</h3>
+<div class="tw"><table><thead><tr><th>症狀／ExitCode</th><th>可能原因</th><th>檢查與處理</th></tr></thead><tbody><tr><td>ExitCode 1</td><td>沒有提供有效抖音網址或分享文字中找不到網址</td><td>確認輸入含 <code>https://</code> 抖音連結，使用第 9.3 節命令重新測試。</td></tr><tr><td>ExitCode 2／未攔截到可用音訊</td><td>未登入、仍在驗證頁、影片未播放或來源只有純視訊</td><td>重新執行 <code>douyin-init.mjs</code> 完成登入；讓影片可正常播放，再重跑並查看助手列出的媒體軌。</td></tr><tr><td>ExitCode 3</td><td>媒體下載多次失敗、HTTP 被拒絕或取得空內容</td><td>確認登入狀態及外網連線，稍後重試；保留 HTTP 狀態與診斷網址供排錯。</td></tr><tr><td>ExitCode 4／FFmpeg 轉檔失敗</td><td>抓到的來源沒有音訊軌、FFmpeg 路徑錯誤或輸出不可寫</td><td>檢查診斷中的 audio／merged／video 數量；確認 <code>--ffmpeg</code> 路徑及輸出目錄權限。</td></tr><tr><td>登入後隔天又出現驗證</td><td>抖音工作階段過期或風控要求重新驗證</td><td>在互動桌面重新執行初始化；不要刪除 <code>pw-douyin-profile</code>，也不要同時開啟相同 profile。</td></tr><tr><td>只取得 HEVC 視訊</td><td>頁面提供分離媒體軌或舊邏輯選到純視訊</td><td>使用目前工具包，優先讀取原聲音訊 URL；若仍失敗，保留前五筆媒體 URL 的去參數版本供開發人員分析。</td></tr></tbody></table></div>
+<p>檢查命令：</p>
+<pre><code>&amp; "C:\KMEngineTools\node\node.exe" `
+  "C:\KMEngineTools\douyin-audio\douyin-init.mjs"
+
+&amp; "C:\KMEngineTools\node\node.exe" `
+  "C:\KMEngineTools\douyin-audio\get-douyin-audio.mjs" `
+  "抖音分享連結" "C:\Test" `
+  --ffmpeg "C:\KMEngineTools\ffmpeg\bin\ffmpeg.exe"</code></pre>
+<p>相關記錄：助手終端輸出、ExitCode、媒體軌統計、HTTP 狀態、FFmpeg 最後 800 字元，以及 <code>C:\temp\Logs</code>。分享診斷資訊前應移除查詢參數與 Cookie。</p>
+<h3 id="810-bgutils-po-token-provider-faq">8.10 BgUtils PO Token Provider FAQ</h3>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>檢查與處理</th></tr></thead><tbody><tr><td>PO Token provider 找不到或無法載入</td><td>provider 目錄缺失或 <code>server_home</code> 指到不同版本</td><td>確認 <code>yt-dlp.conf</code> 的路徑與實際目錄名稱完全一致。</td></tr><tr><td>Node server 無法啟動</td><td>Node 路徑錯誤、模組不完整或埠被占用</td><td>先確認 Node 版本，再查看 provider 目錄的 README／啟動輸出；部署同版完整工具包。</td></tr><tr><td>YouTube 仍顯示 PO Token／403 錯誤</td><td>provider 與 yt-dlp 版本不相容、Cookie 過期或 YouTube 行為變更</td><td>先更新 Cookie 並執行 <code>-v --simulate</code>；若仍失敗，更新整套 yt-dlp、plugin 與 provider，不要只換單一檔案。</td></tr></tbody></table></div>
+<p>檢查命令：</p>
+<pre><code># 先確認實際目錄名稱（版本號會隨工具包更新而變）
+Get-ChildItem "C:\KMEngineTools" -Filter 'bgutil*' | Select-Object -ExpandProperty Name
+
+Test-Path "C:\KMEngineTools\bgutil-ytdlp-pot-provider-1.3.1\server"
+Select-String -Path "C:\KMEngineTools\yt-dlp\yt-dlp.conf" `
+  -Pattern "youtubepot|server_home"
+&amp; "C:\KMEngineTools\yt-dlp\yt-dlp.exe" -v --simulate `
+  "https://www.youtube.com/watch?v=影片ID"</code></pre>
+<p>相關記錄：provider／Node 的啟動輸出、yt-dlp <code>-v</code> 記錄與 <code>C:\temp\Logs</code>；不得附上完整 Cookie 或 Token。</p>
+<hr>
+<h2 id="9-抖音登入與下載" class="t1">9. 抖音登入與下載</h2>
+<h3 id="91-第一次登入">9.1 第一次登入</h3>
+<p>登入 Windows Server 互動桌面，在 PowerShell 執行：</p>
+<pre><code>&amp; "C:\KMEngineTools\node\node.exe" `
+  "C:\KMEngineTools\douyin-audio\douyin-init.mjs"</code></pre>
+<p>也可帶入抖音分享網址：</p>
+<pre><code>&amp; "C:\KMEngineTools\node\node.exe" `
+  "C:\KMEngineTools\douyin-audio\douyin-init.mjs" `
+  "https://v.douyin.com/你的分享代碼/"</code></pre>
+<p>操作：</p>
+<ol><li>等待 Chromium 開啟。</li><li>登入抖音並完成驗證。</li><li>確認影片可播放。</li><li>回到 PowerShell 按 Enter。</li><li>等待瀏覽器正常關閉；設定檔保存在 <code>C:\KMEngineTools\cookies\pw-douyin-profile</code>。</li></ol>
+<h3 id="92-限制">9.2 限制</h3>
+<ul><li>IIS Application Pool 執行於非互動工作階段，網站使用者無法操作伺服器上的驗證視窗。</li><li>必須先由系統管理員在互動桌面完成初始化。</li><li>若抖音要求重新驗證，網站工作可能失敗；重新執行 <code>douyin-init.mjs</code> 後再重試。</li><li>不要同時執行登入初始化與抖音下載，否則設定檔可能被鎖定。</li></ul>
+<h3 id="93-命令列測試">9.3 命令列測試</h3>
+<pre><code>&amp; "C:\KMEngineTools\node\node.exe" `
+  "C:\KMEngineTools\douyin-audio\get-douyin-audio.mjs" `
+  "https://v.douyin.com/你的分享代碼/" `
+  --out "C:\Test\douyin-test.mp3" `
+  --ffmpeg "C:\KMEngineTools\ffmpeg\bin\ffmpeg.exe"</code></pre>
+<p>成功時會輸出 <code>TITLE=</code> 與 <code>MP3_PATH=</code>。</p>
+<hr>
+<h2 id="10-youtube-登入cookie-匯出與更新" class="t2">10. YouTube 登入、Cookie 匯出與更新</h2>
+<p>此環境採用正常 Edge 登入、Cookie 匯出、Node JavaScript runtime、BgUtils PO Token provider 與 mweb client。</p>
+<h3 id="101-啟動專用-edge">10.1 啟動專用 Edge</h3>
+<p>在 PowerShell 執行：</p>
+<pre><code>&amp; "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" `
+  --remote-debugging-port=9222 `
+  --user-data-dir="C:\KMEngineTools\cookies\edge-youtube-profile" `
+  "https://www.youtube.com/"</code></pre>
+<p>若 Edge 位於 <code>C:\Program Files\Microsoft\Edge</code>，請改用該路徑。</p>
+<p>在正常 Edge 中登入 YouTube，確認目標影片可播放，先保持視窗開啟。</p>
+<blockquote><p>9222 僅供本機暫時匯出 Cookie。不要加入 <code>--remote-debugging-address=0.0.0.0</code>，也不要在防火牆開放 9222。</p></blockquote>
+<h3 id="102-匯出-cookie">10.2 匯出 Cookie</h3>
+<p>另開 PowerShell：</p>
+<pre><code>&amp; "C:\KMEngineTools\node\node.exe" `
+  "C:\KMEngineTools\youtube\youtube-edge-cookie-export.mjs"</code></pre>
+<p>成功時會看到類似：</p>
+<pre><code>{
+  "count": 43,
+  "hasLoginSession": true,
+  "hasVisitor": true,
+  "cookieFile": "C:\\KMEngineTools\\cookies\\youtube-cookies.txt"
+}</code></pre>
+<p>確認 <code>hasLoginSession</code> 為 <code>true</code> 後即可關閉專用 Edge。</p>
+<p>限制 Cookie 權限：</p>
+<pre><code>icacls "C:\KMEngineTools\cookies\youtube-cookies.txt" /inheritance:r
+icacls "C:\KMEngineTools\cookies\youtube-cookies.txt" /grant:r `
+  "Administrators:F" `
+  "SYSTEM:F" `
+  "IIS AppPool\KMEngineAppPool:R"</code></pre>
+<p>Cookie 檔等同登入憑證，不可寄送、上傳或提交到版本控制。</p>
+<h3 id="103-確認-yt-dlpconf">10.3 確認 yt-dlp.conf</h3>
+<p><code>C:\KMEngineTools\yt-dlp\yt-dlp.conf</code> 應包含：</p>
+<pre><code>--js-runtimes node:C:/KMEngineTools/node/node.exe
+--remote-components ejs:github
+--ffmpeg-location C:/KMEngineTools/ffmpeg/bin
+--cookies C:/KMEngineTools/cookies/youtube-cookies.txt
+--extractor-args youtubepot-bgutilscript:server_home=C:/KMEngineTools/bgutil-ytdlp-pot-provider-1.3.1/server
+# ⚠️ 上面的 1.3.1 是撰稿時的工具包版本。請以 C:\KMEngineTools 下的實際目錄名稱為準，
+#    且此處與前面的 Test-Path 檢查必須指向同一個目錄。
+--extractor-args youtube:player_client=mweb</code></pre>
+<p>此檔的 Windows 路徑請使用正斜線 <code>/</code>；反斜線可能被當成跳脫字元。</p>
+<p>測試：</p>
+<pre><code>&amp; "C:\KMEngineTools\yt-dlp\yt-dlp.exe" `
+  --skip-download `
+  --print title `
+  "https://www.youtube.com/watch?v=影片代碼"</code></pre>
+<p>能印出影片標題，代表 Cookie、Node 與驗證流程可用。</p>
+<h3 id="104-cookie-過期">10.4 Cookie 過期</h3>
+<p>若出現 <code>Sign in to confirm you're not a bot</code>：</p>
+<ol><li>啟動專用 Edge。</li><li>重新登入／確認影片可播放。</li><li>保持 Edge 開啟，執行 Cookie 匯出助手。</li><li>關閉 Edge。</li><li>重測標題，再到 KMEngine 重試工作。</li></ol>
+<p>不要使用 Playwright 自動化 Chromium 直接登入 Google；Google 可能顯示「這個瀏覽器或應用程式可能有安全疑慮」。</p>
+<hr>
+<h2 id="11-啟動與驗證網站" class="t3">11. 啟動與驗證網站</h2>
+<h3 id="111-重新啟動-iis">11.1 重新啟動 IIS</h3>
+<pre><code>iisreset</code></pre>
+<h3 id="112-檢查-iis">11.2 檢查 IIS</h3>
+<p>在系統管理員 Windows PowerShell 5.1 執行：</p>
+<pre><code>Import-Module WebAdministration
+
+Get-WebAppPoolState -Name "KMEngineAppPool"
+Get-Website -Name "Default Web Site" |
+  Select-Object Name,State,PhysicalPath,ApplicationPool,Bindings</code></pre>
+<p>Application Pool 與網站都應為 <code>Started</code>。</p>
+<h3 id="113-本機測試">11.3 本機測試</h3>
+<pre><code>Invoke-WebRequest "http://localhost/" -UseBasicParsing |
+  Select-Object StatusCode,StatusDescription</code></pre>
+<p>預期為 <code>200</code>，或出現正常登入頁重新導向。</p>
+<h3 id="114-第一次登入-kmengine">11.4 第一次登入 KMEngine</h3>
+<p>發佈包<strong>固定</strong>內建下列管理帳號（不是「若」——<code>appsettings.json</code> 就是這個值）：</p>
+<ul><li>帳號：<code>support</code></li><li>密碼：<code>1qaz@WSX</code></li></ul>
+<p>⚠️ <strong><code>support</code> 的密碼由設定檔控制，而且程式每次啟動都會用設定檔的值重設它</strong>——所以「登入後改密碼」不會生效，<strong>必須改 <code>BootstrapSettings.SupportPassword</code></strong>（見 §7.2）。</p>
+<p>上線前務必：①依 §7.2 改掉 <code>SupportPassword</code> 與 <code>JwtSettings.SigningKey</code>；②建立自己的管理員帳號日常使用；③設定 HTTPS、憑證、防火牆與備份。</p>
+<p><strong>登入後會直接落在「AI 知識問答」頁</strong>（<code>/knowledge-base-chat</code>），不是首頁；剛部署完還沒有任何知識，問什麼都會回「查無相關依據」，這是正常的。</p>
+<hr>
+<h2 id="115選用啟用-mcp-對外服務" class="t4">11.5（選用）啟用 MCP 對外服務</h2>
+<p>若要讓外部 AI Agent（Claude Code／Codex／Cursor 等）直接查詢這座知識庫，系統另提供 <strong>MCP Server</strong>，端點是 <strong><code>/mcp</code></strong>（與網站同一個站台、同一組認證與安全邊界，<strong>不需要另開服務或另開埠</strong>）。</p>
+<p>部署面要做的事：</p>
+<ol><li><strong>確認 <code>/mcp</code> 從外部可達</strong>：它走 HTTP（Streamable HTTP），若前面有反向代理或 WAF，要放行這個路徑並<strong>允許串流回應</strong>（不要緩衝整個 response）。</li><li><strong>建立 API Key</strong>：登入後到「系統管理 → AI 與整合 → <strong>MCP 金鑰管理</strong>」（<code>/mcp-api-keys</code>）新增，外部 Agent 用 <code>X-API-Key</code> 標頭帶入。金鑰存資料庫、可即時停用。</li><li>也可以用 JWT Bearer（登入取得），但無狀態的 Agent 通常用 API Key 較方便。</li><li><strong>權控自動沿用</strong>：MCP 呼叫套用<strong>與網頁完全相同的團隊權控</strong>——金鑰對應到哪個使用者，就只查得到那個人有權看的內容。</li><li><strong><code>/mcp</code> 已內建套用限流</strong>（<code>api</code> 政策），不需另外加。</li></ol>
+<p>⚠️ <strong>隱私注意</strong>：MCP 的 <code>knowledge_ask</code> 會把<strong>問句原文與回傳的參考資料全文寫入實體檔案</strong>（<code>C:\temp\KnowledgeExtraction\ChatLog</code>，僅管理員可從 <code>/chat-logs</code> 查閱）。這是刻意的稽核設計，但<strong>若你的環境不允許問句落地，導入前必須先確認政策</strong>。詳見 <a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書 §七 Q2</a>。</p>
+<p>不需要對外整合時，這一節可整段略過——不建金鑰就沒有外部 Agent 能用 <code>X-API-Key</code> 進來（健康檢查會顯示「MCP Server：0 把啟用金鑰」的<strong>黃燈</strong>，屬預期狀態、可忽略）。</p>
+<p>連線設定步驟與各工具參數見 <a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a>。</p>
+<hr>
+<h2 id="12-常見問題" class="t5">12. 常見問題</h2>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>處理方式</th></tr></thead><tbody><tr><td>IIS 500.19</td><td><code>web.config</code> 缺失、錯誤或模組未安裝</td><td>確認網站根目錄；修復 Hosting Bundle</td></tr><tr><td>IIS 500.30</td><td>應用程式啟動失敗</td><td>查看 Event Viewer、<code>C:\temp\Logs</code>；檢查 JSON</td></tr><tr><td>IIS 500.31</td><td>找不到 .NET Runtime</td><td>安裝／修復 .NET 10 Hosting Bundle</td></tr><tr><td>IIS 503</td><td>App Pool 停止</td><td>查看 Event Viewer；啟動 <code>KMEngineAppPool</code></td></tr><tr><td>Blazor 經常斷線</td><td>WebSocket 未安裝</td><td>確認 <code>Web-WebSockets</code></td></tr><tr><td>SQLite readonly／Access denied</td><td>App Pool 權限不足</td><td>重做第 6.3 節 ACL</td></tr><tr><td>API 呼叫失敗</td><td>API Key、JSON 或外連問題</td><td>檢查 <code>OpenAISettings.ApiKey</code> 與 HTTPS 外連</td></tr><tr><td>MarkItDown DLL load failed</td><td>VC++ Runtime 缺失</td><td>安裝 <code>Microsoft.VCRedist.2015+.x64</code></td></tr><tr><td>MarkItDown 顯示 Server 2025 警告</td><td>onnxruntime 辨識字串</td><td>功能正常可忽略</td></tr><tr><td><code>Cannot find module playwright-core</code></td><td>工具包不完整</td><td>檢查 <code>npm\node_modules\@playwright\cli\node_modules\playwright-core</code></td></tr><tr><td>抖音只抓到 HEVC 視訊</td><td>舊助手誤抓純視訊</td><td>使用可讀取 <code>aweme/detail music.play_url</code> 的新版工具包</td></tr><tr><td>YouTube 無 JS runtime</td><td><code>yt-dlp.conf</code> 路徑錯誤</td><td>檢查 <code>--js-runtimes node:C:/...</code></td></tr><tr><td>YouTube 要求登入</td><td>Cookie 過期或 provider 缺失</td><td>更新 Cookie；檢查 BgUtils 與 plugin</td></tr><tr><td><code>ffmpeg not found</code></td><td>yt-dlp 未設路徑</td><td>設定 <code>--ffmpeg-location</code></td></tr><tr><td>網站多一層 <code>publish</code></td><td>ZIP 解壓層級錯誤</td><td><code>web.config</code> 必須在 <code>C:\KMEngine</code> 根目錄</td></tr></tbody></table></div>
+<h3 id="121-記錄位置">12.1 記錄位置</h3>
+<ul><li>KMEngine／NLog：<code>C:\temp\Logs</code></li><li>Windows：Event Viewer → Windows Logs → Application</li><li>IIS：<code>C:\inetpub\logs\LogFiles</code></li><li>健康頁（管理員）：<strong>系統健康監控</strong> <code>/system-health</code> —— 24 項檢查的燈號與證據，頁底附最後 100 筆日誌。進入路徑：系統管理 → 系統監控 → 系統健康監控。</li><li><strong>日誌下載（管理員）</strong>：<code>/log-download</code> —— 依時間區間把日誌打包成 zip 下載，比手動翻 <code>C:	emp\Logs</code> 快。上限 <strong>31 天／200MB</strong>，日誌保留 30 天。</li><li><strong>給負載平衡器／監控系統的探針端點</strong>（回應精簡、不含診斷細節）：</li><li><code>/health/live</code>：程式是否活著</li><li><code>/health/ready</code>：是否可服務（含資料庫連線檢查）</li></ul>
+<h3 id="122-暫時啟用-stdout-log">12.2 暫時啟用 stdout log</h3>
+<p>只有排錯期間，把 <code>C:\KMEngine\web.config</code> 的 <code>stdoutLogEnabled="false"</code> 改為 <code>true</code>，並建立 <code>C:\KMEngine\logs</code>、授權 App Pool 可寫。收集錯誤後改回 <code>false</code>，避免記錄檔持續增長。</p>
+<hr>
+<h2 id="13-更新與備份" class="t6">13. 更新與備份</h2>
+<h3 id="131-安全更新網站並保留正式設定">13.1 安全更新網站並保留正式設定</h3>
+<blockquote><p><strong>禁止事項：</strong>後續更新不得再次把 <code>publish.zip</code> 直接解壓到 <code>C:\KMEngine</code>，也不得覆蓋或刪除既有的 <code>appsettings.Production.json</code>。新版 ZIP 內的同名檔只作為設定範例，不自動套用。</p></blockquote>
+<p>更新順序：</p>
+<ol><li>確認 <code>C:\KMEngine\appsettings.Production.json</code> 存在；若不存在，立即停止更新，先從備份還原或由管理員建立並確認設定。</li><li>備份網站、<code>appsettings.Production.json</code>、<code>C:\temp\KnowledgeExtraction</code>，尤其 SQLite 與 Cookie。</li><li>記錄更新前 <code>appsettings.Production.json</code> 的 SHA-256。</li><li>停止 <code>KMEngineAppPool</code>。</li><li>將新版 <code>publish.zip</code> 解壓到新的暫存目錄，確認暫存根目錄可看到 <code>web.config</code>。</li><li>使用 <code>robocopy /E /XF appsettings.Production.json</code> 從暫存目錄複製到 <code>C:\KMEngine</code>。</li><li>不使用 <code>/MIR</code>：它可能刪除正式目錄中只存在於伺服器的檔案。</li><li>再次計算正式設定檔雜湊；必須與更新前完全相同。</li><li>只有複製成功且雜湊相同時，才啟動 App Pool 並執行網站、API、工具測試。</li></ol>
+<p>可直接使用附錄 B 的安全更新腳本。該腳本把 robocopy ExitCode <code>0</code> 到 <code>7</code> 視為成功；<code>8</code> 以上會停止並保留 App Pool 的停止狀態，以便管理員檢查及還原。</p>
+<h3 id="132-更新-kmenginetools">13.2 更新 KMEngineTools</h3>
+<ol><li>停止轉錄／文件轉文字工作。</li><li>備份 <code>C:\KMEngineTools</code>。</li><li>解壓新版工具包。</li><li>不要刪除或覆蓋 <code>C:\KMEngineTools\cookies</code>（YouTube／抖音登入設定檔存於此；解壓新版工具包時請保留此子目錄，勿覆蓋）。</li><li>重跑工具版本、YouTube 標題與 MarkItDown 測試。</li></ol>
+<hr>
+<h2 id="14-完成檢查清單" class="t7">14. 完成檢查清單</h2>
+<ul class="check"><li><span class="box">☐</span>IIS、WebSocket、Scripting Tools、IIS Manager 已安裝。</li><li><span class="box">☐</span>.NET 10 Hosting Bundle 已安裝，IIS 已重啟。</li><li><span class="box">☐</span><code>dotnet --list-runtimes</code> 看得到 .NET 10。</li><li><span class="box">☐</span>PowerShell 7、Notepad++、7-Zip、VC++ Runtime 已安裝。</li><li><span class="box">☐</span><code>web.config</code> 位於 <code>C:\KMEngine</code> 根目錄。</li><li><span class="box">☐</span>首次部署已完整複製 <code>appsettings.json</code> 與 <code>appsettings.Production.json</code>。</li><li><span class="box">☐</span>已備份並依正式環境需求調整 <code>appsettings.Production.json</code>，JSON 格式驗證成功。</li><li><span class="box">☐</span>工具包位於 <code>C:\KMEngineTools</code>。</li><li><span class="box">☐</span><code>KMEngineAppPool</code> 使用 No Managed Code，Idle Time-out 為 0。</li><li><span class="box">☐</span>Default Web Site 指向正確路徑與 App Pool。</li><li><span class="box">☐</span>App Pool 對資料與記錄目錄有修改權限。</li><li><span class="box">☐</span>OpenAI API Key 與工具路徑已設定。</li><li><span class="box">☐</span>ffmpeg、yt-dlp、Node、Python、MarkItDown 檢查成功（建議用 <code>Test-PortableTools.ps1 -AppPoolName KMEngineAppPool</code>，會一併驗 IIS 身分的存取權）。</li><li><span class="box">☐</span>若使用抖音，已完成登入初始化。</li><li><span class="box">☐</span>若使用 YouTube，Cookie 匯出顯示 <code>hasLoginSession=true</code>。</li><li><span class="box">☐</span><code>iisreset</code> 後網站可開啟。</li><li><span class="box">☐</span>已了解後續更新必須從暫存目錄複製，並以 <code>/XF appsettings.Production.json</code> 排除正式設定檔。</li></ul>
+<h3 id="安全項沒有任何程式守門會擋必須人工確認">🔒 安全項（沒有任何程式守門會擋，必須人工確認）</h3>
+<blockquote><p>1.0.69 移除了 Production 啟動安全檢查——<strong>留著出廠預設值程式也會照樣啟動、不會警告</strong>。這幾項只能靠這份清單。</p></blockquote>
+<ul class="check"><li><span class="box">☐</span><strong><code>JwtSettings.SigningKey</code> 已改成 ≥32 字元的隨機值</strong>（出廠是公開在原始碼裡的 <code>DevelopmentOnly-…</code>；不改＝任何人都能自己簽 token 冒充管理員）。</li><li><span class="box">☐</span><strong><code>BootstrapSettings.SupportPassword</code> 已改掉</strong>（出廠 <code>1qaz@WSX</code>；程式每次啟動都會用它重設 <code>support</code> 密碼，所以只改介面沒用）。</li><li><span class="box">☐</span>已建立自己的管理員帳號，日常不使用 <code>support</code>。</li><li><span class="box">☐</span><code>JwtSettings.Issuer</code> / <code>Audience</code> 已依本站調整（多系統並存時）。</li><li><span class="box">☐</span><code>Swagger.EnabledInProduction</code> 為 <code>false</code>。</li><li><span class="box">☐</span><code>Security.ReturnExceptionDetails</code> 為 <code>null</code>（不對用戶端回傳例外細節）。</li><li><span class="box">☐</span><code>Cors.AllowedOrigins</code> 未使用 <code>*</code>（逐一列出需要的網域，或維持空陣列）。</li><li><span class="box">☐</span>已確認 <code>MarkItDownSettings.PdfUseLlm</code> 的設定符合資安政策（<code>true</code> ＝ <strong>PDF 會整份送到 OpenAI</strong>；封閉網路或不允許文件外送請設 <code>false</code>）。</li><li><span class="box">☐</span>已規劃 HTTPS、憑證、防火牆、備份與金鑰保護。</li><li><span class="box">☐</span>已在 <code>/system-health</code> 確認整體綠燈、無紅項。</li></ul>
+<hr>
+<h2 id="15-官方參考" class="t8">15. 官方參考</h2>
+<ul><li><a href="https://learn.microsoft.com/en-us/powershell/module/servermanager/install-windowsfeature?view=windowsserver2025-ps" rel="noopener" target="_blank">Microsoft：Windows Server 2025 Install-WindowsFeature</a></li><li><a href="https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/iis/?view=aspnetcore-10.0" rel="noopener" target="_blank">Microsoft：在 IIS 上裝載 ASP.NET Core（.NET 10）</a></li><li><a href="https://dotnet.microsoft.com/en-us/download/dotnet/10.0" rel="noopener" target="_blank">Microsoft：下載 .NET 10</a></li><li><a href="https://learn.microsoft.com/en-us/windows/package-manager/winget/install" rel="noopener" target="_blank">Microsoft：WinGet install</a></li><li><a href="https://learn.microsoft.com/en-us/powershell/scripting/install/install-powershell-on-windows?view=powershell-7.6" rel="noopener" target="_blank">Microsoft：在 Windows Server 2025 安裝 PowerShell 7</a></li><li><a href="https://github.com/yt-dlp/yt-dlp/wiki/PO-Token-Guide" rel="noopener" target="_blank">yt-dlp：YouTube PO Token Guide</a></li><li><a href="https://github.com/yt-dlp/yt-dlp/wiki/EJS" rel="noopener" target="_blank">yt-dlp：External JavaScript Runtime</a></li><li><a href="https://github.com/Brainicism/bgutil-ytdlp-pot-provider" rel="noopener" target="_blank">BgUtils PO Token Provider</a></li></ul>
+<hr>
+<h2 id="附錄-a首次安裝快速腳本" class="t1">附錄 A：首次安裝快速腳本</h2>
+<blockquote><p>僅適用於第一次安裝及空白的 <code>C:\KMEngine</code>。請逐段執行並檢查結果。此腳本會完整解壓正式設定檔，但不會填入 API Key，也不會自動登入抖音或 YouTube。</p></blockquote>
+<pre><code># 1. IIS
+Import-Module ServerManager
+Install-WindowsFeature `
+  -Name Web-Server,Web-WebSockets,Web-Scripting-Tools `
+  -IncludeManagementTools
+
+# 2. 必要與建議套件
+winget install --id Microsoft.DotNet.HostingBundle.10 -e --source winget --silent `
+  --accept-source-agreements --accept-package-agreements --disable-interactivity
+winget install --id Microsoft.VCRedist.2015+.x64 -e --source winget --silent `
+  --accept-source-agreements --accept-package-agreements --disable-interactivity
+winget install --id Microsoft.PowerShell -e --source winget --installer-type wix --silent `
+  --accept-source-agreements --accept-package-agreements --disable-interactivity
+winget install --id Notepad++.Notepad++ -e --source winget --silent `
+  --accept-source-agreements --accept-package-agreements --disable-interactivity
+winget install --id 7zip.7zip -e --source winget --silent `
+  --accept-source-agreements --accept-package-agreements --disable-interactivity
+
+# 3. 目錄與解壓
+New-Item -ItemType Directory -Path "C:\KMEngine" -Force
+New-Item -ItemType Directory -Path "C:\KMEngineTools" -Force
+New-Item -ItemType Directory -Path "C:\temp\KnowledgeExtraction" -Force
+New-Item -ItemType Directory -Path "C:\temp\Logs" -Force
+Expand-Archive "C:\Install\publish.zip" -DestinationPath "C:\KMEngine" -Force
+Expand-Archive "C:\Install\KMEngineTools.zip" -DestinationPath "C:\KMEngineTools" -Force
+if (-not (Test-Path "C:\KMEngine\appsettings.Production.json")) {
+    throw "首次部署缺少 appsettings.Production.json，請停止並檢查 publish.zip。"
+}
+Copy-Item "C:\KMEngine\appsettings.Production.json" `
+  "C:\KMEngine\appsettings.Production.json.initial.bak" -Force
+
+# 4. IIS 設定
+Import-Module WebAdministration
+if (-not (Test-Path "IIS:\AppPools\KMEngineAppPool")) {
+    New-WebAppPool -Name "KMEngineAppPool"
+}
+Set-ItemProperty "IIS:\AppPools\KMEngineAppPool" `
+  -Name managedRuntimeVersion -Value ""
+Set-ItemProperty "IIS:\AppPools\KMEngineAppPool" `
+  -Name processModel.idleTimeout -Value ([TimeSpan]::Zero)
+Set-ItemProperty "IIS:\AppPools\KMEngineAppPool" `
+  -Name enable32BitAppOnWin64 -Value $false
+Set-ItemProperty "IIS:\Sites\Default Web Site" `
+  -Name applicationPool -Value "KMEngineAppPool"
+Set-ItemProperty "IIS:\Sites\Default Web Site" `
+  -Name physicalPath -Value "C:\KMEngine"
+
+# 5. 權限
+icacls "C:\KMEngine" /grant "IIS AppPool\KMEngineAppPool:(OI)(CI)RX" /T
+icacls "C:\KMEngineTools" /grant "IIS AppPool\KMEngineAppPool:(OI)(CI)RX" /T
+icacls "C:\temp\KnowledgeExtraction" /grant "IIS AppPool\KMEngineAppPool:(OI)(CI)M" /T
+icacls "C:\temp\Logs" /grant "IIS AppPool\KMEngineAppPool:(OI)(CI)M" /T
+
+# 6. 使用 Notepad++ 編輯 appsettings.Production.json，然後驗證 JSON
+Get-Content "C:\KMEngine\appsettings.Production.json" -Raw `
+  | ConvertFrom-Json | Out-Null
+
+# 7. 重啟 IIS
+iisreset</code></pre>
+<p>執行後仍須設定 OpenAI API Key、驗證 <code>web.config</code>、依需求完成抖音／YouTube 登入，並執行網站與工具測試。</p>
+<hr>
+<h2 id="附錄-b後續網站安全更新腳本" class="t2">附錄 B：後續網站安全更新腳本</h2>
+<blockquote><p>請以系統管理員身分執行。這個腳本不會覆蓋 <code>C:\KMEngine\appsettings.Production.json</code>，也不會使用 <code>/MIR</code>。開始前請把新版網站壓縮檔放到 <code>C:\Install\publish.zip</code>。</p></blockquote>
+<pre><code>Import-Module WebAdministration
+
+$packagePath = "C:\Install\publish.zip"
+$siteRoot = "C:\KMEngine"
+$productionConfig = Join-Path $siteRoot "appsettings.Production.json"
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$backupRoot = Join-Path "C:\Install\KMEngineBackup" $timestamp
+$stagingRoot = Join-Path "C:\Install\KMEngineStaging" $timestamp
+
+if (-not (Test-Path -LiteralPath $packagePath)) {
+    throw "找不到更新套件：$packagePath"
+}
+
+if (-not (Test-Path -LiteralPath $productionConfig)) {
+    throw "正式設定檔不存在，已停止更新。請先還原或建立 appsettings.Production.json。"
+}
+
+New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
+
+Copy-Item -LiteralPath $productionConfig `
+  -Destination (Join-Path $backupRoot "appsettings.Production.json") -Force
+
+$hashBefore = (Get-FileHash -LiteralPath $productionConfig -Algorithm SHA256).Hash
+$hashBefore | Set-Content `
+  -LiteralPath (Join-Path $backupRoot "appsettings.Production.sha256.txt") `
+  -Encoding UTF8
+
+Expand-Archive -LiteralPath $packagePath -DestinationPath $stagingRoot -Force
+
+# 若 ZIP 最外層多一個 publish 目錄，自動選取唯一且含 web.config 的子目錄。
+$sourceRoot = $stagingRoot
+if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot "web.config"))) {
+    $candidates = @(Get-ChildItem -LiteralPath $stagingRoot -Directory | Where-Object {
+        Test-Path -LiteralPath (Join-Path $_.FullName "web.config")
+    })
+
+    if ($candidates.Count -eq 1) {
+        $sourceRoot = $candidates[0].FullName
+    } else {
+        throw "暫存目錄根層找不到唯一的 web.config，請檢查 ZIP 解壓層級。"
+    }
+}
+
+$updateSucceeded = $false
+Stop-WebAppPool -Name "KMEngineAppPool"
+
+try {
+    &amp; robocopy.exe $sourceRoot $siteRoot /E `
+      /XF "appsettings.Production.json" /R:2 /W:2
+    $robocopyExitCode = $LASTEXITCODE
+
+    if ($robocopyExitCode -gt 7) {
+        throw "robocopy 更新失敗，ExitCode=$robocopyExitCode。"
+    }
+
+    if (-not (Test-Path -LiteralPath $productionConfig)) {
+        throw "更新後找不到 appsettings.Production.json，請從備份還原。"
+    }
+
+    $hashAfter = (Get-FileHash -LiteralPath $productionConfig -Algorithm SHA256).Hash
+    if ($hashBefore -ne $hashAfter) {
+        throw "appsettings.Production.json 雜湊已改變，請從備份還原並停止上線。"
+    }
+
+    Get-Content -LiteralPath $productionConfig -Raw `
+      | ConvertFrom-Json | Out-Null
+
+    $updateSucceeded = $true
+}
+finally {
+    if ($updateSucceeded) {
+        Start-WebAppPool -Name "KMEngineAppPool"
+        Write-Host "更新完成，正式設定檔未被覆蓋。" -ForegroundColor Green
+        Write-Host "更新前後 SHA-256：$hashBefore"
+    } else {
+        Write-Warning "更新未完成，KMEngineAppPool 保持停止。請檢查錯誤並使用 $backupRoot 還原。"
+    }
+}</code></pre>
+<p>執行完成後，檢查 <code>C:\temp\Logs</code>、Event Viewer 與 IIS 記錄，並測試首頁、登入、OpenAI API、文件轉文字、YouTube／抖音等實際啟用的功能。暫存與備份目錄請在確認上線穩定後，再依組織的保留政策處理。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>導入顧問：我要把系統部署到客戶的機器</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li><li><a href="../../docs/guides/import-to-knowledge-flow.html">從客戶匯入到完成知識：操作流程指南</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#1-部署完成後的架構">1. 部署完成後的架構</a><a class="l2" href="#2-安裝前準備">2. 安裝前準備</a><a class="l3" href="#21-管理命令列">2.1 管理命令列</a><a class="l3" href="#22-確認-winget">2.2 確認 WinGet</a><a class="l2" href="#3-安裝與設定-iis">3. 安裝與設定 IIS</a><a class="l2" href="#4-安裝-net-10-與系統工具">4. 安裝 .NET 10 與系統工具</a><a class="l3" href="#41-套件必要性">4.1 套件必要性</a><a class="l3" href="#42-最小正式部署腳本建議">4.2 最小正式部署腳本（建議）</a><a class="l3" href="#43-若伺服器也需要-net-10-sdk">4.3 若伺服器也需要 .NET 10 SDK</a><a class="l3" href="#44-重新載入-iis-與驗證">4.4 重新載入 IIS 與驗證</a><a class="l2" href="#5-解壓網站與工具">5. 解壓網站與工具</a><a class="l3" href="#51-建立目錄">5.1 建立目錄</a><a class="l3" href="#52-首次部署完整解壓所有檔案">5.2 首次部署：完整解壓所有檔案</a><a class="l3" href="#53-確認沒有多一層目錄">5.3 確認沒有多一層目錄</a><a class="l2" href="#6-設定-iis-application-pool-與網站">6. 設定 IIS Application Pool 與網站</a><a class="l3" href="#61-使用-iis-manager">6.1 使用 IIS Manager</a><a class="l3" href="#62-使用腳本完成相同設定">6.2 使用腳本完成相同設定</a><a class="l3" href="#63-設定檔案權限">6.3 設定檔案權限</a><a class="l2" href="#7-設定-appsettings">7. 設定 appsettings</a><a class="l3" href="#71-應修改哪個檔案">7.1 應修改哪個檔案</a><a class="l3" href="#72--正式環境必改項上線前一定要做">7.2 ⚠️ 正式環境必改項（上線前一定要做）</a><a class="l3" href="#73-設定-openai-api-key">7.3 設定 OpenAI API Key</a><a class="l3" href="#74-確認工具路徑">7.4 確認工具路徑</a><a class="l2" href="#8-kmenginetools-功能與檢查">8. KMEngineTools 功能與檢查</a><a class="l3" href="#81-快速版本檢查">8.1 快速版本檢查</a><a class="l3" href="#82-markitdown-測試與排錯">8.2 MarkItDown 測試與排錯</a><a class="l3" href="#83-共通安裝權限與更新-faq">8.3 共通安裝、權限與更新 FAQ</a><a class="l3" href="#84-ffmpegffprobe-faq">8.4 FFmpeg／ffprobe FAQ</a><a class="l3" href="#85-yt-dlp-faq">8.5 yt-dlp FAQ</a><a class="l3" href="#86-youtube-cookie-匯出更新工具-faq">8.6 YouTube Cookie 匯出／更新工具 FAQ</a><a class="l3" href="#87-nodejsnpm-與-npm-cache-faq">8.7 Node.js、npm 與 npm-cache FAQ</a><a class="l3" href="#88-playwrightchromium-faq">8.8 Playwright／Chromium FAQ</a><a class="l3" href="#89-抖音助手-faq">8.9 抖音助手 FAQ</a><a class="l3" href="#810-bgutils-po-token-provider-faq">8.10 BgUtils PO Token Provider FAQ</a><a class="l2" href="#9-抖音登入與下載">9. 抖音登入與下載</a><a class="l3" href="#91-第一次登入">9.1 第一次登入</a><a class="l3" href="#92-限制">9.2 限制</a><a class="l3" href="#93-命令列測試">9.3 命令列測試</a><a class="l2" href="#10-youtube-登入cookie-匯出與更新">10. YouTube 登入、Cookie 匯出與更新</a><a class="l3" href="#101-啟動專用-edge">10.1 啟動專用 Edge</a><a class="l3" href="#102-匯出-cookie">10.2 匯出 Cookie</a><a class="l3" href="#103-確認-yt-dlpconf">10.3 確認 yt-dlp.conf</a><a class="l3" href="#104-cookie-過期">10.4 Cookie 過期</a><a class="l2" href="#11-啟動與驗證網站">11. 啟動與驗證網站</a><a class="l3" href="#111-重新啟動-iis">11.1 重新啟動 IIS</a><a class="l3" href="#112-檢查-iis">11.2 檢查 IIS</a><a class="l3" href="#113-本機測試">11.3 本機測試</a><a class="l3" href="#114-第一次登入-kmengine">11.4 第一次登入 KMEngine</a><a class="l2" href="#115選用啟用-mcp-對外服務">11.5（選用）啟用 MCP 對外服務</a><a class="l2" href="#12-常見問題">12. 常見問題</a><a class="l3" href="#121-記錄位置">12.1 記錄位置</a><a class="l3" href="#122-暫時啟用-stdout-log">12.2 暫時啟用 stdout log</a><a class="l2" href="#13-更新與備份">13. 更新與備份</a><a class="l3" href="#131-安全更新網站並保留正式設定">13.1 安全更新網站並保留正式設定</a><a class="l3" href="#132-更新-kmenginetools">13.2 更新 KMEngineTools</a><a class="l2" href="#14-完成檢查清單">14. 完成檢查清單</a><a class="l3" href="#安全項沒有任何程式守門會擋必須人工確認">🔒 安全項（沒有任何程式守門會擋，必須人工確認）</a><a class="l2" href="#15-官方參考">15. 官方參考</a><a class="l2" href="#附錄-a首次安裝快速腳本">附錄 A：首次安裝快速腳本</a><a class="l2" href="#附錄-b後續網站安全更新腳本">附錄 B：後續網站安全更新腳本</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/Windows Server 2025 安裝與設定手冊.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>階段三步驟 6：RAG 評測集與指標（與黃金評測併呈）（0.2.128）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>階段三步驟 6：RAG 評測集與指標（與黃金評測併呈）（0.2.128）</h1></header><div class="docwrap"><main><ul><li>日期：2026/06/26</li><li>版本：0.2.127 → 0.2.128</li><li>對應設計：<a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格 §11–§12.2</a>；路線圖步驟：strategy/12 §12.2 步驟 6（階段三<strong>最後一步</strong>）</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>替階段三整條 RAG 管線（清洗 → 蒸餾 → 索引 → 混合檢索 → 跨來源問答）補上<strong>品質保證層</strong>：新增獨立的「RAG 評測」頁，以評測集量化<strong>檢索品質與權控合規</strong>，與既有「黃金評測」（上游清洗品質）並列於「清洗與蒸餾」選單，形成「清洗品質 → 檢索品質」完整把關鏈。指標採<strong>檢索為主、確定性、可離線</strong>（不需 LLM 生成即可跑；嵌入未設定時退化為關鍵字檢索仍可評測），完全鏡像黃金評測的縱切與頁面慣例。</p>
+<h2 id="設計重點" class="t2">設計重點</h2>
+<ul><li><strong>相關性 ground truth ＝知識來源標題</strong>：每筆命中解析其 <code>KnowledgeSourceId → 來源標題</code>，標題 ∈ 樣本「期望命中來源」即視為相關（binary relevance）。以標題（非 chunk Id）標註，對重建索引穩定。</li><li><strong>模擬身分評測</strong>：每筆樣本帶 <code>EvalIsAdmin</code>/<code>EvalTeams</code>，組成 <code>RecordAccessScope</code> 傳入 <code>IRetrievalService.RetrieveAsync</code>。品質樣本設管理員（看全部）；資安樣本設受限團隊＋只列可見來源，由越權洩漏指標把關。</li><li><strong>純函式評測器 <code>RagEvaluator</code></strong>：計算 Precision@k / Recall@k / NDCG@k / MRR / 出處正確率（有期望錨點時以 <code>AnchorRef</code> 命中比例，否則退回來源標題相關比例）/ 越權洩漏（命中中不可見筆數，資安守門應為 0）/ 檢索延遲；仿 <code>CleaningEvaluator</code> 純函式精神，不碰 DB/LLM。</li><li><strong>權控（資安關鍵）</strong>：越權內容由檢索層（<code>IRetrievalService</code> + <code>TagStringHelper.BuildTeamAccessPredicate</code>）過濾，評測時再以 <code>TagStringHelper.IsTeamAccessible</code> 對每筆命中二次校驗作回歸守門；儀表板「越權洩漏總數」&gt;0 以紅色醒目示警。</li></ul>
+<h2 id="變更內容" class="t3">變更內容</h2>
+<ul><li><strong>實體</strong>：新增 <code>RagEvalSample</code>（<code>AccessDatas/Models/</code>，欄位：Title、Query、ExpectedSourceTitles、ExpectedAnchors、EvalTeams、EvalIsAdmin、LastEvaluatedAt、LastLatencyMs、LastMetricsJson、時間戳）；<code>BackendDBContext</code> 加 <code>DbSet&lt;RagEvalSample&gt;</code>。</li><li><strong>Migration</strong>：<code>AddRagEvalSample</code> 雙資料庫各一套（SQLite <code>AccessDatas</code>＋SQL Server <code>AccessDatas.SqlServerMigrations</code>）。</li><li><strong>指標/評測</strong>：<code>RagEvaluationModels</code>（<code>RagEvalHit</code>/<code>RagSampleMetrics</code>/<code>RagEvalAggregateReport</code>）＋ <code>RagEvaluator</code>（純函式）於 <code>Business/Services/Embeddings/</code>。</li><li><strong>服務</strong>：<code>RagEvaluationService</code>（<code>Business/Services/DataAccess/</code>，CRUD＋載入範本種子＋<code>EvaluateOneAsync</code>＋<code>GetAggregateAsync</code>）；DI 註冊 <code>AddScoped&lt;RagEvaluationService&gt;()</code>。</li><li><strong>映射</strong>：<code>AutoMapping</code> 新增 <code>RagEvalSample ⇄ RagEvalSampleAdapterModel</code>（三標籤欄走 <code>TagStringHelper</code>）；<code>RagEvalSampleAdapterModel</code>（<code>Models/AdapterModel/</code>）。</li><li><strong>UI</strong>：<code>Components/Pages/RagEvaluations/RagEvaluationPage.razor</code>＋<code>Components/Views/RagEvaluations/RagEvaluationView.razor(.cs/.css)</code>（工具列、指標儀表板含越權洩漏示警、表格、編輯/明細 Modal）；路由 <code>/rag-evaluation</code>。</li><li><strong>權限三處同步</strong>：<code>MagicObjectHelper.角色_RAG評測</code>；<code>RolePermissionService</code> 群組 2 於 <code>角色_知識庫問答</code> 後、<code>角色_知識審核</code> 前插入；<code>Menu.json</code> 清洗與蒸餾群組新增「RAG評測」(id 36, icon <code>query_stats</code>, /rag-evaluation)。</li><li><strong>測試</strong>：<code>RagEvaluatorTests</code>（P/R/NDCG/MRR/出處/越權＝0 與越權&gt;0 各情形）、<code>RagEvaluationServiceTests</code>（種子、管理員評測指標、受限團隊越權 0 命中、彙總）。本步驟有模型變更，已產雙 migration。</li></ul>
+<h2 id="使用備註" class="t4">使用備註</h2>
+<ul><li>「載入種子」載入的是<strong>範本樣本</strong>（員工手冊健檢福利情境），其「期望命中來源」須改為你<strong>實際已索引</strong>的知識來源標題才有評測意義。</li><li>評測為確定性、不需 LLM；嵌入未設定時走關鍵字檢索路徑仍可量化。生成答案品質（如答案要點涵蓋）屬後續延伸，本步驟聚焦檢索。</li></ul>
+<h2 id="後續" class="t5">後續</h2>
+<p>階段三步驟 1–6 全部完成。後續 PoC（strategy/12 §11.3）：以 1–2 份真實手冊/SOP 走完整管線並人工檢視答案正確性、出處可追溯、權控正確、遮罩無漏。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#設計重點">設計重點</a><a class="l2" href="#變更內容">變更內容</a><a class="l2" href="#使用備註">使用備註</a><a class="l2" href="#後續">後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-26-階段三步驟6-RAG評測.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

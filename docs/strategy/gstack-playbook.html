@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>以 gstack 技能精煉計畫的執行流程（Playbook）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 策略與規劃</p><header class="hero"><div class="kicker">策略與規劃</div><h1>以 gstack 技能精煉計畫的執行流程（Playbook）</h1><p class="sub">用 gstack 技能逐一校準系統/策略/計畫，使其真正符合客戶需求、解決痛點</p></header><div class="docwrap"><main><ul><li>文件用途：用 gstack 技能逐一校準系統/策略/計畫，使其真正符合客戶需求、解決痛點</li><li>主要讀者：產品負責人、策略與開發團隊</li><li>文件版本：1.0</li><li>建立日期：2026/06/08</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>本檔是「歷史方法論／執行手冊」：依序跑哪些技能、各自目的/輸入/產出、會修訂哪些文件，並在文末回填執行紀錄。策略總綱見 <a href="../../docs/strategy/scope-and-vision.html">01-計畫範圍與遠景</a>。未執行的歷史技能步驟保留為方法論脈絡，不視為目前產品 backlog。</p></blockquote>
+<hr>
+<h2 id="一目的與適用範圍" class="t1">一、目的與適用範圍</h2>
+<ul><li><strong>目的</strong>：把這套知識庫系統與策略/計畫文件，透過技能逐一「壓力測試與校準」，確保做的是<strong>客戶真正需要</strong>、能解決痛點的東西。</li><li><strong>適用範圍（本檔聚焦）</strong>：策略/需求驗證/文件精煉的方法論。（註：本檔撰寫於知識庫 App 開建前；App 後續已完成階段一～三——清洗／蒸餾／AI 知識問答／檢索品質評測，本檔仍保留作為精煉方法論參考。）</li><li><strong>日後（建 App 時）一行指引</strong>：設計用 <code>design-consultation</code>/<code>design-shotgun</code>/<code>design-html</code>；測試用 <code>qa</code>/<code>browse</code>/<code>design-review</code>；交付用 <code>review</code>/<code>ship</code>/<code>land-and-deploy</code>/<code>canary</code>/<code>benchmark</code>；文件同步用 <code>document-release</code>。本檔不展開。</li></ul>
+<hr>
+<h2 id="二執行順序pipeline" class="t2">二、執行順序（Pipeline）</h2>
+<p>逐一執行，每跑完一棒就回填結論並修訂對應文件，再進下一棒。</p>
+<div class="tw"><table><thead><tr><th>步驟</th><th>技能</th><th>目的</th><th>輸入</th><th>產出</th><th>會修訂的文件</th></tr></thead><tbody><tr><td>1</td><td><code>office-hours</code>（startup）</td><td>六問驗證：需求現實、現狀替代、痛點具體度、最窄切入點、可觀察性、未來契合</td><td>01/02、對外銷售版</td><td>需求校準設計稿</td><td><code>01</code> 願景、<code>02</code> 價值、對外銷售版痛點/切入</td></tr><tr><td>2</td><td><code>deep-research</code></td><td>市場/競品/企業 RAG 最佳實務的<strong>有據</strong>研究</td><td>02、03、銷售版競品表</td><td>含來源的研究結論</td><td><code>02</code> 競品、<code>03</code> 架構、銷售版競品表（讓點名比較更精準可辯護）</td></tr><tr><td>3</td><td><code>plan-ceo-review</code></td><td>挑戰策略前提、找 10 星產品、範疇取捨</td><td>01/02/04</td><td>策略決議</td><td><code>01</code>、<code>02</code>、<code>04</code> 路線圖範疇、旗艦應用</td></tr><tr><td>4</td><td><code>plan-eng-review</code></td><td>鎖定知識庫架構/資料流/邊界/測試</td><td>03/04</td><td>架構決議</td><td><code>03</code>、<code>04</code></td></tr><tr><td>5</td><td><code>plan-design-review</code></td><td>問答助理 UX 規劃（客戶實際使用環境）</td><td>04、旗艦應用描述</td><td>UX 方向</td><td><code>04</code>／新增應用 PRD</td></tr><tr><td>6</td><td><code>cso</code></td><td>權控/遮罩/稽核的資安威脅模型</td><td>03、05</td><td>資安檢視結論</td><td><code>03</code> 資安、<code>05</code> 風險</td></tr><tr><td>7</td><td><code>brainstorming</code> → <code>writing-plans</code></td><td>把校準後的「階段一：清洗＋蒸餾」寫成可執行實作計畫</td><td>04 階段一</td><td>實作計畫</td><td>產出 <code>docs/superpowers/plans/...</code></td></tr></tbody></table></div>
+<blockquote><p><strong>捷徑</strong>：步驟 3–5 可改用 <code>autoplan</code> 一次跑完 CEO＋設計＋工程＋DX 審查（互動較少、自動決策）。</p></blockquote>
+<hr>
+<h2 id="三每步驟的完成準則與迭代" class="t3">三、每步驟的完成準則與迭代</h2>
+<ul><li><strong>完成準則</strong>：該技能產出明確結論（決議/研究/UX/資安），且已回頭<strong>修訂對應文件</strong>並在下方紀錄。</li><li><strong>迭代方式</strong>：跑完一棒 → 回填結論 → 修訂文件 → 進下一棒。若某棒結論推翻前面假設，回頭重修受影響文件再續。</li><li><strong>客戶導向檢核</strong>：每棒都問一句「這讓文件更貼近客戶真實痛點與需求了嗎？」——否則重做。</li></ul>
+<hr>
+<h2 id="四起步說明" class="t4">四、起步說明</h2>
+<ul><li><strong>第一棒＝<code>office-hours</code>（startup 模式）</strong>：最能定調「是不是客戶真正需要的」，故先跑。</li><li>其結論優先回灌 <code>01</code>（願景/最窄切入點）、<code>02</code>（價值/痛點）與對外銷售版（破題/痛點/切入）。</li></ul>
+<hr>
+<h2 id="五執行紀錄逐棒回填" class="t5">五、執行紀錄（逐棒回填）</h2>
+<blockquote><p>格式：日期 ｜ 技能 ｜ 關鍵結論 ｜ 已修訂文件</p></blockquote>
+<blockquote><p><strong>🟢 作業回報（2026/06/08）</strong>：office-hours 本週作業已執行且結果強。具名客戶＝光陽機車、英業達設計部門主管（＋2 家合作廠商客戶）；交出真實材料、做出結果、客戶「十分滿意」，且<strong>有意願做付費 PoC（最強訊號）</strong>。<strong>楔子轉向＝AI 審圖</strong>（每月 ~1000 張圖、僅 2 位資深審圖員、離職斷層；需求為「規模化執行專家審查判斷」，屬旗艦 #2 Agent）。詳見 <a href="../../docs/strategy/open-questions-risks.html">05 §〇</a> 與設計稿 The Assignment。<strong>下一步＝擬付費 PoC 提案/SOW 並簽署啟動</strong>；定位收斂（Approach B）待 PoC 訊號再決定。</p></blockquote>
+<ul class="check"><li><span class="box">☑</span>步驟 1 <code>office-hours</code>（2026/06/08）— 結論：<strong>最大風險＝需求未驗證</strong>（無具名客戶/付費/行為證據）；<strong>首要楔子假設＝知識傳承</strong>（待驗證，非定論），並測替代買家（合規/客服/onboarding/稽核/提案）；推薦 <strong>Approach A：人工 concierge 試點</strong>先拿行為證據，文件暫不全面押定位。設計稿：<code>~/.gstack/projects/vulcanlee-KnowledgeExtraction.AI/oh-main-design-20260608-123704.md</code>。已修訂：<code>01</code>（楔子假設註）、<code>02</code>（§三 楔子假設）、<code>05</code>（新增 §〇 需求驗證）。<strong>作業</strong>：本週攻 1 位具名傳承主管，提出「指名專家＋排 30 分鐘訪談＋交 3–10 份材料」的請求，手工做出第一份傳承包。</li><li><span class="box">☑</span>步驟 2 <code>deep-research</code>（2026/06/08）— 結論：<strong>競品</strong>主流大廠助理（Copilot/NotebookLM/ChatGPT Ent.）多為純雲端，<strong>Glean 可自架於客戶雲但非真地端</strong>→差異化改打「真・地端/離線＋完整閉環(清洗＋蒸餾)」；<strong>傳承楔子</strong>經市場證據驗證為真且有預算（退休潮、C-suite 擔憂），<strong>但非藍海</strong>（KNOWRON、Dozuki 已在做）。⚠️ <strong>工具註記</strong>：該輪自動 fetch/對抗式查證子代理故障（未回傳 StructuredOutput），25 條主張被誤標 refuted；實為單一來源未交叉驗證，已由人工依來源品質採用並標註。已修訂：<code>02</code>（具名競品表＋傳承市場證據）、<code>05 §〇</code>（市場證據＋競品定位校正）、對外銷售版競品投影片（NotebookLM 匯入校正、Glean 地端加註）。完整原始主張與來源見 workflow 輸出 <code>wcqz3arwj.output</code>。</li><li>步驟 3 <code>plan-ceo-review</code> — _歷史計畫未執行，非現行 backlog_</li><li>步驟 4 <code>plan-eng-review</code> — _歷史計畫未執行，非現行 backlog_</li><li>步驟 5 <code>plan-design-review</code> — _歷史計畫未執行，非現行 backlog_</li><li>步驟 6 <code>cso</code> — _歷史計畫未執行，非現行 backlog_</li><li>步驟 7 <code>brainstorming → writing-plans</code> — _歷史計畫未執行，非現行 backlog_</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（策略與規劃）</h3><ul><li><a href="../../docs/strategy/scope-and-vision.html">計畫範圍與遠景</a></li><li><a href="../../docs/strategy/business-value.html">商業價值與行銷策略</a></li><li><a href="../../docs/strategy/architecture-research.html">知識庫架構研究與建議</a></li><li><a href="../../docs/strategy/dev-roadmap.html">開發建議與路線圖</a></li><li><a href="../../docs/strategy/open-questions-risks.html">待釐清問題與技術風險清單</a></li><li><a href="../../docs/strategy/expected-deliverables.html">期望產出清單</a></li><li><a href="../../docs/strategy/cleaning-stage-design.html">資料清洗階段設計與分析</a></li><li><a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a></li><li><a href="../../docs/strategy/source-cleaning-value.html">知識來源管理與資料清洗：功能、價值與行銷</a></li><li><a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：功能、欄位、價值與行銷</a></li><li><a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格</a></li><li><a href="../../docs/strategy/market-analysis.html">知識庫產品市場分析與擴展方向</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目的與適用範圍">一、目的與適用範圍</a><a class="l2" href="#二執行順序pipeline">二、執行順序（Pipeline）</a><a class="l2" href="#三每步驟的完成準則與迭代">三、每步驟的完成準則與迭代</a><a class="l2" href="#四起步說明">四、起步說明</a><a class="l2" href="#五執行紀錄逐棒回填">五、執行紀錄（逐棒回填）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/strategy/07-以gstack技能精煉計畫的執行流程.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

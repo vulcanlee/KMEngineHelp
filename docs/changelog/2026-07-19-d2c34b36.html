@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>修正混合檢索關鍵字路徑的候選集無序截斷（1.0.16）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>修正混合檢索關鍵字路徑的候選集無序截斷（1.0.16）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/19</li><li>版本：1.0.15 → 1.0.16</li><li>對應文件：<a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行 §4</a>；<a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a>；<a href="../../docs/architecture/rag-rerank-analysis.html">RAG rerank 是否導入分析</a></li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>修正 <code>RetrievalService.SearchKeywordAsync</code> 的<strong>召回層缺陷</strong>：關鍵字路徑在<strong>打分之前就截斷候選集，且截斷時沒有任何排序依據</strong>。命中全部查詢詞的高相關 chunk，只要實體 <code>Id</code> 較大就永遠進不了 <code>CandidateTopK</code>，連被打分的機會都沒有。</p>
+<h2 id="問題" class="t2">問題</h2>
+<p><code>BuildKeywordPredicate</code> 是 <strong>OR</strong> 述詞（含任一詞即入選），符合條件的列數往往遠大於 <code>CandidateTopK</code>（預設 50）。修正前：</p>
+<pre><code>candidates = candidates.Where(BuildKeywordPredicate(terms));
+var rows = await candidates.Take(candidateTopK).ToListAsync(ct);   // ← 無 OrderBy
+foreach (var row in rows)
+{
+    var matched = terms.Count(t =&gt; row.ChunkText.Contains(t, StringComparison.OrdinalIgnoreCase));
+    if (matched &gt; 0) scores[row.Id] = (row, (double)matched / terms.Count);   // ← 分數在截斷後才算
+}</code></pre>
+<p>取回哪 50 筆由資料庫回傳順序決定（實務上接近主鍵順序）。這是<strong>召回</strong>問題不是排序問題：任何下游改善（融合權重調校、未來的 rerank）都救不回從未進入候選集的 chunk。</p>
+<p>複現測試 <code>KeywordPath_HighMatchChunk_SurvivesCandidateTruncation</code> 在修正前的實際結果——回傳三筆全是 <code>KeywordScore = 0.333</code> 的雜訊，命中率 1.0 的目標 chunk 完全不在結果中。</p>
+<h2 id="設計重點" class="t3">設計重點</h2>
+<ul><li><strong>DB 端排序後才截斷</strong>：新增 <code>BuildKeywordMatchCountExpression</code>，把 <code>terms</code> 展開成 <code>CASE WHEN ChunkText LIKE '%詞%' THEN 1 ELSE 0 END</code> 的加總（結構比照既有 <code>BuildKeywordPredicate</code> 手工組 Expression tree），<code>OrderByDescending</code> 後再 <code>Take(CandidateTopK)</code>。EF Core 於 Sqlite 與 SQL Server 皆可翻譯，無客戶端評估。</li><li><strong>決定性 tie-break</strong>：<code>.ThenBy(x =&gt; x.Id)</code>。同分 chunk 大量存在時，避免候選集隨 DB 回傳順序漂移導致相同查詢回不同結果。</li><li><strong>分數語意不變</strong>：DB 端排序鍵僅用於「挑哪些進候選集」，屬近似排名（LIKE 的大小寫／定序語意隨資料庫而異）。最終 <code>KeywordScore = 命中詞數 / 總詞數</code> 仍以記憶體端 <code>OrdinalIgnoreCase</code> 重算，跨兩套 DB 一致。<strong><code>MinScore</code>／<code>RejectThreshold</code>／<code>LowConfidenceThreshold</code> 的既有校準基準因此不受影響。</strong></li></ul>
+<h2 id="變更內容" class="t4">變更內容</h2>
+<ul><li><strong>檢索服務</strong>（<code>KnowledgeExtraction.Business/Services/Embeddings/RetrievalService.cs</code>）：<code>SearchKeywordAsync</code> 改為排序後截斷；新增私有 <code>BuildKeywordMatchCountExpression</code>；類別註解補說明；<code>LogDebug</code> 補 <code>CandidateTopK</code> 以利 <code>/rag-diagnostics</code> 排查。</li><li><strong>測試</strong>（<code>RetrievalServiceTests</code>）：新增 <code>KeywordPath_HighMatchChunk_SurvivesCandidateTruncation</code>（先紅後綠，紅燈原因確認為目標 chunk 未進候選集）與 <code>KeywordPath_CandidateSelection_IsDeterministic</code>。全套 570 個測試綠燈。</li><li>無模型變更，<strong>不需 migration</strong>。</li></ul>
+<h2 id="影響與後續" class="t5">影響與後續</h2>
+<ul><li>本次修正<strong>改變了召回基準</strong>。<a href="../../docs/architecture/rag-rerank-analysis.html">RAG rerank 是否導入分析</a> 的觸發條件 2（「召回夠、排序差」）在修正前無法成立，該評測應於 1.0.16 之後重跑，勿沿用舊數據下結論。</li><li><code>CandidateTopK</code> 預設值維持 50 未動——排序修好後候選品質已提升，是否需調高待評測數據再定。</li><li>未處理（各自獨立、應分開評估）：融合分數的量綱正規化／RRF、<code>MinScore</code> 預設 <code>0.0</code> 使逐筆過濾形同虛設、<code>DualDbVectorStore</code> 全表載入算 cosine（無 ANN）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#問題">問題</a><a class="l2" href="#設計重點">設計重點</a><a class="l2" href="#變更內容">變更內容</a><a class="l2" href="#影響與後續">影響與後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-19-關鍵字候選集截斷修正.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

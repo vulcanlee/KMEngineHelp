@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 聊天紀錄＋滿意度回饋＋首頁滿意度統計（0.3.28→0.3.29）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>AI 聊天紀錄＋滿意度回饋＋首頁滿意度統計（0.3.28→0.3.29）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-11</li><li>版本：0.3.28 → 0.3.29</li><li>類型：新功能</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>需要保留每一次 AI 聊天「送進大語言模型的提示詞」與「模型回覆」的<strong>全文</strong>，供事後查閱「哪位使用者問了什麼、AI 怎麼回、答得好不好」。決策：全文<strong>存實體檔案、不入資料庫</strong>（目錄可由 <code>appsettings.json</code> 指定、每年一子目錄，比照逐字稿/清洗/Wiki 既有架構）；資料庫只留一筆索引（含提問者身分與滿意度）。並讓提問者對每則答案回饋滿意/不滿意，首頁儀表板顯示最近 30 天滿意度。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="資料層">資料層</h3>
+<ul><li>新增實體 <code>LlmChatLog</code>（<code>AccessDatas/Models/LlmChatLog.cs</code>）：只存中繼資料（<code>CreatedAt</code>/<code>UserAccount</code>/<code>UserName</code>/<code>IsAdmin</code>/<code>Origin</code>/<code>KnowledgeSourceId</code>/<code>KnowledgeSourceTitle</code>/<code>Confidence</code>/<code>TopScore</code>/<code>WasBlocked</code>/<code>RelativePath</code>/<code>Feedback</code>/<code>FeedbackAt</code>），<strong>不存</strong>提問與回覆本文。<code>BackendDBContext</code> 加 <code>DbSet</code> 與 <code>CreatedAt</code> 索引。</li><li>雙 provider migration <code>AddLlmChatLog</code>（Sqlite 於 <code>AccessDatas</code>；SqlServer 於 <code>AccessDatas.SqlServerMigrations</code>）。</li></ul>
+<h3 id="商業層">商業層</h3>
+<ul><li>新增 <code>ChatLogService</code>（<code>Business/Services/DataAccess/</code>）：<code>WriteAsync</code>（全文寫 <code>ExternalFileSystem.ChatLogPath</code> 下 <code>{yyyy}/{guid}.md</code>、<code>UTF8Encoding(false)</code>，DB 寫索引列）、<code>SetFeedbackAsync</code>、<code>QueryAsync</code>（分頁/篩選）、<code>ReadContentAsync</code>（讀檔顯示）。記錄失敗一律 try/catch 隔離、不中斷聊天。</li><li><code>DashboardService</code> 加最近 30 天全站滿意/不滿意計數（<code>DashboardViewModel.ChatSatisfaction</code>）。</li></ul>
+<h3 id="ui-層">UI 層</h3>
+<ul><li>知識庫問答與知識來源 AI 對話兩個 View 於每輪答完（<code>finally</code>）呼叫 <code>ChatLogService.WriteAsync</code>（含「查無依據」未送 LLM 也記一筆），並以訊息實例為鍵記下 <code>logId</code>。</li><li>新共用元件 <code>ChatFeedbackBar</code>（👍滿意/👎不滿意，可改可取消）掛在每則答案下方 → <code>SetFeedbackAsync</code>。</li><li>新增管理員專用頁 <code>/chat-logs</code>（<code>Components/Pages/ChatLogs</code> + <code>Views/ChatLogs</code>）：<code>CheckIsAdmin()</code> 把關、篩選（使用者/日期/來源/滿意度）、分頁表、「查看全文」Modal。<code>Menu.json</code> 系統管理群組加 id 47（<code>adminOnly</code>，不進權限樹）。</li><li>首頁儀表板新增「最近 30 天 AI 回答滿意度」區塊。</li></ul>
+<h3 id="設定">設定</h3>
+<ul><li><code>ExternalFileSystem</code> 新增 <code>ChatLogPath</code>；<code>appsettings.json</code> 加預設值 <code>C:\temp\KnowledgeExtraction\ChatLog</code>。</li></ul>
+<h2 id="範圍決策誠實記錄" class="t3">範圍決策（誠實記錄）</h2>
+<ul><li>全文<strong>刻意保留於檔案</strong>（與 SEC-5 稽核 <code>KnowledgeBaseQueryAudit</code> 只存長度/分數不同）；以管理員專用查閱＋可設定目錄控管，屬明確需求。</li><li>聊天紀錄<strong>無保留/清理策略</strong>（每輪一檔、持續成長）；本次不做自動清理，需管理員監控磁碟。</li><li>滿意度存 DB（可改可取消、只留最後一次），全文檔案保持不可變、不因回饋而改寫。</li><li>儀表板滿意度為<strong>全站彙總</strong>、不套團隊權控（純數字、不含內容）。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li><code>appsettings.json</code> SystemVersion 0.3.28 → 0.3.29。</li><li>文件：<code>docs/guides/新手完整操作指南.md</code>（1.4→1.5，新增 §14.6、7.6 回饋/隱私、3.2/3.4/摘要儀表板、19.6 FAQ、名詞表）、<code>docs/architecture/開發慣例與限制速查.md</code>、<code>docs/architecture/資料模型與資料庫.md</code>、<code>docs/guides/EFCore.md</code>、<code>docs/operations/日誌與設定檔說明.md</code>、<code>docs/operations/容量邊界與限制.md</code>、<code>docs/guides/系統總覽與使用導覽.md</code>、<code>docs/guides/完整操作手冊.md</code>（僅補這頁；該檔另有整體過期待後續刷新）、<code>docs/README.md</code>、<code>docs/guides/README.md</code>。</li><li>隱私敘述交叉釐清：<code>docs/operations/RAG問題診斷手冊.md</code>、<code>docs/planning/12-RAG系統補強總彙整與優先序.md</code>。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li>乾淨建置 0 錯誤；雙 provider migration <code>AddLlmChatLog</code> 產生成功（僅建 <code>LlmChatLog</code> 表＋<code>CreatedAt</code> 索引）。</li><li>App 於 Development 啟動、自動套用 migration，確認 SQLite 已建 <code>LlmChatLog</code> 表與 <code>IX_LlmChatLog_CreatedAt</code>。</li><li>手動：知識庫問答/來源對話各問一題 → <code>ChatLogPath\{年}\</code> 產生 <code>.md</code>（含提示詞與回覆）、DB 有對應列；👍/👎 可切換與取消；管理員開 <code>/chat-logs</code> 可篩選/分頁/查看全文，非管理員被擋；首頁顯示近 30 天滿意度。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#資料層">資料層</a><a class="l3" href="#商業層">商業層</a><a class="l3" href="#ui-層">UI 層</a><a class="l3" href="#設定">設定</a><a class="l2" href="#範圍決策誠實記錄">範圍決策（誠實記錄）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-11-AI聊天紀錄與滿意度回饋.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

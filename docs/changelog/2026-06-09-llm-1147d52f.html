@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</h1></header><div class="docwrap"><main><h2 id="摘要" class="t1">摘要</h2>
+<p>音訊轉錄頁針對「已完成」紀錄，新增「依提示詞透過 LLM 產生內容」功能：選取（並可調整）提示詞清單中的提示詞，將「提示詞 + 三個換行 + 逐字稿」送往 OpenAI 聊天模型，結果保存於該筆紀錄並可檢視、複製到剪貼簿。系統版本 0.2.43 → 0.2.44。</p>
+<h2 id="異動內容" class="t2">異動內容</h2>
+<ul><li><strong>設定</strong>：<code>OpenAISettings</code> 新增 <code>GenerationModel</code>（預設 <code>gpt-5.4</code>）與 <code>GenerationTimeoutSeconds</code>（預設 120）；共用既有 <code>ApiKey</code>／<code>BaseUrl</code>。<code>appsettings.json</code> 同步新增。</li><li><strong>資料模型</strong>：<code>MediaTranscription</code> 新增 <code>GeneratedContent</code>、<code>GeneratedAt</code> 欄位（雙 provider migration <code>AddGeneratedContentToMediaTranscription</code>）；<code>MediaTranscriptionAdapterModel</code> 對應新增欄位與唯讀 <code>HasGeneratedContent</code>。</li><li><strong>聊天用戶端</strong> <code>OpenAIChatCompletionClient</code>：呼叫 <code>chat/completions</code>（Bearer、最小請求欄位），靜態 <code>BuildRequestBody</code>／<code>ParseContent</code> 便於測試。<code>AddHttpClient&lt;OpenAIChatCompletionClient&gt;</code>（逾時取 <code>GenerationTimeoutSeconds</code>）。</li><li><strong>產生服務</strong> <code>LlmGenerationService</code>：<code>ComposePrompt</code>（三換行規則）＋ <code>GenerateAsync</code>（呼叫 LLM 並寫回結果）；僅依賴 DbContext 與聊天用戶端，可於背景獨立 DI scope 安全執行。<code>AddScoped&lt;LlmGenerationService&gt;()</code>。</li><li><strong>提示詞下拉</strong>：<code>PromptService</code> 新增 <code>GetAllEnabledAsync()</code>（啟用中、依名稱排序、含本文）。</li><li><strong>UI</strong>：<code>MediaTranscriptionView</code> 操作區新增「依提示詞產生」（✨）與「檢視產生結果」（📑）圖示；產生對話窗（單選可搜尋下拉 + 多行文字盒）、結果對話窗（唯讀 + 複製到剪貼簿，<code>IJSRuntime</code> 介接 <code>navigator.clipboard.writeText</code>）。背景產生：對話窗即時關閉並提示，完成後自動刷新讓檢視圖示出現；逐字稿讀取在 UI 執行緒（含團隊權控）先取得後再丟背景。</li><li><strong>測試</strong>：新增 <code>LlmGenerationServiceTests</code>（三換行）、<code>OpenAIChatCompletionClientTests</code>（請求／回應解析），<code>PromptServiceTests</code> 新增 <code>GetAllEnabledAsync</code> 測試。全套 132 個測試綠燈。</li><li><strong>文件</strong>：更新資料模型、設定檔說明、EFCore migration 清單、README 索引；新增本功能 PRD。</li></ul>
+<h2 id="範圍外未來延伸" class="t3">範圍外（未來延伸）</h2>
+<ul><li>產生歷史保留與比較；過長逐字稿自動分段／摘要；將結果一鍵建立為會議紀錄／工作項目；提示詞變數樣板。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li><li><a href="../../docs/changelog/2026-06-11-qa2-b3079fb4.html">清洗 QA-2：LLM 自評信心分數 + 自動門檻（0.2.62）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#異動內容">異動內容</a><a class="l2" href="#範圍外未來延伸">範圍外（未來延伸）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-09-逐字稿LLM產生.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

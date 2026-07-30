@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>企業應用情境型錄｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 策略與規劃</p><header class="hero"><div class="kicker">策略與規劃</div><h1>企業應用情境型錄</h1><p class="sub">盤點以本平台為基底可衍生的企業應用情境，作為未來開發的參考藍圖</p></header><div class="docwrap"><main><ul><li>文件用途：盤點以本平台為基底可衍生的企業應用情境，作為未來開發的參考藍圖</li><li>主要讀者：產品與開發團隊、決策層、業務與通路夥伴</li><li>文件版本：1.0</li><li>建立日期：2026/06/16</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>本文延伸 <a href="../../docs/strategy/scope-and-vision.html">01-計畫範圍與遠景</a> 第四階段「附加應用」，並承接 <a href="../../docs/strategy/business-value.html">02-商業價值與行銷策略</a> 的痛點與 ROI 框架；架構能力對應見 <a href="../../docs/strategy/architecture-research.html">03-知識庫架構研究與建議</a>、近期可做與否見 <a href="../../docs/strategy/dev-roadmap.html">04-開發建議與路線圖</a>。</p></blockquote>
+<hr>
+<h2 id="一定位基底平台--蒸餾能力包" class="t1">一、定位：基底平台 + 蒸餾能力包</h2>
+<p>KnowledgeExtraction.AI 不只是「匯入、清洗、查詢」的知識庫，而是一個<strong>衍生子應用的基底平台</strong>：在同一套「匯入 → 清洗 → 蒸餾 → 知識庫」閉環上，使用者選取相關素材（會議錄音、文件、錄影、圖片、工單等），即可<strong>蒸餾出針對特定任務的「能力包」</strong>，再各自包裝成部門可用的子應用。</p>
+<pre><code>匯入素材  →  清洗/蒸餾  →  能力包  →  子應用（按部門/任務）
+(會議/文件/影音/圖片)  (去蕪存菁、結構化)  (Skill/SOP/考題…)   (審圖助理/SOP查詢/線上考試…)</code></pre>
+<p>本型錄即是這個衍生模式的「目錄」：列出橫跨各部門、能解企業痛點、有商業價值的應用情境，供日後逐一展開為 PRD 與開發。</p>
+<hr>
+<h2 id="二共通蒸餾能力包類型" class="t2">二、共通蒸餾能力包類型</h2>
+<p>各情境的「蒸餾產出」皆歸屬於以下六類能力包之一或組合，作為全型錄共用詞彙：</p>
+<div class="tw"><table><thead><tr><th>代號</th><th>能力包類型</th><th>說明</th></tr></thead><tbody><tr><td>①</td><td><strong>AI Agent 審查/判讀技能</strong></td><td>把判讀依據（規範、尺寸、公差、準則）蒸餾成可被 Agent 引用的結構化規則，對新標的自動審查/判讀並給出依據。</td></tr><tr><td>②</td><td><strong>SOP / 作業指引</strong></td><td>把老手操作、口述、現有文件蒸餾成標準作業程序，可查詢、可維護、可版本化。</td></tr><tr><td>③</td><td><strong>考題與線上考試</strong></td><td>從教材/SOP 蒸餾出考題，員工於系統內作答，評估學習與理解程度。</td></tr><tr><td>④</td><td><strong>知識問答助理</strong></td><td>對特定主題的自然語言問答，回答帶出處、受權控。</td></tr><tr><td>⑤</td><td><strong>稽核 / 檢查 checklist</strong></td><td>從歷史稽核、不符合事項蒸餾出檢查清單與改善追蹤。</td></tr><tr><td>⑥</td><td><strong>摘要 / 決議追蹤</strong></td><td>從會議或長文件蒸餾摘要、決議、待辦並追蹤完成。</td></tr></tbody></table></div>
+<blockquote><p>「平台對應」欄位標明各情境<strong>可重用的既有能力</strong>與<strong>待補缺口</strong>，使本型錄同時是開發優先序的輸入。既有能力包含：音訊/影片轉錄、文件轉文字(MarkItDown→Markdown)、圖片視覺解讀、提示詞驅動 LLM 生成、知識來源管理、清洗管線(QA-1..QA-4)、知識頁審核、向量庫/混合檢索/問答 RAG(含 Query Rewrite 與 檢索品質評測)、團隊層權控與 Category/Team 標籤（檢索層即過濾）。共通待補缺口：AI Agent 自動化工作流、能力包(Skill)結構化 schema 與匯出。</p></blockquote>
+<hr>
+<h2 id="三依部門分組的應用情境" class="t3">三、依部門分組的應用情境</h2>
+<h3 id="研發--設計">研發 / 設計</h3>
+<h4 id="1-機構設計圖審圖技能圖學--尺寸--公差">1. 機構設計圖審圖技能（圖學 / 尺寸 / 公差）</h4>
+<ul><li><strong>部門 / 角色</strong>：研發、機構設計、設計審查委員。</li><li><strong>痛點</strong>：審圖依賴少數資深工程師，依據散落在規範、會議與個人經驗中；新人審圖品質不一、易漏判。</li><li><strong>輸入來源</strong>：設計規範文件、審圖會議錄音/錄影、歷史圖檔與標註圖片、公差/GD&amp;T 標準。</li><li><strong>蒸餾產出</strong>：① Agent 審圖技能——把圖學、尺寸標註、公差準則蒸餾成結構化規則庫，對新圖自動比對並列出疑慮與依據出處。</li><li><strong>商業價值</strong>：縮短審圖時間、降低漏判與後段試產報廢；把資深審圖能力沉澱為可複用資產。</li><li><strong>平台對應</strong>：可重用圖片視覺解讀、文件轉文字、影音轉錄、提示詞生成；待補圖學/GD&amp;T 專用解析、能力包 schema、Agent 比對工作流。</li></ul>
+<h4 id="2-設計變更影響分析知識庫">2. 設計變更影響分析知識庫</h4>
+<ul><li><strong>部門 / 角色</strong>：研發、PM、生管。</li><li><strong>痛點</strong>：一個 ECN（工程變更）牽動多個零件、文件、供應商，影響面靠人工追，常有遺漏。</li><li><strong>輸入來源</strong>：ECN/變更紀錄、BOM、設計會議、規格文件。</li><li><strong>蒸餾產出</strong>：④ 問答助理——「這個變更會影響哪些零件/文件/供應商？」帶出處回答。</li><li><strong>商業價值</strong>：降低變更遺漏造成的重工與停線風險，加速變更評估。</li><li><strong>平台對應</strong>：可重用文件轉文字、清洗分類、向量檢索、權控檢索 API；關聯查詢／知識圖譜已於 1.0.83～1.0.90 實作（<code>GraphNode</code>/<code>GraphTriple</code> 三元組＋人工審核＋圖檢索融合＋<strong>多跳遍歷（預設 2 跳、上限 3）</strong>，見 <a href="../../docs/strategy/graph-rag-blueprint.html">Graph RAG 藍圖</a>）。</li></ul>
+<h4 id="3-失效案例庫fmea--8d">3. 失效案例庫（FMEA / 8D）</h4>
+<ul><li><strong>部門 / 角色</strong>：研發、品保、可靠度工程。</li><li><strong>痛點</strong>：歷史故障與失效教訓分散在報告與客訴中，設計時難以即時參考，重蹈覆轍。</li><li><strong>輸入來源</strong>：故障報告、8D/FMEA 文件、客訴紀錄、實驗紀錄。</li><li><strong>蒸餾產出</strong>：①+④ 蒸餾失效模式知識，設計階段以問答或主動提醒方式提供「類似設計曾發生的失效」。</li><li><strong>商業價值</strong>：把失敗教訓資產化，降低重複性失效與保固成本。</li><li><strong>平台對應</strong>：可重用清洗摘要/分類、向量檢索；待補主動提醒工作流。</li></ul>
+<h4 id="4-工程規範--標準查詢助理">4. 工程規範 / 標準查詢助理</h4>
+<ul><li><strong>部門 / 角色</strong>：研發、品保、全工程單位。</li><li><strong>痛點</strong>：ISO/IEC/GB 與公司內規數量龐大、版本更迭，查找與確認適用條款費時。</li><li><strong>輸入來源</strong>：國際/國家標準、公司規範、技術手冊。</li><li><strong>蒸餾產出</strong>：④ 問答助理，回答帶條款出處與版本。</li><li><strong>商業價值</strong>：縮短查標準時間、降低引用過期條款的合規風險。</li><li><strong>平台對應</strong>：可重用文件轉文字、清洗、向量檢索；待補版本追蹤。</li></ul>
+<h3 id="製造--生產">製造 / 生產</h3>
+<h4 id="5-產線-sop-自動產生與維護">5. 產線 SOP 自動產生與維護</h4>
+<ul><li><strong>部門 / 角色</strong>：製造、製程工程、現場領班。</li><li><strong>痛點</strong>：SOP 撰寫與更新仰賴人工、常落後於實際做法；老師傅做法未文件化。</li><li><strong>輸入來源</strong>：老師傅操作錄影、口述錄音、現有作業指引、製程文件。</li><li><strong>蒸餾產出</strong>：② SOP/作業指引——由影音與文件蒸餾成標準步驟，含關鍵參數與注意事項，可審核後發布。</li><li><strong>商業價值</strong>：降低 SOP 撰寫工時、提升一致性、加速新人上手。</li><li><strong>平台對應</strong>：可重用影音轉錄、圖片解讀、清洗摘要、內容線上編修；待補 SOP 結構化模板與版本管理。</li></ul>
+<h4 id="6-設備保養與故障排除助理">6. 設備保養與故障排除助理</h4>
+<ul><li><strong>部門 / 角色</strong>：設備保養、產線技師。</li><li><strong>痛點</strong>：故障排除靠少數老技師經驗，夜班/假日無人可問，停機損失大。</li><li><strong>輸入來源</strong>：維修工單、設備手冊、技師口述/錄影、故障代碼表。</li><li><strong>蒸餾產出</strong>：④+② 故障排除問答助理 + 保養 SOP，依症狀給出處置步驟與依據。</li><li><strong>商業價值</strong>：縮短 MTTR（平均修復時間）、降低非計畫停機。</li><li><strong>平台對應</strong>：可重用文件轉文字、影音轉錄、清洗、向量檢索；待補症狀→處置對應。</li></ul>
+<h4 id="7-製程參數最佳化知識庫">7. 製程參數最佳化知識庫</h4>
+<ul><li><strong>部門 / 角色</strong>：製程工程、生產技術。</li><li><strong>痛點</strong>：試模/調機的最佳參數分散在個人筆記，新案重頭試錯、良率不穩。</li><li><strong>輸入來源</strong>：試模/調機紀錄、製程報告、品質數據附註。</li><li><strong>蒸餾產出</strong>：④ 問答助理——「類似料件/模具的建議起始參數」帶出處。</li><li><strong>商業價值</strong>：縮短試模時間、提升良率、減少材料浪費。</li><li><strong>平台對應</strong>：可重用文件轉文字、清洗分類、向量檢索；待補結構化參數抽取。</li></ul>
+<h3 id="品保--品管">品保 / 品管</h3>
+<h4 id="8-檢驗標準與允收準則查詢助理">8. 檢驗標準與允收準則查詢助理</h4>
+<ul><li><strong>部門 / 角色</strong>：品管、進料檢驗（IQC）、製程檢驗（IPQC）。</li><li><strong>痛點</strong>：檢驗規範與允收準則版本多、品項雜，現場查找慢、易用錯版本。</li><li><strong>輸入來源</strong>：檢驗規範、允收水準(AQL)表、客戶特採紀錄。</li><li><strong>蒸餾產出</strong>：④ 問答助理，回答帶準則出處與版本。</li><li><strong>商業價值</strong>：降低誤判與客訴、加速現場判定。</li><li><strong>平台對應</strong>：可重用文件轉文字、清洗、向量檢索；待補版本控管。</li></ul>
+<h4 id="9-稽核準備助理checklist--改善追蹤">9. 稽核準備助理（checklist + 改善追蹤）</h4>
+<ul><li><strong>部門 / 角色</strong>：品保、稽核、ISO 管理代表。</li><li><strong>痛點</strong>：每次稽核重新整理 checklist、歷次缺失改善追蹤不連續。</li><li><strong>輸入來源</strong>：歷次稽核報告、不符合事項(NCR)、標準條文。</li><li><strong>蒸餾產出</strong>：⑤ 稽核 checklist + 改善追蹤，自動彙整高風險查核點。</li><li><strong>商業價值</strong>：降低稽核準備工時、提升通過率與改善閉環。</li><li><strong>平台對應</strong>：可重用清洗摘要/分類、向量檢索；待補追蹤工作流。</li></ul>
+<h4 id="10-客訴根因分析知識庫">10. 客訴根因分析知識庫</h4>
+<ul><li><strong>部門 / 角色</strong>：品保、客服、研發。</li><li><strong>痛點</strong>：客訴根因與對策散落，類似問題反覆發生、回覆品質不一。</li><li><strong>輸入來源</strong>：客訴單、8D 報告、退貨分析、客服通話錄音。</li><li><strong>蒸餾產出</strong>：④ 問答助理——查「類似客訴的根因與對策」。</li><li><strong>商業價值</strong>：縮短客訴回應時間、降低重複客訴。</li><li><strong>平台對應</strong>：可重用影音轉錄、文件轉文字、清洗、向量檢索/問答；核心能力已具備，可直接落地。</li></ul>
+<h3 id="人資--教育訓練">人資 / 教育訓練</h3>
+<h4 id="11-員工考核出題與線上考試">11. 員工考核出題與線上考試</h4>
+<ul><li><strong>部門 / 角色</strong>：人資、教育訓練、各部門主管。</li><li><strong>痛點</strong>：難以客觀評估員工對教材/SOP 的學習與理解程度；人工出題與閱卷成本高。</li><li><strong>輸入來源</strong>：教育訓練教材、SOP、規範文件、專家演講逐字稿。</li><li><strong>蒸餾產出</strong>：③ 考題與線上考試——由教材蒸餾出題庫（選擇/問答），員工於系統內作答、自動評分，產出個人/群體掌握度報告。</li><li><strong>商業價值</strong>：量化學習成效、找出知識盲區、滿足培訓稽核需求。</li><li><strong>平台對應</strong>：可重用文件轉文字、影音轉錄、提示詞生成、團隊權控；待補出題 schema、線上作答/評分模組、成績資料模型。</li></ul>
+<h4 id="12-新人-onboarding-知識助理與學習地圖">12. 新人 onboarding 知識助理與學習地圖</h4>
+<ul><li><strong>部門 / 角色</strong>：人資、用人主管、新進人員。</li><li><strong>痛點</strong>：新人入職問題重複問人、無系統化學習路徑，上手慢。</li><li><strong>輸入來源</strong>：部門文件、SOP、歷史 Q&amp;A、教育訓練教材。</li><li><strong>蒸餾產出</strong>：④+③ 部門問答助理 + 依角色產生的學習地圖與階段測驗。</li><li><strong>商業價值</strong>：縮短新人上手天數、降低資深人員被打斷的時間。</li><li><strong>平台對應</strong>：可重用文件轉文字、清洗、團隊權控、向量檢索；待補學習路徑編排。</li></ul>
+<h4 id="13-教育訓練教材自動產生">13. 教育訓練教材自動產生</h4>
+<ul><li><strong>部門 / 角色</strong>：教育訓練、知識管理。</li><li><strong>痛點</strong>：把專家演講/會議轉成可用教材費時，知識難以規模化傳播。</li><li><strong>輸入來源</strong>：專家演講錄影/錄音、簡報、技術文件。</li><li><strong>蒸餾產出</strong>：②/⑥ 由影音蒸餾出課程大綱、講義與重點摘要（可再線上編修）。</li><li><strong>商業價值</strong>：降低教材製作成本、加速知識擴散。</li><li><strong>平台對應</strong>：可重用影音轉錄、提示詞生成、內容線上編修；待補教材結構化模板。</li></ul>
+<h4 id="14-職能--技能矩陣盤點">14. 職能 / 技能矩陣盤點</h4>
+<ul><li><strong>部門 / 角色</strong>：人資、部門主管。</li><li><strong>痛點</strong>：技能矩陣靠主管主觀填寫、缺客觀依據，培訓資源分配不準。</li><li><strong>輸入來源</strong>：線上考試結果（情境 11）、職務職能定義。</li><li><strong>蒸餾產出</strong>：⑥ 依考試掌握度彙整技能矩陣與個人/團隊培訓建議。</li><li><strong>商業價值</strong>：培訓資源精準投放、量化能力缺口。</li><li><strong>平台對應</strong>：依賴情境 11 的成績資料；待補職能矩陣彙整與報表。</li></ul>
+<h3 id="業務--行銷">業務 / 行銷</h3>
+<h4 id="15-銷售知識助理產品-faq--報價邏輯--競品比較">15. 銷售知識助理（產品 FAQ / 報價邏輯 / 競品比較）</h4>
+<ul><li><strong>部門 / 角色</strong>：業務、售前。</li><li><strong>痛點</strong>：產品/報價/競品資訊散落，業務回客戶慢、新人不熟。</li><li><strong>輸入來源</strong>：產品文件、報價規則、成交案例、競品資料。</li><li><strong>蒸餾產出</strong>：④ 問答助理，帶出處回答產品與報價問題。</li><li><strong>商業價值</strong>：縮短回應客戶時間、提升成交一致性與新人戰力。</li><li><strong>平台對應</strong>：可重用文件轉文字、清洗、團隊權控、向量檢索/問答；核心能力已具備，可直接落地。</li></ul>
+<h4 id="16-提案--標書產生助理">16. 提案 / 標書產生助理</h4>
+<ul><li><strong>部門 / 角色</strong>：業務、售前、投標。</li><li><strong>痛點</strong>：每次提案/標書從零拼湊歷史內容，耗時且品質不穩。</li><li><strong>輸入來源</strong>：歷史提案/標書、客戶需求文件、產品規格。</li><li><strong>蒸餾產出</strong>：⑥ 依客戶需求檢索歷史素材，產生客製提案草稿（再人工潤飾）。</li><li><strong>商業價值</strong>：縮短提案產出時間、提高得標率。</li><li><strong>平台對應</strong>：可重用文件轉文字、提示詞生成、內容線上編修、向量檢索；待補模板組裝。</li></ul>
+<h4 id="17-競品與市場情報知識庫">17. 競品與市場情報知識庫</h4>
+<ul><li><strong>部門 / 角色</strong>：行銷、產品、策略。</li><li><strong>痛點</strong>：競品與市場資訊蒐集零散、難以累積與比較。</li><li><strong>輸入來源</strong>：市場報告、新聞、競品官網、展會會議錄音。</li><li><strong>蒸餾產出</strong>：④+⑥ 情報問答 + 定期競品比較摘要。</li><li><strong>商業價值</strong>：加速市場洞察、支持產品與定價決策。</li><li><strong>平台對應</strong>：可重用影音轉錄、文件轉文字、清洗、向量檢索；待補來源更新追蹤。</li></ul>
+<h3 id="客服--客戶成功">客服 / 客戶成功</h3>
+<h4 id="18-客服問答機器人帶出處">18. 客服問答機器人（帶出處）</h4>
+<ul><li><strong>部門 / 角色</strong>：客服、客戶成功。</li><li><strong>痛點</strong>：客服查手冊/歷史工單慢、回覆品質依人而異。</li><li><strong>輸入來源</strong>：產品手冊、FAQ、歷史工單、知識庫文章。</li><li><strong>蒸餾產出</strong>：④ 問答助理，回答帶出處，可供客服輔助或對客自助。</li><li><strong>商業價值</strong>：縮短首次回應時間、降低重複問題人力。</li><li><strong>平台對應</strong>：可重用文件轉文字、清洗、團隊權控、向量檢索、問答 UI；核心能力已具備，可直接落地。</li></ul>
+<h4 id="19-客服話術-sop-與服務品質稽核">19. 客服話術 SOP 與服務品質稽核</h4>
+<ul><li><strong>部門 / 角色</strong>：客服主管、品質管理。</li><li><strong>痛點</strong>：最佳話術未沉澱、服務品質抽查靠人工聽錄音、覆蓋率低。</li><li><strong>輸入來源</strong>：客服通話錄音、優良案例、話術指引。</li><li><strong>蒸餾產出</strong>：②+⑤ 蒸餾最佳話術 SOP，並以稽核 checklist 對通話進行品質評分。</li><li><strong>商業價值</strong>：提升服務一致性、擴大品質抽查覆蓋率。</li><li><strong>平台對應</strong>：可重用影音轉錄、清洗摘要；待補話術評分規則、稽核工作流。</li></ul>
+<h3 id="法務--法遵">法務 / 法遵</h3>
+<h4 id="20-合約審查助理">20. 合約審查助理</h4>
+<ul><li><strong>部門 / 角色</strong>：法務、採購、業務。</li><li><strong>痛點</strong>：合約審查仰賴少數法務、條款風險判斷散落經驗中、審查瓶頸。</li><li><strong>輸入來源</strong>：合約範本、標準條款庫、歷史爭議案例。</li><li><strong>蒸餾產出</strong>：①+⑤ 蒸餾審查要點與風險條款規則，對新合約自動比對並標示疑慮條款。</li><li><strong>商業價值</strong>：縮短合約審查時間、降低條款風險遺漏。</li><li><strong>平台對應</strong>：可重用文件轉文字、清洗、敏感遮罩；待補條款規則庫、Agent 比對。</li></ul>
+<h4 id="21-法規遵循查詢與更新影響追蹤">21. 法規遵循查詢與更新影響追蹤</h4>
+<ul><li><strong>部門 / 角色</strong>：法遵、稽核、營運。</li><li><strong>痛點</strong>：法規多且更新頻繁，「新法規影響哪些內規/流程」靠人工判讀、易漏。</li><li><strong>輸入來源</strong>：法規條文、主管機關公告、內部規章。</li><li><strong>蒸餾產出</strong>：④+⑥ 法規問答 + 更新影響追蹤摘要。</li><li><strong>商業價值</strong>：降低違規風險、加速法規調適。</li><li><strong>平台對應</strong>：可重用文件轉文字、清洗、向量檢索；待補更新偵測與追蹤。</li></ul>
+<h3 id="財務--採購">財務 / 採購</h3>
+<h4 id="22-採購知識助理供應商評鑑--議價歷史">22. 採購知識助理（供應商評鑑 / 議價歷史）</h4>
+<ul><li><strong>部門 / 角色</strong>：採購、供應鏈。</li><li><strong>痛點</strong>：供應商評鑑、議價與履約歷史散落，採購決策缺整合視角。</li><li><strong>輸入來源</strong>：供應商評鑑報告、議價/合約紀錄、到貨品質紀錄。</li><li><strong>蒸餾產出</strong>：④ 問答助理——查供應商歷史表現與議價參考。</li><li><strong>商業價值</strong>：提升採購議價力與供應商風險辨識。</li><li><strong>平台對應</strong>：可重用文件轉文字、清洗、權控、向量檢索；待補結構化指標抽取。</li></ul>
+<h4 id="23-財務政策與費用報銷規則問答助理">23. 財務政策與費用報銷規則問答助理</h4>
+<ul><li><strong>部門 / 角色</strong>：財務、全體員工。</li><li><strong>痛點</strong>：報銷/差旅/採購規則複雜，員工反覆詢問財務、退件多。</li><li><strong>輸入來源</strong>：財務政策、報銷規範、常見問答。</li><li><strong>蒸餾產出</strong>：④ 問答助理，帶規則出處回答「這筆能不能報、怎麼報」。</li><li><strong>商業價值</strong>：降低財務重複諮詢工時、減少報銷退件。</li><li><strong>平台對應</strong>：可重用文件轉文字、清洗、向量檢索、問答 UI；核心能力已具備，可直接落地。</li></ul>
+<h3 id="it--資安">IT / 資安</h3>
+<h4 id="24-it-故障排除與內部系統操作助理">24. IT 故障排除與內部系統操作助理</h4>
+<ul><li><strong>部門 / 角色</strong>：IT 支援、全體員工。</li><li><strong>痛點</strong>：IT 重複處理相同問題、操作手冊查找慢、知識依附特定工程師。</li><li><strong>輸入來源</strong>：IT 工單、操作手冊、內部系統文件、FAQ。</li><li><strong>蒸餾產出</strong>：④+② 故障排除問答 + 操作 SOP。</li><li><strong>商業價值</strong>：降低 IT 重複工單、提升員工自助解決率。</li><li><strong>平台對應</strong>：可重用文件轉文字、清洗、向量檢索、問答 UI；核心能力已具備，可直接落地。</li></ul>
+<h4 id="25-資安政策與事件應變-sop-查詢">25. 資安政策與事件應變 SOP 查詢</h4>
+<ul><li><strong>部門 / 角色</strong>：資安、IT、稽核。</li><li><strong>痛點</strong>：資安政策與事件應變程序需快速取用，事發時翻文件耗時。</li><li><strong>輸入來源</strong>：資安政策、事件應變手冊(IRP)、合規要求。</li><li><strong>蒸餾產出</strong>：②+④ 應變 SOP 查詢助理，依事件類型給出處置步驟。</li><li><strong>商業價值</strong>：縮短事件應變時間、提升合規一致性。</li><li><strong>平台對應</strong>：可重用文件轉文字、清洗、敏感遮罩、權控、向量檢索/問答；核心能力已具備，可直接落地。</li></ul>
+<h3 id="經營管理--知識傳承">經營管理 / 知識傳承</h3>
+<h4 id="26-會議決議追蹤助理">26. 會議決議追蹤助理</h4>
+<ul><li><strong>部門 / 角色</strong>：各級主管、PMO、秘書。</li><li><strong>痛點</strong>：會議多但決議與待辦追蹤不完整，常有「會開了沒下文」。</li><li><strong>輸入來源</strong>：會議錄音/錄影、會議管理。</li><li><strong>蒸餾產出</strong>：⑥ 由錄音蒸餾決議、待辦與負責人，並追蹤完成狀態。</li><li><strong>商業價值</strong>：提升會議產出落實率、降低人工整理工時。</li><li><strong>平台對應</strong>：可重用影音轉錄、清洗摘要；待補待辦追蹤工作流、Agent 提醒。</li></ul>
+<h4 id="27-退休專家知識傳承--數位分身">27. 退休專家知識傳承 / 數位分身</h4>
+<ul><li><strong>部門 / 角色</strong>：經營層、人資、各專業部門。</li><li><strong>痛點</strong>：關鍵老手退休/離職，知識斷層、新人接不起來（呼應 [02] 的「傳承」楔子）。</li><li><strong>輸入來源</strong>：專家訪談錄音/錄影、過往文件、案例與口述經驗。</li><li><strong>蒸餾產出</strong>：①+④ 把專家知識頁審核成可問答的「數位分身」與判讀技能。</li><li><strong>商業價值</strong>：降低人員異動造成的知識斷層與重工，保全關鍵能力。</li><li><strong>平台對應</strong>：可重用影音轉錄、清洗蒸餾、提示詞生成、權控、向量檢索；待補 Agent 工作流。</li></ul>
+<h4 id="28-經營決策知識彙整">28. 經營決策知識彙整</h4>
+<ul><li><strong>部門 / 角色</strong>：經營層、策略、營運。</li><li><strong>痛點</strong>：決策所需背景資料跨部門分散，蒐集慢、難追溯。</li><li><strong>輸入來源</strong>：營運報告、會議、市場與財務資料。</li><li><strong>蒸餾產出</strong>：⑥+④ 跨來源彙整營運知識，提供帶出處的決策背景問答。</li><li><strong>商業價值</strong>：加速決策、提升決策有據性與品質。</li><li><strong>平台對應</strong>：可重用文件轉文字、影音轉錄、清洗、向量檢索、跨來源彙整、權控檢索；核心能力已具備，可直接落地。</li></ul>
+<hr>
+<h2 id="四優先導入建議" class="t4">四、優先導入建議</h2>
+<ul><li><strong>先做能驗證價值、又能複用平台既有能力的情境</strong>：建議從 1–2 個高頻、ROI 易量化者切入作為燈塔案例（呼應 <a href="../../docs/strategy/business-value.html">02 §二 ROI 框架</a>）。候選：<strong>會議決議追蹤（26）</strong>、<strong>SOP 自動產生（5）</strong>、<strong>各類問答助理（4/8/23）</strong>——多半只待「向量庫＋權控檢索＋問答 UI」這一組共通能力到位即可端到端。</li><li><strong>使用者已點名的旗艦情境</strong>：審圖技能（1）、SOP 產生（5）、員工線上考試（11）——可作為「Agent 判讀技能 / SOP / 考試」三條能力包的代表性 PoC，分別驗證 ①②③ 三類產出。</li><li><strong>依賴知識庫階段者</strong>（多數問答/檢索情境）排在 <a href="../../docs/strategy/dev-roadmap.html">04 路線圖</a> 的「建立知識庫」之後；<strong>依賴 Agent 工作流者</strong>（審圖比對、決議追蹤、合約比對）排在 Agent 雛形之後。</li></ul>
+<h2 id="五後續" class="t5">五、後續</h2>
+<ul><li>每個情境可各自展開為 <code>docs/prd/</code> 的功能 PRD（沿用既有 PRD 慣例），再進入設計與開發。</li><li>共通缺口（向量庫/檢索/問答、Agent 工作流、能力包 schema、考試模組）建議優先補強，因其為多數情境的共同前置。</li><li>本型錄為活文件，隨平台能力演進與市場驗證持續增補情境與調整優先序。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>導入顧問：我要幫客戶規劃知識該怎麼切</li><li>知識庫系統銷售人員：我要判斷這個客戶適不適合</li></ul></div><div class="card"><h3>同類文件（策略與規劃）</h3><ul><li><a href="../../docs/strategy/scope-and-vision.html">計畫範圍與遠景</a></li><li><a href="../../docs/strategy/business-value.html">商業價值與行銷策略</a></li><li><a href="../../docs/strategy/architecture-research.html">知識庫架構研究與建議</a></li><li><a href="../../docs/strategy/dev-roadmap.html">開發建議與路線圖</a></li><li><a href="../../docs/strategy/open-questions-risks.html">待釐清問題與技術風險清單</a></li><li><a href="../../docs/strategy/expected-deliverables.html">期望產出清單</a></li><li><a href="../../docs/strategy/gstack-playbook.html">以 gstack 技能精煉計畫的執行流程（Playbook）</a></li><li><a href="../../docs/strategy/cleaning-stage-design.html">資料清洗階段設計與分析</a></li><li><a href="../../docs/strategy/source-cleaning-value.html">知識來源管理與資料清洗：功能、價值與行銷</a></li><li><a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：功能、欄位、價值與行銷</a></li><li><a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格</a></li><li><a href="../../docs/strategy/market-analysis.html">知識庫產品市場分析與擴展方向</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一定位基底平台--蒸餾能力包">一、定位：基底平台 + 蒸餾能力包</a><a class="l2" href="#二共通蒸餾能力包類型">二、共通蒸餾能力包類型</a><a class="l2" href="#三依部門分組的應用情境">三、依部門分組的應用情境</a><a class="l3" href="#研發--設計">研發 / 設計</a><a class="l3" href="#製造--生產">製造 / 生產</a><a class="l3" href="#品保--品管">品保 / 品管</a><a class="l3" href="#人資--教育訓練">人資 / 教育訓練</a><a class="l3" href="#業務--行銷">業務 / 行銷</a><a class="l3" href="#客服--客戶成功">客服 / 客戶成功</a><a class="l3" href="#法務--法遵">法務 / 法遵</a><a class="l3" href="#財務--採購">財務 / 採購</a><a class="l3" href="#it--資安">IT / 資安</a><a class="l3" href="#經營管理--知識傳承">經營管理 / 知識傳承</a><a class="l2" href="#四優先導入建議">四、優先導入建議</a><a class="l2" href="#五後續">五、後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/strategy/09-企業應用情境型錄.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

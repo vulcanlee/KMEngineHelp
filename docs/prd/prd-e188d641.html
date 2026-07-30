@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>產品需求文件（PRD）：知識庫分類（Category）管理｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>產品需求文件（PRD）：知識庫分類（Category）管理</h1></header><div class="docwrap"><main><ul><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.63</li><li>首次實作版本：0.2.34</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026-06-05</li><li>狀態：已實作（系統版本 0.2.34）</li><li>編碼：UTF-8（繁體中文）</li></ul>
+<hr>
+<h2 id="一背景與目的" class="t1">一、背景與目的</h2>
+<p>本系統以「知識庫分類」集中維護可重複使用的<strong>知識庫主題標籤</strong>，供匯入素材、知識來源、Wiki 及問答篩選使用。</p>
+<blockquote><p><strong>1.0.18 起的分工邊界</strong>：專案管理／工作任務／會議管理的分類已改用獨立的 <strong><a href="../../docs/prd/prd-18b9200e.html">專案分類（WorkCategory）</a></strong> 主檔（<code>/work-categories</code>），不再取用本清單。本清單自 1.0.18 起僅供<strong>知識庫相關紀錄</strong>使用：知識來源加工、知識百科、Wiki 頁、影音轉逐字稿、文件轉文字、圖片解讀、內容清點統計報表（共 7 處）。兩份清單資料完全獨立、各自維護。</p>
+<p>AI 知識問答頁的分類篩選是<strong>另一條路徑</strong>：其下拉選項由 <code>KnowledgeBaseChatService.GetFilterCategoriesAsync()</code> 從既有已索引資料 distinct 取值，並非讀取本主檔，因此停用或刪除分類不會立即改變該下拉的內容。</p></blockquote>
+<p>本功能為一個標準 CRUD 頁面，需具備側邊選單項目、<code>Menu.json</code> 設定與角色權限控制。</p>
+<h3 id="設計範本">設計範本</h3>
+<p>程式碼庫已有結構單純、欄位精簡且非常適合做為範本的現成 CRUD 功能 <strong>「專案管理」(<code>ProjectPage</code> / <code>ProjectViewView</code>)</strong>。本功能 <strong>以 <code>ProjectPage</code> 為主要設計範本</strong>，沿用其分層架構（Entity → Repository → Service → Controller → DTO → AdapterModel → Blazor View），但欄位大幅精簡。</p>
+<p>對應現成可重用模式：</p>
+<ul><li>名稱唯一性檢查：<code>ProjectRepository.ExistsByNameAsync(name, excludeId)</code>（新增與編輯皆呼叫，編輯時排除自身）。</li><li>分頁／搜尋／排序：<code>ProjectRepository.GetPagedAsync(request)</code>，預設排序為 <code>OrderByDescending(p =&gt; p.UpdatedAt)</code>。</li><li>名稱重複回應：Controller 回傳 <code>409 Conflict</code> 與友善訊息。</li><li>Blazor UI：工具列 + Ant Design <code>Table</code>（遠端資料來源、分頁）+ 新增／編輯 <code>Modal</code>（<code>EditForm</code> + <code>DataAnnotationsValidator</code>）。</li></ul>
+<hr>
+<h2 id="二需求決策" class="t2">二、需求決策</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>決策</th></tr></thead><tbody><tr><td>分類範圍</td><td>單一共用清單（不依用途分群）</td></tr><tr><td>欄位</td><td>名稱（唯一、必填）、描述（選填）、啟用狀態（IsEnabled）、建立時間、更新時間</td></tr><tr><td>名稱唯一性比對</td><td><strong>忽略大小寫 + 去頭尾空白</strong>（新增與編輯皆須生效）</td></tr><tr><td>預設排序</td><td>依「更新時間」(<code>UpdatedAt</code>) 由新到舊（最近更新排最前）</td></tr><tr><td>啟用狀態用途</td><td>可停用而不刪除分類；停用者供未來其他頁面下拉時過濾，本管理頁仍完整顯示</td></tr><tr><td>刪除方式</td><td>實體刪除（與 <code>ProjectPage</code> 一致）</td></tr><tr><td>選單位置</td><td>新增「資料定義」主選單，置於「系統管理」之後、「登出」之前；其下放「分類清單」</td></tr><tr><td>路由</td><td><code>/categories</code></td></tr><tr><td>UI 框架</td><td>Blazor Server + Ant Design（沿用 <code>ProjectPage</code> 模式）</td></tr></tbody></table></div>
+<hr>
+<h2 id="三功能概述" class="t3">三、功能概述</h2>
+<p>新增「知識庫分類」管理頁面，提供分類項目的新增、查詢、編輯、刪除（CRUD）。每筆分類包含名稱、描述與啟用狀態。分類名稱在系統內為唯一值（忽略大小寫並去除頭尾空白後比對）。列表預設依更新時間由新到舊呈現，最近更新的紀錄排在最前面。</p>
+<p>0.3.34 現況已將分類套用至各類紀錄與知識流程；本 PRD 同時規範基礎資料 CRUD 與跨功能引用邊界。</p>
+<hr>
+<h2 id="四使用者流程" class="t4">四、使用者流程</h2>
+<ol><li>進入「知識庫分類」頁面（路由 <code>/categories</code>）；權限不足者不顯示選單、不可進入頁面。</li><li>列表預設依「更新時間」由新到舊排序，最近更新者在最上方；支援關鍵字搜尋與分頁。</li><li>點「新增」，於 Modal 中輸入名稱（必填）、描述（選填），並設定是否啟用（預設啟用）。</li><li>送出時驗證名稱唯一性（忽略大小寫 + 去頭尾空白）：</li><li>名稱重複：拒絕儲存，顯示「分類名稱已存在」之類的友善訊息（API 回 409 Conflict）。</li><li>通過：建立紀錄，設定建立時間與更新時間，回到列表。</li><li>點「編輯」載入單筆資料，可修改名稱、描述、啟用狀態；名稱唯一性同樣須通過（比對時排除自身）。</li><li>點「刪除」出現確認對話框，確認後實體刪除該分類。</li><li>任何新增或編輯成功皆更新 <code>UpdatedAt</code>，故該紀錄會回到列表最前方。</li></ol>
+<hr>
+<h2 id="五資料模型" class="t5">五、資料模型</h2>
+<p>新增實體 <code>Category</code>（<code>KnowledgeExtraction.AccessDatas/Models/Category.cs</code>）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>Id</td><td>int</td><td>主鍵，自動遞增</td></tr><tr><td>Name</td><td>string</td><td>分類名稱（必填、唯一）</td></tr><tr><td>Description</td><td>string?</td><td>描述（選填）</td></tr><tr><td>IsEnabled</td><td>bool</td><td>是否啟用（預設 <code>true</code>）</td></tr><tr><td>CreatedAt</td><td>DateTime</td><td>建立時間（自動設定）</td></tr><tr><td>UpdatedAt</td><td>DateTime</td><td>最後更新時間（自動設定）</td></tr></tbody></table></div>
+<ul><li>DbSet <code>Category</code> 註冊於 <code>BackendDBContext</code>，並新增對應 EF Core Migration（SqlServer 與 Sqlite）。</li><li>名稱唯一性以應用層檢查為主（<code>CategoryRepository.ExistsByNameAsync</code>）；比對前先 <code>Trim()</code> 並以忽略大小寫方式比較。</li><li>唯一性比對說明：以 <code>Name.Trim()</code> 後，採不分大小寫比較（例如 <code>string.Equals(..., StringComparison.OrdinalIgnoreCase)</code>，或於查詢端統一以 <code>ToLower()</code> 比對），確保「測試」與「測試 」、<code>ABC</code> 與 <code>abc</code> 視為重複。</li></ul>
+<hr>
+<h2 id="六設定appsettingsjson" class="t6">六、設定（appsettings.json）</h2>
+<p>本功能不需新增任何外部路徑或服務設定。</p>
+<ul><li>依專案規範（CLAUDE.md）：實作完成建置時，<code>SystemSettings.SystemInformation.SystemVersion</code> 版本號 +1（由 <code>0.2.33</code> → <code>0.2.34</code>），並於 commit message 說明版本號變更。</li></ul>
+<hr>
+<h2 id="七架構與元件比照-projectpage" class="t7">七、架構與元件（比照 ProjectPage）</h2>
+<p>各層需新增的元件如下（命名與分層比照既有 <code>Project*</code>）：</p>
+<ul><li><strong>Entity</strong> <code>Category</code>（<code>KnowledgeExtraction.AccessDatas/Models/Category.cs</code>）</li><li><strong>Repository</strong> <code>CategoryRepository</code>（<code>KnowledgeExtraction.Business/Repositories/CategoryRepository.cs</code>）</li><li><code>GetPagedAsync(CategorySearchRequestDto request)</code>：分頁／搜尋／排序，<strong>預設 <code>OrderByDescending(c =&gt; c.UpdatedAt)</code></strong>；支援以名稱關鍵字搜尋。</li><li><code>GetAsync(int id)</code>、<code>AddAsync</code>、<code>UpdateAsync</code>（保留原 <code>CreatedAt</code>、更新 <code>UpdatedAt</code>）、<code>DeleteAsync(int id)</code>。</li><li><code>ExistsByNameAsync(string name, int? excludeId = null)</code>：<strong>Trim + 忽略大小寫</strong> 比對；<code>excludeId</code> 用於編輯時排除自身。</li><li><strong>Service</strong> <code>CategoryService</code>（<code>KnowledgeExtraction.Business/Services/DataAccess/CategoryService.cs</code>）：包裝 Repository，提供 UI 端使用的查詢／新增／編輯／刪除與前置檢查方法。</li><li><strong>DTO</strong>（<code>KnowledgeExtraction.Dtos</code>）：</li><li><code>CategoryDto</code>（回應）</li><li><code>CategoryCreateUpdateDto</code>（新增／編輯；含名稱必填驗證）</li><li><code>CategorySearchRequestDto</code>（繼承 <code>SearchRequestBaseDto</code>，含關鍵字、分頁、排序欄位）</li><li><strong>AdapterModel</strong> <code>CategoryAdapterModel</code>（<code>KnowledgeExtraction.Models/AdapterModel/CategoryAdapterModel.cs</code>）：前端綁定用，含 DataAnnotations 驗證。</li><li><strong>Controller</strong> <code>CategoryController</code>（<code>KnowledgeExtraction.Web/Controllers/CategoryController.cs</code>）：比照 <code>ProjectController</code>。</li><li><strong>AutoMapper</strong>：於 <code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code> 新增 <code>Category</code> ↔ <code>CategoryAdapterModel</code> / <code>CategoryDto</code> / <code>CategoryCreateUpdateDto</code> 映射。</li><li><strong>DI 註冊</strong>（<code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs</code>）：</li><li><code>services.AddScoped&lt;CategoryService&gt;();</code></li><li><code>services.AddScoped&lt;CategoryRepository&gt;();</code></li></ul>
+<hr>
+<h2 id="八uiblazor-server--ant-design" class="t8">八、UI（Blazor Server + Ant Design）</h2>
+<ul><li>頁面 <code>CategoryPage.razor</code>（<code>@page "/categories"</code>、<code>@layout MainLayout</code>、<code>&lt;PageTitle&gt;分類清單&lt;/PageTitle&gt;</code>），</li></ul>
+<p>內嵌 <code>&lt;CategoryViewView /&gt;</code>。</p>
+<ul><li>位置：<code>KnowledgeExtraction.Web/Components/Pages/Categories/CategoryPage.razor</code></li><li>檢視元件 <code>CategoryViewView</code>（<code>.razor</code> / <code>.razor.cs</code> / <code>.razor.css</code>，比照 <code>ProjectViewView</code>）：</li><li>位置：<code>KnowledgeExtraction.Web/Components/Views/Categories/</code></li><li><code>OnInitializedAsync</code> 以 <code>AuthenticationStateHelper.CheckAccessPage(MagicObjectHelper.角色_分類清單)</code> 控管權限；無權限顯示 <code>你沒有權限存取此頁面</code>。</li><li>工具列：新增按鈕、重新整理按鈕、名稱關鍵字搜尋輸入框 + 搜尋按鈕。</li><li>表格欄位：<strong>名稱、描述、啟用狀態（Tag）、更新時間、操作（編輯／刪除）</strong>；遠端資料來源、可分頁；<strong>預設依更新時間新到舊</strong>。</li><li>新增／編輯 Modal：<code>EditForm</code> + <code>DataAnnotationsValidator</code> + <code>ValidationSummary</code>：</li><li>名稱：<code>Input</code>（必填）</li><li>描述：<code>TextArea</code>（選填）</li><li>啟用狀態：<code>Switch</code> 或 <code>Checkbox</code>（預設啟用）</li><li>刪除：使用 <code>ModalService.ConfirmAsync()</code> 確認後刪除。</li></ul>
+<hr>
+<h2 id="九api-端點" class="t1">九、API 端點</h2>
+<p>新增 <code>CategoryController</code>（比照 <code>ProjectController</code>，<code>api/[controller]</code> + <code>api/v1/[controller]</code>，沿用既有授權機制）：</p>
+<ul><li><code>POST {base}/category/search</code>：接收 <code>CategorySearchRequestDto</code>，回傳分頁結果（預設依 <code>UpdatedAt</code> 降冪）。</li><li><code>GET {base}/category/{id}</code>：取得單筆。</li><li><code>POST {base}/category</code>：新增；名稱重複回 <code>409 Conflict</code>。</li><li><code>PUT {base}/category/{id}</code>：編輯；驗證路由 id 與 payload id 一致；名稱重複（排除自身）回 <code>409 Conflict</code>。</li><li><code>DELETE {base}/category/{id}</code>：刪除。</li></ul>
+<hr>
+<h2 id="十選單與權限需異動-4-處" class="t2">十、選單與權限（需異動 4 處）</h2>
+<blockquote><p><strong>本節為首次實作當時的選單結構，保留原貌。</strong> 現況為「基礎資料設定」(id 6)，子項共 5 項（知識庫分類 61、團隊管理 62、專案分類 63、AI 提示詞 64、清洗規則設定 65），權限群組為 6 個常數，登出為 id 8，頂層共 8 組（首頁、專案協作、資料匯入、知識庫、系統管理、基礎資料設定、統計報表、登出）；一律以 <code>Menu.json</code> 與 <code>RolePermissionService</code> 為準。<strong>權限常數的「值」刻意保留舊選單名（<code>角色_資料定義 = "資料定義功能"</code>、<code>角色_分類清單 = "分類清單"</code>），不得變更</strong>——權限以名稱字串存於 <code>RoleView.TabViewJson</code>，改值等同清空所有既有角色的權限。</p></blockquote>
+<ol><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code>：新增權限常數</li><li><code>角色_資料定義 = "資料定義功能"</code></li><li><code>角色_分類清單 = "分類清單"</code></li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code>：</li></ol>
+<p>於 <code>GetRoleListPermissionAllName()</code> 回傳的二維陣列中，<strong>在「系統管理」群組之後、「登出」之前</strong> 新增一個群組： <code>[角色_資料定義, 角色_分類清單]</code>。（外層索引順序須與 <code>Menu.json</code> 頂層順序一致。）</p>
+<ol><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code>：在「系統管理」(id 3) 之後、「登出」之前插入新主選單，並調整「登出」id 以維持唯一：</li></ol>
+<pre><code>   {
+     "id": 4,
+     "name": "資料定義",
+     "icon": "database",
+     "subMenu": [
+       {
+         "id": 41,
+         "name": "分類清單",
+         "icon": "category",
+         "url": "/categories"
+       }
+     ]
+   },
+   {
+     "id": 5,
+     "name": "登出",
+     "icon": "logout",
+     "url": "/auths/logout"
+   }</code></pre>
+<blockquote><p>注意：原「登出」項 id 為 4，新增「資料定義」後須將「登出」id 改為 5，避免 id 重複；子項「分類清單」採父項編號慣例 id 41。</p></blockquote>
+<ol><li>建立頁面與檢視元件（見第八節）。</li></ol>
+<blockquote><p>權限機制說明：本系統授權以選單為基礎。<code>Menu.json</code> 的 <code>name</code> 必須對應 <code>MagicObjectHelper</code> 中的權限常數；<code>RolePermissionService.GetRoleListPermissionAllName()</code> 回傳的二維陣列外層索引 需對應選單頂層順序（首頁、專案管理、系統管理、<strong>資料定義</strong>、登出）。 角色實際勾選的權限存於資料庫 <code>RoleView.TabViewJson</code>，既有角色若要存取新頁面，須由角色管理頁重新勾選。</p></blockquote>
+<hr>
+<h2 id="十一編碼需求" class="t3">十一、編碼需求</h2>
+<ul><li>所有新增的程式碼檔與本 PRD 文件皆以 <strong>UTF-8（繁體中文）</strong> 撰寫，不得有亂碼。</li><li><code>Menu.json</code> 等含中文之設定檔維持 UTF-8 編碼，確保選單名稱顯示正確。</li></ul>
+<hr>
+<h2 id="十二驗收條件" class="t4">十二、驗收條件</h2>
+<ol><li>選單出現「資料定義 &gt; 分類清單」，且位於「系統管理」之後、「登出」之前；無權限角色看不到、無法進入頁面。</li><li>列表預設依「更新時間」由新到舊排序，最近新增／編輯的分類排在最前面。</li><li>新增分類：名稱必填；名稱與既有分類重複（忽略大小寫、去頭尾空白後）時被拒絕並顯示友善訊息。</li><li>編輯分類：可修改名稱、描述、啟用狀態；名稱唯一性比對排除自身；儲存後該筆回到列表最前方。</li><li>刪除分類：確認後實體刪除。</li><li>啟用狀態可於新增／編輯切換，列表正確顯示啟用／停用。</li><li><code>appsettings.json</code> 版本號於實作建置時 +1（0.2.33 → 0.2.34），相關文件同步更新。</li></ol>
+<hr>
+<h2 id="十三涉及檔案實作階段參考" class="t5">十三、涉及檔案（實作階段參考）</h2>
+<p><strong>新增：</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/Models/Category.cs</code> 及 EF Core Migration（SqlServer 與 Sqlite）</li><li><code>KnowledgeExtraction.Models/AdapterModel/CategoryAdapterModel.cs</code></li><li><code>KnowledgeExtraction.Dtos/Models/CategoryDto.cs</code>、<code>CategoryCreateUpdateDto.cs</code></li><li><code>KnowledgeExtraction.Dtos/Commons/CategorySearchRequestDto.cs</code></li><li><code>KnowledgeExtraction.Business/Repositories/CategoryRepository.cs</code></li><li><code>KnowledgeExtraction.Business/Services/DataAccess/CategoryService.cs</code></li><li><code>KnowledgeExtraction.Web/Controllers/CategoryController.cs</code></li><li><code>KnowledgeExtraction.Web/Components/Pages/Categories/CategoryPage.razor</code></li><li><code>KnowledgeExtraction.Web/Components/Views/Categories/CategoryViewView.razor</code>（<code>.razor.cs</code>、<code>.razor.css</code>）</li></ul>
+<p><strong>修改：</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/BackendDBContext.cs</code>（新增 <code>DbSet&lt;Category&gt;</code>）</li><li><code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code></li><li><code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs</code></li><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code></li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code></li><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code></li><li><code>KnowledgeExtraction.Web/appsettings.json</code>（版本號 +1）</li></ul>
+<hr>
+<h2 id="十四現況與規劃中需求1063-核對" class="t6">十四、現況與規劃中需求（1.0.63 核對）</h2>
+<ul><li>已實作：三條匯入、知識來源、Wiki 與內容清點統計使用分類；多值以 <code>TagStringHelper</code> 精確比對。專案／工作／會議自 1.0.18 起改用專案分類主檔，<strong>不再取用本清單</strong>（見第一節）。</li><li>停用分類不供新資料選用，既有字串標籤仍保留；重新命名不自動更新既有紀錄。</li><li>分類的批次匯入／匯出。</li><li>分類的階層（父子）結構。</li></ul>
+<p>後兩項仍屬規劃中。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li><li><a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景與目的">一、背景與目的</a><a class="l3" href="#設計範本">設計範本</a><a class="l2" href="#二需求決策">二、需求決策</a><a class="l2" href="#三功能概述">三、功能概述</a><a class="l2" href="#四使用者流程">四、使用者流程</a><a class="l2" href="#五資料模型">五、資料模型</a><a class="l2" href="#六設定appsettingsjson">六、設定（appsettings.json）</a><a class="l2" href="#七架構與元件比照-projectpage">七、架構與元件（比照 ProjectPage）</a><a class="l2" href="#八uiblazor-server--ant-design">八、UI（Blazor Server + Ant Design）</a><a class="l2" href="#九api-端點">九、API 端點</a><a class="l2" href="#十選單與權限需異動-4-處">十、選單與權限（需異動 4 處）</a><a class="l2" href="#十一編碼需求">十一、編碼需求</a><a class="l2" href="#十二驗收條件">十二、驗收條件</a><a class="l2" href="#十三涉及檔案實作階段參考">十三、涉及檔案（實作階段參考）</a><a class="l2" href="#十四現況與規劃中需求1063-核對">十四、現況與規劃中需求（1.0.63 核對）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/分類清單-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

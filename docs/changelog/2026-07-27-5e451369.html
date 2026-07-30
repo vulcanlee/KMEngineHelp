@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新增「資料表使用狀況」管理頁（1.0.81 → 1.0.82）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>新增「資料表使用狀況」管理頁（1.0.81 → 1.0.82）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-27</li><li>版本：1.0.81 → 1.0.82</li><li>類型：新增管理者診斷頁</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>管理員需要總覽資料庫健康度：每張資料表的<strong>筆數</strong>、<strong>佔用儲存空間</strong>、<strong>索引數量</strong>，用來評估資料成長、找出異常膨脹的表、規劃維運。既有頁面無法滿足（<code>/system-health</code> 只給總檔案大小、<code>DashboardView</code> 只給業務筆數卡片）。新增 <code>/table-usage</code>，定位為管理者診斷工具，比照 <code>/system-health</code>、<code>/data-consistency</code>、<code>/dashboard</code> 放「系統管理 &gt; 系統監控與日誌」、僅管理員可見。</p>
+<h2 id="變更" class="t2">變更</h2>
+<ol><li><strong>新增服務</strong> <code>KnowledgeExtraction.Business/Services/DataAccess/TableUsageService.cs</code>（Scoped，注入 <code>BackendDBContext</code> + <code>ILogger</code>）：</li><li>供應商以 <code>Database.ProviderName</code> 字串判斷（避免 Business 層相依 Sqlite 套件）。</li><li><strong>筆數</strong>：對每表原生 <code>SELECT COUNT(*)</code>（識別字依供應商加界定符 <code>"name"</code>／<code>[name]</code>）。</li><li><strong>索引數</strong>：EF 模型 <code>entityType.GetIndexes().Count()</code>（provider 無關，不含主鍵自動索引）。</li><li><strong>儲存空間</strong>：SQLite 以 <code>dbstat</code> 虛擬表估算每表資料頁大小，該 build 不支援時 <code>PerTableSizeSupported=false</code>、各列 <code>SizeBytes=null</code>；總大小＝<code>PRAGMA page_count × page_size</code>（對檔案與 :memory: 皆可靠）。SQL Server 走 <code>sys.dm_db_partition_stats</code> join <code>sys.tables</code> 取每表 reserved 空間、總大小為加總。</li><li><strong>這是專案第一處原生 SQL</strong>；SQLite 與 SQL Server 兩分支皆已處理。</li><li><strong>新增模型</strong> <code>KnowledgeExtraction.Models/AdapterModel/TableUsageReportAdapterModel.cs</code>（<code>TableUsageReportAdapterModel</code> + <code>TableUsageRowAdapterModel</code>）。</li><li><strong>新增頁面</strong> <code>KnowledgeExtraction.Web/Components/Pages/TableUsagePage.razor</code>（＋ <code>.razor.css</code>）：<code>@page "/table-usage"</code>，比照 <code>SystemHealthPage</code> 以 <code>Check</code> + <code>CheckIsAdmin()</code> 守衛；AntDesign <code>&lt;Table&gt;</code> 呈現，欄位（資料表／筆數／索引數／儲存空間）可排序，頂部顯示供應商、資料庫總大小、產生時間與重新整理；<code>dbstat</code> 不支援時顯示提示、儲存空間欄顯示 N/A。</li><li><strong>DI</strong>：<code>ServiceCollectionExtensions.AddApplicationServices</code> 加 <code>services.AddScoped&lt;TableUsageService&gt;();</code>。</li><li><strong>選單</strong>：<code>Datas/Menu.json</code> 於「系統監控與日誌」(id 502) 末尾新增 <code>{ id:514, name:"資料表使用狀況", icon:"storage", url:"/table-usage", adminOnly:true }</code>。圖示 <code>storage</code> 已在 <code>MenuIconTests.AllowedLeafIcons</code>；因整條路徑皆 adminOnly，依既有豁免規則<strong>不動</strong> <code>MagicObjectHelper</code>／<code>RolePermissionService</code>／權限守護測試。</li><li><strong>測試</strong>：新增 <code>TableUsageServiceTests</code>（2 條）——涵蓋全部應用表、筆數正確、<code>VectorEmbedding</code> 索引數&gt;0，且不論 <code>dbstat</code> 是否支援皆不拋例外。</li><li><code>appsettings.json</code>：SystemVersion 1.0.81 → 1.0.82。</li><li>文件：本 changelog、索引，<code>docs/architecture/開發慣例與限制速查.md</code> adminOnly 診斷頁清單補 <code>/table-usage</code>。</li></ol>
+<h2 id="刻意不變更" class="t3">刻意不變更</h2>
+<ul><li>只涵蓋 <code>BackendDBContext</code> 的 30 張應用資料表，不列 <code>__EFMigrationsHistory</code> 等系統表。</li><li>索引數採 EF 模型宣告數（不含主鍵自動索引），使用者接受此近似。</li><li><code>MagicObjectHelper</code>／<code>RolePermissionService</code>／權限守護測試／<code>MenuIconTests</code>：adminOnly 豁免、圖示已允許。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ul><li><code>dotnet build</code> 成功；<code>dotnet test</code> <strong>760 全綠</strong>（既有 758 + 新增 2）。</li><li>手動：管理員於「系統管理 &gt; 系統監控與日誌 &gt; 資料表使用狀況」進入 <code>/table-usage</code>，看到 30 張表的筆數與索引數；SQLite 顯示資料庫總大小，每表大小為估算值或 N/A（視 <code>dbstat</code> 支援）；非管理員看不到選單項、直接開 <code>/table-usage</code> 被拒。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 確認文件為 UTF-8 含 BOM。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#變更">變更</a><a class="l2" href="#刻意不變更">刻意不變更</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-27-資料表使用狀況頁.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

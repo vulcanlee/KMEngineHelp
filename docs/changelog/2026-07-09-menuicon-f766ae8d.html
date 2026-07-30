@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>修正 MenuIconTests 管理員選單圖示允許清單缺口（0.3.8）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>修正 MenuIconTests 管理員選單圖示允許清單缺口（0.3.8）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-09</li><li>版本：0.3.7 → 0.3.8</li><li>類型：測試修正</li></ul>
+<h2 id="症狀" class="t1">症狀</h2>
+<p><code>MenuIconTests</code> 兩個測試紅燈：<code>Menu.json</code> 的 <code>admin_panel_settings</code>（父選單「系統管理」）、 <code>monitor_heart</code>（葉節點「系統健康監控」）、<code>troubleshoot</code>（葉節點「RAG 診斷」）不在圖示允許清單。</p>
+<h2 id="根本原因" class="t2">根本原因</h2>
+<p>0.3.4「管理員選單與頁面權限」新增「系統管理」父群組與兩個子頁（/system-health、/rag-diagnostics）時， 於 <code>Menu.json</code> 採用了這三個新圖示，但未同步把名稱補進 <code>MenuIconTests</code> 的允許清單。允許清單守護 「選單圖示必須是可顯示的 classic Material Icons」，缺漏使回歸測試判定為未知圖示而失敗。</p>
+<h2 id="查證" class="t3">查證</h2>
+<p>比對 Google 官方 classic Material Icons 代碼點清單（Outlined 與 Regular 兩個字型檔），三個名稱皆存在： <code>admin_panel_settings</code>（ef3d）、<code>monitor_heart</code>（eaa2）、<code>troubleshoot</code>（e1d2）。本應用程式 （<code>Components/App.razor</code>）載入的正是 classic Material Icons（Outlined），故三者 UI 均正常顯示， 只需補允許清單，不需更換圖示。</p>
+<h2 id="修正" class="t4">修正</h2>
+<ul><li><code>MenuIconTests</code>：<code>AllowedParentIcons</code> 補 <code>admin_panel_settings</code>；<code>AllowedLeafIcons</code> 補</li></ul>
+<p><code>monitor_heart</code>、<code>troubleshoot</code>。</p>
+<ul><li>兩個回歸測試轉綠（<code>MenuJson_ParentIcons_*</code>、<code>MenuJson_LeafIcons_*</code>，2/2）。</li></ul>
+<h2 id="備註" class="t5">備註</h2>
+<p>本次只補測試允許清單，未動 <code>Menu.json</code> 圖示、未新增頁面或權限，亦無資料庫 migration。 新增選單時，請使用 classic Material Icons 名稱並同步加入 <code>MenuIconTests</code> 對應允許清單。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#症狀">症狀</a><a class="l2" href="#根本原因">根本原因</a><a class="l2" href="#查證">查證</a><a class="l2" href="#修正">修正</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-09-修正MenuIcon允許清單.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

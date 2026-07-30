@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DIS-1/DIS-2 知識瀏覽頁（分類索引 + [[概念]] 可點擊）+ marketing chunk 話術校正（0.3.12→0.3.13）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>DIS-1/DIS-2 知識瀏覽頁（分類索引 + [[概念]] 可點擊）+ marketing chunk 話術校正（0.3.12→0.3.13）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-09</li><li>版本：0.3.12 → 0.3.13</li><li>類型：知識導覽（DIS）＋文件校正</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>planning/12 最後兩項 P1（DIS）＋對外話術對齊：</p>
+<ul><li><strong>DIS-1（知識首頁/索引）／DIS-2（<code>[[概念]]</code> 可點擊）</strong>：蒸餾產物 <code>WikiPage</code> 過去只能在管理頁 <code>/knowledge-distillation</code> 表格點開對話窗預覽——無讀者導向瀏覽頁、無首頁/索引、內文 <code>[[概念]]</code> 是純文字（<code>MarkdownRenderer</code> 不處理）。</li><li><strong>marketing 話術</strong>：<code>商業簡報-決策投資版</code>（.md/.html）宣稱「chunk 級權控／已延伸至 chunk 級」，超前 SEC-3 實況（團隊層權控）。</li></ul>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="dis知識瀏覽讀者頁-knowledge-wiki無-migration">DIS：知識瀏覽讀者頁 <code>/knowledge-wiki</code>（無 migration）</h3>
+<ul><li><strong>服務層</strong>（<code>WikiPageService</code>，皆團隊權控、僅 <code>已完成</code> 頁）：<code>GetBrowseIndexAsync</code>（索引清單）、<code>GetCompletedTitlesAsync</code>（標題集合，供連結解析）、<code>GetByTitleAsync</code>（<code>?concept=</code> 導覽解析）；閱讀重用既有 <code>GetContentAsync</code>。</li><li><strong>DIS-2 前處理</strong>：新增純函式 <code>WikiLinkPreprocessor.ToClickableMarkdown(markdown, existingTitles)</code>——<code>[[標題]]</code> 存在→內部連結 <code>/knowledge-wiki?concept=...</code>、不存在→「標題（待建立）」；再交既有 <code>MarkdownRenderer.ToHtml</code>（<code>DisableHtml</code> 防 XSS）渲染。<strong>不改 <code>MarkdownRenderer</code></strong>。</li><li><strong>UI</strong>：新頁 <code>KnowledgeWikiPage</code>（<code>@page "/knowledge-wiki"</code>，<code>[SupplyParameterFromQuery] Concept</code>）+ <code>KnowledgeWikiView</code>：左側依 <code>Categories</code> 歸納索引 + 搜尋，右側渲染內容；<code>[[概念]]</code> 連結點擊經 <code>?concept=</code> 重新解析。</li><li><strong>權限三處同步</strong>：新增頁面權限 <code>角色_知識瀏覽</code>（<code>MagicObjectHelper</code> + <code>RolePermissionService</code> 排在動作型權限之前 + <code>Menu.json</code> id 37，圖示 <code>menu_book</code>）。</li></ul>
+<h3 id="marketing-chunk-話術校正對齊-sec-3">marketing chunk 話術校正（對齊 SEC-3）</h3>
+<ul><li><code>商業簡報-決策投資版.md</code>（第 65/67）與 <code>.html</code>（第 64/72）：「chunk 級權控／已延伸至 chunk 級」→「團隊權控／（檢索層即過濾）」。</li></ul>
+<h3 id="順帶修正ver-2-文件一致性">順帶修正（VER-2 文件一致性）</h3>
+<ul><li><code>docs/guides/知識頁審核與Wiki頁管理指南.md</code>：更新「編修不重索引」的過時敘述為「已核可頁編修後自動重索引（VER-2, 0.3.12）」，並新增「知識瀏覽（<code>/knowledge-wiki</code>）」章節。</li></ul>
+<h3 id="測試">測試</h3>
+<ul><li><code>WikiLinkPreprocessorTests</code>（7）：存在→連結、不存在→待建立、多連結混合、trim、無連結原樣、null。</li><li><code>WikiPageServiceTests</code>（+4）：<code>GetBrowseIndexAsync</code>/<code>GetByTitleAsync</code>/<code>GetCompletedTitlesAsync</code> 只回已完成且團隊可存取。</li><li><code>MenuIconTests</code> 允許清單加入 <code>menu_book</code>。全測試 <strong>480 通過、0 失敗</strong>。</li></ul>
+<h2 id="影響範圍" class="t3">影響範圍</h2>
+<ul><li>進度：DIS-1 ✅、DIS-2 ✅ 完成。詳見 <code>docs/planning/12-...</code> §〇（P1 至此全數處理）。</li><li>同步更新 <code>docs/planning/12-...</code>、<code>docs/guides/知識頁審核與Wiki頁管理指南.md</code>、2 份 marketing。</li><li><code>appsettings.json</code> SystemVersion 0.3.12 → 0.3.13；<strong>無 migration</strong>。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ol><li><code>dotnet build</code> 成功、<code>dotnet test</code> 綠燈（480 通過）。</li><li>具「知識瀏覽」權限者 → 側選單「清洗與蒸餾 → 知識瀏覽」→ 左側分類索引 → 點頁閱讀 → <code>[[概念]]</code> 可點擊跳轉；不存在概念顯示「（待建立）」；非管理員只見自身團隊頁。</li><li><code>grep -rn "chunk 級" docs/marketing</code> 已無超前宣稱。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#dis知識瀏覽讀者頁-knowledge-wiki無-migration">DIS：知識瀏覽讀者頁 /knowledge-wiki（無 migration）</a><a class="l3" href="#marketing-chunk-話術校正對齊-sec-3">marketing chunk 話術校正（對齊 SEC-3）</a><a class="l3" href="#順帶修正ver-2-文件一致性">順帶修正（VER-2 文件一致性）</a><a class="l3" href="#測試">測試</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-09-DIS知識瀏覽與chunk話術校正.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

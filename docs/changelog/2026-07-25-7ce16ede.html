@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>畫面標籤與選單名稱統一（1.0.58）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>畫面標籤與選單名稱統一（1.0.58）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-25</li><li>版本：1.0.57 → 1.0.58</li><li>類型：使用體驗調整（顯示標籤，無邏輯變更）</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p>1.0.57 全面調整了側邊選單名稱，但<strong>只改了 <code>Menu.json</code></strong>。程式中還有約 30 處中文顯示標籤仍是舊選單名，造成「選單叫新名、畫面內容叫舊名」的分裂：</p>
+<ul><li>儀表板統計卡片、處理管線狀態、最新資料來源標籤</li><li>知識來源的「素材型別」下拉（音訊轉錄／文件萃取／圖片清單）</li><li>各頁新增／編輯視窗標題</li><li>Token 用量與問答稽核的「作業」欄</li><li>知識問答與知識百科的 PDF 匯出檔名前綴</li><li>專案關聯視窗的頁籤</li></ul>
+<p>這也讓文件無法一致地描述畫面 —— 若文件寫新名，就與畫面對不上。</p>
+<h2 id="變更" class="t2">變更</h2>
+<p>採用的規則：<strong>只改「目前值剛好等於舊選單名」的標籤</strong>。</p>
+<div class="tw"><table><thead><tr><th>舊標籤</th><th>新標籤</th></tr></thead><tbody><tr><td>工作項目</td><td>工作任務</td></tr><tr><td>會議記錄</td><td>會議管理</td></tr><tr><td>音訊轉錄</td><td>影音轉逐字稿</td></tr><tr><td>文件萃取</td><td>文件轉文字</td></tr><tr><td>圖片清單</td><td>圖片解讀</td></tr><tr><td>知識庫問答</td><td>AI 知識問答</td></tr><tr><td>知識瀏覽</td><td>知識百科</td></tr><tr><td>黃金評測</td><td>清洗品質評測</td></tr><tr><td>RAG 評測</td><td>檢索品質評測</td></tr><tr><td>RAG 診斷試檢索</td><td>檢索診斷試檢索</td></tr><tr><td>圖片辨識（作業別）</td><td>圖片解讀</td></tr></tbody></table></div>
+<p><strong>刻意不動</strong>的標籤：<code>專案</code>、<code>知識來源</code>、<code>知識頁</code>、<code>黃金樣本</code> —— 這些本來就是實體名詞、從來不是選單名，不在本次問題範圍內，改了只是多餘的變更。</p>
+<p><strong>絕對不動</strong>：<code>MagicObjectHelper.角色_xxx</code> 與 <code>LlmTokenUsage.Operation*</code> 的常數<strong>值</strong>（DB 既存字串）、路由、類別名稱。</p>
+<h2 id="順帶修正" class="t3">順帶修正</h2>
+<ul><li><strong>補上缺漏的作業標籤</strong>：<code>OperationDocumentExtraction</code>（1.0.54 新增 PDF 走 LLM 萃取時加入）在兩份作業別對應表中都沒有對應項，Token 用量頁會顯示原始英文 <code>DocumentExtraction</code>。已補為「文件轉文字」。</li><li>清除先前新增分頁測試時引入的 <code>CS8425</code> 警告（<code>NoopQueue.DequeueAllAsync</code> 補 <code>[EnumeratorCancellation]</code>）。</li></ul>
+<h2 id="已知技術債未處理" class="t4">已知技術債（未處理）</h2>
+<p><code>DashboardView.razor.cs</code> 與 <code>TokenUsageView.razor.cs</code> 各自維護一份<strong>內容必須完全相同</strong>的 <code>OperationLabel</code> 對應表（程式註解自己就寫「日後可抽共用 helper」）。本次兩份都改了，但這個重複本身是持續漂移的來源，已記入 backlog。</p>
+<h2 id="影響範圍" class="t5">影響範圍</h2>
+<ul><li>15 個檔案的顯示字串；<code>ChatReportServiceTests</code> 的斷言同步更新。</li><li>無資料庫 migration、無邏輯變更、無 API 合約變更。</li><li><code>appsettings.json</code> <code>SystemVersion</code> 1.0.57 → 1.0.58。</li></ul>
+<h2 id="驗證" class="t6">驗證</h2>
+<ol><li><code>dotnet test</code> 通過：643 個測試全數通過。</li><li>~~<code>grep</code> 確認程式中已無舊選單名作為顯示標籤（0 筆殘留）。~~</li></ol>
+<blockquote><p><strong>勘誤（1.0.70）</strong>：這個結論是<strong>錯的</strong>。本次採用的「只改目前值剛好等於舊選單名」規則，讓複合字串（<code>新增文件萃取</code>）、被引號包住的指路字串（<code>『知識來源管理清單』</code>）、以及從來不是選單名但同樣過時的字串（<code>圖片辨識</code>、<code>系統健康檢查</code>）全部落在 grep 之外；下方「實機」清單提到的「知識來源『素材型別』下拉」經 <code>git log -L</code> 確認<strong>從未被修改過</strong>。共 10 檔 25 處殘留已於 1.0.70 補齊，詳見 <a href="../../docs/changelog/2026-07-26-6c272f47.html">選單舊名補漏與會議紀錄型素材修正</a>。</p></blockquote>
+<ol><li>實機（需重啟站台）：儀表板卡片與管線狀態、知識來源「素材型別」下拉、各頁新增視窗標題、Token 用量「作業」欄皆顯示新名。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#變更">變更</a><a class="l2" href="#順帶修正">順帶修正</a><a class="l2" href="#已知技術債未處理">已知技術債（未處理）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-畫面標籤與選單名稱統一.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

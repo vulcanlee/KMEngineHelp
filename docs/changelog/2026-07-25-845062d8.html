@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>背景管線健康檢查改為由 PipelineNames 推導（1.0.66）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>背景管線健康檢查改為由 PipelineNames 推導（1.0.66）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/25</li><li>版本：1.0.65 → <strong>1.0.66</strong></li><li>類型：可觀測性修正</li><li>影響範圍：<code>/system-health</code> 的「背景管線」檢查項（權重 8）</li></ul>
+<h2 id="一問題" class="t1">一、問題</h2>
+<p><code>SystemHealthService.CheckBackgroundPipelines</code> 的 <code>expected[]</code> <strong>硬編六條</strong>背景服務名稱，漏掉 <code>MeetingMinutesBackgroundService</code>。系統實際有 <strong>7 條</strong>業務管線（<code>PipelineNames</code> 有 7 個常數），因此<strong>會議紀錄產生管線若未註冊，健康檢查不會偵測到</strong>——該項仍是綠燈，evidence 也顯示「六條…就緒」。</p>
+<p>這個檢查項的存在意義就是「管線沒起來要看得出來」，漏掉一條等於對該管線完全失明。</p>
+<h3 id="根因">根因</h3>
+<p>與 1.0.65 修正的 <code>StartupSafetyValidator</code> 是<strong>同一類根因</strong>：硬編清單與真實來源各自演化，沒有任何機制強制同步。這份 <code>expected[]</code> 至少錯過兩次同步：</p>
+<ul><li><strong>1.0.20</strong> 新增會議紀錄管線 → <code>PipelineNames</code> 加了常數、<code>AddHostedService</code> 加了註冊，但 <code>expected[]</code> 沒加。</li><li><strong>1.0.45</strong> 移除 AI 技能產生器（管線 8 → 7）→ 相關程式清乾淨，但 <code>expected[]</code> 的「六條」措辭與內容也沒重新校對。</li></ul>
+<h2 id="二修正" class="t2">二、修正</h2>
+<p>改為<strong>由 <code>PipelineNames</code> 反射推導</strong>，程式裡不再有清單：</p>
+<pre><code>typeof(PipelineNames) 的所有 public const string  →  值 + "BackgroundService"</code></pre>
+<p>命名慣例經查證完美成立——7 個常數各自都有對應的 <code>{值}BackgroundService</code> 類別。推導結果排序後固定，讓「缺少：…」訊息穩定可讀。</p>
+<p>同時修掉兩處會再漂移的數字：XML 註解不再寫死條數；evidence 的「六條…就緒」改由清單長度帶入。</p>
+<p><code>hostedServices</code> 注入與 Unhealthy 判定邏輯維持不變——缺任一條仍為紅燈。</p>
+<h3 id="為什麼是反射而不是列出常數--測試守住">為什麼是反射而不是「列出常數 + 測試守住」</h3>
+<p>兩者都能修好眼前的 bug，差別在<strong>日後新增第 8 條管線時</strong>：列清單的作法要記得加一行（測試會提醒），反射的作法<strong>自動納入</strong>。既然命名慣例已經完美成立、而且這份清單已經漏過一次，選結構上不可能再漏的作法。</p>
+<h2 id="三新增-backgroundpipelinehealthchecktests6-個測試" class="t3">三、新增 <code>BackgroundPipelineHealthCheckTests</code>（6 個測試）</h2>
+<p>不建構 <code>SystemHealthService</code>（相依龐大），改用結構性慣例測試，比照 <code>MenuPermissionAlignmentTests</code> 的作法：</p>
+<ul><li><strong>命名慣例成立</strong>——每個 <code>PipelineNames</code> 常數都找得到對應的 <code>{名稱}BackgroundService</code> 型別。這是反射推導能成立的<strong>前提</strong>：有人加了常數卻沒建服務、或改了命名慣例，這裡先紅燈。</li><li><strong>推導結果 == 常數 ＋ 後綴</strong>。</li><li><strong>會議紀錄管線在範圍內</strong>——本次修正的核心，刻意寫死名稱不隨推導邏輯變動，即使日後有人改壞推導也擋得下。</li><li><strong>七條全數涵蓋</strong>，防止誤刪常數而悄悄縮小檢查範圍。</li><li><strong>非管線的寫入服務不被誤納</strong>（<code>PipelineProgressWriter</code>、<code>TokenUsageWriter</code>）。</li></ul>
+<h2 id="四刻意不做的事" class="t4">四、刻意不做的事</h2>
+<p><code>TokenUsageWriterBackgroundService</code>（未註冊 → Token 用量默默不再記錄）與 <code>PipelineProgressWriterBackgroundService</code>（未註冊 → 管線進度不更新）目前<strong>沒有任何健康檢查涵蓋</strong>。它們沒有對應的 <code>PipelineNames</code> 常數，不屬於「背景管線」項的語意範圍；要涵蓋需新增一個檢查項（24 → 25 項），連帶多份文件的項數記載要同步。已記入 <code>planning/08</code> backlog。</p>
+<h2 id="五驗證" class="t5">五、驗證</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>結果</th></tr></thead><tbody><tr><td><code>dotnet test</code></td><td><strong>675 通過 / 0 失敗</strong>（669 → 675，新增 6）</td></tr><tr><td><strong>推導真的會抓到新管線</strong></td><td>暫時在 <code>PipelineNames</code> 加一個假常數 <code>Foo</code> → 2 條測試立刻紅燈（找不到 <code>FooBackgroundService</code>）；移除後恢復全綠</td></tr><tr><td>7 條管線皆已註冊</td><td><code>AddHostedService</code> 逐一確認：轉錄、文件轉文字、圖片解讀、清洗、蒸餾、嵌入索引、會議紀錄全在 → 健康檢查將回報 <strong>7/7 綠燈</strong></td></tr><tr><td>Development 啟動</td><td>正常，<code>/health/ready</code> 回 200</td></tr><tr><td>「24 項」記載</td><td><strong>不變</strong>（沒有新增檢查項）</td></tr></tbody></table></div>
+<h2 id="六文件同步" class="t6">六、文件同步</h2>
+<ul><li><code>features/系統健康監控.md</code>：背景管線列由「六條」改為「七條」並說明推導方式；<strong>刪除「⚠️ 已知缺口」整段警語</strong>（正是本次修掉的缺陷），改為註明兩支寫入服務刻意不在範圍內。</li><li><code>prd/系統健康監控-prd.md</code>：同步改為七條、移除缺口註記。</li><li><code>planning/08-優化建議清單-TODO.md</code>：該項標記完成；新增「兩支非管線背景服務無健康檢查」為低優先項。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一問題">一、問題</a><a class="l3" href="#根因">根因</a><a class="l2" href="#二修正">二、修正</a><a class="l3" href="#為什麼是反射而不是列出常數--測試守住">為什麼是反射而不是「列出常數 + 測試守住」</a><a class="l2" href="#三新增-backgroundpipelinehealthchecktests6-個測試">三、新增 BackgroundPipelineHealthCheckTests（6 個測試）</a><a class="l2" href="#四刻意不做的事">四、刻意不做的事</a><a class="l2" href="#五驗證">五、驗證</a><a class="l2" href="#六文件同步">六、文件同步</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-背景管線健康檢查改為推導.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

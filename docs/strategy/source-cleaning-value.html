@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識來源管理與資料清洗：功能、價值與行銷｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 策略與規劃</p><header class="hero"><div class="kicker">策略與規劃</div><h1>知識來源管理與資料清洗：功能、價值與行銷</h1><p class="sub">說明「知識來源加工」與其「清洗」按鈕的實際運作、要解決的痛點與商業價值，並提供行銷標語與價值放大策略，作為對內溝通與對外行銷的單一參考</p></header><div class="docwrap"><main><ul><li>文件用途：說明「知識來源加工」與其「清洗」按鈕的實際運作、要解決的痛點與商業價值，並提供行銷標語與價值放大策略，作為對內溝通與對外行銷的單一參考</li><li>主要讀者：決策層、業務與通路夥伴、產品與開發團隊</li><li>文件版本：1.0</li><li>建立日期：2026/06/17</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>背景參考：延伸 <a href="../../docs/strategy/scope-and-vision.html">01-計畫範圍與遠景</a> 與 <a href="../../docs/strategy/business-value.html">02-商業價值與行銷策略</a> 的痛點與 ROI 框架；應用情境見 <a href="../../docs/strategy/scenario-catalog.html">09-企業應用情境型錄</a>；功能與技術規格見 <a href="../../docs/prd/prd-e8b774d3.html">知識來源管理 PRD</a> 與 <a href="../../docs/prd/prd-a1cd6b20.html">資料清洗與品質保證 PRD</a>。本文以「給人看的價值語言」整合上述內容，技術描述以現行程式碼為準。</p></blockquote>
+<hr>
+<h2 id="一清洗按鈕到底做了哪些事" class="t1">一、「清洗」按鈕到底做了哪些事？</h2>
+<p>頁面：<code>/knowledge-sources</code>（知識來源加工）。每一筆「知識來源」可底下掛多個「成員」（跨三條匯入管線的素材），按下「清洗」即啟動一條<strong>背景式、可重試、可取消、有品質關卡</strong>的自動化處理線。</p>
+<p>技術鏈路：<code>KnowledgeSourceService.TriggerCleaningAsync</code> → <code>ICleaningQueue</code>（佇列）→ <code>CleaningBackgroundService</code>（背景服務）→ <code>CleaningProcessor</code>（處理器）→ <code>CleaningEnhancer</code>（LLM 強化）。</p>
+<p>實際步驟：</p>
+<ol><li><strong>排入佇列</strong>：按「清洗」→ 跳出確認（「將彙整此來源的成員內容並產出清洗後文件，確定嗎？」）→ 通過權限與「至少一個成員」檢查後，狀態轉 <code>等待中</code>，清空進度與錯誤訊息，排入清洗佇列。</li><li><strong>取出處理</strong>：背景服務取出後，狀態轉 <code>處理中</code>（進度 10%）。</li><li><strong>彙整成員內容</strong>：依排序串接該來源底下所有成員的內容，跨四種素材型別（1.0.25 起）——</li><li>影音轉錄（逐字稿）</li><li>文件轉文字（Markdown）</li><li>圖片辨識（解讀文字）</li><li>會議紀錄（AI 會議紀錄，非逐字稿；1.0.25）</li><li>僅納入「已完成且有內容」的成員；未完成或空內容自動略過。</li><li><strong>繁體化</strong>：簡體→繁體（OpenCC 台灣用語），僅轉正文、保留原標題避免術語誤代換。</li><li><strong>LLM 強化</strong>（進度 60%，<code>CleaningEnhancer</code>，五個步驟依序）：</li><li><strong>去重</strong>：移除重複段落與明顯雜訊（可降級：失敗則保留原文並記警告）。</li><li><strong>遮罩</strong>：將個資與機密（身分證號、電話、Email、地址、金融帳號、密碼、金鑰等）以【已遮罩】取代。<strong>安全關鍵、不可降級</strong>——遮罩失敗即整筆清洗失敗，避免外洩。</li><li><strong>分類</strong>：建議 1–5 個主題分類標籤。</li><li><strong>摘要</strong>：約 100–200 字繁中重點摘要，並另列「關鍵實體」（人/組織/產品/主題）。</li><li><strong>信心自評</strong>：LLM 對本次清洗整體正確與完整度給 0–1 的分數。</li><li>上述提示詞皆可由「AI 提示詞」覆寫（鍵：<code>清洗-去重/遮罩/分類/摘要/信心</code>），未設定則用內建預設。</li><li><strong>產出乾淨文件</strong>：組裝單一 Markdown（標題／摘要／建議分類／備註／清洗後正文），存成 <code>{年}/{guid}.md</code>，寫回 <code>CleanedContentRelativePath</code>、<code>CleanedAt</code>、<code>ConfidenceScore</code>。</li><li><strong>信心門檻路由</strong>（<code>SystemSettings.Cleaning.ConfidenceThreshold</code>，預設 <strong>0.70</strong>）：</li><li>信心 ≥ 門檻 → <code>已清洗</code>（自動通過）。</li><li>信心 &lt; 門檻、或信心為空（評估失敗）→ <code>待審核</code>（送人工把關）。</li><li>未設定 LLM → 直接 <code>已清洗</code>（純彙整＋繁體化）。</li><li>進度 100%。</li></ol>
+<p>周邊操作（同列按鈕，依狀態出現）：<code>取消清洗</code>、<code>重試清洗</code>（失敗/已取消可重跑）、<code>檢視清洗結果</code>、以及人工關卡 <code>核准</code>／<code>退回</code>（需 <code>角色_知識審核</code> 或管理員）。清單在有 <code>等待中</code>／<code>處理中</code> 紀錄時每 5 秒自動輪詢，即時更新進度與信心。</p>
+<blockquote><p>一句話：<strong>「清洗」＝把一個知識來源底下散落的多源素材，一鍵彙整、繁體化、去重、去敏、分類、摘要，並自評可信度後產出一份乾淨的知識文件，再由門檻＋人工決定能不能直接採用。</strong></p></blockquote>
+<h2 id="二知識來源加工這個作業在做什麼" class="t2">二、「知識來源加工」這個作業在做什麼？</h2>
+<p>它是「匯入 → 清洗/蒸餾 → 知識庫」閉環中<strong>承上啟下的彙整與品質作業</strong>：</p>
+<ul><li><strong>聚合</strong>：把分散在三條匯入管線的零散素材（會議錄音、文件、影片、圖片、工單…）綁成一個有意義的「知識來源」單位（可命名、加描述、分類、團隊權控、管理成員與排序）。</li><li><strong>清洗</strong>：一鍵把雜亂多源內容變成乾淨、結構化、去敏、可檢索的知識文件。</li><li><strong>治理</strong>：用狀態機（草稿／等待中／處理中／已清洗／待審核／失敗／已取消／已退回）＋信心分數＋人工審核關卡，確保「進到知識庫的，是可信的內容」。</li></ul>
+<h2 id="三目的要解決的問題為何知識管理需要它" class="t3">三、目的、要解決的問題、為何知識管理需要它</h2>
+<h3 id="它解決的痛點">它解決的痛點</h3>
+<div class="tw"><table><thead><tr><th>痛點</th><th>現況的苦</th><th>本功能如何解</th></tr></thead><tbody><tr><td>素材散落多源</td><td>錄音、文件、影片、圖片各自為政，找不齊、對不上</td><td>聚合成單一知識來源，一次處理</td></tr><tr><td>格式雜亂、繁簡混用</td><td>直接用不了，要人工重排</td><td>自動串接＋繁體化（台灣用語）</td></tr><tr><td>含個資/機密</td><td>不敢外用、合規風險高</td><td>自動遮罩，遮罩失敗即擋下</td></tr><tr><td>重複冗餘</td><td>同一段講三遍，雜訊多</td><td>自動去重去雜訊</td></tr><tr><td>找不到、用不上</td><td>沒有分類與摘要，無法檢索</td><td>自動分類（1–5 標籤）＋重點摘要＋關鍵實體</td></tr><tr><td>不知道整理結果可不可信</td><td>人工整理品質不一、無從判斷</td><td>信心自評＋門檻＋人工審核，品質可量化、可治理</td></tr><tr><td>人工整理耗時</td><td>一份報告整理半天到一天</td><td>背景自動化，分鐘級產出</td></tr></tbody></table></div>
+<h3 id="為什麼知識管理需要這一層">為什麼知識管理「需要」這一層</h3>
+<p>知識管理最大的失敗不是「沒有資料」，而是「資料進來了卻不能用、不敢用、找不到、不可信」。本功能把「原始素材」轉換成「<strong>可信任的知識資產</strong>」：去敏讓它<strong>敢用</strong>、分類摘要讓它<strong>找得到</strong>、信心分數＋人工審核讓它<strong>可被信賴</strong>、狀態可視讓它<strong>可被管理</strong>。沒有這層，知識庫只是另一個雜亂的檔案夾。</p>
+<h2 id="四行銷標語擇優挑選標為推薦首選" class="t4">四、行銷標語（擇優挑選，標★為推薦首選）</h2>
+<ol><li>★「一鍵，把雜亂素材變成可信知識。」 —— 打中：聚合＋清洗＋可信任的整體價值。</li><li>★「會去敏、會分類、會自評信心的知識清洗線。」 —— 打中：合規＋可檢索＋可信賴的差異化。</li><li>「讓每一份會議與文件，自動長成組織的記憶。」 —— 打中：知識資產化、組織記憶的願景。</li><li>「不只是整理資料，是替知識把關。」 —— 打中：品質治理、人工審核關卡。</li><li>「個資自動遮罩，知識才敢拿出來用。」 —— 打中：合規與外用安全的恐懼解除。</li><li>「分鐘級，完成你一整天的知識整理。」 —— 打中：效率與工時節省。</li><li>「給你的不是一堆檔案，是一份結論。」 —— 打中：去蕪存菁、摘要即結論。</li><li>「每一筆清洗，都附一張可信度分數。」 —— 打中：可量化信任、決策依據。</li></ol>
+<h2 id="五以心理登月手法放大整個系統的價值" class="t5">五、以「心理登月」手法放大整個系統的價值</h2>
+<p>「心理登月」＝先把產品的<strong>意義層級</strong>從工具拉高到願景（Moonshot），再用心理機制讓使用者<strong>渴望擁有、害怕失去、樂於投入</strong>。以下每點都對應目前已有功能或可強化的具體動作，讓行銷主張站得住、也指引產品方向。</p>
+<ol><li><strong>願景錨定（升維定位）</strong>：不要賣「資料清洗工具」，要賣「<strong>企業知識資產化引擎／組織記憶</strong>」。對外話術從「幫你整理檔案」改為「把組織每天產生的對話與文件，自動沉澱成可信、可檢索、可複用的知識資產」。——呼應 09 型錄的「基底平台＋能力包」定位。</li><li><strong>損失趨避（把不做的代價可視化）</strong>：強調「未清洗＝個資外洩風險＋知識持續流失」。<strong>動作</strong>：在清單/儀表板上呈現「未清洗筆數、待審核筆數、潛在外洩風險項目」，讓「不處理」變成看得見的損失。</li><li><strong>稟賦效應與進度感（讓資產在眼前增值）</strong>：信心分數、進度條、狀態徽章已具雛形。<strong>動作</strong>：把「已清洗筆數、平均信心、累計節省工時」做成成長曲線，讓使用者感覺「我的知識資產正在升值」，越投入越捨不得離開。</li><li><strong>身分認同（給使用者一個更高的角色）</strong>：把使用者塑造成「<strong>知識治理者</strong>」而非「資料整理員」；<code>核准/退回</code> 的人工關卡＝專業話語權與責任感。<strong>動作</strong>：審核介面強調「由你把關，才進入組織知識庫」。</li><li><strong>社會證明與里程碑（用數字建立信任與動力）</strong>：<strong>動作</strong>：累計清洗份數、合規覆蓋率（已遮罩比例）、團隊排行榜、里程碑徽章；對外提案附「平均每份節省 X 小時、遮罩召回率 ≥ Y%」（可由清洗品質評測集 <code>CleaningEvaluator</code> 量化）。</li><li><strong>降低啟動門檻（一鍵到結論）</strong>：強化「一鍵清洗、分鐘級拿到結論」的即時回饋，縮短「投入 → 收穫」的心理距離。<strong>動作</strong>：清洗完成即推播摘要與信心分數，讓價值「立刻被看見」。</li></ol>
+<h3 id="可直接排入路線圖的增值動作">可直接排入路線圖的增值動作</h3>
+<ul><li><strong>信心分數儀表板</strong>：把 <code>ConfidenceScore</code> 與門檻路由做成可視化看板（自動通過率/送審率）。</li><li><strong>清洗前後 Diff</strong>：呈現「去重了什麼、遮罩了什麼」，把黑箱變透明，強化信任與稟賦效應。</li><li><strong>ROI 量化看板</strong>：累計節省工時、合規覆蓋率、知識複用次數——對應 02 商業價值框架。</li><li><strong>能力包蒸餾延伸</strong>：在已清洗知識上一鍵蒸餾 SOP／問答／考題等能力包（呼應 09 型錄），把「清洗」升級為「<strong>衍生子應用的起點</strong>」，是價值最大的登月方向。</li></ul>
+<hr>
+<blockquote><p>小結：清洗按鈕讓「多源雜亂素材」變成「可信知識文件」；知識來源管理是讓知識「敢用、找得到、可信賴、可管理」的關鍵一層。對外，請以「組織記憶／知識資產化引擎」的願景定位，搭配可量化的信任與 ROI 數字，把工具賣成不可或缺的基礎設施。</p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（策略與規劃）</h3><ul><li><a href="../../docs/strategy/scope-and-vision.html">計畫範圍與遠景</a></li><li><a href="../../docs/strategy/business-value.html">商業價值與行銷策略</a></li><li><a href="../../docs/strategy/architecture-research.html">知識庫架構研究與建議</a></li><li><a href="../../docs/strategy/dev-roadmap.html">開發建議與路線圖</a></li><li><a href="../../docs/strategy/open-questions-risks.html">待釐清問題與技術風險清單</a></li><li><a href="../../docs/strategy/expected-deliverables.html">期望產出清單</a></li><li><a href="../../docs/strategy/gstack-playbook.html">以 gstack 技能精煉計畫的執行流程（Playbook）</a></li><li><a href="../../docs/strategy/cleaning-stage-design.html">資料清洗階段設計與分析</a></li><li><a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a></li><li><a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：功能、欄位、價值與行銷</a></li><li><a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格</a></li><li><a href="../../docs/strategy/market-analysis.html">知識庫產品市場分析與擴展方向</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一清洗按鈕到底做了哪些事">一、「清洗」按鈕到底做了哪些事？</a><a class="l2" href="#二知識來源加工這個作業在做什麼">二、「知識來源加工」這個作業在做什麼？</a><a class="l2" href="#三目的要解決的問題為何知識管理需要它">三、目的、要解決的問題、為何知識管理需要它</a><a class="l3" href="#它解決的痛點">它解決的痛點</a><a class="l3" href="#為什麼知識管理需要這一層">為什麼知識管理「需要」這一層</a><a class="l2" href="#四行銷標語擇優挑選標為推薦首選">四、行銷標語（擇優挑選，標★為推薦首選）</a><a class="l2" href="#五以心理登月手法放大整個系統的價值">五、以「心理登月」手法放大整個系統的價值</a><a class="l3" href="#可直接排入路線圖的增值動作">可直接排入路線圖的增值動作</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/strategy/10-知識來源管理與資料清洗-價值與行銷.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

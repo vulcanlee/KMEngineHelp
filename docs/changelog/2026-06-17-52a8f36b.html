@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗設定檔（可重複套用的客製清洗提示詞）（0.2.84）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>清洗設定檔（可重複套用的客製清洗提示詞）（0.2.84）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-17</li><li>版本：0.2.83 → 0.2.84</li><li>類型：功能新增</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>原本清洗的五段提示詞（去重／遮罩／分類／摘要／信心）只能<strong>全域客製</strong>（提示詞清單啟用 <code>清洗-*</code>），所有知識來源共用同一套。需求是讓不同清洗可套用不同提示詞，且可重複使用。</p>
+<h2 id="功能" class="t2">功能</h2>
+<p>新增「清洗設定檔（CleaningProfile）」：一組命名的五段提示詞（皆可空，空白＝該步驟用系統內建預設）。</p>
+<ol><li><strong>管理頁</strong> <code>/cleaning-profiles</code>（權限 <code>角色_清洗設定檔</code>，位於「清洗與蒸餾」群組）：CRUD＋啟用/停用，名稱唯一。</li><li><strong>清洗觸發</strong>：知識來源「清洗」鈕改為小型對話窗，可選清洗設定檔（含「（預設／全域）」），預設帶入該來源現值；確認後寫回 <code>KnowledgeSource.CleaningProfileId</code> 並排入佇列。</li><li><strong>重試清洗</strong>沿用來源已存的設定檔。</li></ol>
+<h2 id="提示詞套用優先序" class="t3">提示詞套用優先序</h2>
+<ul><li>來源有指定設定檔：各步驟「設定檔非空→用設定檔；空→內建預設」，略過全域 <code>清洗-*</code>。</li><li>來源未指定（<code>CleaningProfileId</code> 為 null）：維持現行邏輯（全域 <code>清洗-*</code> → 內建預設）。</li><li><code>CleaningEnhancer.EnhanceAsync</code> 新增 <code>CleaningPromptSet? overrides</code> 多載；<code>CleaningProcessor</code> 依 <code>source.CleaningProfileId</code> 取啟用設定檔組成 overrides 傳入。黃金評測 <code>EvaluateOneAsync</code> 維持不傳（行為不變）。</li></ul>
+<h2 id="資料庫" class="t4">資料庫</h2>
+<ul><li>新表 <code>CleaningProfile</code>；<code>KnowledgeSource</code> 新增 <code>CleaningProfileId</code>(int?, nullable)。</li><li>雙 provider migration <code>AddCleaningProfile</code>（Sqlite <code>AccessDatas</code> + SQL Server <code>AccessDatas.SqlServerMigrations</code>）。</li></ul>
+<h2 id="影響範圍與相容性" class="t5">影響範圍與相容性</h2>
+<ul><li>新增：<code>CleaningProfile</code> entity/AdapterModel/Service、<code>CleaningPromptSet</code>、<code>/cleaning-profiles</code> 頁與檢視、AutoMapper 映射、DI 註冊。</li><li>修改：<code>KnowledgeSource</code>(+AdapterModel)、<code>BackendDBContext</code>、<code>CleaningEnhancer</code>、<code>CleaningProcessor</code>、<code>KnowledgeSourceService.TriggerCleaningAsync</code>(多載 <code>int? cleaningProfileId</code>)、<code>KnowledgeSourceView</code>、權限三處（<code>MagicObjectHelper</code>/<code>RolePermissionService</code>/<code>Menu.json</code>）。</li><li>既有未指定設定檔之知識來源清洗行為不變；其他三處 <code>ContentEditDialog</code> 與黃金評測不受影響。</li></ul>
+<h2 id="測試" class="t6">測試</h2>
+<ul><li><code>dotnet test</code> 全綠（240 案）。新增清洗設定檔流程後既有 <code>CleaningEnhancer</code>/<code>CleaningProcessor</code>/<code>GoldenSample</code>/<code>KnowledgeSource</code> 測試仍通過。</li><li>順帶補：<code>MenuIconTests</code> 允許清單加入 <code>tune</code>（新選單圖示）；<code>CrudActionIconTests</code> 補回先前已在用但未列入的 <code>edit_note</code>、<code>border_color</code>（既有 0.2.74 編修按鈕所用，先前未同步守護清單）。</li></ul>
+<h2 id="驗證" class="t7">驗證</h2>
+<ol><li><code>/cleaning-profiles</code> 建立/編輯/停用設定檔（五段可空）。</li><li>知識來源「清洗」可選設定檔、預設帶入現值、寫回來源、排入清洗；重試沿用。</li><li>清洗產出反映所選設定檔（空段用預設）；選「預設/全域」同現狀。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#功能">功能</a><a class="l2" href="#提示詞套用優先序">提示詞套用優先序</a><a class="l2" href="#資料庫">資料庫</a><a class="l2" href="#影響範圍與相容性">影響範圍與相容性</a><a class="l2" href="#測試">測試</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-17-清洗設定檔.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

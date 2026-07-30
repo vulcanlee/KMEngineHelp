@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>內容編修對話窗版面與儲存過期追蹤修正（0.2.75–0.2.76）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>內容編修對話窗版面與儲存過期追蹤修正（0.2.75–0.2.76）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-16</li><li>版本：0.2.74 → 0.2.75 → 0.2.76</li><li>類型：缺陷修正 / UI</li></ul>
+<h2 id="0275-對話窗版面修正" class="t1">0.2.75 對話窗版面修正</h2>
+<ul><li><code>ContentEditDialog</code> 改為<strong>自帶 <code>content-edit-modal</code> 全域樣式</strong>（寬版 90vw、<code>top:3vh</code>、body 內距收斂、底部留白），<strong>不再依賴 <code>FormModalHelper</code></strong>。</li><li>原因：圖片辨識／影音轉錄／文件萃取三頁未渲染 <code>&lt;FormModalHelper /&gt;</code>，沿用 <code>project-view-modal</code> 會退回 AntDesign 預設寬度（約 520px）而出現左右大片留白、兩欄擁擠。</li><li>不更動其他 8 頁共用的 <code>project-view-modal</code>。</li></ul>
+<h2 id="0276-儲存誤報尚無可編修內容修正" class="t2">0.2.76 儲存誤報「尚無可編修內容」修正</h2>
+<ul><li>症狀：編修對話窗已顯示內容（讀取成功），按儲存卻回報「尚無可編修的生成內容」。</li><li>根因：讀取走 <code>AsNoTracking()</code>（讀資料庫最新值），但 <code>Update*ContentAsync</code> 用追蹤查詢；circuit 範圍 <code>DbContext</code> 內的<strong>過期追蹤實體</strong>（路徑為空）被 EF identity map 回傳 → 路徑誤判為空。</li><li>修正：四個 <code>Update*ContentAsync</code> 在追蹤查詢前先 <code>CleanTrackingHelper.Clean&lt;T&gt;(context)</code>，強制由資料庫讀最新值（比照 <code>LlmGenerationService</code> 與速查 §1.2 慣例）。</li></ul>
+<h2 id="驗證" class="t3">驗證</h2>
+<ul><li>三頁開啟編修對話窗為寬版、左右並排、上下留白合宜。</li><li>產生內容後開「編修產生結果」加字儲存成功、重開為新內容、原檔被覆寫。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#0275-對話窗版面修正">0.2.75 對話窗版面修正</a><a class="l2" href="#0276-儲存誤報尚無可編修內容修正">0.2.76 儲存誤報「尚無可編修內容」修正</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-16-編修對話窗版面與過期追蹤修正.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

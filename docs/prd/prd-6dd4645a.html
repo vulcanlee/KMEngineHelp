@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>會議管理 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>會議管理 PRD</h1><p class="sub">定義「會議管理」管理頁的需求、資料欄位、附件與團隊權控</p></header><div class="docwrap"><main><ul><li>文件用途：定義「會議管理」管理頁的需求、資料欄位、附件與團隊權控</li><li>主要讀者：產品、開發、導入顧問</li><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.61</li><li>首次實作版本：既有腳手架；專案對話窗完成於 0.2.152</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026/06/28</li><li>對應版本：0.2.152（所屬專案改為選填可清除；共用編輯元件＋專案對話窗入口）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<h2 id="一目標與範圍" class="t1">一、目標與範圍</h2>
+<p>提供會議紀錄的 CRUD 管理，讓使用者保存會議主題、內容、時間、分類、團隊與附件。此功能與影音轉逐字稿不同：本頁管理人工建立或整理後的會議管理，不負責語音轉文字。</p>
+<p>本 PRD 範圍包含 <code>/meeting</code> 頁面、搜尋、排序、分頁、附件、分類/團隊標籤與團隊資料權控。非範圍包含會議排程、行事曆同步、語音轉錄。</p>
+<h2 id="二使用者與入口" class="t2">二、使用者與入口</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>說明</th></tr></thead><tbody><tr><td>路由</td><td><code>/meeting</code></td></tr><tr><td>選單</td><td>專案協作 → 會議管理（1.0.17 起；原為「專案管理 → 會議管理」）</td></tr><tr><td>權限</td><td><code>MagicObjectHelper.角色_會議項目</code></td></tr><tr><td>主要使用者</td><td>專案成員、管理者、會議管理維護者</td></tr></tbody></table></div>
+<h2 id="三畫面與欄位" class="t3">三、畫面與欄位</h2>
+<p>頁面提供會議管理列表、搜尋、排序、分頁、新增、編輯、刪除與附件操作。欄位以現行 <code>Meeting</code> 實作為準，包含標題、內容/描述、會議時間、分類、團隊、建立/更新時間與附件。<strong>「所屬專案」為選填</strong>（<code>ProjectId</code> 可為空）：新增時不自動帶入專案、可不選；下拉清單最前提供「（不指定專案）」選項，編輯時可藉此清除已設定的專案。若有指定，才驗證該專案是否存在。</p>
+<h3 id="三之零1019-新增欄位">三之零、1.0.19 新增欄位</h3>
+<p><strong>五個人工填寫欄位</strong>（表單可填；會議形式、主持人、地點另上清單）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td><code>MeetingMode</code></td><td>string?</td><td>會議形式：<strong>實體／線上／混合</strong>（<code>MeetingAdapterModel.MeetingModeOptions</code>），有填才驗證</td></tr><tr><td><code>Location</code></td><td>string?</td><td>地點，或線上會議連結</td></tr><tr><td><code>Host</code></td><td>string?</td><td>主持人</td></tr><tr><td><code>Recorder</code></td><td>string?</td><td>紀錄人</td></tr><tr><td><code>Decisions</code></td><td>string?</td><td>決議事項</td></tr></tbody></table></div>
+<p><strong>五個階段四（會議 AI 自動化）預留欄位</strong>（本階段不上表單、不上清單、不進 API）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td><code>SourceTranscriptionId</code></td><td>int?</td><td>來源轉錄紀錄 Id。<strong>軟參照、不做硬 FK</strong></td></tr><tr><td><code>GeneratedContentRelativePath</code></td><td>string?</td><td>AI 產生的會議紀錄 Markdown 相對路徑（內容只存檔案）</td></tr><tr><td><code>GeneratedAt</code></td><td>DateTime?</td><td>AI 產生時間</td></tr><tr><td><code>MinutesStatus</code></td><td>string?</td><td>未產生／轉錄中／轉錄完成／<strong>排隊中</strong>／產生中／已產生／失敗／<strong>已取消</strong>（<code>MinutesStatusOptions</code>；後兩者 1.0.78 新增——「排隊中」原本與「轉錄完成」共用同一個值而分不出來，取消則原本被寫成「失敗」）</td></tr><tr><td><code>PendingActionItemsJson</code></td><td>string?</td><td>AI 待辦草稿 JSON 陣列</td></tr></tbody></table></div>
+<p>全部可空，既有資料不受影響。雙 provider migration <code>AddMeetingFields</code>（SQLite <code>20260720035447</code>／SQL Server <code>20260720035519</code>）。</p>
+<p><strong><code>SourceTranscriptionId</code> 為何不做 FK</strong>：本專案指向 <code>MediaTranscription</code> 的既有做法都是軟參照（<code>KnowledgeSourceItem</code> 與版本鏈皆然）；且 <code>BackendDBContext</code> 的全域刪除政策是 <code>Restrict</code>，做成硬 FK 會導致「有會議掛著的轉錄紀錄刪不掉」。代價是可能出現孤兒 Id，讀取端須容忍。又因 <code>MediaTranscription</code> 有版本鏈，此 Id 釘的是<strong>特定版本</strong>而非最新版。</p>
+<p><strong><code>UpdateAsync</code> 的刻意設計</strong>：<code>MeetingService.UpdateAsync</code> 為逐欄複製。五個人工欄位已補入；<strong>五個 AI 欄位刻意不複製</strong>——它們由階段四背景管線維護，若一併複製，使用者改個標題存檔就會把 AI 產出清空。由 <code>MeetingFieldPersistenceTests</code> 守護。</p>
+<h3 id="三之一共用編輯對話窗與專案入口02152">三之一、共用編輯對話窗與專案入口（0.2.152）</h3>
+<p>會議的編輯表單抽成共用元件 <code>MeetingEditModal</code>（自包含 Modal／驗證／附件上傳／存檔），由本頁與「專案管理」清單的「工作與會議」對話窗共用。從專案對話窗新增/修改會議時，「所屬專案」<strong>鎖定</strong>為該專案。為支援依專案載入關聯會議，<code>MeetingService.GetAsync</code> 新增 <code>ProjectIdFilters</code> 過濾（團隊權控不變）。</p>
+<h2 id="四內部系統運作" class="t4">四、內部系統運作</h2>
+<p>核心流程為 <code>MeetingViewView → MeetingService → BackendDBContext</code>；API 路徑則透過 <code>MeetingController → MeetingRepository</code>。</p>
+<ol><li>進頁檢查登入與 <code>角色_會議項目</code>。</li><li>載入分類與團隊多選資料。</li><li>清單查詢套搜尋、排序、分頁與標籤篩選。</li><li>查詢、單筆、更新、刪除與下載都套團隊權控。</li><li>表單編輯以 clone 隔離來源列表。</li><li>附件寫入會議檔案目錄，資料列與檔案需保持一致。</li></ol>
+<h2 id="五llm--rag-互動" class="t5">五、LLM / RAG 互動</h2>
+<p>本頁不直接呼叫 LLM。若會議管理來自影音轉逐字稿或要進入知識庫，應透過影音轉逐字稿、知識來源聚合與清洗管線處理。</p>
+<h2 id="六權控與安全" class="t6">六、權控與安全</h2>
+<ul><li>非管理員只可見公開或團隊交集會議管理。</li><li>下載附件不可繞過母紀錄團隊權控。</li><li>分類與團隊多值欄位一律透過 <code>TagStringHelper</code> 轉換與精確比對。</li></ul>
+<h2 id="七錯誤與邊界" class="t7">七、錯誤與邊界</h2>
+<ul><li>附件缺檔時回報可理解錯誤。</li><li>無權限者直接以 id 存取單筆或附件時不可洩漏資料。</li><li>刪除資料時應同步處理附件實體檔案。</li></ul>
+<h2 id="八驗收與測試" class="t8">八、驗收與測試</h2>
+<ul><li>可完成會議管理 CRUD、搜尋、排序與分頁。</li><li>分類/團隊篩選正確。</li><li>非管理員無法看到其他團隊會議。</li><li>附件下載受權控。</li><li>新增會議不選專案可直接儲存；編輯時選「（不指定專案）」可清除專案，重新開啟確認已清空。</li></ul>
+<h2 id="九相關程式與文件" class="t1">九、相關程式與文件</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/Projects/MeetingViewView.razor.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Repositories/MeetingRepository.cs</code></li><li><a href="../../docs/prd/prd-c711f637.html">紀錄分類與團隊權控 PRD</a></li></ul>
+<h2 id="十0334-現況校正" class="t2">十、0.3.34 現況校正</h2>
+<ul><li>所屬專案為選填且可清除；支援從會議頁或專案內共用對話窗新增／編輯。</li><li>人工會議管理與影音轉錄是不同產品能力；如需逐字稿，先走轉錄再整理為會議內容。</li><li>清單／單筆／附件下載／更新／刪除全路徑套團隊權控，實體附件由服務層處理。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目標與範圍">一、目標與範圍</a><a class="l2" href="#二使用者與入口">二、使用者與入口</a><a class="l2" href="#三畫面與欄位">三、畫面與欄位</a><a class="l3" href="#三之零1019-新增欄位">三之零、1.0.19 新增欄位</a><a class="l3" href="#三之一共用編輯對話窗與專案入口02152">三之一、共用編輯對話窗與專案入口（0.2.152）</a><a class="l2" href="#四內部系統運作">四、內部系統運作</a><a class="l2" href="#五llm--rag-互動">五、LLM / RAG 互動</a><a class="l2" href="#六權控與安全">六、權控與安全</a><a class="l2" href="#七錯誤與邊界">七、錯誤與邊界</a><a class="l2" href="#八驗收與測試">八、驗收與測試</a><a class="l2" href="#九相關程式與文件">九、相關程式與文件</a><a class="l2" href="#十0334-現況校正">十、0.3.34 現況校正</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/會議記錄-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

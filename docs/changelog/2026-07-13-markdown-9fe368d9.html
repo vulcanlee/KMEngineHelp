@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 聊天紀錄「聊天全文」對話窗改用 Markdown 預覽（0.3.40）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>AI 聊天紀錄「聊天全文」對話窗改用 Markdown 預覽（0.3.40）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-13</li><li>版本：0.3.39 → 0.3.40</li><li>類型：調整 / UI</li></ul>
+<h2 id="調整內容" class="t1">調整內容</h2>
+<ul><li>「AI 聊天紀錄」頁（管理員可見）的「查看全文」對話窗，原本以 <code>&lt;pre&gt;</code> 純文字顯示整份聊天內容，導致 <code>#</code>、<code>##</code>、<code>###</code>、<code>-</code> 等 Markdown 語法以字面呈現、閱讀性差。</li><li>改為沿用既有共用元件 <code>Components/Commons/MarkdownRenderer.cs</code>（<strong>Markdig</strong>，<code>DisableHtml()</code> 防 <code>MarkupString</code> XSS），以 <code>&lt;div class="markdown-preview"&gt;@((MarkupString)MarkdownRenderer.ToHtml(contentText))&lt;/div&gt;</code> 渲染，與知識庫問答、知識來源對話、Wiki、內容編修等處一致。</li><li>保留原本 <code>max-height:60vh; overflow:auto</code> 高度上限與捲動限制，避免長內容撐爆對話窗。</li></ul>
+<h2 id="備註" class="t2">備註</h2>
+<ul><li>內容來源（<code>LlmChatLog.RelativePath</code> 指向的實體 <code>.md</code> 檔）與載入邏輯（<code>ChatLogService.ReadContentAsync</code>、<code>ChatLogsView</code> 的 <code>contentText</code>）皆維持不動；本次僅改前端顯示方式。</li><li><code>.markdown-preview</code> 全專案未定義對應 CSS 規則，標題／清單依瀏覽器預設樣式呈現。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-13-聊天全文改Markdown預覽.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

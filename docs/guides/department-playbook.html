@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>企業實戰情境劇本：依部門的資料準備與操作｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>企業實戰情境劇本：依部門的資料準備與操作</h1><p class="sub">用一家虛構製造業公司貫穿四組部門的真實情境，說明要準備哪些資料、基礎設定怎麼設、操作順序是什麼、預期看到什麼效果、以及這套系統做不到什麼。目標是讓你在碰系統之前就知道自己該做什麼，也知道不該期待什麼。</p></header><div class="docwrap"><main><ul><li>文件用途：用一家虛構製造業公司貫穿四組部門的真實情境，說明<strong>要準備哪些資料、基礎設定怎麼設、操作順序是什麼、預期看到什麼效果、以及這套系統做不到什麼</strong>。目標是讓你在碰系統之前就知道自己該做什麼，也知道不該期待什麼。</li><li>主要讀者：各部門使用者與部門主管、決策者、導入顧問</li><li>文件版本：1.0</li><li>建立日期：2026/07/30</li><li>更新日期：2026/07/30</li><li>對應系統版本：1.0.108（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p><strong>前置閱讀</strong>：<a href="../../docs/guides/naming-rules.html">知識庫命名規範與範例</a>（名字怎麼取）與 <a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南</a>（設定內容怎麼寫）。本文假設你已看過這兩份，直接進入「實際怎麼用」。</p></blockquote>
+<h2 id="與既有文件的分工" class="t1">與既有文件的分工</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>它負責</th></tr></thead><tbody><tr><td><a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a></td><td><strong>未來可以開發成什麼</strong>（30 多個潛在子應用的藍圖），多數尚未實作</td></tr><tr><td><a href="../../docs/guides/hands-on-lab.html">實作練習手冊 Hands-on Lab</a></td><td><strong>按表操課練功</strong>，用虛構軟體公司「鼎峰系統整合」帶你把系統跑一遍</td></tr><tr><td><a href="../../docs/guides/complete-manual.html">完整操作手冊</a>／<a href="../../docs/guides/beginner-guide.html">新手完整操作指南</a></td><td>逐站逐欄位的<strong>權威操作說明</strong></td></tr><tr><td><strong>本文</strong></td><td><strong>今天就能做的事</strong>，按部門組織：資料準備清單、設定值、操作順序、預期效果、系統做不到什麼</td></tr></tbody></table></div>
+<hr>
+<h2 id="一先講三件誠實的話" class="t2">一、先講三件誠實的話</h2>
+<p>在進入情境之前，這三件事必須先講清楚，否則後面的效果會被誤解：</p>
+<ol><li><strong>知識庫不會讓不存在的知識出現。</strong> 如果某位老師傅的經驗從來沒有被寫下來、也沒有被錄下來，這套系統救不了。它解決的是「知識存在但取用成本太高」，不是「知識不存在」。</li><li><strong>知識庫不會讓錯的知識變對。</strong> 匯入過期的規範，它會很有自信地引用過期的規範。<strong>內容品質是你的責任，系統只負責讓它被找到。</strong></li><li><strong>最危險的不是「查不到」，是「很有自信地答錯」。</strong> 查不到會讓人去問人；答錯會讓人直接動手。本系統有兩段式信心門檻（分數太低時<strong>程式層直接回「查無相關依據」，不呼叫 AI</strong>）與出處鑽取，就是為了對付這件事——但它擋不住「你匯入了錯的資料」。</li></ol>
+<hr>
+<h2 id="二眾宇精密機電股份有限公司" class="t3">二、眾宇精密機電股份有限公司</h2>
+<h3 id="21-公司背景">2.1 公司背景</h3>
+<div class="tw"><table><thead><tr><th>項目</th><th>內容</th></tr></thead><tbody><tr><td>主要業務</td><td>工業電源模組（<code>EPS-3000</code> 系列、<code>EPS-5000</code> 系列）＋ 機構件代工</td></tr><tr><td>規模</td><td>約 180 人，桃園一廠 ＋ 研發中心</td></tr><tr><td>認證</td><td>ISO 9001、ISO 14001，有正式 ECN（工程變更）流程</td></tr><tr><td>主要客戶</td><td>國內設備商 3 家、日本客戶 1 家（各有客製規格）</td></tr><tr><td>部門</td><td>研發工程 22 人、採購 6 人、製造 85 人、品保 12 人、設備維修 5 人、客服業務 18 人、人資行政 8 人、財務 6 人</td></tr></tbody></table></div>
+<p>（本公司為虛構，情境為示意。請自行代換成你們的實際名稱、型號與數字。）</p>
+<h3 id="22-全公司痛點總表">2.2 全公司痛點總表</h3>
+<div class="tw"><table><thead><tr><th>#</th><th>痛點</th><th>目前的代價</th></tr></thead><tbody><tr><td>1</td><td>資深機構工程師三月離職，設計決策的<strong>理由</strong>沒留下</td><td>新案重做已經做過的驗證</td></tr><tr><td>2</td><td>共用磁碟有同一份規範的四個版本，沒人確定哪個是現行版</td><td>引用過期規範導致試產報廢</td></tr><tr><td>3</td><td>議價依據在前任採購的信箱裡</td><td>每次漲價都從零開始談</td></tr><tr><td>4</td><td>夜班設備故障，唯一懂的人在休假</td><td>單次停線 6 小時</td></tr><tr><td>5</td><td>同一種客訴每年重複發生</td><td>客戶信任度下降</td></tr><tr><td>6</td><td>業務在客戶面前答不出技術問題</td><td>案子拖一週，有時丟單</td></tr><tr><td>7</td><td>新人上手要三個月，全靠帶</td><td>帶人的資深工程師產能被吃掉</td></tr><tr><td>8</td><td>ISO 稽核前兩週全公司找文件</td><td>每年重複兩次</td></tr></tbody></table></div>
+<p><strong>這八條的共同結構</strong>：知識存在，但取用成本高到等於不存在。</p>
+<hr>
+<h2 id="三全公司基礎設定藍圖" class="t4">三、全公司基礎設定藍圖</h2>
+<p>四組部門共用同一套骨架。<strong>先把這一節建好，再進各部門。</strong></p>
+<h3 id="31-團隊8-個">3.1 團隊（8 個）</h3>
+<div class="tw"><table><thead><tr><th>名稱</th><th>代號</th><th>為什麼需要（誰不能看）</th></tr></thead><tbody><tr><td>研發工程</td><td><code>ENG</code></td><td>未定案規格不能讓業務看到（避免對外承諾）</td></tr><tr><td>採購</td><td><code>PUR</code></td><td>議價底線與成本結構不能讓業務、現場看到</td></tr><tr><td>製造</td><td><code>MFG</code></td><td>試產中的參數不能外流</td></tr><tr><td>品保</td><td><code>QA</code></td><td>客訴分析與不符合紀錄</td></tr><tr><td>客服業務</td><td><code>CS</code></td><td>客戶合約與往來</td></tr><tr><td>人資行政</td><td><code>HR</code></td><td>薪資、考核</td></tr><tr><td>法務</td><td><code>LEG</code></td><td>合約、NDA、專利</td></tr><tr><td>經營管理</td><td><code>MGT</code></td><td>經營與財務決策</td></tr></tbody></table></div>
+<blockquote><p><strong>關鍵決策</strong>：產線作業標準<strong>刻意不貼團隊</strong>（＝公開）。理由在 §六 會看到——夜班值班技師必須查得到，權控在這裡是障礙不是保護。</p></blockquote>
+<h3 id="32-知識庫分類8-個單一維度文件用途">3.2 知識庫分類（8 個，單一維度＝文件用途）</h3>
+<pre><code>設計規範、審查決議、作業標準、異常與矯正、
+供應商、合約與法務、教育訓練、客戶服務</code></pre>
+<p>每個分類的邊界句見 <a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南 §3.4</a>。</p>
+<p>⚠️ <strong>客戶與型號不放進分類</strong>（多選是「或」語意，會讓範圍變大而非變小），改由知識來源盒子的標題承擔。</p>
+<h3 id="33-角色3-個">3.3 角色（3 個）</h3>
+<div class="tw"><table><thead><tr><th>角色</th><th>預設團隊</th><th>知識審核權限</th><th>給誰</th></tr></thead><tbody><tr><td>知識庫管理員</td><td>不設</td><td>✅</td><td>1～2 人</td></tr><tr><td>知識編輯者</td><td>所屬部門</td><td>依部門指定 1 人</td><td>各部門知識窗口（7 人）</td></tr><tr><td>知識查詢者</td><td>所屬部門</td><td>❌</td><td>其餘所有人</td></tr></tbody></table></div>
+<h3 id="34-知識來源盒子命名總表第一階段-14-盒">3.4 知識來源盒子命名總表（第一階段 14 盒）</h3>
+<p>格式：<code>{範圍}｜{對象}｜{版本或期間}｜{文件族}</code></p>
+<div class="tw"><table><thead><tr><th>部門</th><th>盒子標題</th></tr></thead><tbody><tr><td>工程</td><td><code>眾宇｜EPS-3000 系列｜Rev.C｜設計規範與公差</code></td></tr><tr><td>工程</td><td><code>眾宇｜EPS-3000 系列｜Rev.C｜審圖決議與變更紀錄</code></td></tr><tr><td>工程</td><td><code>眾宇｜EPS-5000 系列｜Rev.A｜設計規範與公差</code></td></tr><tr><td>工程</td><td><code>眾宇｜全產品線｜2023-2026｜失效案例與矯正</code></td></tr><tr><td>採購</td><td><code>供應商｜精鋼金屬｜2024-2026｜評鑑與交期紀錄</code></td></tr><tr><td>採購</td><td><code>供應商｜全供應商｜2026｜議價依據與談判紀錄</code></td></tr><tr><td>採購</td><td><code>供應商｜全供應商｜2024-2026｜替代料驗證報告</code></td></tr><tr><td>採購</td><td><code>眾宇｜採購合約｜現行｜條款與付款條件</code></td></tr><tr><td>製造</td><td><code>眾宇｜SMT 一線｜2026｜作業標準與異常處置</code></td></tr><tr><td>製造</td><td><code>眾宇｜迴焊爐 RF-8｜不分版｜設備手冊與故障排除</code></td></tr><tr><td>品保</td><td><code>全公司｜ISO 9001｜2026 版｜稽核不符合與矯正</code></td></tr><tr><td>客服</td><td><code>眾宇｜全產品線｜2024-2026｜客訴處理與技術問答</code></td></tr><tr><td>業務</td><td><code>眾宇｜全產品線｜2026｜標案問答與規格說明</code></td></tr><tr><td>人資</td><td><code>眾宇｜新人訓練｜2026｜教材與交接文件</code></td></tr></tbody></table></div>
+<h3 id="35-清洗設定檔3-個">3.5 清洗設定檔（3 個）</h3>
+<div class="tw"><table><thead><tr><th>名稱</th><th>客製哪幾段</th><th>用在哪些盒子</th></tr></thead><tbody><tr><td><code>工程規範-嚴格遮罩</code></td><td>遮罩、分類</td><td>工程四盒、製造兩盒（<strong>明確保留型號、尺寸、公差</strong>）</td></tr><tr><td><code>供應商合約-最高遮罩</code></td><td>遮罩、分類</td><td>採購四盒（遮價格數字，保留欄位名稱）</td></tr><tr><td><code>會議紀錄-寬鬆去重</code></td><td>去重、摘要</td><td>審圖決議、議價紀錄（保留發言脈絡）</td></tr></tbody></table></div>
+<hr>
+<h2 id="四研發工程部" class="t5">四、研發工程部</h2>
+<h3 id="①-情境">① 情境</h3>
+<p>2026 年 4 月 8 日，機構工程師李孟璇接手 <code>EPS-5000</code> 的日本客戶客製案。客戶要求散熱片減薄 1.5mm。她需要知道三件事：</p>
+<ul><li><code>EPS-3000</code> 當年為什麼把散熱片厚度定在現在這個值？</li><li>有沒有人試過更薄的？結果如何？</li><li>如果改薄，會牽動哪些零件與文件？</li></ul>
+<p>當年做這個決策的資深工程師陳志偉，三月離職。</p>
+<h3 id="②-沒有這套系統時會怎樣">② 沒有這套系統時會怎樣</h3>
+<div class="tw"><table><thead><tr><th>動作</th><th>時間</th><th>結果</th></tr></thead><tbody><tr><td>翻共用磁碟</td><td>1.5 天</td><td>找到同一份規範的四個檔名相似的版本，不確定哪個現行</td></tr><tr><td>問五個同事</td><td>分散兩天</td><td>得到「好像有做過，但失敗了」——沒有人記得為什麼失敗</td></tr><tr><td>決定重做熱測試</td><td>2 週</td><td>材料與工時成本約 8～12 萬</td></tr></tbody></table></div>
+<p><strong>最貴的不是那兩週。</strong> 是「如果當年是因為某客戶的安規認證要求才定這個厚度」，重做熱測試<strong>也發現不了</strong>——測試會通過，然後在客戶端認證階段被打回來。</p>
+<h3 id="③-要準備哪些資料">③ 要準備哪些資料</h3>
+<p><strong>要放</strong></p>
+<div class="tw"><table><thead><tr><th>資料</th><th>說明</th></tr></thead><tbody><tr><td>設計規範本文</td><td>現行版 ＋ 前一版（前一版有價值：可以看出「改了什麼」）</td></tr><tr><td>設計審查／審圖會議錄音或紀錄</td><td>近三年。<strong>這是「為什麼」的唯一來源</strong></td></tr><tr><td>ECN 工程變更紀錄</td><td>含影響範圍欄位</td></tr><tr><td>失效與退貨分析報告</td><td>8D／FMEA</td></tr><tr><td>關鍵尺寸的圖面標註<strong>截圖</strong></td><td>不是整份圖檔，是加了標註的局部截圖</td></tr></tbody></table></div>
+<p><strong>不要放</strong></p>
+<div class="tw"><table><thead><tr><th>不要放</th><th>原因</th></tr></thead><tbody><tr><td>CAD 原始檔（<code>.dwg</code>／<code>.step</code>／<code>.sldprt</code>）</td><td><strong>系統不解析 CAD</strong>。放進去只是佔空間</td></tr><tr><td>未定案的個人草稿</td><td>會被當成依據引用，比沒有更糟</td></tr><tr><td>含客戶報價的商務附件</td><td>屬於採購／業務的邊界，混進工程盒會讓權控失效</td></tr></tbody></table></div>
+<blockquote><p><strong>這一節是整個導入成敗的關鍵。</strong> 多數失敗的導入不是系統不好，是「只匯入了規範本文，沒有匯入會議紀錄」——於是知識庫只能回答「規定是什麼」，答不出「為什麼這樣規定」。而後者才是資深工程師離職時真正帶走的東西。</p></blockquote>
+<h3 id="④-基礎設定怎麼設">④ 基礎設定怎麼設</h3>
+<div class="tw"><table><thead><tr><th>設定</th><th>值</th></tr></thead><tbody><tr><td>團隊</td><td><code>研發工程</code>（規範類同時貼 <code>品保</code>，因為品保要用同一份依據驗收）</td></tr><tr><td>分類</td><td><code>設計規範</code>、<code>審查決議</code>、<code>異常與矯正</code></td></tr><tr><td>盒子</td><td>§3.4 的工程四盒</td></tr><tr><td>清洗設定檔</td><td><code>工程規範-嚴格遮罩</code>（⚠️ 遮罩提示詞<strong>必須明寫「不要遮罩型號、尺寸、公差、電氣參數」</strong>，否則內容會變廢）</td></tr><tr><td>提示詞</td><td>圖片解讀用 <code>自訂-機構圖標註解讀</code>（要求結構化輸出尺寸與公差，並明列判讀不確定處）</td></tr></tbody></table></div>
+<h3 id="⑤-操作順序">⑤ 操作順序</h3>
+<ol><li><strong>建骨架</strong>：<code>/teams</code> 建團隊 → <code>/categories</code> 建分類 → <code>/roleviews</code> 建角色並設預設團隊 → <code>/myusers</code> 建帳號。</li><li><strong>設提示詞與規則</strong>：<code>/prompts</code> 建 <code>自訂-機構圖標註解讀</code> → <code>/cleaning-profiles</code> 建 <code>工程規範-嚴格遮罩</code>。</li><li><strong>匯入素材</strong>（三條管道並行）：</li><li>規範與 ECN → 資料匯入 → <strong>文件轉文字</strong>（<code>/document-extraction</code>）</li><li>審圖會議錄音 → 資料匯入 → <strong>影音轉逐字稿</strong>（<code>/media-transcription</code>）</li><li>圖面標註截圖 → 資料匯入 → <strong>圖片解讀</strong>（<code>/image-recognition</code>），選 <code>自訂-機構圖標註解讀</code></li><li>匯入時就把<strong>團隊與分類貼上</strong>（事後逐筆補很痛苦）</li><li><strong>編成盒子</strong>：<code>/knowledge-sources</code> 建 <code>眾宇｜EPS-3000 系列｜Rev.C｜設計規範與公差</code>，用「管理成員」把相關素材加進來。</li><li><strong>清洗</strong>：按「清洗」，選 <code>工程規範-嚴格遮罩</code>。等背景管線跑完。</li><li><strong>品質關卡</strong>：信心低於門檻的會進「待審核」→ <code>/knowledge-distillation</code>（知識頁審核）由具權限者核准或退回。</li></ol>
+<p>⚠️ <strong>第一批一定要人工看過。</strong> 這一步是「垃圾進垃圾出」的唯一防線。</p>
+<ol><li><strong>蒸餾</strong>：對已清洗的盒子按「蒸餾」，產出互連的知識頁。</li><li><strong>審核知識頁</strong>：<code>/knowledge-distillation</code> 核可。<strong>順手正規化標題</strong>（<code>散熱片公差</code> 而不是 <code>散熱片公差 Rev.C</code>），否則 <code>[[連結]]</code> 會斷。</li></ol>
+<p>⚠️ <strong>知識頁沒核可，知識圖譜抽取會跑完卻抽不到東西。</strong></p>
+<ol><li><strong>建立索引</strong>：在知識來源列上執行索引動作。<strong>沒建索引，問答一定回「查無依據」。</strong></li><li><strong>問答</strong>：<code>/knowledge-base-chat</code>。問特定型號的事情時，<strong>先開「限定知識來源」選對應的盒子</strong>。</li><li><strong>出考題存基線</strong>：<code>/rag-evaluation</code> 建 20 題並存基線。</li></ol>
+<h3 id="⑥-預期看到什麼">⑥ 預期看到什麼</h3>
+<p>問：<strong>「EPS-3000 散熱片厚度是怎麼定下來的？有沒有評估過更薄的方案？」</strong></p>
+<p>期望回答的形狀：</p>
+<pre><code>依據審圖決議，EPS-3000 散熱片厚度定為現行值的原因有二：
+（1）2024 年 3 月的設計審查曾評估減薄方案，於高溫連續運轉測試中
+     溫升超出規範上限而未採用；
+（2）該厚度同時滿足日本客戶的安規認證要求，變更需重新送認證。
+
+出處：
+【眾宇｜EPS-3000 系列｜Rev.C｜審圖決議與變更紀錄｜蒸餾頁：散熱片厚度決策】
+【眾宇｜EPS-3000 系列｜Rev.C｜設計規範與公差｜第 4.2 節 熱設計】</code></pre>
+<p><strong>價值在哪</strong>：第 (2) 點是重做熱測試<strong>永遠測不出來</strong>的資訊。李孟璇原本要花兩週與 8～12 萬，現在花 3 分鐘，而且得到一個更完整的答案。</p>
+<p>每個出處都可以點開鑽取，看到原始段落，也可以下載原始檔案核對。</p>
+<h3 id="⑦-這套系統做不到什麼">⑦ 這套系統做不到什麼</h3>
+<p><strong>規劃可以繞過的</strong></p>
+<div class="tw"><table><thead><tr><th>做不到</th><th>繞過方式</th></tr></thead><tbody><tr><td>讀 CAD 檔、判讀圖面尺寸</td><td>人工做關鍵尺寸的標註截圖，走圖片解讀</td></tr><tr><td>自動回答「這個變更會影響哪些零件」的完整清單</td><td>把 ECN 的影響範圍欄位當文字匯入；知識圖譜可做 1～3 跳的關聯查詢，但<strong>它的完整性取決於你的 ECN 寫得多完整</strong></td></tr></tbody></table></div>
+<p><strong>需要改程式的</strong></p>
+<p>分類多選無法取交集、chunk 不含章節標題等限制，見 <a href="../../docs/strategy/multi-tenant-planning.html">多客戶多型號規劃分析 §8</a> 的 P1～P6 優先序表。</p>
+<p><strong>本質上不該用它做的</strong></p>
+<ul><li>尺寸鏈計算、公差疊加分析（這是 CAE／計算工具的事）</li><li>判斷「這張新圖合不合規」（自動審圖屬於 <a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a> 的未來藍圖，尚未實作）</li></ul>
+<h3 id="⑧-驗收方式">⑧ 驗收方式</h3>
+<div class="tw"><table><thead><tr><th>用什麼</th><th>看什麼</th><th>建議起點</th></tr></thead><tbody><tr><td><code>/rag-evaluation</code> 檢索品質評測</td><td><code>LeakageTotal</code>（越權洩漏）</td><td><strong>必須為 0</strong>（紅線）</td></tr><tr><td>同上</td><td><code>AvgRecallAtK</code></td><td>≥ 0.80</td></tr><tr><td>同上</td><td><code>AvgCitationAccuracy</code>（出處章節對不對）</td><td>≥ 0.70</td></tr><tr><td>人工</td><td>3～5 題「應該查無」的題目</td><td>系統要老實回「查無相關依據」，<strong>不能硬掰</strong></td></tr></tbody></table></div>
+<p>（門檻起點沿用 <a href="../../docs/strategy/multi-tenant-planning.html">多客戶多型號規劃分析 §6.3</a>，請用自己的考題校準。）</p>
+<hr>
+<h2 id="五採購部" class="t6">五、採購部</h2>
+<h3 id="①-情境-1">① 情境</h3>
+<p>2026 年 5 月，主力供應商精鋼金屬通知鋁擠型漲價 12%。採購專員三天後要開議價會議，需要：</p>
+<ul><li>過去三年的交期達成率與品質異常次數</li><li>去年也漲過一次，當時談到什麼條件？依據是什麼？</li><li>有沒有替代供應商做過樣品驗證？結果如何？</li></ul>
+<h3 id="②-沒有這套系統時會怎樣-1">② 沒有這套系統時會怎樣</h3>
+<div class="tw"><table><thead><tr><th>資料</th><th>在哪裡</th><th>結果</th></tr></thead><tbody><tr><td>交期與異常數字</td><td>ERP</td><td><strong>只有數字，沒有前因後果</strong>（為什麼那三次延遲？是對方問題還是我們改單？）</td></tr><tr><td>去年的議價紀錄</td><td>前任採購的 Outlook</td><td>人已離職，信箱已停用</td></tr><tr><td>替代料樣品測試報告</td><td>品保的共用資料夾</td><td>找到了，但不確定是哪一版樣品</td></tr></tbody></table></div>
+<p>三天湊不齊，會議照開，結果照漲。<strong>這不是能力問題，是取用成本問題。</strong></p>
+<h3 id="③-要準備哪些資料-1">③ 要準備哪些資料</h3>
+<p><strong>要放</strong>：供應商評鑑報告、比價與議價會議紀錄（<strong>最有價值</strong>）、進料檢驗異常單與後續處置、替代料樣品驗證報告、採購合約與付款條款。</p>
+<p><strong>不要放</strong></p>
+<div class="tw"><table><thead><tr><th>不要放</th><th>原因</th></tr></thead><tbody><tr><td>即時庫存與當期報價</td><td><strong>這是 ERP 的事，不是知識庫的事。</strong> 知識庫回答的是「依據與經驗」，不是「現在多少錢」。放進去只會過期並誤導</td></tr><tr><td>個人 Email 全文</td><td>含私人往來與個資，遮罩成本高且容易漏</td></tr><tr><td>供應商員工的名片與聯絡人個資</td><td>個資風險，且對回答問題沒有幫助</td></tr></tbody></table></div>
+<h3 id="④-基礎設定怎麼設含一個要先做的決策">④ 基礎設定怎麼設（含一個要先做的決策）</h3>
+<div class="tw"><table><thead><tr><th>設定</th><th>值</th></tr></thead><tbody><tr><td>團隊</td><td><code>採購</code>（合約類同時貼 <code>法務</code>）</td></tr><tr><td>分類</td><td><code>供應商</code>、<code>合約與法務</code>、<code>異常與矯正</code></td></tr><tr><td>盒子</td><td>§3.4 的採購四盒。<strong>按供應商切盒</strong>，因為問題通常是「某一家如何」</td></tr><tr><td>清洗設定檔</td><td><code>供應商合約-最高遮罩</code></td></tr></tbody></table></div>
+<blockquote><p>⚠️ <strong>價格數字要不要遮？這個決策要先做，不能邊做邊改。</strong></p>
+<div class="tw"><table><thead><tr><th>做法</th><th>好處</th><th>代價</th></tr></thead><tbody><tr><td><strong>遮掉具體數字</strong>（保留「單價」等欄位名稱）</td><td>安全。萬一權控出錯也不會洩漏底價</td><td><strong>問不到「當時談到多少」</strong>——議價依據的核心價值消失一半</td></tr><tr><td><strong>不遮，靠團隊權控</strong></td><td>議價依據完整可用</td><td>權控成為唯一防線，<strong>每一筆都必須確認團隊標籤，不能有漏</strong></td></tr></tbody></table></div>
+<p><strong>建議</strong>：不遮數字，但<strong>採購盒子的每一筆素材都必須貼 <code>採購</code> 團隊</strong>，並且在 <code>/rag-evaluation</code> 建 3～5 題越權題（模擬業務身分去問底價），確認洩漏數為 0 之後才推廣。這個驗證不做完，就用遮罩的那條路。</p></blockquote>
+<h3 id="⑤-操作順序-1">⑤ 操作順序</h3>
+<ol><li>骨架與清洗設定檔（同 §四 步驟 1～2）。</li><li>評鑑報告、異常單、合約 → <strong>文件轉文字</strong>（<code>/document-extraction</code>）。</li><li>議價會議錄音 → <strong>影音轉逐字稿</strong>（<code>/media-transcription</code>）；若有正式會議流程，也可走 <strong>會議管理</strong>（<code>/meeting</code>）自動產生會議紀錄，再納入知識來源。</li><li>建四個盒子 → 清洗（選 <code>供應商合約-最高遮罩</code>）→ 審核 → 蒸餾 → 知識頁審核 → 建索引。</li><li><strong>先跑越權測試再開放</strong>：<code>/rag-evaluation</code> 建越權題（模擬團隊留空或設為 <code>客服業務</code>），確認 <code>LeakageTotal = 0</code>。</li><li>開放問答，並訂下使用紀律：<strong>問某一家供應商的事，先用「限定知識來源」選那一家的盒子。</strong></li></ol>
+<h3 id="⑥-預期看到什麼-1">⑥ 預期看到什麼</h3>
+<p>問：<strong>「精鋼金屬過去三年的交期與品質表現如何？去年漲價時我們談到什麼條件？」</strong></p>
+<pre><code>交期與品質（依 2024-2026 評鑑紀錄）：
+- 交期達成率逐年改善，2025 年下半年有三次延遲，兩次因我們變更急單、
+  一次為對方模具維修。
+- 品質異常兩件，均為表面處理色差，已於 2025 年第三季完成矯正。
+
+2025 年議價紀錄：
+- 對方原提漲幅 9%，最終以 5% 成交，附帶條件為交期承諾縮短兩天，
+  並同意單批不良率超過門檻時分攤重工費用。
+- 我方當時的談判依據是已完成替代供應商樣品驗證（結果：尺寸合格、
+  表面處理未達標，需追加製程）。
+
+出處：
+【供應商｜精鋼金屬｜2024-2026｜評鑑與交期紀錄｜蒸餾頁：交期表現】
+【供應商｜全供應商｜2026｜議價依據與談判紀錄｜蒸餾頁：2025 鋁擠型議價】
+【供應商｜全供應商｜2024-2026｜替代料驗證報告｜第 3 節】</code></pre>
+<p><strong>價值在哪</strong>：最後一段是這次議價最有力的籌碼——而它原本躺在品保的資料夾裡，採購不知道它存在。<strong>跨部門的知識連結，是這套系統最容易被低估的價值。</strong></p>
+<h3 id="⑦-這套系統做不到什麼-1">⑦ 這套系統做不到什麼</h3>
+<p><strong>規劃可以繞過的</strong>：「哪家供應商的綜合評分最高」這類需要<strong>計算與排名</strong>的問題——把評鑑結論寫成文字（「2025 年綜合評等為 A」），系統就能回答；但它不會幫你重新算分。</p>
+<p><strong>本質上不該用它做的</strong></p>
+<ul><li>即時價格與庫存查詢（ERP）</li><li>跨供應商的統計計算與趨勢圖（BI 工具）</li><li>自動發詢價單、自動比價（採購系統的交易流程）</li><li>合約條款的<strong>法律效力逐字引用</strong>——系統的內容經過清洗與蒸餾，是<strong>重組後的知識</strong>，不是法律文件的原文。<strong>要引用條款打官司，回去看原始合約檔。</strong> 系統可以幫你找到是哪一份、哪一條</li></ul>
+<h3 id="⑧-驗收方式-1">⑧ 驗收方式</h3>
+<div class="tw"><table><thead><tr><th>用什麼</th><th>看什麼</th><th>建議起點</th></tr></thead><tbody><tr><td><code>/rag-evaluation</code></td><td><code>LeakageTotal</code>（越權題）</td><td><strong>必須為 0</strong>。這個部門的資料最敏感，這是開放前的必要條件</td></tr><tr><td><code>/rag-evaluation</code></td><td><code>AvgRecallAtK</code></td><td>≥ 0.80</td></tr><tr><td>人工</td><td>抽 5 題議價相關問題，核對出處是否指到正確的年度與供應商</td><td>5／5</td></tr></tbody></table></div>
+<hr>
+<h2 id="六製造品保與設備維修" class="t7">六、製造、品保與設備維修</h2>
+<h3 id="①-情境-2">① 情境</h3>
+<p>2026 年 7 月 19 日（週六）凌晨 2 點 10 分，SMT 一線的迴焊爐 RF-8 跳出 <code>E-42</code> 錯誤停機。值班技師林建宏沒見過這個代碼。唯一熟悉這台機器的老師傅休假中，手機關機。</p>
+<h3 id="②-沒有這套系統時會怎樣-2">② 沒有這套系統時會怎樣</h3>
+<div class="tw"><table><thead><tr><th>動作</th><th>時間</th></tr></thead><tbody><tr><td>翻設備手冊（原廠日文版，索引不全）</td><td>40 分鐘，沒找到 E-42</td></tr><tr><td>打電話找人（車程一小時）</td><td>1 小時 40 分</td></tr><tr><td>到場後試錯排除</td><td>3 小時</td></tr><tr><td><strong>合計停線</strong></td><td><strong>約 6 小時</strong></td></tr></tbody></table></div>
+<p>而且這件事<strong>去年發生過一次</strong>——當時的處置方式寫在一張紙本工單上，歸檔了，沒有人找得到。</p>
+<h3 id="③-要準備哪些資料-2">③ 要準備哪些資料</h3>
+<p><strong>要放</strong>：設備手冊（含故障代碼表）、維修工單歷史（<strong>含處置過程與根因，不只「已修復」</strong>）、老師傅口述錄音、異常處置作業標準、ISO 稽核不符合與矯正紀錄。</p>
+<blockquote><p><strong>老師傅口述錄音是這一節的重點。</strong> 大多數設備知識從來沒有文件化，唯一的取得方式是<strong>訪談錄音</strong>。訪談提綱建議：</p>
+<ol><li>這台機器最常出的三個問題是什麼？</li><li>每一個問題，你怎麼判斷是它？（<strong>判斷依據</strong>比處置步驟更難取得）</li><li>處置步驟是什麼？哪一步最容易做錯？</li><li>有沒有「看起來像 A 其實是 B」的情況？</li><li>什麼情況一定要停機叫原廠，不要自己處理？</li></ol>
+<p>一次訪談 40～60 分鐘，直接丟進影音轉逐字稿。<strong>這是投報率最高的一種資料準備。</strong></p></blockquote>
+<p><strong>不要放</strong>：即時設備感測數據與稼動率（那是 SCADA／MES 的事）、未經確認的個人猜測。</p>
+<h3 id="④-基礎設定怎麼設-1">④ 基礎設定怎麼設</h3>
+<div class="tw"><table><thead><tr><th>設定</th><th>值</th></tr></thead><tbody><tr><td>團隊</td><td><strong>作業標準與故障排除刻意不貼團隊（＝公開）</strong></td></tr><tr><td>分類</td><td><code>作業標準</code>、<code>異常與矯正</code></td></tr><tr><td>盒子</td><td><code>眾宇｜SMT 一線｜2026｜作業標準與異常處置</code>、<code>眾宇｜迴焊爐 RF-8｜不分版｜設備手冊與故障排除</code></td></tr><tr><td>清洗設定檔</td><td><code>工程規範-嚴格遮罩</code>（保留參數數值）</td></tr></tbody></table></div>
+<blockquote><p><strong>為什麼故障排除要公開？</strong> 因為使用它的場景是「凌晨兩點、值班、一個人」。如果那位技師的角色沒有對應團隊，權控就從保護變成障礙——<strong>而停線的損失遠大於作業標準外流的損失</strong>。</p>
+<p>反過來，<strong>試產中的參數與客戶專屬製程要貼 <code>製造</code> 團隊</strong>。判準是「外流會不會有實質損害」，不是「習慣上算不算內部文件」。</p></blockquote>
+<h3 id="⑤-操作順序-2">⑤ 操作順序</h3>
+<ol><li>骨架（同前）。</li><li>設備手冊 PDF → <strong>文件轉文字</strong>（<code>/document-extraction</code>）。⚠️ PDF 走 LLM 萃取，<strong>需要金鑰</strong>；失敗會降級。日文手冊建議先確認萃取結果可讀再繼續。</li><li>工單歷史（Excel／掃描件）→ <strong>文件轉文字</strong>。掃描件若是圖片檔，走 <strong>圖片解讀</strong>（<code>/image-recognition</code>）。</li><li>老師傅訪談錄音 → <strong>影音轉逐字稿</strong>（<code>/media-transcription</code>）。</li><li>建兩個盒子 → 清洗 → 審核 → 蒸餾 → 知識頁審核 → <strong>建立索引</strong>。</li><li><strong>實地演練驗收</strong>：找一位沒參與導入的技師，給他一個故障代碼，計時看他多久找到處置步驟。<strong>這比任何指標都有說服力。</strong></li></ol>
+<h3 id="⑥-預期看到什麼-2">⑥ 預期看到什麼</h3>
+<p>問：<strong>「迴焊爐 RF-8 出現 E-42 要怎麼處置？」</strong></p>
+<pre><code>E-42 為第三溫區的熱電偶讀值異常。依設備手冊與 2025 年 8 月的維修工單：
+
+判斷順序：
+1. 先確認是否只有第三溫區異常——若相鄰溫區同時異常，多為控制板問題，
+   應停機叫原廠，不要自行更換熱電偶。
+2. 若僅第三溫區：檢查熱電偶接頭氧化（2025 年那次的根因即為此）。
+
+處置步驟：
+1. 停機並待爐溫降至 60°C 以下（未降溫直接作業曾造成人員燙傷，
+   見異常處置作業標準）
+2. 拆開第三溫區接線盒，檢查接頭是否氧化或鬆脫
+3. 清理或更換接頭後復歸，觀察三個循環
+
+⚠️ 若清理後仍報錯，不要重複復歸，直接聯絡原廠。
+
+出處：
+【眾宇｜迴焊爐 RF-8｜不分版｜設備手冊與故障排除｜第 7 章 故障代碼】
+【眾宇｜SMT 一線｜2026｜作業標準與異常處置｜蒸餾頁：E-42 處置經驗】</code></pre>
+<p><strong>價值在哪</strong>：第 1 點的「先判斷是不是控制板」是老師傅訪談來的<strong>判斷依據</strong>——手冊裡沒有。這一句話省下的是「換了熱電偶還是壞，白拆一次」的三小時。</p>
+<p><strong>預期效果</strong>：停線從 6 小時降到約 1 小時。</p>
+<h3 id="⑦-這套系統做不到什麼-2">⑦ 這套系統做不到什麼</h3>
+<p><strong>規劃可以繞過的</strong>：手冊是外文——先用文件萃取轉出，人工確認可讀性，必要時人工整理成中文摘要再匯入。</p>
+<p><strong>本質上不該用它做的</strong></p>
+<ul><li>連接設備即時狀態、讀取當下的溫度與稼動率（SCADA／MES）</li><li>取代 CMMS 的工單流程（派工、簽核、備品扣帳）</li><li>判讀現場即時影像或做視覺檢測</li><li>預測性維護（需要時序感測數據與模型，不是文件檢索）</li></ul>
+<h3 id="⑧-驗收方式-2">⑧ 驗收方式</h3>
+<div class="tw"><table><thead><tr><th>用什麼</th><th>看什麼</th><th>建議起點</th></tr></thead><tbody><tr><td><strong>實地演練</strong></td><td>未參與導入的技師，從提問到找到處置步驟的時間</td><td>≤ 5 分鐘</td></tr><tr><td><code>/rag-evaluation</code></td><td><code>AvgRecallAtK</code>、<code>AvgCitationAccuracy</code></td><td>≥ 0.80／≥ 0.70</td></tr><tr><td>人工</td><td>故障代碼表裡<strong>確實沒有</strong>的代碼</td><td>要回「查無相關依據」，不能編一套處置步驟出來（這一題最重要）</td></tr></tbody></table></div>
+<hr>
+<h2 id="七客服業務與人資" class="t8">七、客服、業務與人資</h2>
+<h3 id="①-情境-3">① 情境</h3>
+<p><strong>業務</strong>：2026 年 6 月，業務經理在客戶簡報現場被問：「你們 <code>EPS-3000</code> 在 -20°C 環境的實測數據？有沒有客戶做過？」他答不出來，說「我回去查一下」。三天後回覆，客戶已在評估別家。</p>
+<p><strong>客服</strong>：同一週，客服收到第三次同樣的客訴（特定批號的接頭鬆動）。前兩次的處理方式沒有整理，又重新分析一次。</p>
+<p><strong>人資</strong>：新人第一週，帶他的資深工程師三天沒做自己的事。</p>
+<h3 id="②-沒有這套系統時會怎樣-3">② 沒有這套系統時會怎樣</h3>
+<div class="tw"><table><thead><tr><th>場景</th><th>代價</th></tr></thead><tbody><tr><td>業務當場答不出來</td><td>案子拖一週；一年約 2～3 次因此丟單</td></tr><tr><td>客訴重複分析</td><td>每次約 1.5 天工時；客戶感受是「你們沒學到教訓」</td></tr><tr><td>新人帶三個月</td><td>帶人者產能損失約 20%，且每個新人的品質取決於帶他的人</td></tr></tbody></table></div>
+<h3 id="③-要準備哪些資料-3">③ 要準備哪些資料</h3>
+<p><strong>要放</strong>：產品規格書與實測報告、客訴處理紀錄（<strong>含根因與最終處置</strong>）、技術支援問答歷史、標案問答與 RFP 回覆、新人訓練教材、離職交接文件。</p>
+<blockquote><p><strong>離職交接文件是最容易被忽略、也最有價值的一類。</strong> 建議把交接改成：交接會議<strong>錄音</strong>＋交接清單文件，兩者都匯入。純文字交接清單通常只有「我負責哪些事」，錄音才有「為什麼這樣做」。</p></blockquote>
+<p><strong>不要放</strong></p>
+<div class="tw"><table><thead><tr><th>不要放</th><th>原因</th></tr></thead><tbody><tr><td>客戶名單與聯絡人個資</td><td>個資風險，且對回答問題沒有幫助</td></tr><tr><td>未公開的報價與折讓</td><td>業務團隊與採購的邊界；洩漏代價高</td></tr><tr><td>員工薪資與考核</td><td>人資盒子要貼 <code>人資行政</code> 團隊，且<strong>不要與新人教材混在同一盒</strong></td></tr></tbody></table></div>
+<h3 id="④-基礎設定怎麼設-2">④ 基礎設定怎麼設</h3>
+<div class="tw"><table><thead><tr><th>設定</th><th>值</th></tr></thead><tbody><tr><td>團隊</td><td>客訴與標案貼 <code>客服業務</code>；新人教材與公司政策<strong>不貼團隊（公開）</strong>；薪資考核貼 <code>人資行政</code></td></tr><tr><td>分類</td><td><code>客戶服務</code>、<code>教育訓練</code></td></tr><tr><td>盒子</td><td>§3.4 的客服／業務／人資三盒</td></tr><tr><td>清洗設定檔</td><td>客訴用 <code>供應商合約-最高遮罩</code>（遮客戶聯絡人與個資）；教材用 <code>教育訓練-標準</code></td></tr></tbody></table></div>
+<h3 id="⑤-操作順序-3">⑤ 操作順序</h3>
+<p>與前面相同，但有兩個不同：</p>
+<ol><li><strong>標案問答建議做成「一問一答」的素材</strong>，不要整份 RFP 丟進去。理由：RFP 有大量制式條文，會稀釋真正有用的技術問答。整理成「客戶問什麼／我們答什麼／依據是哪份文件」的格式，效果差很多。</li><li><strong>人資的公開內容與機密內容一定要分盒</strong>。公司政策公開、薪資考核貼團隊。混在一盒時，整盒都得貼團隊，於是新人就查不到員工手冊了。</li></ol>
+<h3 id="⑥-預期看到什麼-3">⑥ 預期看到什麼</h3>
+<p>問：<strong>「EPS-3000 在 -20°C 低溫環境的實測數據？有客戶實際用過嗎？」</strong></p>
+<pre><code>低溫實測（依 2025 年環境測試報告）：
+- 於 -20°C 冷啟動測試合格，啟動時間較常溫延長約 40%，
+  輸出穩定度維持在規格內。
+- 規格書標示的工作溫度下限為 -20°C，未做更低溫的驗證。
+
+實際案例：
+- 2025 年某北方廠區客戶於冬季戶外機櫃使用，回報一次冷啟動失敗，
+  根因為機櫃內結露而非模組本身，加裝加熱片後未再發生。
+
+⚠️ 若客戶需求低於 -20°C，屬未驗證範圍，需另行評估。
+
+出處：
+【眾宇｜全產品線｜2026｜標案問答與規格說明｜蒸餾頁：低溫規格】
+【眾宇｜全產品線｜2024-2026｜客訴處理與技術問答｜蒸餾頁：冷啟動失敗案例】</code></pre>
+<p><strong>價值在哪</strong>：三件事。一是<strong>當場答得出來</strong>；二是附上了一個真實客戶案例（比規格數字有說服力得多）；三是<strong>主動標示了「低於 -20°C 屬未驗證範圍」</strong>——這句話避免業務當場做出做不到的承諾。</p>
+<p><strong>人資的預期效果</strong>：新人第一週的問題（流程、工具、術語）自己查得到，帶人者只需處理真正需要判斷的問題。實務上新人上手時間可壓縮三到四成——<strong>但這取決於你有沒有真的把教材與交接錄音匯進去</strong>。</p>
+<h3 id="⑦-這套系統做不到什麼-3">⑦ 這套系統做不到什麼</h3>
+<p><strong>規劃可以繞過的</strong>：客訴要「按批號查」——把批號寫進素材標題與內容，並為重要批號建獨立盒子。</p>
+<p><strong>本質上不該用它做的</strong></p>
+<ul><li>取代客服工單系統的派工與 SLA 追蹤</li><li>自動回覆客戶信件（可以幫客服<strong>準備</strong>回覆內容，但送出前要人看過）</li><li>人員考核與敏感人事判斷</li><li>產生對外承諾（規格保證、交期承諾）——<strong>系統的答案是內部參考，不是對客戶的承諾</strong></li></ul>
+<h3 id="⑧-驗收方式-3">⑧ 驗收方式</h3>
+<div class="tw"><table><thead><tr><th>用什麼</th><th>看什麼</th><th>建議起點</th></tr></thead><tbody><tr><td>實測</td><td>業務用手機在會議室現場問 5 個常見技術問題</td><td>5 題都在 30 秒內得到帶出處的答案</td></tr><tr><td><code>/reports/qa-activity</code></td><td><strong>被封鎖（查無依據）的問題清單</strong></td><td>這份清單就是你「還缺哪些資料」的待辦清單——<strong>這是最被低估的一張報表</strong></td></tr><tr><td><code>/reports/feedback</code></td><td>AI 回答滿意度</td><td>持續追蹤趨勢，不看單次</td></tr><tr><td>人工</td><td>越權題：以 <code>客服業務</code> 身分問薪資與議價底線</td><td>必須查不到</td></tr></tbody></table></div>
+<hr>
+<h2 id="八跨部門失敗模式最值得先看的一節" class="t1">八、跨部門失敗模式（最值得先看的一節）</h2>
+<p>這八個錯誤都會實際發生，而且<strong>多數不會報錯</strong>。</p>
+<div class="tw"><table><thead><tr><th>#</th><th>症狀</th><th>根因</th><th>怎麼修</th></tr></thead><tbody><tr><td>1</td><td>篩選之後範圍反而變大，畫面沒有任何提示</td><td>以為多選分類是「且」，實際是「<strong>或</strong>」</td><td>客戶／型號改用「限定知識來源」硬篩；分類只留一個維度</td></tr><tr><td>2</td><td>問 <code>EPS-3000</code> 卻回 <code>EPS-5000</code> 的內容，而且<strong>答得很有自信</strong></td><td>盒子標題看不懂（十盒都叫「設計規範」），AI 無法分辨</td><td>照 <a href="../../docs/guides/naming-rules.html">命名規範 §3.3</a> 重新命名；問答時開「限定知識來源」</td></tr><tr><td>3</td><td>知識圖譜抽取跑完了，卻抽不到任何三元組</td><td><strong>來源的知識頁還沒核可</strong></td><td>先到 <code>/knowledge-distillation</code> 核可知識頁，再抽取</td></tr><tr><td>4</td><td>規範改版了，AI 還在回答舊版內容</td><td>素材更新後沒有重新清洗→蒸餾→重建索引。<strong>過時是靜默的</strong></td><td>定期看 <code>/data-consistency</code>；素材一改就重跑下游</td></tr><tr><td>5</td><td>什麼都問不到，一律「查無相關依據」</td><td><strong>沒有建立索引</strong></td><td>檢查 <code>/system-health</code> 的向量索引涵蓋率</td></tr><tr><td>6</td><td>清洗完的內容只是把素材接起來，沒有摘要也沒有分類</td><td><strong>沒有設定 LLM 金鑰</strong>——無金鑰時只做彙整與繁體化</td><td>設金鑰。無金鑰環境可以走到「匯入→聚合→清洗（降級）」，但<strong>評測與蒸餾一定要金鑰</strong></td></tr><tr><td>7</td><td>一次匯入 500 份，沒人審核，答案品質很差</td><td>垃圾進垃圾出。清洗的信心門檻只擋得住格式問題，擋不住內容錯誤</td><td><strong>第一批控制在 20～30 份並全部人工看過</strong>，確認品質後再擴大</td></tr><tr><td>8</td><td>清洗後的工程文件變得沒有用，尺寸都不見了</td><td>遮罩提示詞沒有明寫「不要遮型號、尺寸、公差」，AI 一併遮掉</td><td>改遮罩提示詞並明列例外；用真實樣本試跑驗證</td></tr><tr><td>9</td><td>「明明有這份文件，AI 卻查不到」——尤其是<strong>排在後面</strong>那幾份素材的內容</td><td>一盒塞太多，清洗時內容被<strong>模型輸出上限截斷</strong>。<strong>1.0.112 起會直接失敗或留 <code>&gt; 註記：</code></strong>；該版之前完全沒有提示（狀態仍「已清洗」卻少一大段）</td><td><strong>最快的處置是重新清洗一次</strong>（新版會直接告訴你）。要人工判斷則比長度（清洗後 <code>.md</code> ÷ 成員萃取檔總大小，正常 0.5～1.0）、抽查尾段，然後<strong>分盒或上傳前拆檔</strong>再重跑清洗→蒸餾→索引。見 <a href="../../docs/guides/source-scale-limits.html">知識來源分盒與規模上限指南</a></td></tr></tbody></table></div>
+<blockquote><p><strong>額外一個</strong>：AI 建議的分類會直接寫回紀錄且<strong>不檢查你的分類主檔</strong>，於是造出「清單頁下拉找不到、問答頁下拉卻有」的幽靈分類。解法是在分類提示詞裡明列詞庫並要求不得自創，見 <a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南 §3.6</a>。</p></blockquote>
+<hr>
+<h2 id="九系統做不到的事總表" class="t2">九、系統做不到的事（總表）</h2>
+<h3 id="91-第一層靠規劃可以繞過">9.1 第一層：靠規劃可以繞過</h3>
+<div class="tw"><table><thead><tr><th>做不到</th><th>繞過方式</th></tr></thead><tbody><tr><td>讀 CAD、判讀圖面</td><td>人工做關鍵尺寸標註截圖，走圖片解讀</td></tr><tr><td>按型號／客戶自動鎖定範圍</td><td>用「限定知識來源」硬篩選（這是唯一 100% 可靠的方式）</td></tr><tr><td>多維度交叉篩選</td><td>把主維度放進盒子標題，分類只留一個維度</td></tr><tr><td>外文文件</td><td>先萃取、人工確認可讀性，必要時整理中文版再匯入</td></tr><tr><td>按批號／工單號查</td><td>把編號寫進素材標題與內容</td></tr></tbody></table></div>
+<h3 id="92-第二層需要改程式">9.2 第二層：需要改程式</h3>
+<p>分類無法取交集（P1）、chunk 不含章節標題（P2）、切詞切開連字號（P3）、中文不斷詞（P4）、無重排序（P5）、無多維標籤資料模型（P6）。<strong>完整的優先序、預估效益與風險見 <a href="../../docs/strategy/multi-tenant-planning.html">多客戶多型號規劃分析 §8</a>。</strong> 建議順序是先做 P1，再量 P2 的實際增益，<strong>不要一開始就跳到 P6</strong>。</p>
+<h3 id="93-第三層本質上不該用這套系統做">9.3 第三層：本質上不該用這套系統做</h3>
+<p><strong>這一層最重要，因為它決定你會不會對系統失望。</strong></p>
+<div class="tw"><table><thead><tr><th>不該用它做</th><th>為什麼</th><th>該用什麼</th></tr></thead><tbody><tr><td>即時數值查詢（庫存、當期報價、設備稼動率）</td><td>知識庫的內容是<strong>經過清洗與蒸餾的快照</strong>，本質上會過期</td><td>ERP／MES／SCADA</td></tr><tr><td>跨表統計計算與排名</td><td>系統做的是文字檢索，不做數值運算</td><td>BI／報表工具</td></tr><tr><td>交易型操作（下單、派工、簽核、扣帳）</td><td>它是唯讀的知識層，沒有交易與稽核軌跡</td><td>ERP／CMMS／工作流系統</td></tr><tr><td>法律效力的逐字引用</td><td>內容是<strong>重組後的知識</strong>，不是原文</td><td>用它找到是哪一份哪一條，然後回去看原始檔</td></tr><tr><td>影像量測與視覺檢測</td><td>圖片解讀是語意描述，不是量測</td><td>AOI／量測系統</td></tr><tr><td>欄位級或單筆級權限</td><td>權控的最小單位是<strong>紀錄的團隊標籤</strong></td><td>分盒＋團隊；真正需要單筆權限的內容不要放進來</td></tr><tr><td>數學計算、公差疊加、財務推算</td><td>語言模型的算術不可靠</td><td>專業計算工具</td></tr><tr><td>對外承諾（規格保證、交期）</td><td>答案是內部參考，且可能引用到未定案內容</td><td>走正式的簽核流程</td></tr></tbody></table></div>
+<hr>
+<h2 id="十未來整合藍圖" class="t3">十、未來整合藍圖</h2>
+<h3 id="101-現在就可以做的整合">10.1 現在就可以做的整合</h3>
+<div class="tw"><table><thead><tr><th>能力</th><th>說明</th></tr></thead><tbody><tr><td><strong>MCP Server</strong></td><td>外部 AI Agent（Claude Code、Codex CLI、Cursor 等）可以直接查詢本知識庫，共六個工具，走 JWT 或 API Key 認證、受同一套團隊權控。詳見 <a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></td></tr><tr><td><strong>唯讀 REST 端點</strong></td><td>讓其他內部系統讀取知識庫</td></tr></tbody></table></div>
+<p>⚠️ 使用 MCP 時注意：<code>knowledge_ask</code> <strong>只回檢索參考資料、不生成答案</strong>，而且<strong>問句與上下文全文會落地儲存</strong>。細節見該說明書 §七。</p>
+<h3 id="102-值得整合但目前還沒有的">10.2 值得整合、但目前還沒有的</h3>
+<div class="tw"><table><thead><tr><th>整合對象</th><th>整合後多解決什麼</th><th>風險與成本</th></tr></thead><tbody><tr><td><strong>ERP</strong></td><td>「這個料號的當期價格與庫存」＋「歷史議價依據」合併回答</td><td>需處理即時性與權限對映；建議先做唯讀查詢</td></tr><tr><td><strong>PLM／PDM</strong></td><td>規範版本自動同步，解決「哪個是現行版」</td><td>版本模型對映複雜，但這是<strong>投報率最高的一個整合</strong></td></tr><tr><td><strong>MES／SCADA</strong></td><td>「這台機器現在的狀態」＋「歷史故障處置」合併回答</td><td>即時資料量大，不宜全量進知識庫，應以查詢代理方式整合</td></tr><tr><td><strong>CMMS 工單系統</strong></td><td>工單結案時自動把處置紀錄送進知識庫</td><td><strong>這個整合能根本解決「工單知識沒有累積」的問題</strong></td></tr><tr><td><strong>SharePoint／Teams／共用磁碟</strong></td><td>文件自動同步匯入，不靠人工上傳</td><td>⚠️ <strong>風險最高的一個</strong>：自動全量同步會把大量未整理、過期、重複的文件灌進來，品質反而下降。建議只同步<strong>指定資料夾</strong>，且保留人工審核關卡</td></tr><tr><td><strong>客服工單系統</strong></td><td>客訴結案自動入庫</td><td>需處理客戶個資遮罩</td></tr></tbody></table></div>
+<blockquote><p><strong>整合的優先序建議</strong>：先做 <strong>PLM／PDM</strong>（解決版本正確性，這是內容品質的根）與 <strong>CMMS 工單</strong>（解決知識持續累積）。<strong>共用磁碟自動同步放最後</strong>——它看起來最省事，實際上最容易毀掉知識庫的品質。</p></blockquote>
+<hr>
+<h2 id="十一導入順序建議" class="t4">十一、導入順序建議</h2>
+<h3 id="111-先做哪個部門">11.1 先做哪個部門</h3>
+<p>用三個判準打分（各 1～5 分），總分高的先做：</p>
+<div class="tw"><table><thead><tr><th>判準</th><th>問法</th></tr></thead><tbody><tr><td><strong>素材已數位化程度</strong></td><td>資料已經是電子檔了嗎？還是紙本與口頭？</td></tr><tr><td><strong>問題重複率</strong></td><td>同一個問題一個月被問幾次？</td></tr><tr><td><strong>答錯的代價</strong></td><td>答錯會停線、丟單，還是只是不方便？</td></tr></tbody></table></div>
+<p>眾宇的評分：</p>
+<div class="tw"><table><thead><tr><th>部門</th><th>數位化</th><th>重複率</th><th>答錯代價</th><th>總分</th><th>建議</th></tr></thead><tbody><tr><td>製造／設備維修</td><td>3</td><td>5</td><td>5</td><td><strong>13</strong></td><td>⭐ <strong>第一個做</strong></td></tr><tr><td>客服／業務</td><td>4</td><td>5</td><td>3</td><td><strong>12</strong></td><td>⭐ 第二個做</td></tr><tr><td>工程／研發</td><td>5</td><td>3</td><td>4</td><td>12</td><td>第二批</td></tr><tr><td>採購</td><td>4</td><td>2</td><td>4</td><td>10</td><td>第三批（且需先過越權測試）</td></tr></tbody></table></div>
+<blockquote><p><strong>為什麼不是先做工程？</strong> 工程的資料最完整、最好匯入，所以很多人從那裡開始。但工程的問題重複率低（每個新案的問題都不太一樣），<strong>成效不明顯，說服力弱</strong>。第一個案子的任務是<strong>做出一個所有人都認可的成功案例</strong>，所以選「重複率高、答錯代價大」的那一個。</p></blockquote>
+<h3 id="112-第一個月的里程碑">11.2 第一個月的里程碑</h3>
+<div class="tw"><table><thead><tr><th>週</th><th>做什麼</th><th>完成的判準</th></tr></thead><tbody><tr><td>第 1 週</td><td>填知識邊界表、定分類詞庫與命名規則、建骨架（團隊／分類／角色／使用者）</td><td>規範發給所有會建資料的人（發 <a href="../../docs/guides/naming-cheatsheet.html">速查卡</a>）</td></tr><tr><td>第 2 週</td><td>只匯入第一個部門的 20～30 份素材，走完清洗→審核→蒸餾→知識頁審核→建索引</td><td><code>/system-health</code> 的向量索引涵蓋率正常</td></tr><tr><td>第 3 週</td><td>出 20～30 題考題（含 3～5 題「應該查無」與 3～5 題越權題），存基線</td><td><code>LeakageTotal = 0</code>；<code>AvgRecallAtK ≥ 0.80</code></td></tr><tr><td>第 4 週</td><td>實地演練驗收＋看 <code>/reports/qa-activity</code> 的被封鎖清單，補資料</td><td>有一個部門的人願意主動用它</td></tr></tbody></table></div>
+<p><strong>第四週那一條是真正的驗收標準。</strong> 指標達標但沒人用，導入就是失敗的。</p>
+<hr>
+<h2 id="十二相關文件" class="t5">十二、相關文件</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>用途</th></tr></thead><tbody><tr><td><a href="../../docs/guides/naming-rules.html">知識庫命名規範與範例</a>｜<a href="../../docs/guides/naming-cheatsheet.html">速查卡</a></td><td>名字怎麼取（本文的前置閱讀）</td></tr><tr><td><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南</a></td><td>分類詞庫、團隊邊界、提示詞內容怎麼寫</td></tr><tr><td><a href="../../docs/guides/hands-on-lab.html">實作練習手冊 Hands-on Lab</a></td><td>按表操課把系統跑一遍（含現成練習素材）</td></tr><tr><td><a href="../../docs/guides/complete-manual.html">完整操作手冊</a>｜<a href="../../docs/guides/beginner-guide.html">新手完整操作指南</a></td><td>逐站逐欄位的權威操作說明</td></tr><tr><td><a href="../../docs/guides/import-guide.html">資料匯入指南</a></td><td>支援格式、大小上限、四條匯入管道</td></tr><tr><td><a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定使用指南</a></td><td>盒子怎麼建、成員怎麼挑</td></tr><tr><td><a href="../../docs/guides/wiki-review.html">知識頁審核與 Wiki 頁管理指南</a></td><td>蒸餾與知識頁審核</td></tr><tr><td><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></td><td>限定知識來源／分類／團隊的操作，怎麼問得到好答案</td></tr><tr><td><a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a></td><td>考題、基線與指標的完整操作</td></tr><tr><td><a href="../../docs/guides/monitoring-health.html">系統監控與健康檢查指南</a></td><td>索引涵蓋率、資料一致性巡檢、背景工作</td></tr><tr><td><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></td><td>外部 AI Agent 整合</td></tr><tr><td><a href="../../docs/strategy/multi-tenant-planning.html">多客戶、多客製、多型號的知識庫規劃分析</a></td><td>檢索機制、準確率預估、需改程式的限制 P1～P6</td></tr><tr><td><a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a></td><td><strong>未來</strong>可開發的子應用藍圖</td></tr><tr><td><a href="../../docs/operations/rag-troubleshooting.html">RAG 問題診斷手冊</a></td><td>問答結果不如預期時的排查順序</td></tr></tbody></table></div>
+<hr>
+<blockquote><p>返回 <a href="../../docs/guides/guides-index.html">guides 目錄索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>導入顧問：第一次見客戶，我要問到什麼</li><li>導入顧問：客戶問我不好回答的問題</li><li>導入顧問：我要清楚知道這套系統做不到什麼</li><li>導入顧問：客戶問能不能跟 ERP／PLM／MES 整合</li><li>知識庫系統銷售人員：客戶問「這解決我什麼問題」</li><li>知識庫系統銷售人員：我要判斷這個客戶適不適合</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li><li><a href="../../docs/guides/import-to-knowledge-flow.html">從客戶匯入到完成知識：操作流程指南</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#與既有文件的分工">與既有文件的分工</a><a class="l2" href="#一先講三件誠實的話">一、先講三件誠實的話</a><a class="l2" href="#二眾宇精密機電股份有限公司">二、眾宇精密機電股份有限公司</a><a class="l3" href="#21-公司背景">2.1 公司背景</a><a class="l3" href="#22-全公司痛點總表">2.2 全公司痛點總表</a><a class="l2" href="#三全公司基礎設定藍圖">三、全公司基礎設定藍圖</a><a class="l3" href="#31-團隊8-個">3.1 團隊（8 個）</a><a class="l3" href="#32-知識庫分類8-個單一維度文件用途">3.2 知識庫分類（8 個，單一維度＝文件用途）</a><a class="l3" href="#33-角色3-個">3.3 角色（3 個）</a><a class="l3" href="#34-知識來源盒子命名總表第一階段-14-盒">3.4 知識來源盒子命名總表（第一階段 14 盒）</a><a class="l3" href="#35-清洗設定檔3-個">3.5 清洗設定檔（3 個）</a><a class="l2" href="#四研發工程部">四、研發工程部</a><a class="l3" href="#①-情境">① 情境</a><a class="l3" href="#②-沒有這套系統時會怎樣">② 沒有這套系統時會怎樣</a><a class="l3" href="#③-要準備哪些資料">③ 要準備哪些資料</a><a class="l3" href="#④-基礎設定怎麼設">④ 基礎設定怎麼設</a><a class="l3" href="#⑤-操作順序">⑤ 操作順序</a><a class="l3" href="#⑥-預期看到什麼">⑥ 預期看到什麼</a><a class="l3" href="#⑦-這套系統做不到什麼">⑦ 這套系統做不到什麼</a><a class="l3" href="#⑧-驗收方式">⑧ 驗收方式</a><a class="l2" href="#五採購部">五、採購部</a><a class="l3" href="#①-情境-1">① 情境</a><a class="l3" href="#②-沒有這套系統時會怎樣-1">② 沒有這套系統時會怎樣</a><a class="l3" href="#③-要準備哪些資料-1">③ 要準備哪些資料</a><a class="l3" href="#④-基礎設定怎麼設含一個要先做的決策">④ 基礎設定怎麼設（含一個要先做的決策）</a><a class="l3" href="#⑤-操作順序-1">⑤ 操作順序</a><a class="l3" href="#⑥-預期看到什麼-1">⑥ 預期看到什麼</a><a class="l3" href="#⑦-這套系統做不到什麼-1">⑦ 這套系統做不到什麼</a><a class="l3" href="#⑧-驗收方式-1">⑧ 驗收方式</a><a class="l2" href="#六製造品保與設備維修">六、製造、品保與設備維修</a><a class="l3" href="#①-情境-2">① 情境</a><a class="l3" href="#②-沒有這套系統時會怎樣-2">② 沒有這套系統時會怎樣</a><a class="l3" href="#③-要準備哪些資料-2">③ 要準備哪些資料</a><a class="l3" href="#④-基礎設定怎麼設-1">④ 基礎設定怎麼設</a><a class="l3" href="#⑤-操作順序-2">⑤ 操作順序</a><a class="l3" href="#⑥-預期看到什麼-2">⑥ 預期看到什麼</a><a class="l3" href="#⑦-這套系統做不到什麼-2">⑦ 這套系統做不到什麼</a><a class="l3" href="#⑧-驗收方式-2">⑧ 驗收方式</a><a class="l2" href="#七客服業務與人資">七、客服、業務與人資</a><a class="l3" href="#①-情境-3">① 情境</a><a class="l3" href="#②-沒有這套系統時會怎樣-3">② 沒有這套系統時會怎樣</a><a class="l3" href="#③-要準備哪些資料-3">③ 要準備哪些資料</a><a class="l3" href="#④-基礎設定怎麼設-2">④ 基礎設定怎麼設</a><a class="l3" href="#⑤-操作順序-3">⑤ 操作順序</a><a class="l3" href="#⑥-預期看到什麼-3">⑥ 預期看到什麼</a><a class="l3" href="#⑦-這套系統做不到什麼-3">⑦ 這套系統做不到什麼</a><a class="l3" href="#⑧-驗收方式-3">⑧ 驗收方式</a><a class="l2" href="#八跨部門失敗模式最值得先看的一節">八、跨部門失敗模式（最值得先看的一節）</a><a class="l2" href="#九系統做不到的事總表">九、系統做不到的事（總表）</a><a class="l3" href="#91-第一層靠規劃可以繞過">9.1 第一層：靠規劃可以繞過</a><a class="l3" href="#92-第二層需要改程式">9.2 第二層：需要改程式</a><a class="l3" href="#93-第三層本質上不該用這套系統做">9.3 第三層：本質上不該用這套系統做</a><a class="l2" href="#十未來整合藍圖">十、未來整合藍圖</a><a class="l3" href="#101-現在就可以做的整合">10.1 現在就可以做的整合</a><a class="l3" href="#102-值得整合但目前還沒有的">10.2 值得整合、但目前還沒有的</a><a class="l2" href="#十一導入順序建議">十一、導入順序建議</a><a class="l3" href="#111-先做哪個部門">11.1 先做哪個部門</a><a class="l3" href="#112-第一個月的里程碑">11.2 第一個月的里程碑</a><a class="l2" href="#十二相關文件">十二、相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/企業實戰情境劇本-依部門的資料準備與操作.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</h1><p class="sub">定義「專案協作」模組的四階段強化需求——側邊選單重整、專案分類主檔、會議欄位擴充與進度統計、會議 AI 自動化</p></header><div class="docwrap"><main><ul><li>文件用途：定義「專案協作」模組的四階段強化需求——側邊選單重整、專案分類主檔、會議欄位擴充與進度統計、會議 AI 自動化</li><li>主要讀者：產品、開發、導入顧問</li><li>文件版本：1.0</li><li>文件狀態：規劃中</li><li>現行系統版本：1.0.61</li><li>預計實作版本：1.0.17（階段一）～1.0.20（階段四）</li><li>建立日期：2026/07/20</li><li>最後核對日期：2026/07/25</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>對應代辦清單：<a href="../../docs/planning/todo-19efa315.html">專案協作模組強化開發代辦清單</a> 相關 PRD：<a href="../../docs/prd/prd-dcd2b331.html">專案管理</a>、<a href="../../docs/prd/prd-3631982f.html">工作任務</a>、<a href="../../docs/prd/prd-6dd4645a.html">會議管理</a>、<a href="../../docs/prd/prd-e188d641.html">知識庫分類</a>、<a href="../../docs/prd/prd-0af3129c.html">音訊影片轉錄服務</a>、<a href="../../docs/prd/prd-c711f637.html">紀錄分類與團隊權控</a></p></blockquote>
+<hr>
+<h2 id="一背景與目的" class="t1">一、背景與目的</h2>
+<h3 id="11-企業真實需要">1.1 企業真實需要</h3>
+<p>企業內「有一件事要完成」的作業型態，不只存在於公司層級，而是<strong>存在於每個部門，甚至臨時組成的虛擬團隊</strong>。這件事在系統中的自然對應是：</p>
+<ul><li><strong>專案管理</strong>＝一個要達成的需求或目標</li><li><strong>工作任務</strong>＝專案底下要做的事，且工作本身還能再拆成<strong>子工作任務</strong></li><li><strong>會議管理</strong>＝推進這件事的過程中，人與人溝通所產生的決議與待辦</li></ul>
+<p>要回答「這個專案做完了沒／做到哪了」，答案應該來自<strong>底下所有工作與子工作的完成比例統計</strong>，而不是靠人手動維護一個數字。</p>
+<h3 id="12-三個待解問題">1.2 三個待解問題</h3>
+<p><strong>問題一：選單語意混雜。</strong> 現況「專案管理」子選單同時塞了六個功能——專案管理／工作任務／會議管理（人在協作、追進度）與影音轉逐字稿／文件轉文字／圖片解讀（把素材餵進知識庫）。兩類職能完全不同卻同居一組，使用者難以建立心智模型。</p>
+<p><strong>問題二：知識庫分類語意重疊。</strong> 專案、工作、會議的「分類」欄位目前共用 <code>Category</code>（知識庫分類），但那份清單的定位是<strong>知識庫主題標籤</strong>——知識來源、Wiki、問答篩選都吃它。兩種語意混在同一份清單，導致下拉選單越長越雜，且任一邊調整都會污染另一邊。</p>
+<p><strong>問題三：會議知識流失。</strong> 會議是企業內最高頻、也最容易流失的知識來源。現況「會議管理」是純手動 CRUD，而系統其實<strong>已具備完整的影音轉逐字稿管線（<code>MediaTranscription</code>）與 LLM 依提示詞產生內容能力（<code>LlmGenerationService</code>）</strong>，兩者卻沒有接起來。使用者必須自己在兩個頁面之間搬運內容。</p>
+<h3 id="13-目標">1.3 目標</h3>
+<ol><li>讓「協作」與「匯入」在選單上分家，各自語意清楚。</li><li>給專案／工作／會議一份<strong>專屬的分類主檔</strong>，與知識庫分類脫鉤。</li><li>讓專案進度可<strong>依工作與子工作的完成比例自動彙總</strong>。</li><li>把「會議錄音／錄影 → 逐字稿 → AI 會議紀錄 → 待辦轉工作任務」串成一條可自動化的線。</li></ol>
+<h3 id="14-非範圍">1.4 非範圍</h3>
+<ul><li>甘特圖、任務相依性、看板、衝刺規劃、通知提醒</li><li>多層巢狀子工作（維持既有的父→子一層）</li><li>行事曆同步、會議排程</li><li>線上會議連結（Teams／Zoom）自動抓取錄影（見 §6.2 決策說明）</li><li>專案／工作／會議紀錄自動進入知識庫 RAG 索引（如需，仍循既有「知識來源聚合 → 清洗」流程）</li></ul>
+<hr>
+<h2 id="二需求決策摘要" class="t2">二、需求決策摘要</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>決策</th><th>理由</th></tr></thead><tbody><tr><td>兩個新子選單名稱</td><td><strong>專案協作</strong>（專案管理／工作任務／會議管理）、<strong>資料匯入</strong>（影音轉逐字稿／文件轉文字／圖片解讀）</td><td>與既有「知識庫」形成「匯入 → 清洗 → 蒸餾」的流水線語意</td></tr><tr><td>新知識庫分類名稱</td><td><strong>專案分類</strong>（Entity <code>WorkCategory</code>，路由 <code>/work-categories</code>）</td><td>與知識庫的「知識庫分類」語意分離且不易混淆</td></tr><tr><td>新分類掛載位置</td><td>「基礎資料設定」主選單下</td><td>與知識庫分類／團隊管理／AI 提示詞同屬基礎資料</td></tr><tr><td>既有分類資料</td><td><strong>啟動時自動搬移</strong>：掃描三表既有 <code>Categories</code> 值，缺的自動建入 <code>WorkCategory</code></td><td>零資料遺失、使用者無感；既有紀錄字串<strong>完全不動</strong></td></tr><tr><td>會議自動化入口</td><td><strong>會議管理頁一鍵走完</strong></td><td>使用者只在一個頁面操作；轉錄頁仍看得到該筆紀錄</td></tr><tr><td>錄音來源</td><td><strong>僅上傳檔案</strong>，上限 1GB → <strong>2GB</strong></td><td>會議錄影實務上都是 Teams／Meet 匯出的本機檔；Teams／Zoom 連結需登入，yt-dlp 抓不到</td></tr><tr><td>AI 待辦 → 工作任務</td><td><strong>人工確認後建立</strong></td><td>LLM 會把閒聊當待辦；自動寫入會污染工作清單且難清理</td></tr><tr><td>會議新增欄位</td><td>會議形式／地點／主持人／紀錄人／決議事項／AI 產生屬性欄位</td><td>不加「會議狀態」——本次未確認有實務需求</td></tr><tr><td>AI 產出寫回</td><td><strong>檔案為主</strong>（Markdown 落地，DB 只存相對路徑）＋摘要／決議／出席者寫回欄位</td><td>比照清洗結果、聊天紀錄的既有慣例：長內容不入 DB</td></tr><tr><td>欄位覆寫行為</td><td><strong>覆寫，但產生前跳確認對話窗</strong>明示</td><td>行為可預測，使用者掌握主導權</td></tr><tr><td>進度統計</td><td><strong>即時計算不存檔</strong>（子工作→父工作→專案逐層平均）</td><td>不新增欄位、不需 migration、永遠不會不同步</td></tr><tr><td>交付方式</td><td><strong>四階段，每階可建置</strong>，每階段版本 +1</td><td>符合既有開發流程；風險最高的選單改動前置驗證</td></tr></tbody></table></div>
+<hr>
+<h2 id="三階段一選單拆分專案協作資料匯入" class="t3">三、階段一：選單拆分（專案協作／資料匯入）</h2>
+<p><strong>預計版本：1.0.16 → 1.0.17</strong></p>
+<h3 id="31-選單結構">3.1 選單結構</h3>
+<p>「專案管理」（現 <code>Menu.json</code> 索引 1）拆為兩個頂層群組：</p>
+<div class="tw"><table><thead><tr><th>新群組</th><th>子項</th><th>路由</th></tr></thead><tbody><tr><td><strong>專案協作</strong>（圖示 <code>assignment</code>）</td><td>專案管理</td><td><code>/projects</code></td></tr><tr><td></td><td>工作任務</td><td><code>/Task</code></td></tr><tr><td></td><td>會議管理</td><td><code>/meeting</code></td></tr><tr><td><strong>資料匯入</strong>（圖示 <code>cloud_upload</code>）</td><td>影音轉逐字稿</td><td><code>/media-transcription</code></td></tr><tr><td></td><td>文件轉文字</td><td><code>/document-extraction</code></td></tr><tr><td></td><td>圖片解讀</td><td><code>/image-recognition</code></td></tr></tbody></table></div>
+<p>拆分後頂層順序為：首頁、<strong>專案協作</strong>、<strong>資料匯入</strong>、知識庫、系統管理、基礎資料設定、統計報表、登出（共 8 組，原 7 組）。</p>
+<h3 id="32-權限與相容性本階段最關鍵">3.2 權限與相容性（本階段最關鍵）</h3>
+<p>側邊選單與權限樹以<strong>位置索引</strong>對應（<code>SidebarMenuService.ApplyPermissionStructure</code>），名稱從不參與比對。索引漂移是<strong>靜默失效</strong>——權限名會退化成選單項名稱，導致選單對非管理員直接消失。因此 <code>Menu.json</code>、<code>RolePermissionService</code>、<code>MagicObjectHelper</code> 三處必須同步。</p>
+<p><strong>相容性結論</strong>：<code>AuthenticationStateHelper.CheckAccessPage(name)</code> 只是對角色的 <code>RoleView.TabViewJson</code> 做平面字串 <code>Contains</code>。因此：</p>
+<ul><li><strong>只要六個葉節點權限字串（<code>專案項目</code>／<code>工作項目</code>／<code>會議項目</code>／<code>音訊轉錄</code>／<code>文件萃取</code>／<code>圖片清單</code>）逐字不變，既有角色不會失去任何頁面權限。</strong></li><li><strong>選單也不會消失</strong>：<code>FilterMenuItems</code> 的規則是「父節點自身無權限但有 ≥1 個可見子項時仍保留」，故舊角色即使沒有新的群組權限字串，父節點照樣顯示。</li><li>殘留的 <code>"專案管理功能"</code> 字串會被 <code>SetPermissionInput</code> 靜默忽略，<strong>無需資料遷移、無需改 SQL</strong>。</li><li><code>預設角色</code> 每次啟動由 <code>Program.cs</code> 重寫為全部權限，會自動修復。</li></ul>
+<p><strong>唯一殘留</strong>：自訂角色在 <code>/roleviews</code> 會看到兩個<strong>未勾選</strong>的新群組標題。發行說明須帶一句：「既有角色的頁面權限不受影響；如需群組層級權限請至角色管理重新勾選。」</p>
+<p>新增權限常數 <code>角色_專案協作 = "專案協作功能"</code>、<code>角色_資料匯入 = "資料匯入功能"</code>；刪除 <code>角色_專案管理</code>（由編譯器標出殘留引用）。</p>
+<h3 id="33-新增不變量守護測試">3.3 新增不變量守護測試</h3>
+<p>目前<strong>沒有任何測試</strong>守護 Menu.json ↔ RolePermissionService 的位置索引不變量，而這正是最容易壞的地方。新增 <code>MenuPermissionAlignmentTests</code>：</p>
+<ol><li><code>Menu.json</code> 頂層數 == <code>GetRoleListPermissionAllName().Count</code></li><li>每組 <code>subMenu.Count &lt;= group.Count - 1</code>（容許動作型權限尾隨）</li><li>走一次位置索引對應，斷言沒有任何葉節點退化成 <code>item.Name</code></li></ol>
+<h3 id="34-驗收條件">3.4 驗收條件</h3>
+<ol><li>管理員登入，側邊選單為 首頁 / 專案協作(3) / 資料匯入(3) / 知識庫(7) / 系統管理(10) / 基礎資料設定(4) / 統計報表(5) / 登出，<strong>每個連結都導到正確頁面</strong>。</li><li><strong>拿一個改動前建立、且不重新存檔的非管理員角色登入</strong>，六個頁面全部仍看得到、開得起來。</li><li>建一個只勾「影音轉逐字稿」的角色：資料匯入父節點顯示，專案協作不顯示。</li><li>「統計報表」與「登出」仍正常顯示（尾端對齊未被打壞）。</li><li><code>dotnet build</code>／<code>dotnet test</code> 綠燈。</li></ol>
+<hr>
+<h2 id="四階段二專案分類workcategory" class="t4">四、階段二：專案分類（WorkCategory）</h2>
+<p><strong>預計版本：1.0.17 → 1.0.18</strong></p>
+<h3 id="41-資料模型">4.1 資料模型</h3>
+<p>新增實體 <code>WorkCategory</code>（欄位與既有 <code>Category</code> 完全一致）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>Id</td><td>int</td><td>主鍵，自動遞增</td></tr><tr><td>Name</td><td>string</td><td>分類名稱（必填、唯一）</td></tr><tr><td>Description</td><td>string?</td><td>描述（選填）</td></tr><tr><td>IsEnabled</td><td>bool</td><td>是否啟用（預設 <code>true</code>），停用者不供新資料選用</td></tr><tr><td>CreatedAt</td><td>DateTime</td><td>建立時間</td></tr><tr><td>UpdatedAt</td><td>DateTime</td><td>最後更新時間</td></tr></tbody></table></div>
+<p>名稱唯一性以應用層檢查：<code>Trim()</code> 後<strong>忽略大小寫</strong>比對，編輯時排除自身，重複回 <code>409 Conflict</code>。<strong>需產雙 provider migration</strong>（<code>AddWorkCategory</code>）。</p>
+<h3 id="42-影響範圍只換下拉來源不動儲存">4.2 影響範圍：只換下拉來源，不動儲存</h3>
+<p>專案、工作、會議的 <code>Categories</code> 欄位<strong>儲存格式完全不變</strong>——仍是 <code>TagStringHelper</code> 的 <code>\n</code> 包夾字串（如 <code>"\nA\nB\n"</code>），AutoMapper 的 <code>ForMember</code> 轉換不變，<code>BuildContainsAnyPredicate</code> 的精確成員比對不變。<strong>本階段只改「哪一張表填充下拉選單」</strong>。</p>
+<p>全站共 12 處以 <code>CategoryService.GetAllEnabledNamesAsync()</code> 填充分類下拉，<strong>只換 5 處</strong>：</p>
+<ul><li><code>ProjectViewView</code>（工具列篩選 ＋ 內嵌編輯表單）</li><li><code>MyTasViewView</code>（工具列篩選）</li><li><code>MyTasEditModal</code>（分類標籤）</li><li><code>MeetingViewView</code>（工具列篩選）</li><li><code>MeetingEditModal</code>（分類標籤）</li></ul>
+<blockquote><p><code>ProjectRelatedRecordsModal</code>（專案內的「工作與會議」對話窗）<strong>不需要改</strong> — 它沒有注入 <code>CategoryService</code>，而是掛載 <code>MyTasEditModal</code> / <code>MeetingEditModal</code>，已被上述兩處涵蓋。</p></blockquote>
+<p>其餘 7 處<strong>維持吃「知識庫分類」</strong>：知識來源、Wiki 頁、知識百科、影音轉逐字稿、文件轉文字、圖片解讀、內容清點報表。</p>
+<h3 id="43-既有資料自動搬移">4.3 既有資料自動搬移</h3>
+<p>新增 <code>WorkCategoryBootstrapSeeder</code>，掛在既有的啟動 migration／seeding 區塊內：</p>
+<pre><code>掃 Project.Categories + MyTask.Categories + Meeting.Categories（AsNoTracking + Distinct）
+→ TagStringHelper.ToList 攤平 → Trim → 濾掉空白 → Distinct（忽略大小寫）
+→ 與 WorkCategory 既有名稱比對（忽略大小寫），缺的 AddRange（IsEnabled = true）
+→ 記錄 ScannedCount / InsertedCount
+→ try/catch + LogError，失敗不中斷啟動</code></pre>
+<p><strong>設計取捨</strong>：每次啟動都執行（冪等），不使用一次性旗標。三個單欄 <code>SELECT DISTINCT</code> 成本可忽略，且能吸收「直接改 DB」或「還原備份」帶進來的新值。忽略大小寫的去重與服務層唯一性檢查一致，故 seeder 絕不會塞進 UI 會判為重複的列。</p>
+<h3 id="44-已知技術債本次不處理">4.4 已知技術債（本次不處理）</h3>
+<p><code>MyTask.Category</code>（<strong>單值、<code>Required</code>、自由輸入文字</strong>）是早期欄位，與新的多值 <code>Categories</code> 並存，目前供關鍵字搜尋、排序、以及對外 API 的精確過濾使用。</p>
+<p><strong>本次完全不動它。</strong> 它是非空欄位且有對外 API 過濾契約，改動＝migration ＋ API 破壞性變更 ＋ 回填每一列，且用途（單值標籤供排序過濾）與多值標籤本就不同。若要退場應另開 PRD。</p>
+<h3 id="45-驗收條件">4.5 驗收條件</h3>
+<ol><li><code>/work-categories</code> 完整 CRUD；重複名稱（含 <code>abc</code> vs <code>ABC </code> ）被擋、API 回 409；可停用。</li><li>拿一份<strong>有真實資料的資料庫副本</strong>啟動：日誌出現回填筆數，<code>/work-categories</code> 列出既有分類值。</li><li>再重啟一次：新增筆數為 0（冪等）。</li><li><code>/projects</code>、<code>/Task</code>、<code>/meeting</code> 及專案內「工作與會議」對話窗的分類下拉顯示專案分類，且<strong>停用項不出現</strong>。</li><li>存一筆兩個分類的專案 → 資料庫值仍為 <code>\nA\nB\n</code>；用其中一個篩選，精確成員比對正確（「團隊」不誤中「團隊2」）。</li><li>知識來源、知識百科、三條匯入、內容清點報表的分類下拉<strong>仍讀舊的知識庫分類</strong>。</li></ol>
+<hr>
+<h2 id="五階段三會議欄位擴充與進度統計" class="t5">五、階段三：會議欄位擴充與進度統計</h2>
+<p><strong>預計版本：1.0.18 → 1.0.19</strong></p>
+<h3 id="51-會議新增欄位">5.1 會議新增欄位</h3>
+<p><code>Meeting</code> 現有欄位為 <code>Title</code>／<code>Description</code>／<code>Summary</code>／<code>Participants</code>／<code>StartDate</code>／<code>EndDate</code>／<code>Categories</code>／<code>Teams</code>／<code>ProjectId</code>／<code>Files</code>。新增：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>用途</th></tr></thead><tbody><tr><td><code>MeetingMode</code></td><td>string?</td><td>會議形式：實體／線上／混合</td></tr><tr><td><code>Location</code></td><td>string?</td><td>地點，或線上會議連結</td></tr><tr><td><code>Host</code></td><td>string?</td><td>主持人</td></tr><tr><td><code>Recorder</code></td><td>string?</td><td>紀錄人</td></tr><tr><td><code>Decisions</code></td><td>string?</td><td>決議事項</td></tr><tr><td><code>SourceTranscriptionId</code></td><td>int?</td><td>來源轉錄紀錄（FK → <code>MediaTranscription</code>，<code>Restrict</code>）</td></tr><tr><td><code>GeneratedContentRelativePath</code></td><td>string?</td><td>AI 會議紀錄 Markdown 相對路徑</td></tr><tr><td><code>GeneratedAt</code></td><td>DateTime?</td><td>AI 產生時間</td></tr><tr><td><code>MinutesStatus</code></td><td>string?</td><td>未產生／轉錄中／轉錄完成／<strong>排隊中</strong>／產生中／已產生／失敗／<strong>已取消</strong>（後兩者 1.0.78 新增）</td></tr><tr><td><code>PendingActionItemsJson</code></td><td>string?</td><td>AI 待辦草稿（JSON 陣列，階段四使用）</td></tr></tbody></table></div>
+<p>全部可空，既有資料不受影響。狀態常數放 <code>MeetingAdapterModel</code>（比照既有慣例）。<strong>需產雙 provider migration</strong>（<code>AddMeetingFields</code>）。</p>
+<h3 id="52-進度統計純計算零-migration">5.2 進度統計（純計算，零 migration）</h3>
+<ul><li><strong>工作進度</strong>：有子工作 → 子工作 <code>CompletionPercentage</code> 平均；無子工作 → 自身值。</li><li><strong>專案進度</strong>：該專案下<strong>頂層工作</strong>（<code>ParentTaskId == null</code>）的工作進度平均；無工作 → 專案自身 <code>CompletionPercentage</code>。</li><li><strong>效能要求</strong>：清單頁比照既有 <code>ChildCount</code> 的<strong>單次 group-by 查詢</strong>做法，<strong>不可 N+1</strong>。</li><li><strong>UI</strong>：專案清單與工作清單各加一欄進度條，tooltip 標示「依子項自動彙總」或「手動值」。</li></ul>
+<p>現有 <code>CompletionPercentage</code> 欄位保留為<strong>手動值</strong>，在無子項時作為進度來源。此設計不新增欄位、不需 migration，且<strong>永遠不會出現統計值與實際子項不同步</strong>的情況。</p>
+<h3 id="53-驗收條件">5.3 驗收條件</h3>
+<ol><li>會議表單可填新欄位、存取正確；既有會議開啟編輯不報錯。</li><li>專案有 2 個工作（30%／70%）→ 專案進度顯示 50%；工作有 2 個子工作 → 父工作顯示子工作平均。</li><li>無工作的專案顯示自身手動值。</li><li>清單頁 SQL 查詢數不隨列數增長。</li><li>雙 migration 皆已產生，SQLite / SQL Server 皆可升級，且<strong>沒有誤產 <code>MyTas</code> rename</strong>。</li></ol>
+<hr>
+<h2 id="六階段四會議-ai-自動化核心" class="t6">六、階段四：會議 AI 自動化（核心）</h2>
+<p><strong>預計版本：1.0.19 → 1.0.20</strong></p>
+<h3 id="61-端到端流程">6.1 端到端流程</h3>
+<pre><code>會議記錄頁「上傳會議錄音／錄影」
+  → 建立 MediaTranscription（繼承會議的 Categories/Teams）
+    寫回 Meeting.SourceTranscriptionId；MinutesStatus = 轉錄中
+  → 既有轉錄管線：TranscriptionQueue → BackgroundService → Processor
+    （OpenAI 語音轉文字，逐字稿落地為 .txt）
+  → 轉錄成功後的「加值步驟」：若有會議掛此轉錄 → 入列會議紀錄產生佇列
+  → MeetingMinutesQueue → BackgroundService → Processor
+    （LlmPromptResolver 取「會議-紀錄生成」提示詞 → LLM）
+  → 解析回傳 JSON：
+      markdown       → 落地 .md，路徑寫入 GeneratedContentRelativePath
+      summary        → Meeting.Summary       ┐
+      decisions      → Meeting.Decisions     ├ 覆寫（產生前已跳確認）
+      participants   → Meeting.Participants  ┘
+      actionItems[]  → Meeting.PendingActionItemsJson（草稿，不建工作）
+  → MinutesStatus = 已產生
+  → 使用者開「待辦確認」對話窗 → 勾選／微調 → 批次建立工作項目</code></pre>
+<h3 id="62-設計理由">6.2 設計理由</h3>
+<ul><li><strong>完全復用既有轉錄管線</strong>，不重造語音轉文字、分塊、重試、取消、重啟回復。</li><li>轉錄完成後的觸發做成<strong>加值步驟</strong>（比照既有影片轉碼的慣例）：失敗只記警告、不影響轉錄本身成功。</li><li>新的會議紀錄產生管線嚴格比照既有背景管線的四件套結構，與既有四條同構，維護心智負擔為零。</li><li><strong>待辦不自動建立</strong>：LLM 會把閒聊當待辦，自動寫入會污染工作清單且難以清理。人工確認是必要的品質閘門。</li><li><strong>不支援線上會議連結</strong>：Teams／Zoom 的錄影連結需要登入權杖，既有的 yt-dlp 下載器抓不到，實際可用性有限。使用者從會議平台匯出檔案再上傳，反而是最可靠的路徑。</li></ul>
+<h3 id="63-提示詞契約">6.3 提示詞契約</h3>
+<p>新增提示詞鍵 <code>會議-紀錄生成</code>，走既有四層解析（單次操作覆蓋 → 資料庫 → appsettings → 程式 fallback）。要求 LLM 回傳單一 JSON 物件：</p>
+<pre><code>{
+  "markdown": "完整會議紀錄 Markdown",
+  "summary": "三到五句摘要",
+  "decisions": "決議事項條列",
+  "participants": "出席者，逗號分隔",
+  "actionItems": [{ "title": "", "owner": "", "dueDate": "YYYY-MM-DD", "description": "" }]
+}</code></pre>
+<p><strong>降級策略</strong>：JSON 解析失敗時，把整份回應當 <code>markdown</code> 落地、其餘欄位留空、狀態仍標為已產生，並記錄警告日誌（不得靜默）。這樣即使 LLM 不遵守格式，也不會整筆失敗。</p>
+<h3 id="64-權控與安全">6.4 權控與安全</h3>
+<ul><li>上傳與觸發都在 UI 執行緒完成團隊權控檢查（<code>IsTeamAccessible</code>），<strong>背景 scope 不做使用者權控</strong>（比照文件轉文字「依提示詞產生」的既有慣例）。</li><li>新建的 <code>MediaTranscription</code> <strong>繼承會議的 <code>Teams</code></strong>，確保轉錄紀錄的可見範圍與會議一致。</li><li>由待辦建立的工作任務繼承會議的 <code>ProjectId</code>／<code>Teams</code>／<code>Categories</code>。</li><li>佇列載荷帶提交者身分（<code>PipelineJob</code>），token 用量正確歸屬。</li><li>含檔案選擇的上傳對話窗必須設 <code>MaskClosable="false"</code>（否則選完檔案會誤關）。</li></ul>
+<h3 id="65-容量">6.5 容量</h3>
+<p>會議錄音／錄影上傳上限由 1GB 調整為 <strong>2GB</strong>。需實測 Kestrel 與 Blazor <code>InputFile</code> 串流是否需額外調整（<code>InputFile</code> 走分塊串流，理論上不受 SignalR 訊息上限影響，但需驗證）。</p>
+<h3 id="66-驗收條件">6.6 驗收條件</h3>
+<ol><li>上傳一段 5 分鐘會議錄音 → 狀態依序走過 轉錄中 → 產生中 → 已產生。</li><li>AI 會議紀錄可在頁內檢視／編修，存回<strong>原地覆寫同一檔案</strong>（不產生新檔、不動資料庫路徑欄位）。</li><li>摘要／決議／出席者確實寫回欄位；重新產生前有確認對話窗明示將覆寫。</li><li>待辦草稿可勾選建立為工作任務，且繼承專案／團隊／分類。</li><li>轉錄失敗 → 會議狀態為失敗並有錯誤訊息；LLM 回非 JSON → 降級成功且有警告日誌。</li><li>重啟後「轉錄中／產生中」的會議會被重新排程。</li><li>2GB 檔案可上傳。</li><li>非同團隊使用者看不到該會議與其轉錄紀錄。</li></ol>
+<hr>
+<h2 id="七跨階段共同規範" class="t7">七、跨階段共同規範</h2>
+<p>本專案既有的鐵則，四個階段全部適用（詳見 <a href="../../docs/architecture/dev-conventions.html">開發慣例與限制速查</a>）：</p>
+<ol><li><strong>雙 provider migration</strong>：每次模型變更要在 SQLite（<code>AccessDatas</code>）與 SQL Server（<code>AccessDatas.SqlServerMigrations</code>）<strong>各產生一次</strong>；產生後確認<strong>沒有誤產 <code>MyTas</code>／<code>MyTasFile</code> 的 rename</strong>。</li><li><strong>團隊權控</strong>：任何新查詢／Controller／下載端點都要走 <code>IRecordAccessScopeProvider</code> ＋ <code>TagStringHelper.BuildTeamAccessPredicate</code>／<code>IsTeamAccessible</code>。</li><li><strong>標籤欄位</strong>：以分隔字串儲存、<code>TagStringHelper</code> 轉換與精確比對；AutoMapper 以 <code>ForMember</code> 做 <code>List</code> ⇄ 字串。</li><li><strong>選單三處同步</strong>：<code>MagicObjectHelper</code> 常數、<code>RolePermissionService</code> 群組、<code>Menu.json</code>，以<strong>位置索引</strong>對應。</li><li><strong>Blazor 慣例</strong>：建構式注入 Service／AntDesign 服務、<code>[Inject]</code> 注入框架類；編輯前 <code>Clone()</code>；Update／Delete 前 <code>CleanTrackingHelper.Clean&lt;T&gt;()</code>；多選 Select 用 <code>Mode="SelectMode.Multiple"</code> ＋ <code>Values</code>／<code>OnSelectedItemsChanged</code>。</li><li><strong>動作鈕圖示</strong>：一律使用 <code>CrudActionButton</code>，新圖示名稱須加入允許清單測試；全站不可用 emoji 當圖示。</li><li><strong>日誌</strong>：外部呼叫三點式（開始→成功→失敗）；<strong>catch 不得靜默</strong>；不記金鑰、不記請求／回應本文。</li><li><strong>版本與文件</strong>：每個可建置階段 <code>appsettings.json</code> 的 <code>SystemVersion</code> <strong>+1</strong> 並於 commit message 說明；同步更新相關文件；<code>docs/*.md</code> 一律 <strong>UTF-8 含 BOM</strong>，提交前 <code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li><li><strong>不自動 commit</strong>：每階段完成後由使用者決定何時 commit／merge／push。</li></ol>
+<hr>
+<h2 id="八風險與對策" class="t8">八、風險與對策</h2>
+<div class="tw"><table><thead><tr><th>風險</th><th>嚴重度</th><th>對策</th></tr></thead><tbody><tr><td>選單三處位置索引漂移</td><td><strong>高</strong>（靜默失效，選單對非管理員直接消失）</td><td>三處同步於同一次變更；新增 <code>MenuPermissionAlignmentTests</code>；以非管理員角色實測</td></tr><tr><td>漏產 SQL Server migration</td><td><strong>高</strong>（正式部署啟動即失敗）</td><td>每次模型變更明確產生兩份，以 <code>git status</code> 確認兩個資料夾都有新檔</td></tr><tr><td>自動搬移把空白／垃圾值塞進專案分類</td><td>中</td><td>Trim ＋ 濾空白 ＋ 忽略大小寫去重</td></tr><tr><td>自動搬移拋例外阻擋啟動</td><td>中</td><td>try/catch ＋ 記錄錯誤，絕不重新拋出</td></tr><tr><td>LLM 回傳非 JSON 導致整筆失敗</td><td>中</td><td>降級為「整份當 Markdown」＋警告日誌</td></tr><tr><td>AI 覆寫使用者手寫的摘要／決議</td><td>中</td><td>產生前跳確認對話窗明示</td></tr><tr><td>AI 待辦品質不佳污染工作清單</td><td>中</td><td>人工確認閘門，不自動建立</td></tr><tr><td>2GB 上傳觸發未預期的框架限制</td><td>中</td><td>階段四明列為必測項</td></tr><tr><td>專案分類與既有紀錄字串在改名後脫鉤</td><td>低（既有知識庫分類同樣行為）</td><td>沿用既有規範：重新命名不自動更新既有紀錄，於文件說明</td></tr><tr><td>自訂角色看到未勾選的新群組標題</td><td>低（純外觀）</td><td>發行說明帶一句；頁面權限不受影響</td></tr></tbody></table></div>
+<hr>
+<h2 id="九涉及程式實作階段參考" class="t1">九、涉及程式（實作階段參考）</h2>
+<h3 id="階段一">階段一</h3>
+<ul><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code></li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code></li><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code></li><li><code>KnowledgeExtraction.Tests/MenuIconTests.cs</code>、<code>SidebarMenuServiceTests.cs</code>、新增 <code>MenuPermissionAlignmentTests.cs</code></li></ul>
+<h3 id="階段二">階段二</h3>
+<ul><li>新增 <code>WorkCategory</code> 全套（Entity／雙 migration／AdapterModel／DTO／Repository／Service／Controller／Page／View）</li><li><code>KnowledgeExtraction.Business/Services/Other/WorkCategoryBootstrapSeeder.cs</code></li><li><code>KnowledgeExtraction.Web/Program.cs</code>（seeding 掛載點）</li><li>五個檢視的分類下拉來源切換</li></ul>
+<h3 id="階段三">階段三</h3>
+<ul><li><code>KnowledgeExtraction.AccessDatas/Models/Meeting.cs</code> ＋ 雙 migration</li><li><code>MeetingAdapterModel</code>／<code>MeetingDto</code>／<code>MeetingCreateUpdateDto</code>／<code>AutoMapping.cs</code>／<code>MeetingEditModal</code></li><li><code>MyTasService</code>／<code>ProjectService</code>（進度計算）、<code>MyTasViewView</code>／<code>ProjectViewView</code>（進度欄）</li></ul>
+<h3 id="階段四">階段四</h3>
+<ul><li>新增會議紀錄產生管線（Queue／BackgroundService／Processor／GenerationService）</li><li><code>LlmPromptKeys</code>／<code>LlmPromptDefaults</code>／<code>LlmPromptsSettings</code></li><li><code>TranscriptionProcessor</code>（加值步驟觸發）</li><li><code>MediaTranscriptionService</code>（上傳上限）</li><li><code>MeetingViewView</code> ＋ 兩個新對話窗元件</li></ul>
+<hr>
+<h2 id="十文件同步清單" class="t2">十、文件同步清單</h2>
+<p><strong>新增</strong>：本 PRD、<a href="../../docs/planning/todo-19efa315.html">專案協作模組強化開發代辦清單</a>、各階段 changelog；階段二與階段四另行補齊 <code>專案分類-prd.md</code>、<code>會議AI自動化-prd.md</code>。</p>
+<p><strong>更新</strong>：<a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a>、<a href="../../docs/prd/prd-3631982f.html">工作任務 PRD</a>、<a href="../../docs/prd/prd-6dd4645a.html">會議管理 PRD</a>、<a href="../../docs/prd/prd-e188d641.html">知識庫分類 PRD</a>、<a href="../../docs/architecture/dev-conventions.html">開發慣例與限制速查</a>、<a href="../../docs/architecture/data-model.html">資料模型與資料庫</a>、<a href="../../docs/security/auth-and-permissions.html">認證授權與權限機制</a>、<a href="../../docs/docs-index.html">docs/README.md</a>、<a href="../../docs/prd/readme-3c3c34ab.html">prd/README.md</a>、<code>readme.md</code> 第 9 節，以及 <code>docs/guides/</code> 的完整操作手冊、新手完整操作指南、資料匯入指南、實作練習手冊。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li><li><a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景與目的">一、背景與目的</a><a class="l3" href="#11-企業真實需要">1.1 企業真實需要</a><a class="l3" href="#12-三個待解問題">1.2 三個待解問題</a><a class="l3" href="#13-目標">1.3 目標</a><a class="l3" href="#14-非範圍">1.4 非範圍</a><a class="l2" href="#二需求決策摘要">二、需求決策摘要</a><a class="l2" href="#三階段一選單拆分專案協作資料匯入">三、階段一：選單拆分（專案協作／資料匯入）</a><a class="l3" href="#31-選單結構">3.1 選單結構</a><a class="l3" href="#32-權限與相容性本階段最關鍵">3.2 權限與相容性（本階段最關鍵）</a><a class="l3" href="#33-新增不變量守護測試">3.3 新增不變量守護測試</a><a class="l3" href="#34-驗收條件">3.4 驗收條件</a><a class="l2" href="#四階段二專案分類workcategory">四、階段二：專案分類（WorkCategory）</a><a class="l3" href="#41-資料模型">4.1 資料模型</a><a class="l3" href="#42-影響範圍只換下拉來源不動儲存">4.2 影響範圍：只換下拉來源，不動儲存</a><a class="l3" href="#43-既有資料自動搬移">4.3 既有資料自動搬移</a><a class="l3" href="#44-已知技術債本次不處理">4.4 已知技術債（本次不處理）</a><a class="l3" href="#45-驗收條件">4.5 驗收條件</a><a class="l2" href="#五階段三會議欄位擴充與進度統計">五、階段三：會議欄位擴充與進度統計</a><a class="l3" href="#51-會議新增欄位">5.1 會議新增欄位</a><a class="l3" href="#52-進度統計純計算零-migration">5.2 進度統計（純計算，零 migration）</a><a class="l3" href="#53-驗收條件">5.3 驗收條件</a><a class="l2" href="#六階段四會議-ai-自動化核心">六、階段四：會議 AI 自動化（核心）</a><a class="l3" href="#61-端到端流程">6.1 端到端流程</a><a class="l3" href="#62-設計理由">6.2 設計理由</a><a class="l3" href="#63-提示詞契約">6.3 提示詞契約</a><a class="l3" href="#64-權控與安全">6.4 權控與安全</a><a class="l3" href="#65-容量">6.5 容量</a><a class="l3" href="#66-驗收條件">6.6 驗收條件</a><a class="l2" href="#七跨階段共同規範">七、跨階段共同規範</a><a class="l2" href="#八風險與對策">八、風險與對策</a><a class="l2" href="#九涉及程式實作階段參考">九、涉及程式（實作階段參考）</a><a class="l3" href="#階段一">階段一</a><a class="l3" href="#階段二">階段二</a><a class="l3" href="#階段三">階段三</a><a class="l3" href="#階段四">階段四</a><a class="l2" href="#十文件同步清單">十、文件同步清單</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/專案協作模組強化-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

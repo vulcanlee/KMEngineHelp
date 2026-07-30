@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>實作練習手冊素材包 lab-samples：30 個擬真練習檔＋產檔腳本（手冊 2.3→2.4）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>實作練習手冊素材包 lab-samples：30 個擬真練習檔＋產檔腳本（手冊 2.3→2.4）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-18</li><li>版本：1.0.12（不升版；本次為練習素材與文件，非程式異動）</li><li>類型：文件／練習素材</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>實作練習手冊過去只提供附錄 B 複製貼上文字，學員得自己把文字另存成檔案，且沒有真實的 PDF/docx/xlsx/pptx/圖片/音檔可練三條匯入管線。本次依手冊「鼎峰系統整合／客戶A」虛構情境產生一整套擬真企業文件素材包，含跨團隊×多分類權控示範件與純文字類型素材，讓學員直接上傳體驗匯入→清洗→蒸餾→問答全流程。</p>
+<h2 id="內容docsguideslab-samples共-30-檔readme" class="t2">內容（docs/guides/lab-samples/，共 30 檔＋README）</h2>
+<ul><li><strong>核心 9 筆</strong>（檔名＝紀錄標題，附錄 B 關鍵事實逐字保留）：A1 docx、A2 pdf、A3 png（Pillow 繪製機房示意截圖）、A4 mp3（edge-tts 合成，25 秒）、A5 xlsx、B1 mp3（雙聲線對話，44 秒）、B2 pptx（7 頁）、B3 pdf（合約樣式）、P1 docx。</li><li><strong>模式 B 替代</strong>：text-fallback\ 三個 .txt（A3/A4/B1 附錄 B 原文）。</li><li><strong>擴充素材 17 筆【選練】</strong>：擴充-運維 5（維護報告 pdf、巡檢紀錄 xlsx、變更申請 docx、演練報告 pdf、事件報告 docx）＋擴充-開發 4（需求規格書 docx、審查簡報 pptx、API 說明 docx、測試案例 xlsx）＋擴充-業務 3（報價單 xlsx、SLA 檢討 pdf、續約備忘錄 docx）＋<strong>擴充-跨團隊 1（維運外包合約 pdf：團隊多選運維組＋業務合約組、分類三選，權控示範 wang/chen 可見、lisi 不可見）</strong>＋擴充-純文字 4（值班日誌 txt、告警紀錄 csv、FAQ md、發行說明 md）；另附 <code>擴充批次上傳.zip</code>（17 檔，練批次匯入）。</li><li><strong>lab-samples/README.md</strong>：素材對照總表、模式 A/B 使用方式、跨團隊權控示範預期可見性、影片連結轉錄練習清單（2 支已驗證的機構 YouTube 繁中短片）、完訓 5/2/1 護欄。</li></ul>
+<h2 id="產生方式" class="t3">產生方式</h2>
+<p>新增 <code>scripts/Build-LabSamples.py</code>（單一腳本可重現全部檔案）：docx→python-docx、xlsx→openpyxl、pptx→python-pptx、pdf→HTML＋Edge headless 列印、png→Pillow、mp3→edge-tts（備援 <code>--tts sapi</code>）、zip→zipfile。<strong>PDF 字型採細明體/標楷體</strong>——實測 Edge 列印微軟正黑體時 ToUnicode 對映會把部分字轉成康熙部首碼位（小→⼩），導致下游 MarkItDown 萃取文字失真；MingLiU/DFKai-SB 抽字乾淨。</p>
+<h2 id="手冊變更實作練習手冊-23--24" class="t4">手冊變更（實作練習手冊 2.3 → 2.4）</h2>
+<ul><li>§0.6 環境就緒檢查表加「練習素材包」列。</li><li>§6.0 改三種做法，新增「做法 0（推薦）＝直接用 lab-samples 現成檔」。</li><li>§6.1／§6.3／§6.4 動手做補 💡 使用 lab-samples 對應 mp3/png 的註記。</li><li>§7.2 硬性限制後補 💡 擴充素材與完訓 5/2/1 護欄說明。</li><li>附錄 B 開頭補成品檔對照說明（附錄 B 仍為內容權威版本）。</li><li>索引同步：docs/README.md、docs/guides/README.md、docs/changelog/README.md。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ul><li>30 檔全數產出並逐檔回讀：docx/xlsx/pptx 函式庫回讀、pdf <code>%PDF</code> 檔頭＋pypdf 抽字關鍵事實逐字比對全過、png 1280×800、mp3 ffprobe 時長 25s/44s、zip 17 檔繁中檔名無亂碼。</li><li>關鍵事實 grep（192.168.10.5、P@ssw0rd、SN-20231005-001、0912345678、480,000、統編 12345678、360,000…）於對應檔案逐字保留。</li><li>影片連結以 YouTube oEmbed 驗證可用。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠（.md UTF-8 含 BOM）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#內容docsguideslab-samples共-30-檔readme">內容（docs/guides/lab-samples/，共 30 檔＋README）</a><a class="l2" href="#產生方式">產生方式</a><a class="l2" href="#手冊變更實作練習手冊-23--24">手冊變更（實作練習手冊 2.3 → 2.4）</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-18-實作練習手冊素材包lab-samples.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

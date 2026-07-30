@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>使用者管理 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>使用者管理 PRD</h1><p class="sub">定義「使用者管理」頁的需求、帳號狀態、角色指派與安全限制</p></header><div class="docwrap"><main><ul><li>文件用途：定義「使用者管理」頁的需求、帳號狀態、角色指派與安全限制</li><li>主要讀者：產品、開發、系統管理員</li><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.63</li><li>首次實作版本：既有腳手架核心功能</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026/06/28</li><li>對應版本：既有腳手架核心功能（已實作）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<h2 id="一目標與範圍" class="t1">一、目標與範圍</h2>
+<p>讓管理員建立、查詢、編輯與停用使用者，並指派角色、管理 Google OAuth 自動建立的待審核帳號。此功能是系統權限與資料可見性的管理入口之一。</p>
+<p>本 PRD 範圍包含 <code>/myusers</code> 頁面、使用者 CRUD、角色指派、帳號啟用狀態、Google 待審核帳號的啟用處理與密碼處理。非範圍包含自助註冊、細粒度密碼政策、裝置管理。</p>
+<h2 id="二使用者與入口" class="t2">二、使用者與入口</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>說明</th></tr></thead><tbody><tr><td>路由</td><td><code>/myusers</code></td></tr><tr><td>選單</td><td>系統管理 → 權限管理 → 使用者管理（1.0.42 起「系統管理」下分三個子群組，本頁位於「權限管理」）</td></tr><tr><td>權限</td><td>僅管理員 <code>CheckIsAdmin()</code></td></tr><tr><td>主要使用者</td><td>系統管理員</td></tr></tbody></table></div>
+<h2 id="三畫面與欄位" class="t3">三、畫面與欄位</h2>
+<p>頁面提供搜尋、排序、分頁、新增、編輯、刪除/維護使用者。清單欄位為帳號、名稱、Email、角色、狀態、管理員、建立與更新時間；編輯 Modal 為帳號、密碼、名稱、Email、角色、啟用、管理員。</p>
+<blockquote><p><code>OAuthProvider</code> 與 <code>GoogleId</code> 存在於資料模型（供 Google 登入比對），但<strong>畫面未呈現</strong>（見第十節）。</p></blockquote>
+<p>Google OAuth 首次登入建立的使用者預設停用，管理員需在本頁啟用並指派角色後，使用者才能進入系統。</p>
+<h2 id="四內部系統運作" class="t4">四、內部系統運作</h2>
+<p>核心流程為 <code>MyUserView → MyUserService → BackendDBContext</code>。</p>
+<ol><li>進頁檢查登入，並要求 <code>AuthenticationStateHelper.CheckIsAdmin()</code>。</li><li>清單透過 <code>MyUserService.GetAsync(DataRequest)</code> 查詢、排序與分頁。</li><li>新增/編輯時載入角色清單供指派。</li><li>密碼以 salt + SHA 雜湊儲存，不保存明碼。</li><li>Google 帳號可沒有本地密碼；需要 API JWT 時由使用者在 <code>/Profile</code> 設定 API 密碼。</li><li>預設開發帳號 <code>support</code> 有額外限制，不應由一般畫面任意變更敏感密碼狀態。</li></ol>
+<h2 id="五llm--rag-互動" class="t5">五、LLM / RAG 互動</h2>
+<p>本功能不呼叫 LLM、不使用 embedding。它間接影響 RAG/問答可見範圍：使用者角色的預設團隊會在登入時載入為 <code>CurrentUser.TeamList</code>，供團隊權控使用。</p>
+<h2 id="六權限與安全" class="t6">六、權限與安全</h2>
+<ul><li>僅管理員可進入與操作。</li><li>使用者停用後，登入檢查應導向登出或拒絕。</li><li>角色指派會決定頁面權限與預設團隊。</li><li>不得在日誌或畫面顯示密碼、salt、token。</li></ul>
+<h2 id="七錯誤與邊界" class="t7">七、錯誤與邊界</h2>
+<ul><li>角色不存在或停用時，使用者登入應失敗或被導出。</li><li>Google 自動建立帳號若未啟用，應導向待審核頁，不建立登入 Cookie。</li><li>帳號重複時應拒絕新增。</li></ul>
+<h2 id="八驗收與測試" class="t8">八、驗收與測試</h2>
+<ul><li>非管理員不可進入 <code>/myusers</code>。</li><li>管理員可新增、編輯、搜尋與分頁使用者。</li><li>停用使用者不可通過登入檢查。</li><li>Google 待審核帳號啟用後可正常登入。</li></ul>
+<h2 id="九相關程式與文件" class="t1">九、相關程式與文件</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/Admins/MyUserView.razor.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/MyUserService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Other/ExternalLoginService.cs</code></li><li><a href="../../docs/prd/prd-5e052ad9.html">登入與帳號流程 PRD</a></li><li><a href="../../docs/security/auth-and-permissions.html">認證授權與權限機制</a></li></ul>
+<h2 id="十現況校正1063-核對" class="t2">十、現況校正（1.0.63 核對）</h2>
+<ul><li>Google OAuth 首次建立帳號預設停用並進待審核；管理員啟用並指派角色後才能使用系統。</li><li><strong>角色無停用機制</strong>（<code>RoleView</code> 只有名稱、權限 JSON、預設團隊與時間欄位），因此第七節的「角色停用」情境不存在；實務上的等價情境是<strong>角色被刪除</strong>或使用者未指派角色，此時登入檢查會拒絕或導出。</li><li><code>OAuthProvider</code>／<code>GoogleId</code> 僅供登入比對，<strong>清單與編輯 Modal 皆未顯示</strong>；若要在畫面呈現 Google 綁定狀態，屬尚未實作的後續強化。</li><li><code>IsAdmin</code> 代表完全不受團隊資料權控，必須與一般角色的預設團隊分開呈現及驗收。</li><li>編輯密碼欄留空代表不變更；停用帳號不得繼續登入。support 為設定檔管理帳號，不作日常具名稽核使用者。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li><li><a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目標與範圍">一、目標與範圍</a><a class="l2" href="#二使用者與入口">二、使用者與入口</a><a class="l2" href="#三畫面與欄位">三、畫面與欄位</a><a class="l2" href="#四內部系統運作">四、內部系統運作</a><a class="l2" href="#五llm--rag-互動">五、LLM / RAG 互動</a><a class="l2" href="#六權限與安全">六、權限與安全</a><a class="l2" href="#七錯誤與邊界">七、錯誤與邊界</a><a class="l2" href="#八驗收與測試">八、驗收與測試</a><a class="l2" href="#九相關程式與文件">九、相關程式與文件</a><a class="l2" href="#十現況校正1063-核對">十、現況校正（1.0.63 核對）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/使用者管理-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文件同步稽核：參考文件補齊到 v0.2.68 程式現況（0.2.69）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>文件同步稽核：參考文件補齊到 v0.2.68 程式現況（0.2.69）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-12</li><li>版本：0.2.68 → 0.2.69（純文件變更，依專案慣例版本 +1）</li></ul>
+<h2 id="一起因" class="t1">一、起因</h2>
+<p>稽核「知識來源／清洗管線／黃金評測」一系列開發（v0.2.56→0.2.68）對應的文件是否與程式同步。 結果：<strong>變更紀錄完全同步</strong>（每版皆有 changelog + 索引），但數份「參考型」文件未隨新功能更新。本次補齊。</p>
+<h2 id="二稽核結論" class="t2">二、稽核結論</h2>
+<ul><li>✅ 已同步：<code>docs/changelog/</code> 每版齊全、<code>docs/README.md</code> changelog 索引、<code>planning/07</code>（第四階段完成）、<code>strategy/08</code> 交叉參照、<code>strategy/05 §五</code>、<code>operations/容量邊界與限制.md</code>、<code>日誌與設定檔說明.md</code> 的 OpenAISettings provider 鍵。</li><li>✅ 澄清：<code>scripts/Build-FlagshipDeck.py</code> 存在（無斷鏈）。</li><li>🔧 已補齊（本次）：見下節。</li></ul>
+<h2 id="三本次補齊的文件" class="t3">三、本次補齊的文件</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>補了什麼</th></tr></thead><tbody><tr><td><code>architecture/資料模型與資料庫.md</code></td><td><code>KnowledgeSource</code>/<code>KnowledgeSourceItem</code>/<code>GoldenSample</code> 三實體、DbSet、<code>Prompt</code> DbSet、Cascade 例外、5 個新 migration（雙庫）。</td></tr><tr><td><code>architecture/架構總覽.md</code></td><td>已註冊服務補清洗/知識來源/黃金評測/LLM client；新增 §4.3「非同步管線（佇列式背景處理）」含四管線對照與清洗門檻。</td></tr><tr><td><code>security/認證授權與權限機制.md</code></td><td>「清洗與蒸餾」頂層群組與 3 權限（知識來源管理清單／黃金評測＝頁面權限；知識審核＝動作權限）；更新頂層群組順序；知識來源團隊權控。</td></tr><tr><td><code>architecture/開發慣例與限制速查.md</code></td><td>§1.8.1 清洗管線與 QA：狀態機、遮罩失敗即整筆失敗、信心門檻 0.70、人工審核、黃金評測、LLM 雲端/地端切換鍵。</td></tr><tr><td><code>operations/日誌與設定檔說明.md</code></td><td><code>ExternalFileSystem</code> 補 <code>CleanedSourcePath</code>（及 <code>DocumentExtractionUploadPath</code>/<code>MarkdownFilePath</code>）；新增 §4.7.1 <code>SystemSettings.Cleaning.ConfidenceThreshold</code>。</td></tr><tr><td>根 <code>readme.md</code> §9</td><td>補 0.2.43→0.2.68 變更紀錄（含 0.2.53 側邊欄修正）共 16 筆。</td></tr><tr><td><code>docs/README.md</code></td><td>changelog 索引補孤兒檔 0.2.53 側邊欄修正。</td></tr></tbody></table></div>
+<h2 id="四備註" class="t4">四、備註</h2>
+<ul><li>純文件、不改程式；內容均對齊 repo 實際實體欄位、權限常數、設定鍵與 migration 名稱。</li><li>清洗/黃金評測無獨立 PRD 屬設計選擇（設計散見 strategy/08 + planning/07），本次不補。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一起因">一、起因</a><a class="l2" href="#二稽核結論">二、稽核結論</a><a class="l2" href="#三本次補齊的文件">三、本次補齊的文件</a><a class="l2" href="#四備註">四、備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-12-文件同步稽核.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 審圖 付費 PoC 提案 / SOW｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 行銷與提案</p><header class="hero"><div class="kicker">行銷與提案</div><h1>AI 審圖 付費 PoC 提案 / SOW</h1><p class="sub">將「客戶有意願做付費 PoC」轉為可簽署、可執行的工作說明書（SOW）</p></header><div class="docwrap"><main><ul><li>文件用途：將「客戶有意願做付費 PoC」轉為可簽署、可執行的工作說明書（SOW）</li><li>適用對象：光陽機車（KYMCO）、英業達（Inventec）設計部門（範本可複用至其他客戶）</li><li>文件版本：0.1（草案）</li><li>建立日期：2026/06/08</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>本檔為對外提案範本。<code>〔待填〕</code> 處需與客戶/內部敲定後填入，勿直接送出含 <code>〔待填〕</code> 的版本。背景策略見 <a href="../../docs/strategy/open-questions-risks.html">05 §〇 需求驗證</a>。</p></blockquote>
+<hr>
+<h2 id="一背景與痛點客戶現況" class="t1">一、背景與痛點（客戶現況）</h2>
+<ul><li>設計部門每月須審查約 <strong>1,000 張設計圖</strong>。</li><li>具備審圖能力的<strong>資深審圖員僅 2 位</strong>，產能受限、且<strong>人員離職即面臨經驗斷層</strong>。</li><li>需求：把資深審圖員的<strong>判斷與經驗，轉成可規模化、可延續的 AI 輔助審查</strong>，降低對單一人員的依賴、提升審圖量能與一致性。</li></ul>
+<h2 id="二poc-目標" class="t2">二、PoC 目標</h2>
+<p>在限定範圍內，<strong>證明 AI 能以資深審圖員的標準，輔助完成設計圖審查</strong>，並量化效益與準確度，作為是否導入正式系統的決策依據。</p>
+<ul><li>不追求一次取代人工；目標是<strong>「AI 初篩標註 ＋ 資深審圖員確認」</strong>的人機協作，先證明可用、可信、省時。</li></ul>
+<h2 id="三範圍scope" class="t3">三、範圍（Scope）</h2>
+<p><strong>納入</strong>：</p>
+<ul><li>以客戶提供的<strong>歷史設計圖與審圖準則/常見缺失清單</strong>為基礎，建立 AI 輔助審圖原型。</li><li>對一批<strong>樣本圖（建議 〔100–200〕 張，含已知有問題與正常者）</strong>跑出審查意見（標出疑似問題、對應準則、信心度）。</li><li>與資深審圖員的審查結果<strong>對比評測</strong>，產出準確度與工時報告。</li></ul>
+<p><strong>不納入（本 PoC）</strong>：</p>
+<ul><li>全量 1,000 張/月的正式上線、與既有 PLM/CAD 系統的深度整合、多廠區部署——列為 PoC 成功後的正式導入階段。</li></ul>
+<h2 id="四成功指標驗收標準" class="t4">四、成功指標（驗收標準）</h2>
+<p>雙方於啟動會議確認門檻；建議以「<strong>漏審率優先</strong>」（審圖最致命的是該抓沒抓到）：</p>
+<div class="tw"><table><thead><tr><th>指標</th><th>定義</th><th>目標（建議）</th></tr></thead><tbody><tr><td>召回率/抓出率</td><td>資深員認定的問題中，AI 也標出的比例</td><td>≥ 〔80%〕</td></tr><tr><td>漏審率</td><td>資深員認定有問題、AI 未標出</td><td>≤ 〔10%〕</td></tr><tr><td>誤報可接受度</td><td>AI 標出但實際無問題（增加複核負擔）</td><td>控制在可接受範圍〔待定〕</td></tr><tr><td>工時效益</td><td>資深員以「AI 初篩＋確認」相對純人工的時間節省</td><td>≥ 〔30%〕</td></tr></tbody></table></div>
+<blockquote><p>指標數字須由雙方依圖種與風險容忍度共同訂定。</p></blockquote>
+<h2 id="五人機分工與責任重要" class="t5">五、人機分工與責任（重要）</h2>
+<ul><li><strong>AI</strong>：初篩、標註疑似問題與依據、給信心度。</li><li><strong>資深審圖員</strong>：最終確認與<strong>簽核</strong>；<strong>最終審查責任仍由人負責</strong>。</li><li>系統保留<strong>完整稽核軌跡</strong>（誰、何時、AI 標了什麼、人改了什麼）。</li><li>定位明確為<strong>輔助工具</strong>，非自動放行；此分工是降低法律/工程責任風險的關鍵。</li></ul>
+<h2 id="六交付物" class="t6">六、交付物</h2>
+<ol><li>AI 輔助審圖<strong>原型</strong>（可對樣本圖產出審查意見）。</li><li><strong>評測報告</strong>：召回率/漏審率/誤報、工時效益、案例分析。</li><li><strong>正式導入建議書</strong>：架構、整合點、時程、報價方向。</li></ol>
+<h2 id="七時程與里程碑建議-48-週" class="t7">七、時程與里程碑（建議 〔4–8〕 週）</h2>
+<div class="tw"><table><thead><tr><th>週次</th><th>工作</th><th>產出</th></tr></thead><tbody><tr><td>1</td><td>啟動會議、確認指標、收集圖與準則</td><td>範圍與指標確認書</td></tr><tr><td>2–3</td><td>建構 AI 審圖原型（規則＋模型）</td><td>可試跑原型</td></tr><tr><td>4–5</td><td>樣本圖試跑、與資深員對比</td><td>初步評測</td></tr><tr><td>6</td><td>調校、補強</td><td>調校後原型</td></tr><tr><td>7–8</td><td>評測報告、導入建議、成果簡報</td><td>驗收與決策</td></tr></tbody></table></div>
+<h2 id="八雙方配合" class="t8">八、雙方配合</h2>
+<ul><li><strong>客戶</strong>：提供樣本圖與審圖準則、指派資深審圖員參與對比與驗收、確認資安規範。</li><li><strong>我方</strong>：建構原型、執行評測、產出報告與建議、保密。</li></ul>
+<h2 id="九資料與資安" class="t1">九、資料與資安</h2>
+<ul><li>圖檔與準則<strong>僅用於本 PoC</strong>，PoC 結束後依約處置（刪除/歸還）。</li><li>可提供<strong>地端/不外流</strong>處理選項，敏感資訊不出客戶環境（呼應產品「真・地端」定位）。</li><li>全程存取可稽核。</li></ul>
+<h2 id="十價格與計費" class="t2">十、價格與計費</h2>
+<ul><li>PoC 為<strong>固定費用</strong>：<strong>NT$〔待填〕</strong>（含原型建構、評測、報告與成果簡報）。</li><li>不含後續正式導入；PoC 成功後之授權/訂閱與整合另行報價。</li><li>付款方式：〔待填，例：啟動 50%、驗收 50%〕。</li></ul>
+<h2 id="十一假設與風險" class="t3">十一、假設與風險</h2>
+<ul><li>假設客戶能提供<strong>足量且具代表性</strong>的樣本圖與明確準則；資料不足會影響準確度。</li><li>審圖屬高責任領域：本 PoC 以「輔助＋人覆核」為界，不承擔最終審查法律責任。</li><li>指標未達標時的處理：〔待定，例：延長一輪調校 / 結案報告檢討〕。</li></ul>
+<h2 id="十二下一步" class="t4">十二、下一步</h2>
+<ol><li>雙方啟動會議，確認範圍、指標、樣本圖與價格。</li><li>簽署本 SOW、啟動 PoC。</li><li>PoC 成功 → 進入正式導入提案。</li></ol>
+<hr>
+<blockquote><p>待補欄位清單（送出前務必填妥）：樣本圖張數、各項指標門檻、PoC 週數、PoC 價格與付款條件、未達標處理方式。</p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫系統銷售人員：我要談合作或推 PoC</li></ul></div><div class="card"><h3>同類文件（行銷與提案）</h3><ul><li><a href="../../docs/marketing/5w-ad-copy.html">讓公司知識不再只存在某個人的腦袋裡</a></li><li><a href="../../docs/marketing/partner-proposal.html">KnowledgeExtraction.AI 合作夥伴銷售提案</a></li><li><a href="../../docs/marketing/deck-sales.html">你的公司，每天都在「重複付錢」找同一份資料</a></li><li><a href="../../docs/marketing/deck-investor.html">企業知識庫計畫</a></li><li><a href="../../docs/marketing/blog-handover.html">他交接了十五頁文件，卻帶走了三年的答案</a></li><li><a href="../../docs/marketing/blog-archaeology.html">你接的是專案，不是考古</a></li><li><a href="../../docs/marketing/blog-let-me-check.html">別再說「我幫您查一下，稍後回覆」</a></li><li><a href="../../docs/marketing/blog-asking-thrice.html">同一個問題問到第三次，你就不敢問了</a></li><li><a href="../../docs/marketing/blog-lost-deal.html">當場答不出來的那一句，就是丟單的那一句</a></li><li><a href="../../docs/marketing/blog-day-one.html">當新人第一天，就能答出只有資深工程師才知道的答案</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景與痛點客戶現況">一、背景與痛點（客戶現況）</a><a class="l2" href="#二poc-目標">二、PoC 目標</a><a class="l2" href="#三範圍scope">三、範圍（Scope）</a><a class="l2" href="#四成功指標驗收標準">四、成功指標（驗收標準）</a><a class="l2" href="#五人機分工與責任重要">五、人機分工與責任（重要）</a><a class="l2" href="#六交付物">六、交付物</a><a class="l2" href="#七時程與里程碑建議-48-週">七、時程與里程碑（建議 〔4–8〕 週）</a><a class="l2" href="#八雙方配合">八、雙方配合</a><a class="l2" href="#九資料與資安">九、資料與資安</a><a class="l2" href="#十價格與計費">十、價格與計費</a><a class="l2" href="#十一假設與風險">十一、假設與風險</a><a class="l2" href="#十二下一步">十二、下一步</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/marketing/AI審圖-付費PoC提案.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

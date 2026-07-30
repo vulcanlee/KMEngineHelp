@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>統計報表 5 頁：分析區塊改為垂直排列並放寬間距（1.0.53）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>統計報表 5 頁：分析區塊改為垂直排列並放寬間距（1.0.53）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-25</li><li>版本：1.0.52 → 1.0.53</li><li>類型：使用體驗修正（版面配置與間距）</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p><code>/reports/*</code> 底下的 5 個統計報表頁，分析區塊原本以左右兩欄 flex 版面（<code>.report-columns</code> + <code>.report-col</code>）呈現，且同一欄內的第二個區塊只靠 inline <code>style="margin-top:16px;"</code> 隔開。使用者反映這些區塊過於擁擠，且左右兩欄的閱讀動線需要來回跳動。</p>
+<p>受影響頁面：Token 用量分析 <code>/reports/token-usage-report</code>、使用者回饋分析 <code>/reports/feedback-report</code>、問答量與使用行為 <code>/reports/qa-activity-report</code>、檢索品質分析 <code>/reports/retrieval-quality-report</code>、內容清點統計 <code>/reports/content-inventory-report</code>。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="1-版面改為單欄垂直堆疊">1. 版面改為單欄垂直堆疊</h3>
+<p>5 個 View 的分析區塊全部攤平成「一個區塊一個 <code>&lt;section&gt;</code>」，由上而下垂直排列（滿版寬度）。順序依原本畫面「由左至右、由上而下」的閱讀順序：</p>
+<div class="tw"><table><thead><tr><th>頁面</th><th>垂直順序</th></tr></thead><tbody><tr><td>Token 用量分析</td><td>統計卡片 → 使用者 Token 用量排名 → 依作業別 → 依模型</td></tr><tr><td>使用者回饋分析</td><td>統計卡片 → 依使用者回饋排名（滿意數） → 每日滿意/不滿意趨勢</td></tr><tr><td>問答量與使用行為</td><td>統計卡片 → 依來源 → 每日問答量/被封鎖趨勢 → 使用者活躍度排名</td></tr><tr><td>檢索品質分析</td><td>統計卡片 → 信心分布 → TopScore 分桶</td></tr><tr><td>內容清點統計</td><td>統計卡片 → 依媒體型別 → 依團隊 → 依狀態 → 依分類</td></tr></tbody></table></div>
+<p>統計卡片列一併納入同一個堆疊成為第一個區塊，讓卡片列到第一個分析區塊的間距與其他區塊一致。所有 <code>&lt;h3 style="margin-top:16px;"&gt;</code> 的 inline style 一併移除，間距改由 CSS 統一控制。</p>
+<h3 id="2-全域-csswwwrootappcss">2. 全域 CSS（<code>wwwroot/app.css</code>）</h3>
+<p>移除只有這 5 頁在用的 <code>.report-columns</code> / <code>.report-col</code>，改為垂直堆疊樣式，沿用儀表板／RAG 診斷頁「留白 + 淡色細分隔線」的既有慣例：</p>
+<pre><code>.report-stack {
+    margin-bottom: 24px;
+}
+
+.report-block {
+    margin-bottom: 0;
+}
+
+.report-block:not(:first-of-type) {
+    margin-top: 28px;
+    padding-top: 28px;
+    border-top: 1px solid #f0f0f0;
+}</code></pre>
+<p><code>:not(:first-of-type)</code> 讓最上方的統計卡片列不會多出一條分隔線。</p>
+<h3 id="3-附帶修正crud-圖示白名單">3. 附帶修正：CRUD 圖示白名單</h3>
+<p><code>CrudActionIconTests.AllowedCrudActionIcons</code> 補上 <code>bolt</code>、<code>tune</code>。這兩個圖示是 1.0.49 在 <code>CleaningProfileViewView.razor</code> 新增「低度／中度清洗範本」按鈕時加入的，但當時漏了同步測試白名單，導致該測試自 1.0.49 起持續失敗。兩者皆為合法的 classic Material Icons 名稱。</p>
+<h2 id="影響範圍" class="t3">影響範圍</h2>
+<ul><li>檔案：<code>wwwroot/app.css</code>、<code>Components/Views/Reports/</code> 下 5 個 <code>*ReportView.razor</code>、<code>appsettings.json</code>。</li><li><code>.report-columns</code> / <code>.report-col</code> 經查證僅這 5 個 View 使用，汰除後無殘留參考，不影響其他頁面。</li><li>無 C# 邏輯異動、無資料異動、無資料庫 migration。</li><li><strong>PDF 匯出不變</strong>：各頁 <code>.razor.cs</code> 內組 <code>pdfModel</code> 的程式碼未調整，匯出內容與順序維持原樣。</li><li><code>appsettings.json</code> <code>SystemVersion</code> 1.0.52 → 1.0.53。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ol><li><code>dotnet test</code> 通過：632 個測試全數通過（修正白名單前為 631 通過、1 失敗）。</li><li><code>grep -rn "report-columns\|report-col\b" src/</code> 為 0 筆。</li><li>以管理員逐一開啟 5 個報表頁：各區塊單欄由上而下排列且順序符合上表；區塊之間有明顯留白與一條 <code>#f0f0f0</code> 細線；統計卡片列上方無分隔線；長條圖滿版無破版；視窗縮至窄寬度仍正常。</li><li>任一頁按「匯出 PDF」仍可正常產生。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#變更">變更</a><a class="l3" href="#1-版面改為單欄垂直堆疊">1. 版面改為單欄垂直堆疊</a><a class="l3" href="#2-全域-csswwwrootappcss">2. 全域 CSS（wwwroot/app.css）</a><a class="l3" href="#3-附帶修正crud-圖示白名單">3. 附帶修正：CRUD 圖示白名單</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-統計報表5頁區塊改垂直排列.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

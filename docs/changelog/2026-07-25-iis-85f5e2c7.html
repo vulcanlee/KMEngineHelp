@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IIS 部署文件補強（純文件，版本不變 1.0.67）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>IIS 部署文件補強（純文件，版本不變 1.0.67）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/25</li><li>版本：<strong>維持 1.0.67</strong>（依 <a href="../../docs/architecture/dev-conventions.html">開發慣例與限制速查</a> §1.1「純文件／腳本變更可不升版」）</li><li>類型：文件補洞</li><li>程式異動：<strong>無</strong></li></ul>
+<h2 id="一起因" class="t1">一、起因</h2>
+<p>正式環境（IIS，<code>C:\KMEngine</code>）回 <strong>HTTP 500.30</strong>，事件紀錄顯示是 1.0.65 的 <code>StartupSafetyValidator</code> 主動中止啟動：</p>
+<pre><code>Production 啟動安全檢查失敗：JwtSettings:SigningKey 不可在 Production 使用開發預設值。
+BootstrapSettings:SupportPassword 不可在 Production 使用預設密碼。</code></pre>
+<p><strong>守門本身運作正常</strong>——它擋下的是「Production 沿用開發預設 JWT 金鑰與 <code>1qaz@WSX</code>」這個實際存在的問題。</p>
+<p>真正的障礙是<strong>文件沒告訴部署者該怎麼在 IIS 上設定這兩個值</strong>：</p>
+<ul><li><code>全新機器部署SOP.md</code> §6.2 <strong>只寫 <code>setx /M</code></strong>。對 IIS 內處理序裝載，Machine 範圍環境變數要<strong>重啟 IIS／WAS</strong> 工作處理序才讀得到——「明明設了卻沒生效」最常見的原因。</li><li><code>IIS佈署與可攜工具設定.md</code> <strong>完全沒有出現 <code>web.config</code> 或 <code>environmentVariables</code></strong>——而那才是 IIS 上的標準做法，且<strong>存檔即回收生效、不需重建重部署</strong>。</li></ul>
+<h2 id="二補了什麼" class="t2">二、補了什麼</h2>
+<h3 id="iis佈署與可攜工具設定md"><code>IIS佈署與可攜工具設定.md</code></h3>
+<p>新增 <strong>§5.1「在 IIS 設定環境變數」</strong>：</p>
+<ul><li><code>web.config</code> 的 <code>&lt;environmentVariables&gt;</code> 完整範例（含 <code>ASPNETCORE_ENVIRONMENT</code>、JWT 金鑰、support 密碼、OpenAI 金鑰）。</li><li>階層鍵用<strong>雙底線 <code>__</code></strong>、<code>&lt;environmentVariables&gt;</code> 必須放在 <code>&lt;aspNetCore&gt;</code> 元素內。</li><li><strong>與 <code>setx /M</code> 的差異對照表</strong>：前者存檔即生效、設定隨站台走；後者需重啟 IIS／WAS，適合多站台共用。</li><li>機密放在站台目錄的權衡（會隨備份／複製擴散，請控管 ACL）。</li><li>產生強金鑰與強密碼的 PowerShell 指令。</li><li>提醒：<strong>support 密碼每次啟動都會依設定值重設</strong>，改設定即等於改登入密碼。</li></ul>
+<p>§9 疑難排解新增兩列：<strong>HTTP 500.30 的判讀</strong>、以及<strong>事件紀錄看不出原因時如何開 stdout log</strong>（含查完要記得關掉）。</p>
+<h3 id="全新機器部署sopmd"><code>全新機器部署SOP.md</code></h3>
+<ul><li>§6.2 標明 <strong>IIS 優先用 <code>web.config</code></strong>，並附精簡範例與連結。</li><li>新增 <strong>§6.4「首次以 Production 啟動失敗（HTTP 500.30）怎麼查」</strong>：事件檢視器步驟、四項檢查的<strong>訊息對照處置表</strong>、以及「<code>appsettings.Production.json</code> 只覆寫它自己列出的鍵，沒列到的一律沿用 <code>appsettings.json</code>」這個最常見的觸發陷阱、stdout log 開關步驟。</li><li>特別註明：此檢查在 <strong>NLog 初始化之前</strong>執行，所以 <code>NLog:BasePath</code> 底下<strong>不會有紀錄</strong>，只能從事件紀錄或 stdout log 取得。</li></ul>
+<h3 id="開發慣例與限制速查md"><code>開發慣例與限制速查.md</code></h3>
+<p>新增一條既有事實（查證時發現，與本次文件補強無關但值得記）：<strong>頁面例外不會走 HTTP 例外處理器</strong>——<code>App.razor.cs</code> 的 <code>RenderModeForPage()</code> 讓除 <code>/Auths/*</code> 外的所有頁面都用 <code>InteractiveServerRenderMode(prerender: false)</code>，因此頁面內的例外走 Blazor circuit、不經過 <code>UseExceptionHandler</code>。診斷「為什麼 /Error 沒被觸發」時會用到。</p>
+<h2 id="三關於一併移除的實驗性程式碼" class="t3">三、關於一併移除的實驗性程式碼</h2>
+<p>本次調查過程中曾實作過兩項功能，評估後<strong>認為對系統複雜度的增加不划算，已全部移除、未進版控</strong>：</p>
+<div class="tw"><table><thead><tr><th>曾實作</th><th>移除原因</th></tr></thead><tbody><tr><td>Host 標頭防護中介軟體（擋下無法解析的 Host、回 400）</td><td>擋的是掃描器垃圾流量造成的日誌噪音，不是資安漏洞；且<strong>設 <code>AllowedHosts</code> 為實際主機名即可零程式碼達到同樣效果</strong></td></tr><tr><td><code>UseExceptionHandler</code> 的 <code>CreateScopeForErrors = true</code></td><td>實測發現它能消除 <code>already initialized</code>，但對壞 Host 這類錯誤 <code>/Error</code> 仍渲染不出來；加上頁面例外根本不走 HTTP 例外處理器，實際涵蓋面很窄</td></tr><tr><td>啟動安全檢查的緊急跨過開關</td><td>正解（設環境變數）比跨過檢查更快也更安全，逃生口反而是個容易被遺忘的後門</td></tr></tbody></table></div>
+<p>壞 Host 問題的<strong>症狀、重現方式、根因與「設 <code>AllowedHosts</code> 即可解決」的結論</strong>已完整記入 <a href="../../docs/planning/08-todo-74ef467f.html">優化建議清單</a>，日後若日誌被洗版可直接取用，不必重查一次。</p>
+<h2 id="四驗證" class="t4">四、驗證</h2>
+<ul><li>程式碼與 1.0.67 <strong>完全一致</strong>（<code>git diff HEAD -- src/</code> 無輸出）</li><li><code>dotnet test</code> 全綠</li><li><code>Test-DocsEncoding.ps1</code> 0 失敗；死連結 0</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一起因">一、起因</a><a class="l2" href="#二補了什麼">二、補了什麼</a><a class="l3" href="#iis佈署與可攜工具設定md">IIS佈署與可攜工具設定.md</a><a class="l3" href="#全新機器部署sopmd">全新機器部署SOP.md</a><a class="l3" href="#開發慣例與限制速查md">開發慣例與限制速查.md</a><a class="l2" href="#三關於一併移除的實驗性程式碼">三、關於一併移除的實驗性程式碼</a><a class="l2" href="#四驗證">四、驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-IIS部署文件補強.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>修正登入頁輸入框「暗底暗字」不可讀（scoped CSS :root 變數失效）（1.0.27）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>修正登入頁輸入框「暗底暗字」不可讀（scoped CSS :root 變數失效）（1.0.27）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/21</li><li>版本：1.0.26 → <strong>1.0.27</strong></li><li>類型：錯誤修正（Blazor scoped CSS 選擇器範圍）</li><li>觸發來源：登入頁（<code>/Auths/Login</code>，身分核驗）輸入帳號／密碼／驗證碼時，輸入框呈暗底、文字也是暗色，看不清輸入內容；移開焦點後文字仍不清楚。</li><li>相關：<a href="../../docs/changelog/2026-07-04-7b587a75.html">登入頁科技神秘風重設計</a></li></ul>
+<hr>
+<h2 id="一問題的本質root-被-scoped-改寫後比對不到" class="t1">一、問題的本質：<code>:root</code> 被 scoped 改寫後比對不到 <code>&lt;html&gt;</code></h2>
+<p>登入頁原設計是「深綠沉浸式暗色主題」：深綠漸層背景 + 暗底輸入框搭配亮色文字（<code>#eafff5</code>）。整頁的設計變數（背景色、文字色、邊框色…）以 <code>:root { --login-*: ... }</code> 定義於 scoped 檔案 <code>Login.razor.css</code>（第 1–19 行）。</p>
+<p>Blazor 的 scoped CSS 會把<strong>每個</strong>選擇器（含 <code>:root</code>）附加元件範圍屬性，改寫為 <code>:root[b-ssch9kskj8]</code>。但 <code>&lt;html&gt;</code> 元素永遠不會帶這個範圍屬性（只有 <code>Login.razor</code> 內渲染的元素才會），因此 <code>:root</code> 選擇器<strong>完全比對不到任何元素，所有 <code>--login-*</code> 變數都未定義</strong>。</p>
+<p>後果：</p>
+<ul><li><code>.login-container</code> 的 <code>linear-gradient(..., var(--login-bg-1)...)</code> 因變數無效 → 深綠背景消失，整頁變淡白（只剩用字面 rgba 寫的淡淡光暈）。</li><li><code>.form-input</code> 的 <code>color: var(--login-text)</code> 無效 → 文字繼承全域深色 body 文字色。</li><li><code>.form-input</code> 的 <code>background: rgba(4,18,11,0.6)</code> 是<strong>字面值</strong>仍生效 → 灰暗底。</li><li>結果：暗底 + 暗字 = 不可讀（回報的 bug）。</li></ul>
+<h2 id="二做法變數宣告從-root-移到-login-container" class="t2">二、做法：變數宣告從 <code>:root</code> 移到 <code>.login-container</code></h2>
+<p>把 <code>Login.razor.css</code> 第 1–19 行的 <code>--login-*</code> 變數宣告，從 <code>:root</code> 併入頁面最外層 wrapper <code>.login-container</code>（<code>Login.razor:10</code>，包住所有內容）的既有規則區塊。</p>
+<ul><li>為何有效：scoped 改寫後變成 <code>.login-container[b-...]</code>，會真正比對到實際渲染的 <code>&lt;div class="login-container"&gt;</code>；CSS 變數向下 cascade 到所有子元素（含 <code>.form-input</code>、<code>.brand-panel</code>、<code>.login-card</code> 等）。</li><li>已驗證安全：全檔所有 <code>var(--login-*)</code> / <code>var(--fx-*)</code> / <code>var(--mono)</code> 使用點都是 <code>.login-container</code> 的後代，無任何使用點落在 container 之外，故不會有變數遺漏。</li><li>另於 <code>.form-input</code> 的文字色加保險 fallback：<code>color: var(--login-text, #eafff5)</code>。</li></ul>
+<p>不改動 markup（<code>Login.razor</code>）與任何程式邏輯；純樣式範圍修正，最小改動。</p>
+<h2 id="三成果" class="t3">三、成果</h2>
+<ul><li>整頁回復深綠沉浸式漸層背景。</li><li>三個輸入框為暗底 + 亮字（<code>#eafff5</code>）高對比、清楚易讀；focus 時邊框轉青色高亮、文字持續清楚；placeholder 淡綠色可見。</li><li>品牌區、驗證碼數字框、登入按鈕漸層等維持原設計外觀。</li></ul>
+<h2 id="四驗證" class="t4">四、驗證</h2>
+<ul><li><code>dotnet build</code> 0 錯誤。</li><li>scoped CSS 重新產生：<code>obj/Debug/net10.0/scopedcss/Components/Auths/Login.razor.rz.scp.css</code> 首行由原 <code>:root[b-ssch9kskj8]</code> 改為 <code>.login-container[b-ssch9kskj8]</code>（已確認）。</li><li>實機檢視 <code>/Auths/Login</code>：整頁深綠、三欄輸入暗底亮字清楚可讀。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一問題的本質root-被-scoped-改寫後比對不到">一、問題的本質：:root 被 scoped 改寫後比對不到</a><a class="l2" href="#二做法變數宣告從-root-移到-login-container">二、做法：變數宣告從 :root 移到 .login-container</a><a class="l2" href="#三成果">三、成果</a><a class="l2" href="#四驗證">四、驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-21-登入頁輸入框暗底暗字修正.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

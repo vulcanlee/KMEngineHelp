@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文件分層修補與歸檔（1.0.64）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>文件分層修補與歸檔（1.0.64）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/25</li><li>版本：1.0.63 → <strong>1.0.64</strong></li><li>範圍：<code>docs/guides/</code>、<code>docs/planning/</code>、<code>docs/operations/</code>、<code>docs/prompts/</code>，新建 <code>docs/archive/</code></li><li>程式異動：無（僅 <code>appsettings.json</code> 版本號）</li></ul>
+<h2 id="一這是-docs-全庫稽核的最後一批" class="t1">一、這是 docs 全庫稽核的最後一批</h2>
+<div class="tw"><table><thead><tr><th>批次</th><th>版本</th></tr></thead><tbody><tr><td>1 程式畫面標籤統一 ／ 2 長青文件勘誤 ／ 3 選單舊名同步</td><td>1.0.58–1.0.60</td></tr><tr><td>4 PRD 核對三段（35 份 PRD ＋ README）</td><td>1.0.61–1.0.63</td></tr><tr><td><strong>5 分層修補與歸檔</strong></td><td><strong>1.0.64</strong></td></tr></tbody></table></div>
+<h2 id="二原本的計畫是錯的先說結論" class="t2">二、原本的計畫是錯的，先說結論</h2>
+<p>批次 5 原訂為「大合併」：以 <code>guides/新手完整操作指南.md</code> 為唯一權威，把其餘手冊與 7 份小指南轉成短指標。<strong>逐份比對內容後推翻了這個方向</strong>：</p>
+<ul><li><code>docs/guides/</code> 的 9,826 行<strong>不是重複膨脹</strong>，而是一組<strong>刻意分層</strong>的文件，各自服務不同讀者：安裝人員（<code>使用者安裝與操作手冊</code>，含 .NET Runtime、appsettings 逐鍵、抖音工具鏈、<code>--urls</code>／HTTPS 等別處找不到的內容）、一般使用者（<code>AI知識問答使用指南</code>，103 行、最常被單獨轉發）、管理員故障速查（<code>系統監控與健康檢查指南</code>，88 行，故障當下要能一次捲完）、知識維護者的參考卡（兩份評測指南、清洗規則設定指南——做事時攤在旁邊照著填）。</li><li>大合併只能減少約 280 行（2.9%），卻會摧毀「<strong>整份單獨發給某個角色</strong>」這個屬性。</li><li>兩份評測指南經查證是<strong>兩個不同功能</strong>，不可合併：<code>/golden-samples</code> 重跑清洗五段 LLM、打的是樣本自己的輸入文字、必須有 LLM 金鑰；<code>/rag-evaluation</code> 只跑混合檢索完全不經 LLM、打的是整個已索引知識庫、必須有嵌入端點。</li></ul>
+<p>真正的問題是<strong>分層漏水</strong>——本該在權威文件裡的內容只存在於某一份專題文件，導致該讀者查不到。本批修的是這個。</p>
+<h2 id="三修補分層漏水補寫進-新手完整操作指南md" class="t3">三、修補分層漏水（補寫進 <code>新手完整操作指南.md</code>）</h2>
+<p>來源文件<strong>全部保留原樣</strong>（它們對各自讀者仍是權威），這裡是補寫、不是搬移。</p>
+<div class="tw"><table><thead><tr><th>補了什麼</th><th>補在哪</th><th>原本只存在於</th></tr></thead><tbody><tr><td><strong>§13.8 日誌等級切換 <code>/log-settings</code></strong>（新增小節，統計報表順移為 13.10）</td><td>§13</td><td><code>完整操作手冊</code> §13.6——這頁在新手版原本 <strong>0 次命中</strong></td></tr><tr><td>表格新增 5 個實際存在但漏列的頁面：<code>/knowledge-wiki</code>、<code>/rag-diagnostics</code>、<code>/data-consistency</code>、<code>/log-settings</code>、<code>/chat-sessions</code>、<code>/mcp-api-keys</code>；並補「系統管理是三層」說明與「上下游關係一句話」</td><td>§3.2 全畫面總覽表</td><td><code>完整操作手冊</code> §三</td></tr><tr><td><strong>兩段式信心提示的使用者視角</strong>（三種回應的對照表：查無依據／⚠️ 信心不足／正常回答）＋<strong>出處面板預設收合</strong></td><td>§11.2</td><td><code>AI知識問答使用指南</code> §5.1。原本只寫在 §13.3 管理員專章，<strong>一般使用者讀 §11 查不到</strong></td></tr><tr><td><strong>完整副檔名清單與精確上限</strong>（影音 10 種／2GB、文件 22 種／1GB、圖片 5 種／50MB）</td><td>§6.2</td><td><code>資料匯入指南</code>。新手版原本只寫「mp3/mp4/wav 等」「約 1GB」</td></tr><tr><td><strong>「頁面權限 vs 動作權限」二分</strong>（<code>知識審核</code>／<code>蒸餾審核</code> 不對應選單、由服務層強制），含「進得去卻按不了核准」的解釋</td><td>§5.6</td><td><code>基礎設定指南</code></td></tr><tr><td><strong>線上編修 Wiki 自動做的兩件事</strong>：自動重跑遮罩（失敗則不儲存）、已核可頁自動重索引（待審核頁不觸發）；以及「清除蒸餾結果」蒸餾中不可用</td><td>§9.2</td><td><code>知識頁審核與Wiki頁管理指南</code></td></tr></tbody></table></div>
+<h2 id="四修-10-條失效的內部錨點" class="t4">四、修 10 條失效的內部錨點</h2>
+<p>批次 3 的保護式替換遮蔽了連結網址，<strong>但錨點不是網址——它是由標題文字算出來的</strong>。標題改名後錨點全部失效：</p>
+<p><code>#八黃金評測…</code>、<code>#九知識蒸餾…</code>、<code>#93-知識瀏覽-…</code>、<code>#十一知識庫問答…</code>、<code>#十二rag評測…</code>、<code>#133-rag-診斷-…</code>、<code>#136-ai-聊天紀錄-chat-logs</code>（4 處）。</p>
+<p>已依標題實際文字重算並修正，<strong>全庫內部錨點驗證 0 失效</strong>。</p>
+<h2 id="五清理保護式替換刻意跳過的區域" class="t5">五、清理保護式替換刻意跳過的區域</h2>
+<p>批次 3 遮蔽了圍欄程式碼與圖表，導致舊選單名殘留在 mermaid／ASCII 流程圖內。已修 <code>新手完整操作指南</code>、<code>完整操作手冊</code>、<code>實作練習手冊</code>、<code>從匯入到知識的操作流程</code>、<code>知識來源加工與清洗規則設定</code>、<code>使用者安裝與操作手冊</code> 共 14 處。</p>
+<p><strong>ASCII 圖是對齊敏感的</strong>（<code>┐├┘─►</code> 連接線），改名造成字寬變化會讓圖形歪掉，因此逐塊改寫並重新對齊，不是單純字串替換。</p>
+<p>另修兩處批次 3 的重複詞：<code>日誌等級切換切換</code>（<code>完整操作手冊</code>、<code>security/認證授權與權限機制</code>）。</p>
+<p>權限常數（<code>角色_黃金評測</code> 等）與資料實體名（「黃金樣本」）<strong>刻意保留未動</strong>。</p>
+<h2 id="六新建-docsarchive歸檔-9-份" class="t6">六、新建 <code>docs/archive/</code>，歸檔 9 份</h2>
+<p>各檔開頭加「已歸檔」標頭框，註明歸檔原因與該改看哪一份；<code>archive/README.md</code> 列出完整清單。</p>
+<p><strong>腳手架期的規劃 TODO（6 份）</strong>：<code>01</code>–<code>06</code>。每一個 checkbox 都是 <code>[x]</code>（合計 75 項），最後修改日期全部是 2026-06-02，此後兩個月、版本推進到 1.0.63 都沒再動；內容已被 <code>architecture/</code>、<code>operations/</code>、<code>security/</code>、<code>guides/</code> 的長青文件吸收。</p>
+<p><strong>一次性活動的產物（3 份）</strong>：</p>
+<ul><li><code>10-知識蒸餾與問答疑問釐清及需求-TODO</code>：文件自稱「階段三起點的釐清快照」，三個缺口皆已於 0.2.127–0.3.13 實作。</li><li><code>11-系統功能與文件同步審計</code>：三輪一次性稽核的報告，§1 功能清單已過期（仍列 1.0.45 移除的 <code>SkillController</code>）。</li><li><code>guides/RAG補強修正測試指南</code>：內容停在 0.3.7，此後 10 項補強完成都未依其附錄模板回填，文件自訂的維護契約已失效；無任何現行指南引用。</li></ul>
+<p><strong>歸檔前先搬走仍有效的內容</strong>：</p>
+<ul><li><code>planning/11</code> §2.3／§3 的 <strong>7 項未完成建議</strong>（API 端點總表、背景管線維運手冊、RAG 索引重建 SOP、系統功能矩陣、文件漂移檢查、自動功能盤點產生器、背景管線總覽儀表板、文件連結與編碼納入 CI）→ 移入 <code>planning/08-優化建議清單-TODO.md</code>。其中「向量索引全量重建工具」「問答稽核持久化」已分別由 RQ-8、EVAL-2 完成，直接刪不搬。</li><li><code>RAG補強修正測試指南</code> §〇 的<strong>測試套件執行方式</strong> → 移入 <code>operations/維護規範.md</code> 新增的 §6。這段含一個實用且仍有效的知識：<strong>開發伺服器鎖住 <code>bin/Debug</code> 導致 <code>dotnet test</code> 失敗時，用 <code>-p:BaseOutputPath</code> 重導輸出，但必須留在 repo 內</strong>，否則會定位原始碼的測試（如 <code>CrudActionIconTests</code>）會找不到檔案。</li></ul>
+<h3 id="沒有歸檔但容易被誤認為過期的">沒有歸檔、但容易被誤認為過期的</h3>
+<div class="tw"><table><thead><tr><th>文件</th><th>為什麼保留</th></tr></thead><tbody><tr><td><code>planning/07</code></td><td>第五階段的 <strong>PoC 驗證三項仍未勾選</strong>，是 PoC 待辦的唯一權威追蹤點</td></tr><tr><td><code>planning/12</code></td><td>P0／P1 已完成，但 22 項 P2／P3（rerank、adjacent chunk、向量庫升級、CI）<strong>經查證仍未實作</strong></td></tr><tr><td><code>guides/知識庫RAG-PoC執行與驗收指南</code></td><td>PoC <strong>尚未執行完成</strong>，且被 7 份現行文件引用，每次導入新客戶都可重跑</td></tr><tr><td><code>docs/prompts/</code>（22 份）</td><td>該目錄自我定位就是提示詞素材的回溯區，<strong>本身即是歸檔區</strong></td></tr></tbody></table></div>
+<h2 id="七刪除純重複檔-1-份" class="t7">七、刪除純重複檔 1 份</h2>
+<p><code>docs/prompts/圖片清單可以上傳壓縮檔案.md</code> 與 <code>…可以使用壓縮檔案上傳.md</code> <strong>正文逐字相同</strong>（僅差一個空行），README 自己也標註前者是「早期版」。刪除早期版並移除 README 對應列。</p>
+<h2 id="八索引重整與連結修正" class="t8">八、索引重整與連結修正</h2>
+<ul><li><code>docs/README.md</code> 新增 <code>### archive</code> 段，並把 9 份已歸檔項目從 planning／guides 段移出。</li><li><code>planning/README.md</code>、<code>guides/README.md</code> 移除已歸檔列，改為指向 archive 的一行指標。<strong>planning 的編號保留不重排</strong>（01–06、10、11 空號），以維持既有引用可辨識。</li><li>共重指 <strong>24 處</strong>連結至新路徑，包含兩份 changelog 的歷史引用——<strong>只改路徑不改敘述</strong>，因為檔案內容沒變、只是換了位置。</li></ul>
+<h2 id="九其他小幅整理" class="t1">九、其他小幅整理</h2>
+<ul><li><code>系統總覽與使用導覽.md</code> §七「名詞速覽」<strong>維持保留</strong>（原計畫要刪）：查證後發現 <code>使用者安裝與操作手冊</code>、<code>完整操作手冊</code>、<code>實作練習手冊</code> 三份都指向它當作術語權威，它是刻意的共用短版。改為加一行交叉指標到 <code>新手完整操作指南 §十七</code> 的完整版。</li><li><code>operations/RAG問題診斷手冊.md</code> §四同時存在「✅ 0.3.6 完整落地」宣告與當初的「建議頁面分區」提案全文，提案段壓成一段現況說明。§五的內容是現行機制文件（分表設計、驗證規則、調參—量測閉環），<strong>維持不動</strong>。</li><li><code>docs/guides/</code> 7 處檔頭「對應系統版本：1.0.26」→ <strong>1.0.64</strong>（內文早已同步到 1.0.6x，只有這個欄位沒改）。</li></ul>
+<h2 id="十驗證" class="t2">十、驗證</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>結果</th></tr></thead><tbody><tr><td>全庫內部錨點</td><td><strong>0 失效</strong></td></tr><tr><td>相對連結</td><td>1,499 條，死連結 <strong>0</strong></td></tr><tr><td><code>角色_*</code> 常數值</td><td>29 個與 HEAD 完全相同</td></tr><tr><td><code>Test-DocsEncoding.ps1</code></td><td>0 失敗（全數 BOM=True、無亂碼）</td></tr><tr><td><code>dotnet test</code></td><td><strong>643 通過 / 0 失敗</strong>（本批不動程式）</td></tr></tbody></table></div><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一這是-docs-全庫稽核的最後一批">一、這是 docs 全庫稽核的最後一批</a><a class="l2" href="#二原本的計畫是錯的先說結論">二、原本的計畫是錯的，先說結論</a><a class="l2" href="#三修補分層漏水補寫進-新手完整操作指南md">三、修補分層漏水（補寫進 新手完整操作指南.md）</a><a class="l2" href="#四修-10-條失效的內部錨點">四、修 10 條失效的內部錨點</a><a class="l2" href="#五清理保護式替換刻意跳過的區域">五、清理保護式替換刻意跳過的區域</a><a class="l2" href="#六新建-docsarchive歸檔-9-份">六、新建 docs/archive/，歸檔 9 份</a><a class="l3" href="#沒有歸檔但容易被誤認為過期的">沒有歸檔、但容易被誤認為過期的</a><a class="l2" href="#七刪除純重複檔-1-份">七、刪除純重複檔 1 份</a><a class="l2" href="#八索引重整與連結修正">八、索引重整與連結修正</a><a class="l2" href="#九其他小幅整理">九、其他小幅整理</a><a class="l2" href="#十驗證">十、驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-文件分層修補與歸檔.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

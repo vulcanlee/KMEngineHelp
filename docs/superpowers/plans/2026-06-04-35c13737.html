@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>抖音影片自動轉錄整合 Implementation Plan｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../../index.html">角色首頁</a>
+    <a href="../../../all-docs.html">全部文件</a>
+    <a href="../../../search.html">搜尋</a>
+    <a href="../../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../../all-docs.html">全部文件</a> ／ superpowers/plans</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">superpowers/plans</div><h1>抖音影片自動轉錄整合 Implementation Plan</h1></header><div class="docwrap"><main><blockquote><p><strong>Archived historical implementation plan:</strong> 本檔保留當時 agent 執行計畫與脈絡；下列步驟不再作為目前 backlog 追蹤。</p></blockquote>
+<p><strong>Goal:</strong> 讓使用者貼抖音分享文字即自動帶入標題＋網址，且背景轉錄時自動以 playwright 助手下載抖音音訊並沿用既有轉錄管線，達成抖音→文字稿自動化。</p>
+<p><strong>Architecture:</strong> 在 <code>TranscriptionProcessor.DownloadFromUrlAsync</code> 下載步驟依網址分流：抖音→新的 <code>DouyinAudioDownloader</code>（C# shell out 到既有 Node 助手 <code>tools/douyin-audio/get-douyin-audio.mjs</code>），其餘→既有 yt-dlp <code>MediaUrlDownloader</code>；兩者回傳相同的 <code>MediaDownloadResult</code>，下游分段→轉錄→繁體流程不變。建立表單以 <code>ShareTextParser</code> 解析分享文字自動帶入標題與網址。</p>
+<p><strong>Tech Stack:</strong> .NET 10、C#、Blazor Server（AntDesign）、xUnit、Node.js + @playwright/cli、ffmpeg。</p>
+<p><strong>設計依據：</strong> <code>docs/superpowers/specs/2026-06-04-抖音自動轉錄整合-design.md</code></p>
+<p><strong>版本規範：</strong> 全部任務完成後，於 Task 7 一次性將 <code>appsettings.json</code> 的 <code>SystemVersion</code> 由 <code>0.2.26</code> 遞增為 <code>0.2.27 (2026/06/04)</code>（單一功能交付＝一次建置）。</p>
+<p><strong>通用指令：</strong></p>
+<ul><li>建置：<code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.slnx -v:minimal</code></li><li>測試：<code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests/KnowledgeExtraction.Tests.csproj -v:minimal</code></li></ul>
+<hr>
+<h2 id="file-structure" class="t1">File Structure</h2>
+<ul><li>Create <code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Helpers/ShareTextParser.cs</code> — 分享文字解析（URL + 標題）。</li><li>Create <code>src/KnowledgeExtraction/KnowledgeExtraction.Tests/ShareTextParserTests.cs</code> — 上者單元測試。</li><li>Create <code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription/DouyinAudioDownloader.cs</code> — 抖音偵測 + 呼叫助手下載。</li><li>Create <code>src/KnowledgeExtraction/KnowledgeExtraction.Tests/DouyinAudioDownloaderTests.cs</code> — <code>IsDouyin</code> 偵測單元測試。</li><li>Modify <code>src/KnowledgeExtraction/KnowledgeExtraction.Models/Systems/OpenAISettings.cs</code> — 新增 NodePath / DouyinHelperScript / DouyinTimeoutSeconds。</li><li>Modify <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json</code> — 新增上述三鍵 + Task 7 版本。</li><li>Modify <code>tools/douyin-audio/get-douyin-audio.mjs</code> — 支援 <code>--out &lt;檔&gt;</code>，輸出 <code>TITLE=</code>／<code>MP3_PATH=</code>。</li><li>Modify <code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription/TranscriptionProcessor.cs:130-149</code> — 下載分流。</li><li>Modify <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/MediaTranscriptions/MediaTranscriptionView.razor</code>（約 130 行）與 <code>.razor.cs</code> — URL 欄 OnBlur 自動帶入。</li><li>Modify 文件：<code>docs/operations/日誌與設定檔說明.md</code>、<code>docs/operations/外部工具安裝與路徑設定.md</code>、<code>docs/operations/全新機器部署SOP.md</code>。</li></ul>
+<hr>
+<h2 id="task-1-sharetextparser分享文字解析" class="t2">Task 1: ShareTextParser（分享文字解析）</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Helpers/ShareTextParser.cs</code></li><li>Test: <code>src/KnowledgeExtraction/KnowledgeExtraction.Tests/ShareTextParserTests.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 寫失敗測試</strong></li></ul>
+<p><code>src/KnowledgeExtraction/KnowledgeExtraction.Tests/ShareTextParserTests.cs</code>：</p>
+<pre><code>using KnowledgeExtraction.Business.Helpers;
+
+namespace KnowledgeExtraction.Tests;
+
+public sealed class ShareTextParserTests
+{
+    [Theory]
+    // 格式一：代碼/時間/日期 + 標題 + URL
+    [InlineData(
+        "4.30 QkC:/ d@a.nD :8pm 05/11 35岁的产品经理都去哪了 # 产品经理 https://v.douyin.com/UkmXQe9ia84/ 复制此链接，打开Dou音搜索",
+        "35岁的产品经理都去哪了 # 产品经理")]
+    // 格式二：复制打开抖音，看看【作者的作品】+ 標題
+    [InlineData(
+        "0.05 复制打开抖音，看看【哲个橘子的作品】成年人最大的清醒：不要期待别人自动懂你 # 个人成长 https://v.douyin.com/Tq3FC0OfIuM/ U@L.wF",
+        "成年人最大的清醒：不要期待别人自动懂你 # 个人成长")]
+    public void ExtractTitle_FromShareText_ReturnsCleanTitle(string input, string expected)
+    {
+        Assert.Equal(expected, ShareTextParser.ExtractTitle(input));
+    }
+
+    [Theory]
+    [InlineData("https://v.douyin.com/UkmXQe9ia84/")] // 純網址無標題
+    [InlineData("4.30 QkC:/ :8pm https://v.douyin.com/x/")] // 只有英數雜訊
+    [InlineData("")]
+    [InlineData(null)]
+    public void ExtractTitle_WithoutTitleText_ReturnsNull(string? input)
+    {
+        Assert.Null(ShareTextParser.ExtractTitle(input));
+    }
+
+    [Fact]
+    public void ExtractUrl_DelegatesToUrlExtractor()
+    {
+        var url = ShareTextParser.ExtractUrl("看看 https://v.douyin.com/UkmXQe9ia84/ 复制此链接");
+        Assert.Equal("https://v.douyin.com/UkmXQe9ia84/", url);
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 執行測試確認失敗</strong></li></ul>
+<p>Run: <code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests/KnowledgeExtraction.Tests.csproj --filter "FullyQualifiedName~ShareTextParserTests" -v:minimal</code> Expected: 編譯失敗（<code>ShareTextParser</code> 不存在）。</p>
+<ul><li>（歷史步驟）<strong>Step 3: 實作 ShareTextParser</strong></li></ul>
+<p><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Helpers/ShareTextParser.cs</code>：</p>
+<pre><code>using System.Text.RegularExpressions;
+
+namespace KnowledgeExtraction.Business.Helpers;
+
+/// &lt;summary&gt;
+/// 解析使用者貼上的影片「分享文字」，抽出乾淨網址與標題。
+/// 標題為最佳努力擷取（可由使用者修改）：取第一個網址前的文字，去除分享前綴雜訊
+/// （數字代碼、時間、日期等非中日韓字 token）與「…看看【作者的作品】」包裝。
+/// &lt;/summary&gt;
+public static class ShareTextParser
+{
+    private static readonly Regex CjkToken = new(@"[一-鿿]", RegexOptions.Compiled);
+    private static readonly Regex UrlStart = new(@"https?://", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex AuthorWrapper = new(@"看看【[^】]*】", RegexOptions.Compiled);
+
+    /// &lt;summary&gt;抽出文字中第一個 http(s) 網址（沿用既有 UrlExtractor）。&lt;/summary&gt;
+    public static string? ExtractUrl(string? text) =&gt; UrlExtractor.ExtractFirstUrl(text);
+
+    /// &lt;summary&gt;抽出標題；無法判定時回傳 null。&lt;/summary&gt;
+    public static string? ExtractTitle(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        // 取第一個網址之前的文字
+        var urlMatch = UrlStart.Match(text);
+        var pre = urlMatch.Success ? text[..urlMatch.Index] : text;
+
+        // 去掉「…看看【作者的作品】」包裝，保留其後標題
+        var wrap = AuthorWrapper.Match(pre);
+        if (wrap.Success)
+        {
+            pre = pre[(wrap.Index + wrap.Length)..];
+        }
+
+        // 去掉開頭不含中日韓字的雜訊 token（代碼、時間、日期）
+        var tokens = pre.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        var kept = tokens.SkipWhile(t =&gt; !CjkToken.IsMatch(t)).ToArray();
+        var title = string.Join(' ', kept).Trim();
+        return string.IsNullOrWhiteSpace(title) ? null : title;
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4: 執行測試確認通過</strong></li></ul>
+<p>Run: <code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests/KnowledgeExtraction.Tests.csproj --filter "FullyQualifiedName~ShareTextParserTests" -v:minimal</code> Expected: 全部 PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 5: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Business/Helpers/ShareTextParser.cs src/KnowledgeExtraction/KnowledgeExtraction.Tests/ShareTextParserTests.cs
+git commit -m "feat: 新增 ShareTextParser 解析分享文字標題與網址"</code></pre>
+<hr>
+<h2 id="task-2-openaisettings-新增抖音助手設定" class="t3">Task 2: OpenAISettings 新增抖音助手設定</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>src/KnowledgeExtraction/KnowledgeExtraction.Models/Systems/OpenAISettings.cs</code></li><li>Modify: <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 新增設定屬性</strong></li></ul>
+<p>在 <code>OpenAISettings.cs</code> 的 <code>YtDlpCookiesFromBrowser</code> 屬性之後（第 21 行後）新增：</p>
+<pre><code>    // 抖音音訊助手（tools/douyin-audio/get-douyin-audio.mjs）整合設定。
+    // 抖音無法以 yt-dlp 下載，偵測到抖音網址時改以 Node + playwright 助手下載音訊。
+    // 僅適用於有桌面的本機環境（助手需可見瀏覽器與偶爾人工驗證）。
+    public string NodePath { get; set; } = "node";               // Node.js 執行檔；預設走 PATH
+    public string DouyinHelperScript { get; set; } = string.Empty; // get-douyin-audio.mjs 的絕對路徑；空白則抖音下載直接失敗並提示設定
+    public int DouyinTimeoutSeconds { get; set; } = 150;           // 助手執行逾時（秒）</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 在 appsettings.json 加入對應鍵</strong></li></ul>
+<p>在 <code>appsettings.json</code> 的 <code>OpenAISettings</code> 區段，於 <code>"YtDlpCookiesFromBrowser": ""</code> 之後新增（注意保留前一行逗號）：</p>
+<pre><code>    "YtDlpCookiesFromBrowser": "",
+    "NodePath": "node",
+    "DouyinHelperScript": "",
+    "DouyinTimeoutSeconds": 150</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: 建置確認無誤</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.slnx -v:minimal</code> Expected: Build succeeded。</p>
+<ul><li>（歷史步驟）<strong>Step 4: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Models/Systems/OpenAISettings.cs src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json
+git commit -m "feat: OpenAISettings 新增抖音助手設定(NodePath/DouyinHelperScript/DouyinTimeoutSeconds)"</code></pre>
+<hr>
+<h2 id="task-3-助手腳本支援---out-與機器可解析輸出" class="t4">Task 3: 助手腳本支援 --out 與機器可解析輸出</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>tools/douyin-audio/get-douyin-audio.mjs</code></li></ul>
+<blockquote><p>此腳本驅動瀏覽器，無自動化測試框架，採手動驗證。修改維持既有手動用法（第三參數＝輸出資料夾）相容。</p></blockquote>
+<ul><li>（歷史步驟）<strong>Step 1: 改寫參數解析（支援 --out）</strong></li></ul>
+<p>將檔案開頭「取得參數」區塊（<code>const link = process.argv[2];</code> 到 <code>const outDir = ...;</code>）替換為：</p>
+<pre><code>const rawArgs = process.argv.slice(2);
+const link = rawArgs[0];
+if (!link) {
+  console.error('用法：node get-douyin-audio.mjs "&lt;抖音連結或整段分享文字&gt;" [輸出資料夾] [--out &lt;mp3完整路徑&gt;]');
+  process.exit(1);
+}
+let outFile = null;
+let outDir = 'C:\\temp\\KnowledgeExtraction\\DouyinAudio';
+for (let i = 1; i &lt; rawArgs.length; i++) {
+  if (rawArgs[i] === '--out') { outFile = rawArgs[i + 1]; i++; }
+  else if (!rawArgs[i].startsWith('--')) { outDir = rawArgs[i]; }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 依 --out 決定輸出路徑並輸出機器可解析結果</strong></li></ul>
+<p>將檔案末段「寫檔 + ffmpeg + 完成訊息」區塊（自 <code>const tmp = path.join(outDir, ...)</code> 到結尾）替換為：</p>
+<pre><code>const baseDir = outFile ? path.dirname(outFile) : outDir;
+mkdirSync(baseDir, { recursive: true });
+const tmp = path.join(baseDir, title + (fromAudioTrack ? '.m4a' : '.mp4'));
+const mp3 = outFile ? outFile : path.join(outDir, title + '.mp3');
+writeFileSync(tmp, buf);
+// -vn 只取音訊：對純音訊軌與含音訊的合併檔都適用。
+const ff = spawnSync(ffmpeg, ['-y', '-i', tmp, '-vn', '-acodec', 'libmp3lame', '-q:a', '4', mp3], { stdio: 'ignore' });
+if (existsSync(tmp)) unlinkSync(tmp);
+if (ff.status !== 0 || !existsSync(mp3) || statSync(mp3).size &lt; 2048) {
+  console.error('ffmpeg 轉檔失敗或產出無有效音訊（來源可能不含音訊軌）。');
+  process.exit(4);
+}
+
+// 機器可解析輸出（供 C# 整合擷取）
+console.log('TITLE=' + title);
+console.log('MP3_PATH=' + mp3);
+console.log('');
+console.log('完成：' + mp3);
+console.log('請到 /media-transcription，以「檔案上傳」選此 mp3 進行轉錄。');</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: 手動驗證 --out 模式</strong></li></ul>
+<p>Run（請替換為有效抖音連結，並先確認瀏覽器已登入抖音）：</p>
+<pre><code>node tools/douyin-audio/get-douyin-audio.mjs "&lt;抖音連結&gt;" --out "C:\temp\KnowledgeExtraction\DouyinAudio\__t3.mp3"</code></pre>
+<p>Expected: 輸出含 <code>TITLE=...</code> 與 <code>MP3_PATH=C:\temp\KnowledgeExtraction\DouyinAudio\__t3.mp3</code>，且該檔存在、可播放。驗證後刪除 <code>__t3.mp3</code>。</p>
+<ul><li>（歷史步驟）<strong>Step 4: Commit</strong></li></ul>
+<pre><code>git add tools/douyin-audio/get-douyin-audio.mjs
+git commit -m "feat: 抖音助手支援 --out 指定輸出檔並輸出 TITLE/MP3_PATH"</code></pre>
+<hr>
+<h2 id="task-4-douyinaudiodownloader偵測--呼叫助手" class="t5">Task 4: DouyinAudioDownloader（偵測 + 呼叫助手）</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription/DouyinAudioDownloader.cs</code></li><li>Test: <code>src/KnowledgeExtraction/KnowledgeExtraction.Tests/DouyinAudioDownloaderTests.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 寫 IsDouyin 失敗測試</strong></li></ul>
+<p><code>src/KnowledgeExtraction/KnowledgeExtraction.Tests/DouyinAudioDownloaderTests.cs</code>：</p>
+<pre><code>using KnowledgeExtraction.Business.Services.Transcription;
+
+namespace KnowledgeExtraction.Tests;
+
+public sealed class DouyinAudioDownloaderTests
+{
+    [Theory]
+    [InlineData("https://v.douyin.com/UkmXQe9ia84/", true)]
+    [InlineData("https://www.douyin.com/video/7645128310472723739", true)]
+    [InlineData("https://www.iesdouyin.com/share/video/123/", true)]
+    [InlineData("https://www.youtube.com/watch?v=abc", false)]
+    [InlineData("http://xhslink.com/o/9ml5lpXr7RN", false)]
+    [InlineData("not a url", false)]
+    [InlineData(null, false)]
+    public void IsDouyin_DetectsDouyinHosts(string? url, bool expected)
+    {
+        Assert.Equal(expected, DouyinAudioDownloader.IsDouyin(url));
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 執行測試確認失敗</strong></li></ul>
+<p>Run: <code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests/KnowledgeExtraction.Tests.csproj --filter "FullyQualifiedName~DouyinAudioDownloaderTests" -v:minimal</code> Expected: 編譯失敗（<code>DouyinAudioDownloader</code> 不存在）。</p>
+<ul><li>（歷史步驟）<strong>Step 3: 實作 DouyinAudioDownloader</strong></li></ul>
+<p><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription/DouyinAudioDownloader.cs</code>：</p>
+<pre><code>using System.Diagnostics;
+using System.Text.RegularExpressions;
+
+namespace KnowledgeExtraction.Business.Services.Transcription;
+
+/// &lt;summary&gt;
+/// 抖音音訊下載器：抖音 web API 需 JS 即時簽章，yt-dlp 無法下載，故以 Node + playwright 助手
+/// （tools/douyin-audio/get-douyin-audio.mjs）用已登入瀏覽器攔截音訊串流並轉 mp3。
+/// 僅適用於有桌面的本機環境（助手需可見瀏覽器與偶爾人工驗證）。
+/// &lt;/summary&gt;
+public class DouyinAudioDownloader
+{
+    private readonly string nodePath;
+    private readonly string scriptPath;
+    private readonly int timeoutSeconds;
+
+    public DouyinAudioDownloader(string nodePath, string scriptPath, int timeoutSeconds)
+    {
+        this.nodePath = string.IsNullOrWhiteSpace(nodePath) ? "node" : nodePath;
+        this.scriptPath = scriptPath?.Trim() ?? string.Empty;
+        this.timeoutSeconds = timeoutSeconds &gt; 0 ? timeoutSeconds : 150;
+    }
+
+    /// &lt;summary&gt;判斷網址是否為抖音（含短連結 v.douyin.com）。&lt;/summary&gt;
+    public static bool IsDouyin(string? url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+        var host = uri.Host.ToLowerInvariant();
+        return host == "douyin.com"
+            || host == "v.douyin.com"
+            || host.EndsWith(".douyin.com", StringComparison.Ordinal)
+            || host.EndsWith("iesdouyin.com", StringComparison.Ordinal);
+    }
+
+    /// &lt;summary&gt;以助手腳本下載抖音音訊到 mediaRootPath，輸出 {yyyy}/{guid}.mp3。&lt;/summary&gt;
+    public async Task&lt;MediaDownloadResult&gt; DownloadAudioAsync(
+        string url, string mediaRootPath, DateTime uploadedAt, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(scriptPath) || !File.Exists(scriptPath))
+        {
+            throw new InvalidOperationException(
+                "抖音下載需設定 OpenAISettings:DouyinHelperScript 指向 get-douyin-audio.mjs，且檔案需存在。");
+        }
+
+        var year = uploadedAt.Year.ToString("0000");
+        var id = Guid.NewGuid().ToString("N");
+        var targetDir = Path.Combine(mediaRootPath, year);
+        Directory.CreateDirectory(targetDir);
+        var outPath = Path.Combine(targetDir, $"{id}.mp3");
+
+        var arguments = $"\"{scriptPath}\" \"{url}\" --out \"{outPath}\"";
+        var (stdout, stderr, exitCode) = await RunAsync(arguments, cancellationToken);
+        if (exitCode != 0 || !File.Exists(outPath))
+        {
+            var detail = string.IsNullOrWhiteSpace(stderr) ? stdout : stderr;
+            throw new InvalidOperationException($"抖音助手執行失敗 (ExitCode={exitCode})：{detail}");
+        }
+
+        var titleMatch = Regex.Match(stdout, @"^TITLE=(.*)$", RegexOptions.Multiline);
+        var title = titleMatch.Success ? titleMatch.Groups[1].Value.Trim() : id;
+        var safeTitle = SanitizeFileName(string.IsNullOrWhiteSpace(title) ? id : title);
+
+        var fileInfo = new FileInfo(outPath);
+        return new MediaDownloadResult(
+            outPath,
+            $"{year}/{id}.mp3",
+            $"{safeTitle}.mp3",
+            "audio/mpeg",
+            fileInfo.Length);
+    }
+
+    private async Task&lt;(string Stdout, string Stderr, int ExitCode)&gt; RunAsync(string arguments, CancellationToken cancellationToken)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = nodePath,
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var process = Process.Start(psi)
+            ?? throw new InvalidOperationException("無法啟動 Node，請確認已安裝並設定 OpenAISettings:NodePath。");
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
+        var stderrTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
+        try
+        {
+            await process.WaitForExitAsync(timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            try { process.Kill(entireProcessTree: true); } catch { /* ignore */ }
+            throw new InvalidOperationException(
+                $"抖音助手逾時（{timeoutSeconds} 秒）。若出現驗證頁，請於瀏覽器視窗手動通過後重試。");
+        }
+
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
+        return (stdout, stderr, process.ExitCode);
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var cleaned = new string(name.Select(c =&gt; invalid.Contains(c) ? '_' : c).ToArray()).Trim();
+        return string.IsNullOrWhiteSpace(cleaned) ? "douyin_audio" : cleaned;
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4: 執行測試確認通過</strong></li></ul>
+<p>Run: <code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests/KnowledgeExtraction.Tests.csproj --filter "FullyQualifiedName~DouyinAudioDownloaderTests" -v:minimal</code> Expected: 全部 PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 5: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription/DouyinAudioDownloader.cs src/KnowledgeExtraction/KnowledgeExtraction.Tests/DouyinAudioDownloaderTests.cs
+git commit -m "feat: 新增 DouyinAudioDownloader(抖音偵測+呼叫 playwright 助手)"</code></pre>
+<hr>
+<h2 id="task-5-下載步驟分流接上抖音下載器" class="t6">Task 5: 下載步驟分流（接上抖音下載器）</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription/TranscriptionProcessor.cs:130-149</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 改寫 DownloadFromUrlAsync 的下載器選擇</strong></li></ul>
+<p>將 <code>DownloadFromUrlAsync</code> 內自 <code>logger.LogInformation("Downloading media audio from URL...</code> 到 <code>var result = await downloader.DownloadAudioAsync(...);</code> 的兩行，替換為：</p>
+<pre><code>        logger.LogInformation("Downloading media audio from URL. Id={Id}, Url={Url}", record.Id, record.SourceUrl);
+
+        MediaDownloadResult result;
+        if (DouyinAudioDownloader.IsDouyin(record.SourceUrl))
+        {
+            logger.LogInformation("Douyin URL detected; using browser helper. Id={Id}", record.Id);
+            var douyin = new DouyinAudioDownloader(settings.NodePath, settings.DouyinHelperScript, settings.DouyinTimeoutSeconds);
+            result = await douyin.DownloadAudioAsync(record.SourceUrl, mediaRootPath, record.UploadedAt, cancellationToken);
+        }
+        else
+        {
+            var downloader = new MediaUrlDownloader(settings.YtDlpPath, settings.FfmpegPath, settings.YtDlpCookiesFile, settings.YtDlpCookiesFromBrowser);
+            result = await downloader.DownloadAudioAsync(record.SourceUrl, mediaRootPath, record.UploadedAt, cancellationToken);
+        }</code></pre>
+<p>（其後 <code>record.OriginalFileName = result.OriginalFileName;</code> 起的欄位寫入維持不變。）</p>
+<ul><li>（歷史步驟）<strong>Step 2: 建置確認無誤</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.slnx -v:minimal</code> Expected: Build succeeded。</p>
+<ul><li>（歷史步驟）<strong>Step 3: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription/TranscriptionProcessor.cs
+git commit -m "feat: 影片連結下載依網址分流(抖音走助手，其餘走 yt-dlp)"</code></pre>
+<hr>
+<h2 id="task-6-建立表單自動帶入標題與網址" class="t7">Task 6: 建立表單自動帶入標題與網址</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/MediaTranscriptions/MediaTranscriptionView.razor</code>（約 130 行的「影片網址」Input）</li><li>Modify: <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/MediaTranscriptions/MediaTranscriptionView.razor.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 在 .razor 為網址欄加上 OnBlur</strong></li></ul>
+<p>將「影片網址」的 Input（現為 <code>&lt;Input @bind-Value="CurrentRecord.SourceUrl" Placeholder="..." /&gt;</code>）改為：</p>
+<pre><code>                                &lt;Input @bind-Value="CurrentRecord.SourceUrl" OnBlur="OnSourceUrlBlur" Placeholder="貼上 YouTube／抖音／小紅書等影片連結，可直接貼整段分享文字" /&gt;</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 在 .razor.cs 加入處理方法與 using</strong></li></ul>
+<p>於 <code>MediaTranscriptionView.razor.cs</code> 檔案頂部 using 區加入（若尚無）：</p>
+<pre><code>using KnowledgeExtraction.Business.Helpers;
+using Microsoft.AspNetCore.Components.Web;</code></pre>
+<p>並於類別內新增方法：</p>
+<pre><code>    // 貼上分享文字後自動帶入：抽乾淨網址寫回網址欄；標題為空時帶入擷取標題（可手動修改）。
+    private void OnSourceUrlBlur(FocusEventArgs _)
+    {
+        var raw = CurrentRecord.SourceUrl;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return;
+        }
+
+        var url = ShareTextParser.ExtractUrl(raw);
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            CurrentRecord.SourceUrl = url;
+        }
+
+        if (string.IsNullOrWhiteSpace(CurrentRecord.Title))
+        {
+            var title = ShareTextParser.ExtractTitle(raw);
+            if (!string.IsNullOrWhiteSpace(title))
+            {
+                CurrentRecord.Title = title;
+            }
+        }
+    }</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: 建置確認無誤</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.slnx -v:minimal</code> Expected: Build succeeded（若 AntDesign <code>Input</code> 的 <code>OnBlur</code> 簽章不符而報錯，將方法參數改為無參數版本 <code>private void OnSourceUrlBlur()</code> 並對應調整）。</p>
+<ul><li>（歷史步驟）<strong>Step 4: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/MediaTranscriptions/MediaTranscriptionView.razor src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/MediaTranscriptions/MediaTranscriptionView.razor.cs
+git commit -m "feat: 影片網址欄貼分享文字自動帶入標題與乾淨網址"</code></pre>
+<hr>
+<h2 id="task-7-文件更新與版本遞增" class="t8">Task 7: 文件更新與版本遞增</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>docs/operations/日誌與設定檔說明.md</code>（OpenAISettings 表）</li><li>Modify: <code>docs/operations/外部工具安裝與路徑設定.md</code>（§8.2 抖音改為「可由系統自動觸發」）</li><li>Modify: <code>docs/operations/全新機器部署SOP.md</code>（§6.1 參數表）</li><li>Modify: <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json</code>（版本）</li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 日誌與設定檔說明.md — 於 OpenAISettings 表補三列</strong></li></ul>
+<p>在該檔 OpenAISettings 欄位表（<code>YtDlpCookiesFromBrowser</code> 那列之後）新增：</p>
+<pre><code>| `NodePath` | Node.js 執行檔路徑，預設 `node`（走 PATH）。抖音音訊助手使用。 |
+| `DouyinHelperScript` | 抖音助手 `get-douyin-audio.mjs` 的絕對路徑。**偵測到抖音網址時自動以此助手下載**；留空則抖音下載失敗並提示設定。僅限有桌面的本機。 |
+| `DouyinTimeoutSeconds` | 抖音助手執行逾時秒數，預設 `150`。逾時（含需人工驗證未完成）該筆標記失敗，可重試。 |</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 外部工具安裝與路徑設定.md — 更新 §8.2 抖音說明</strong></li></ul>
+<p>於 §8.2 操作步驟前補一句說明（接在「因此抖音改採瀏覽器路線…」段落後）：</p>
+<pre><code>&gt; 自 0.2.27 起，系統會在「影片連結」來源**偵測到抖音網址時自動觸發本助手**（需於 `OpenAISettings:DouyinHelperScript` 設定腳本絕對路徑、`NodePath` 指向 Node）。下載期間瀏覽器視窗會跳出，若出現驗證頁請當場手動通過；逾時則該筆標記失敗可重試。仍可獨立用命令列手動執行本助手。</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: 全新機器部署SOP.md — §6.1 參數表補列</strong></li></ul>
+<p>在 §6.1 表中（<code>OpenAISettings:YtDlpCookiesFile…</code> 那列附近）新增：</p>
+<pre><code>| `OpenAISettings:NodePath` | `node` | 否 | 需轉錄抖音時，指向 Node.js | `OpenAISettings__NodePath` |
+| `OpenAISettings:DouyinHelperScript` | 空 | 否 | 需轉錄抖音時**必填**（get-douyin-audio.mjs 絕對路徑）；僅本機 | `OpenAISettings__DouyinHelperScript` |
+| `OpenAISettings:DouyinTimeoutSeconds` | `150` | 否 | 視需要調整 | `OpenAISettings__DouyinTimeoutSeconds` |</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4: 遞增版本</strong></li></ul>
+<p>在 <code>appsettings.json</code> 將 <code>"SystemVersion": "0.2.26 (2026/06/04)"</code> 改為 <code>"SystemVersion": "0.2.27 (2026/06/04)"</code>。</p>
+<ul><li>（歷史步驟）<strong>Step 5: 補 BOM 並執行文件編碼檢查</strong></li></ul>
+<p>Run:</p>
+<pre><code>$bom=[byte[]](0xEF,0xBB,0xBF)
+foreach($f in @("docs/operations/日誌與設定檔說明.md","docs/operations/外部工具安裝與路徑設定.md","docs/operations/全新機器部署SOP.md")){
+  $p="C:\Vulcan\Github\KnowledgeExtraction.AI\$f"; $b=[IO.File]::ReadAllBytes($p)
+  if(-not ($b.Length -ge 3 -and $b[0]-eq0xEF -and $b[1]-eq0xBB -and $b[2]-eq0xBF)){ [IO.File]::WriteAllBytes($p,$bom+$b) }
+}
+pwsh -NoProfile -File scripts/Test-DocsEncoding.ps1</code></pre>
+<p>Expected: 編碼檢查全數 OK（無 FAILED）。</p>
+<ul><li>（歷史步驟）<strong>Step 6: Commit</strong></li></ul>
+<pre><code>git add docs/operations/日誌與設定檔說明.md docs/operations/外部工具安裝與路徑設定.md docs/operations/全新機器部署SOP.md src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json
+git commit -m "docs: 文件補抖音自動觸發與三設定，版本 0.2.26 → 0.2.27"</code></pre>
+<hr>
+<h2 id="task-8-端到端手動驗收" class="t1">Task 8: 端到端手動驗收</h2>
+<p><strong>Files:</strong> 無（驗證）</p>
+<ul><li>（歷史步驟）<strong>Step 1: 設定抖音助手路徑（user-secrets 或環境變數）</strong></li></ul>
+<p>於開發機設定（擇一）：</p>
+<pre><code>cd src/KnowledgeExtraction/KnowledgeExtraction.Web
+dotnet user-secrets set "OpenAISettings:DouyinHelperScript" "C:\Vulcan\Github\KnowledgeExtraction.AI\tools\douyin-audio\get-douyin-audio.mjs"</code></pre>
+<p>（<code>NodePath</code> 若 node 已在 PATH 可不設；<code>OpenAISettings:ApiKey</code> 需為有效金鑰。）</p>
+<ul><li>（歷史步驟）<strong>Step 2: 啟動並驗證自動帶入</strong></li></ul>
+<p>啟動 app（<code>dotnet run --project src/KnowledgeExtraction/KnowledgeExtraction.Web</code>），登入後到 <code>/media-transcription</code> →「新增」→ 來源類型「影片連結」→ 於「影片網址」貼上整段抖音分享文字 → 點別處（觸發 OnBlur）。 Expected: 「標題」自動帶入擷取標題、「影片網址」變為乾淨網址。</p>
+<ul><li>（歷史步驟）<strong>Step 3: 驗證自動下載與轉錄</strong></li></ul>
+<p>送出建立 → 觀察背景轉錄：抖音助手瀏覽器視窗跳出（必要時手動過驗證）→ 下載音訊 → 轉錄完成、可下載繁體逐字稿。 Expected: 記錄狀態「已完成」，逐字稿為台灣繁體中文。</p>
+<ul><li>（歷史步驟）<strong>Step 4: 迴歸驗證</strong></li></ul>
+<p>以小紅書連結（<code>http://xhslink.com/o/9ml5lpXr7RN</code>）新增一筆 → 確認仍走 yt-dlp 正常轉錄；以本機音檔上傳一筆 → 確認上傳流程不受影響。 Expected: 兩者皆正常完成。</p>
+<hr>
+<h2 id="self-review-摘要撰寫者已核對-spec" class="t2">Self-Review 摘要（撰寫者已核對 spec）</h2>
+<ul><li>spec ① 分享文字解析 → Task 1、Task 6。</li><li>spec ② 抖音偵測 + DouyinAudioDownloader → Task 4、Task 5。</li><li>spec ③ 沿用轉錄管線 → Task 5（僅改下載器選擇，管線不動）+ Task 8 迴歸。</li><li>spec ④ 助手契約升級 → Task 3。</li><li>spec ⑤ 設定 → Task 2、Task 7。</li><li>spec ⑥ 錯誤處理/限制 → DouyinAudioDownloader 例外 + 逾時（Task 4）、既有 catch（不變）。</li><li>spec 測試 → Task 1/Task 4 單元測試、Task 8 整合與迴歸。</li><li>型別一致：<code>MediaDownloadResult</code>(既有)、<code>DouyinAudioDownloader.IsDouyin</code>/<code>DownloadAudioAsync</code>、<code>ShareTextParser.ExtractUrl</code>/<code>ExtractTitle</code>、<code>OpenAISettings.NodePath</code>/<code>DouyinHelperScript</code>/<code>DouyinTimeoutSeconds</code> 在各 Task 間一致。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（superpowers/plans）</h3><ul><li><a href="../../../docs/superpowers/plans/2026-06-02-73d2ea8b.html">音訊／影片轉錄服務 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-09-7034edfd.html">提示詞清單（Prompt）管理頁面 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-11-knowledge-source-crud-6e918bdb.html">知識來源管理清單（KnowledgeSource）CRUD + 成員聚合 實作計畫</a></li><li><a href="../../../docs/superpowers/plans/2026-07-10-d75d8738.html">KnowledgeExtraction.AI 安全優先穩定化計畫</a></li><li><a href="../../../docs/superpowers/plans/2026-07-12-prd-e14e5def.html">PRD 全庫基線重建 Implementation Plan</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#file-structure">File Structure</a><a class="l2" href="#task-1-sharetextparser分享文字解析">Task 1: ShareTextParser（分享文字解析）</a><a class="l2" href="#task-2-openaisettings-新增抖音助手設定">Task 2: OpenAISettings 新增抖音助手設定</a><a class="l2" href="#task-3-助手腳本支援---out-與機器可解析輸出">Task 3: 助手腳本支援 --out 與機器可解析輸出</a><a class="l2" href="#task-4-douyinaudiodownloader偵測--呼叫助手">Task 4: DouyinAudioDownloader（偵測 + 呼叫助手）</a><a class="l2" href="#task-5-下載步驟分流接上抖音下載器">Task 5: 下載步驟分流（接上抖音下載器）</a><a class="l2" href="#task-6-建立表單自動帶入標題與網址">Task 6: 建立表單自動帶入標題與網址</a><a class="l2" href="#task-7-文件更新與版本遞增">Task 7: 文件更新與版本遞增</a><a class="l2" href="#task-8-端到端手動驗收">Task 8: 端到端手動驗收</a><a class="l2" href="#self-review-摘要撰寫者已核對-spec">Self-Review 摘要（撰寫者已核對 spec）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/superpowers/plans/2026-06-04-抖音自動轉錄整合.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

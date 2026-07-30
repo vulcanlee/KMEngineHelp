@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識來源 AI 對話 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>知識來源 AI 對話 PRD</h1><p class="sub">定義單一知識來源「AI 對話」頁的需求、LLM 串流、多輪記憶與內容權控</p></header><div class="docwrap"><main><ul><li>文件用途：定義單一知識來源「AI 對話」頁的需求、LLM 串流、多輪記憶與內容權控</li><li>主要讀者：產品、開發、導入顧問</li><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.62</li><li>首次實作版本：0.2.105</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026/06/28</li><li>對應版本：0.2.105–0.2.113（已實作）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<h2 id="一目標與範圍" class="t1">一、目標與範圍</h2>
+<p>讓使用者針對單一知識來源的清洗後內容或原始彙整內容進行 ChatGPT 風格對話，適合快速理解一份來源、追問細節、產生摘要與檢查內容。此功能是單一來源問答，不等同跨來源 AI 知識問答。</p>
+<p>本 PRD 範圍包含 <code>/knowledge-sources/{id}/chat?mode=cleaned|original</code>、內容來源切換、系統提示詞、回答詳簡、多輪串流、複製、下載 PDF 與參考資料檢視。非範圍包含跨來源檢索、向量 RAG、對話紀錄持久化。</p>
+<h2 id="二使用者與入口" class="t2">二、使用者與入口</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>說明</th></tr></thead><tbody><tr><td>路由</td><td><code>/knowledge-sources/{id}/chat</code></td></tr><tr><td>入口</td><td>知識來源加工操作欄「AI 對話」</td></tr><tr><td>權限</td><td>沿用 <code>角色_知識來源管理清單</code></td></tr><tr><td>主要使用者</td><td>知識管理者、審核者、導入顧問</td></tr></tbody></table></div>
+<p>本頁不新增選單節點；使用者必須先能存取該知識來源，且來源內容也會再套團隊權控。</p>
+<h2 id="三畫面與操作" class="t3">三、畫面與操作</h2>
+<ul><li>內容來源：清洗後內容或原始來源。</li><li>系統提示詞：可手動輸入，或由 AI 提示詞套用後再編輯。</li><li>回答詳簡：簡潔、標準、詳細。</li><li>對話區：顯示多輪 user/assistant 訊息，assistant 串流更新。</li><li>參考資料：可檢視實際送進模型的來源內容。</li><li>操作：送出、停止生成、切換內容來源後清空重來。每則 AI 回覆下方動作列（<strong>同一列常駐顯示</strong>）：複製訊息、下載 PDF（單則匯出）、滿意 / 不滿意回饋。</li></ul>
+<h2 id="四內部系統運作" class="t4">四、內部系統運作</h2>
+<p>核心流程為 <code>KnowledgeSourceChatView → KnowledgeSourceChatService → KnowledgeSourceService → IChatConversationClient</code>。</p>
+<ol><li>進頁檢查登入與 <code>角色_知識來源管理清單</code> 權限。</li><li>依 <code>mode</code> 取得內容：清洗後走 <code>GetCleanedContentAsync</code>，原始來源走 <code>GetOriginalContentAsync</code>。</li><li>兩種內容讀取皆由服務層套團隊權控；無權限或無內容時回傳空結果。</li><li>使用者送出訊息時，服務組 system 訊息：系統提示詞、回答詳簡、參考資料。</li><li>服務把前面所有 user/assistant 輪次一併送入 LLM，形成記憶體內多輪記憶。</li><li><code>IChatConversationClient.StreamAsync</code> 以 SSE 逐塊回傳；Blazor 端約 60ms 節流重繪。</li></ol>
+<h2 id="五llm-與提示詞" class="t5">五、LLM 與提示詞</h2>
+<ul><li>串流介面：<code>IChatConversationClient</code>，與單輪 <code>IChatCompletionClient</code> 並存。</li><li>使用者可輸入單次 system prompt，或從 <code>PromptService.GetAllEnabledAsync()</code> 選取既有提示詞。</li><li>回答詳簡由服務解析為額外 system 指示，不以 <code>max_tokens</code> 硬截斷。</li><li>參考資料全文會送入模型，但日誌只記錄長度，不記錄本文。</li></ul>
+<h2 id="六權控與資料安全" class="t6">六、權控與資料安全</h2>
+<ul><li>頁面權限沿用知識來源管理。</li><li>內容讀取必須經 <code>KnowledgeSourceService</code>，不可直接讀檔繞過團隊權控。</li><li>對話紀錄只保存在目前 Blazor 元件記憶體，不落 DB。</li><li>原始來源可能包含未清洗敏感資訊，畫面以 mode 明確區分，供授權使用者自行判斷。</li></ul>
+<h2 id="七錯誤與邊界" class="t7">七、錯誤與邊界</h2>
+<ul><li>清洗後模式若尚無清洗結果，應提示無可用內容。</li><li>原始來源若成員已不存在或無權限，彙整內容可能為空或部分缺漏。</li><li>串流中斷時保留已產生內容並顯示錯誤或停止訊息。</li></ul>
+<h2 id="八驗收與測試" class="t8">八、驗收與測試</h2>
+<ul><li>有權限者可從知識來源清單開啟 AI 對話。</li><li>清洗後與原始來源模式取得的參考資料符合服務層內容。</li><li>多輪對話會帶入歷史訊息。</li><li>停止生成可取消串流。</li><li>無權限使用者不可讀取來源內容。</li></ul>
+<h2 id="九相關程式與文件" class="t1">九、相關程式與文件</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/KnowledgeSourceChatService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/KnowledgeSources/KnowledgeSourceChatView.razor.cs</code></li><li><a href="../../docs/prd/prd-e8b774d3.html">知識來源管理 PRD</a></li><li><a href="../../docs/prd/prd-b13bd3af.html">AI 知識問答 PRD</a></li></ul>
+<h2 id="十0334-現況校正" class="t2">十、0.3.34 現況校正</h2>
+<ul><li>可選對清洗後內容或原始來源對話，支援多輪串流、簡潔／標準／詳細、停止、參考資料、複製及 PDF 下載。</li><li>每輪寫入 AI 聊天稽核、信心／topScore、滿意／不滿意回饋及 Token 用量；稽核寫入失敗不得阻斷主要回覆。</li><li>本能力只讀單一來源且每次重新驗證來源團隊；不需要跨庫索引，與 <code>/knowledge-base-chat</code> 的 RAG 問答不同。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目標與範圍">一、目標與範圍</a><a class="l2" href="#二使用者與入口">二、使用者與入口</a><a class="l2" href="#三畫面與操作">三、畫面與操作</a><a class="l2" href="#四內部系統運作">四、內部系統運作</a><a class="l2" href="#五llm-與提示詞">五、LLM 與提示詞</a><a class="l2" href="#六權控與資料安全">六、權控與資料安全</a><a class="l2" href="#七錯誤與邊界">七、錯誤與邊界</a><a class="l2" href="#八驗收與測試">八、驗收與測試</a><a class="l2" href="#九相關程式與文件">九、相關程式與文件</a><a class="l2" href="#十0334-現況校正">十、0.3.34 現況校正</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/知識來源AI對話-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

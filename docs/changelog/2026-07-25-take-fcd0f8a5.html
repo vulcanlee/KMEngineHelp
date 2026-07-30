@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>修正清單分頁失效：Take 從未被套用（1.0.56）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>修正清單分頁失效：Take 從未被套用（1.0.56）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-25</li><li>版本：1.0.55 → 1.0.56</li><li>類型：Bug 修正（影響全部 18 個清單頁）</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p>使用者回報「文件萃取」頁只有 10 筆紀錄，分頁器卻顯示 2 頁；切到第 2 頁看到 2 筆，正是第 1 頁的最後兩筆。</p>
+<h2 id="根因" class="t2">根因</h2>
+<p><code>.Take(dataRequest.PageSize)</code> 被 <code>if (dataRequest.Take != 0)</code> 包住，而<strong>所有呼叫端都傳 <code>Take = 0</code></strong>，因此 <code>Take</code> 從未執行，送到資料庫的是「只有 Skip、沒有 Take」的查詢。</p>
+<p><code>MagicObjectHelper.PageSize</code> 當時是 <strong>8</strong>，算術與畫面完全吻合：</p>
+<div class="tw"><table><thead><tr><th></th><th>實際查詢</th><th>結果</th></tr></thead><tbody><tr><td>第 1 頁</td><td><code>Skip(0)</code>、<strong>無 Take</strong></td><td>回傳全部 10 筆；表格為 <code>RemoteDataSource="true"</code> 不做前端切片 → 原封不動畫 10 列</td></tr><tr><td>分頁器</td><td><code>Total=10, PageSize=8</code></td><td><code>ceil(10/8)</code> = 2 頁</td></tr><tr><td>第 2 頁</td><td><code>Skip(8)</code>、<strong>無 Take</strong></td><td>第 9、10 筆 → 正是第 1 頁的最後兩筆</td></tr></tbody></table></div>
+<p>總筆數一直都是 10；是第 1 頁多畫了 2 筆造成「10+2=12」的錯覺。</p>
+<p>已排除的假設：不是版本鏈（清單已有 <code>Where(x =&gt; x.IsLatest)</code>）、不是 Count 與資料查詢條件不一致（兩者共用同一個 <code>dataSource</code>，Skip/Take 在 Count 之後才 append）、不是記憶體端過濾。</p>
+<h2 id="變更" class="t3">變更</h2>
+<h3 id="1-根因修正18-支-service">1. 根因修正（18 支 Service）</h3>
+<p><code>Services/DataAccess/</code> 底下 18 支 Service 一律改為無條件套用：</p>
+<pre><code>dataSource = dataSource
+    .Skip((dataRequest.CurrentPage - 1) * dataRequest.PageSize)
+    .Take(dataRequest.PageSize);</code></pre>
+<p>其他清單頁只是紀錄數還未超過每頁上限所以尚未被發現，文件萃取是第一個踩到的。</p>
+<p><strong>無回歸風險</strong>（已查證）：全庫 25 個 <code>new DataRequest</code> 呼叫端<strong>全部明確指定 <code>PageSize</code></strong>，沒有任何一處依賴「<code>Take=0</code> 代表撈全部」。需要多筆的 <code>KnowledgeBaseChatView</code> 已明寫 <code>PageSize = 1000</code>，修正後變成 <code>Take(1000)</code>，語意不變。</p>
+<h3 id="2-datarequesttake-標示廢棄">2. <code>DataRequest.Take</code> 標示廢棄</h3>
+<p>保留欄位以相容既有呼叫端，加註解說明不再影響查詢。同步移除 <code>KnowledgeListSourcesTool</code> 中 <code>Take = 1, // 非 0 才會套用每頁上限</code> 這個已失效的 workaround。</p>
+<h3 id="3-每頁筆數-8--10">3. 每頁筆數 8 → 10</h3>
+<p><code>MagicObjectHelper.PageSize</code> 由 8 改為 10。<strong>這是全站共用常數</strong>，所有清單頁的預設每頁筆數一起調整。10 筆資料因此只需一頁。</p>
+<h3 id="4-排序一律套用文件萃取">4. 排序一律套用（文件萃取）</h3>
+<p><code>DocumentExtractionService</code> 原本把排序 switch 包在 <code>if (!string.IsNullOrWhiteSpace(dataRequest.SortField))</code> 內。使用者取消表頭排序時 <code>SortField</code> 為空，查詢會完全沒有 <code>ORDER BY</code>，<code>Skip/Take</code> 在無序集合上不保證跨頁一致 —— 即使 Take 修好仍可能重複或漏筆。改為一律套用，由 switch 的 <code>_ =&gt;</code> 預設分支（依上傳時間遞減）接手。</p>
+<h2 id="已知缺口本次未處理" class="t4">已知缺口（本次未處理）</h2>
+<p><code>MeetingService</code>、<code>MyTasService</code>、<code>MyUserService</code>、<code>ProjectService</code>、<code>RoleViewService</code> 同樣把排序包在 <code>SortField</code> 非空的條件內，但它們是 if/else 鏈且<strong>完全沒有預設排序分支</strong>，單純移除條件無效，需各自新增預設排序欄位（要用哪一欄、遞增或遞減屬設計決定）。這 5 頁在「使用者手動取消表頭排序」的邊緣情境下，分頁仍可能不穩定。</p>
+<h2 id="影響範圍" class="t5">影響範圍</h2>
+<ul><li>無資料庫 migration、無資料異動、無 API 合約變更。</li><li><code>appsettings.json</code> <code>SystemVersion</code> 1.0.55 → 1.0.56。</li></ul>
+<h2 id="驗證" class="t6">驗證</h2>
+<ol><li>新增 <code>DocumentExtractionPagingTests</code>（4 個測試），<strong>先確認在修正前失敗</strong>：第 1 頁回傳 11 筆（應為 8），且第 1、2 頁重疊的 Id 正是 <code>[9, 10, 11]</code> —— 精準重現使用者回報的症狀。修正後全部轉綠。</li><li><code>dotnet test</code> 通過：643 個測試全數通過（原 639 + 新增 4）。</li><li><code>grep -rn "dataRequest.Take != 0" src/</code> 在生產程式碼中為 0 筆。</li><li>實機（需重啟站台）：<code>/document-extraction</code> 以 10 筆資料確認只有 1 頁；累積到第 11 筆時，第 1 頁 10 筆、第 2 頁 1 筆且不重複。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#根因">根因</a><a class="l2" href="#變更">變更</a><a class="l3" href="#1-根因修正18-支-service">1. 根因修正（18 支 Service）</a><a class="l3" href="#2-datarequesttake-標示廢棄">2. DataRequest.Take 標示廢棄</a><a class="l3" href="#3-每頁筆數-8--10">3. 每頁筆數 8 → 10</a><a class="l3" href="#4-排序一律套用文件萃取">4. 排序一律套用（文件萃取）</a><a class="l2" href="#已知缺口本次未處理">已知缺口（本次未處理）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-清單分頁Take失效修正.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

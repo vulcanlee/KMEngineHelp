@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>選單舊名全庫同步（1.0.60）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>選單舊名全庫同步（1.0.60）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-25</li><li>版本：1.0.59 → 1.0.60</li><li>類型：文件修正（docs 全庫稽核批次 3／共 5 批）</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p>1.0.57 全面調整側邊選單名稱時，那次 commit <strong>只碰了 <code>architecture/</code> 與 <code>changelog/</code></strong>，其餘目錄全部沒跟上，導致文件描述的選單名與畫面不符。</p>
+<h2 id="變更" class="t2">變更</h2>
+<p><strong>替換 1,502 處 / 76 檔</strong>（第一輪 1,282 + 補遺 220），範圍：<code>guides/</code>、<code>planning/</code>、<code>architecture/</code>、<code>strategy/</code>、<code>docs/README.md</code>、<code>operations/</code>、<code>security/</code>、<code>features/</code>、<code>marketing/</code>、<code>presentation/</code>。</p>
+<p><strong>不改</strong>：<code>changelog/</code>、<code>prompts/</code>、<code>superpowers/</code>（歷史紀錄，保留當時用語）、<code>prd/</code>（併入批次 4）。</p>
+<h3 id="採保護式替換不是全域取代">採保護式替換，不是全域取代</h3>
+<p>盲目替換會壞掉四件事，全部已實測並加以保護：</p>
+<div class="tw"><table><thead><tr><th>風險</th><th>數量</th><th>若不保護會發生什麼</th></tr></thead><tbody><tr><td>連結網址含舊名（那是實際檔名）</td><td>128 處</td><td>一次改壞 128 條連結</td></tr><tr><td><code>角色_XXX</code> 識別字含舊名</td><td>31 行</td><td><code>角色_清洗設定檔</code> → 不存在的 <code>角色_清洗規則設定</code></td></tr><tr><td>權限常數「值」</td><td>17 行</td><td>批次 2 才刻意保留的舊字串，改了會誤導人去改 <code>MagicObjectHelper</code> → <strong>所有角色掉權限</strong></td></tr><tr><td>複合詞吞噬</td><td>少量</td><td>「預設<strong>團隊清單</strong>」→「預設團隊管理」；「知識庫<strong>分類清單</strong>」→「知識庫知識庫分類」</td></tr></tbody></table></div>
+<p>作法：先把圍欄程式碼區塊、連結網址、行內程式碼、<code>角色_XXX</code> 識別字與複合詞例外遮蔽成佔位符，替換後再還原。替換採<strong>單次正則掃描</strong>（長度遞減的 alternation），確保每個位置只被替換一次，不會發生「前一條產生的新文字被後一條再次命中」的串聯錯誤。</p>
+<h3 id="補遺第一輪對照表漏了-6-個詞">補遺：第一輪對照表漏了 6 個詞</h3>
+<p>第一輪只涵蓋 22 個舊名，但 1.0.57 實際改了 28 個。補上 <code>Token 用量分析</code>、<code>使用者回饋分析</code>、<code>問答量與使用行為</code>、<code>檢索品質分析</code>、<code>MCP金鑰管理</code>，以及內文常見的<strong>帶空格變體</strong> <code>RAG 評測</code>／<code>RAG 診斷</code>（選單名無空格，第一輪沒命中，共 184 處）。</p>
+<p><strong><code>Token 用量</code> 刻意只做差別處理</strong>：它同時是選單名與通用片語（<code>Token 用量記錄</code>、<code>Token 用量歸屬</code>、<code>Token 用量排名</code>），全面替換會產生「Token 用量明細記錄」這種贅詞。只在明確指向該頁面時（後接 <code>」（頁</code> 或前面是 <code>→</code>）才改為「Token 用量明細」，共 7 處。</p>
+<h3 id="7-份文件改名並更新連結">7 份文件改名並更新連結</h3>
+<p>檔名本身含舊選單名的文件已用 <code>git mv</code> 改名，並更新全庫 94 處參照：</p>
+<div class="tw"><table><thead><tr><th>原檔名</th><th>新檔名</th></tr></thead><tbody><tr><td><code>features/知識瀏覽與WikiLink.md</code></td><td><code>features/知識百科與WikiLink.md</code></td></tr><tr><td><code>guides/黃金評測使用指南.md</code></td><td><code>guides/清洗品質評測使用指南.md</code></td></tr><tr><td><code>guides/RAG評測使用指南.md</code></td><td><code>guides/檢索品質評測使用指南.md</code></td></tr><tr><td><code>guides/知識庫問答使用指南.md</code></td><td><code>guides/AI知識問答使用指南.md</code></td></tr><tr><td><code>guides/知識蒸餾與Wiki頁管理指南.md</code></td><td><code>guides/知識頁審核與Wiki頁管理指南.md</code></td></tr><tr><td><code>guides/知識來源管理與清洗設定檔-使用指南.md</code></td><td><code>guides/知識來源加工與清洗規則設定-使用指南.md</code></td></tr><tr><td><code>strategy/11-黃金評測-價值與行銷.md</code></td><td><code>strategy/11-清洗品質評測-價值與行銷.md</code></td></tr></tbody></table></div>
+<p><strong>兩份歷史性質的文件刻意不改名</strong>：<code>architecture/2026-06-29-知識庫問答兩段式門檻-design.md</code>（標日期的設計決策紀錄）、<code>planning/10-知識蒸餾與問答疑問釐清及需求-TODO.md</code>（已完成、批次 5 會歸檔）——與「歷史文件保留當時用語」的原則一致。</p>
+<h3 id="指向-changelog-的連結顯示文字已還原">指向 changelog 的連結顯示文字已還原</h3>
+<p><code>changelog/</code> 的標題保留舊名，但索引裡描述它們的文字被替換後會與實際標題對不上。已針對「URL 指向 <code>changelog/</code>」的連結還原其顯示文字（4 個檔案）。</p>
+<h2 id="驗證" class="t3">驗證</h2>
+<div class="tw"><table><thead><tr><th>檢查</th><th>結果</th></tr></thead><tbody><tr><td><code>角色_XXX</code> 識別字</td><td>12 筆「未知」逐一判定：全為文件占位符（<code>角色_xxx</code>）或歷史引用（<code>角色_AI技能產生器</code>、<code>角色_專案管理</code>，皆為已刪除的常數）。以 <code>git show HEAD</code> 比對確認<strong>替換前後次數相同</strong>，非本次改壞</td></tr><tr><td>權限常數「值」</td><td><strong>0 筆不符</strong>（逐格比對 <code>MagicObjectHelper</code> 的常數值）</td></tr><tr><td>路由／類別名／檔名</td><td>15 項基準（<code>/document-extraction</code>、<code>DocumentExtractionService</code>、<code>-prd.md</code> 等）<strong>出現次數完全不變</strong></td></tr><tr><td>死連結</td><td><strong>0</strong>（1,468 條相對連結，含改名後的新路徑）</td></tr><tr><td>範圍內舊名殘留</td><td><strong>0</strong>（「日誌等級」的 16 處殘留經確認全部後接「切換」，是新名 <code>日誌等級切換</code> 的子字串）</td></tr><tr><td>文件編碼</td><td>全數 <code>BOM=True ReplacementCharacter=False</code></td></tr><tr><td><code>dotnet test</code></td><td>643 全綠（本批不動程式）</td></tr><tr><td>人工抽樣</td><td>抽查 <code>guides/</code> 的替換段落，語意正確</td></tr></tbody></table></div>
+<h2 id="未處理" class="t4">未處理</h2>
+<ul><li><code>planning/專案協作模組強化-todo.md</code> 的「8 條管線」<strong>刻意保留</strong> —— 該行是 <code>- [x] 更正 §1.8（8 條管線）</code> 的施工紀錄，改掉等於竄改當時做了什麼。</li><li><code>prd/</code> 的 534 處舊名併入批次 4（該批會逐份核對規格與程式現況）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#變更">變更</a><a class="l3" href="#採保護式替換不是全域取代">採保護式替換，不是全域取代</a><a class="l3" href="#補遺第一輪對照表漏了-6-個詞">補遺：第一輪對照表漏了 6 個詞</a><a class="l3" href="#7-份文件改名並更新連結">7 份文件改名並更新連結</a><a class="l3" href="#指向-changelog-的連結顯示文字已還原">指向 changelog 的連結顯示文字已還原</a><a class="l2" href="#驗證">驗證</a><a class="l2" href="#未處理">未處理</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-選單舊名全庫同步.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

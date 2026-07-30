@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph RAG P4：跨來源實體合併（1.0.85 → 1.0.86）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Graph RAG P4：跨來源實體合併（1.0.85 → 1.0.86）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-27</li><li>版本：1.0.85 → 1.0.86</li><li>類型：行為調整（Graph RAG 第四階段，解除 P3「社群落單一來源」限制）</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>P2/P3 的 <code>GraphNode</code> 為 per-來源去重、三元組亦同來源，故 P3 社群多半落在單一來源內：兩份不同來源都提到「台積電」時，被視為兩個不同節點、連不起來。P4 以<strong>實體名稱正規化</strong>把跨來源的同名實體視為同一實體（<strong>行為式合併</strong>），讓：</p>
+<ol><li>社群偵測<strong>跨來源分群</strong>（真正解決 P3 限制）。</li><li>檢索三元組路徑<strong>跨來源多跳</strong>（同名實體連起不同來源的頁）。</li></ol>
+<p>與使用者確認的決策：合併準則＝<strong>正規化名稱精確比對</strong>（trim／大小寫／全半形正規化後相等）；<strong>行為式合併、不建表、無 migration</strong>；套用範圍＝<strong>社群偵測＋檢索都套</strong>；合併鍵＝<strong>僅用名稱</strong>（忽略 Type）。</p>
+<h2 id="變更" class="t2">變更</h2>
+<ol><li><strong>新 helper</strong>：<code>EntityNameNormalizer.Canonical(name)</code>＝<code>Trim</code> + <code>Normalize(FormKC)</code>（統一全半形與相容字元）+ <code>ToLowerInvariant</code>；null/空白 → 空字串。決定性、無 LLM、成本零。</li><li><strong>社群偵測</strong>（<code>GraphCommunityBuilder.RebuildAsync</code>）：LPA 的「頂點」由<strong>節點 Id</strong> 改為<strong>正規化名稱</strong>（名稱 ↔ 連續 int 索引）；三元組轉為「正規化名稱邊」（跳過空名與同名自我環）。社群成員＝一組正規化名稱；<code>MemberCount</code>＝去重後實體數；<code>Teams</code>＝所有 canonical 落在群內的節點 Teams 聯集（跨來源自然併入）；<code>relations</code>＝兩端 canonical 皆在群內的三元組（去重）。摘要 LLM 與整批取代不變。</li><li><strong>檢索</strong>（<code>RetrievalService.SearchGraphAsync</code>）：三元組兩端由「單一節點錨頁」改為「正規化名稱 → 跨來源頁集合」。先建 <code>pagesByCanon</code>（<code>GraphNode</code> 且 <code>WikiPageId!=0</code>、非管理員套 <code>BuildTeamAccessPredicate(n=&gt;n.Teams)</code>）→ 正規化名稱 → 該名稱的所有 <code>WikiPageId</code>（跨來源）；已核可三元組取兩端名稱與 <code>Teams</code>，僅處理「某端頁集合與種子頁有交集」者（控成本），對每組 (subjPage, objPage) 呼叫既有 <code>AddTripleNeighbor</code> 兩向。P1 <code>GraphEdge</code>（wiki-link）路徑與下游鄰居 chunk 映射/ACL 不變。</li><li><code>appsettings.json</code>：SystemVersion 1.0.85 → 1.0.86。</li></ol>
+<h2 id="安全與相容leak0-紅線不變" class="t3">安全與相容（leak=0 紅線不變）</h2>
+<ul><li>合併<strong>只改「圖的連通性」</strong>，不放寬權控：錨頁集合以 <code>node.Teams</code> 過濾、三元組以 <code>triple.Teams</code>、鄰居 chunk 以 <code>VectorEmbedding.Teams</code>——他隊節點/關係不因合併外洩。新增「錨頁節點 ACL」（<code>pagesByCanon</code> 只收使用者可存取的節點錨頁），為既有 chunk 層過濾再加一道防線。</li><li>社群 ACL 仍為「Teams 聯集 ⊆ 使用者團隊」（P3）；合併後聯集可能變大（跨來源同名實體的 Teams 併入），是正確且更嚴的結果。</li><li><strong>向後相容</strong>：當每個名稱只錨一頁（單一來源）時，社群與檢索行為與 P2/P3 完全相同——既有單來源測試不變。</li><li>無 schema／migration／新管線／新 UI，純建圖邏輯 + 一個 helper，風險低、可回歸。</li></ul>
+<h2 id="已知限制p5-再處理" class="t4">已知限制（P5 再處理）</h2>
+<ul><li><strong>精確名稱合併的取捨</strong>：可能把「同名不同物」誤併（如兩來源不相關的「王小明」），也無法併別名（台積電＝TSMC）。這是 GraphRAG 實體解析的基準做法；別名/嵌入式解析與「合併審核」留待未來。</li><li>記憶體：檢索需載入（ACL 過濾後的）錨頁節點與已核可三元組名稱；以種子過濾三元組處理量。大圖時可再優化。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ul><li><code>dotnet build</code> 成功、無新增警告；<code>dotnet test</code> <strong>806 全綠</strong>（既有 795 + 新增 11：<code>EntityNameNormalizerTests</code> 8 個 case、<code>GraphCommunityBuilderTests</code> 跨來源合併 1、<code>RetrievalServiceTests</code> 跨來源多跳 1 + 跨來源越權 leak=0 1）。</li><li>重點確認：P2/P3 單來源案例行為不變；跨來源同名實體收斂為單一社群且 Teams 聯集含兩來源；跨來源多跳把另一來源的鄰居頁 chunk 帶進並加分；他隊節點錨頁不進 <code>pagesByCanon</code>（leak=0）。</li><li>手動：兩份不同來源、內容含同一實體 → 核可三元組 → 重建社群摘要（社群跨兩來源）→ 全域問答可跨兩來源綜合；一般問答問及該實體時，另一來源相關頁更易進出處。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 0 失敗；版本 1.0.86。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#變更">變更</a><a class="l2" href="#安全與相容leak0-紅線不變">安全與相容（leak=0 紅線不變）</a><a class="l2" href="#已知限制p5-再處理">已知限制（P5 再處理）</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-27-GraphRAG-P4.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

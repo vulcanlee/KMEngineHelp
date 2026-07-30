@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文件庫全面同步至程式現況（1.0.9 → 1.1.0）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>文件庫全面同步至程式現況（1.0.9 → 1.1.0）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-17</li><li>版本：1.0.9 → 1.1.0</li><li>類型：文件（全庫同步；含 <code>appsettings.json</code> 版本升號）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>程式已推進至 1.0.9，最近三個版本（1.0.7 併入 1.0.8、1.0.8、1.0.9）主軸為 MCP Server 對外整合，但文件庫多數仍停在 1.0.6／0.3.x，出現三類問題：MCP 文件自我矛盾（頭部/檢查清單仍寫「1.0.6／無 migration」）、索引落後、缺 changelog 與 MCP PRD。本輪全庫逐份掃描並對齊至現況，版本升 1.1.0。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="校正-mcp-文件事實錯誤">校正 MCP 文件事實錯誤</h3>
+<ul><li><code>architecture/MCP-Server-整合設計與使用指南.md</code>：頭部與 §12 檢查清單由「1.0.1→1.0.6／設定型金鑰／未動 Entity → 無 migration」全面校正為「1.0.1→1.0.9／DB 型金鑰／已新增 <code>McpAccessKey</code> Entity 與雙 migration（Sqlite <code>20260717053352</code> / SqlServer <code>20260717053434</code>）」，並補 1.0.8 聊天紀錄/Token 歸屬。</li><li><code>guides/MCP服務使用說明書.md</code>：狀態改 1.0.9、摘要帶到 §6.6/§6.7；文件版本 1.0→1.1。</li></ul>
+<h3 id="補建缺失-changelog每版一檔">補建缺失 changelog（每版一檔）</h3>
+<ul><li><code>2026-07-17-MCP問答聊天紀錄與Token歸屬.md</code>（1.0.8）、<code>2026-07-17-MCP-APIKey資料庫化與網頁管理.md</code>（1.0.9）。（1.0.7 未獨立發布，於 1.0.8 一併升版。）</li></ul>
+<h3 id="新建-mcp-server-prd">新建 MCP Server PRD</h3>
+<ul><li><code>prd/MCP-Server整合-prd.md</code>：補齊唯一欠缺 PRD 的對外能力；同步登錄 <code>prd/README.md</code> 覆蓋矩陣與 <code>docs/README.md</code>。</li></ul>
+<h3 id="索引全面補齊">索引全面補齊</h3>
+<ul><li><code>docs/README.md</code>：MCP 兩份文件標註 1.0.9、PRD 主控台 1.1.0、changelog 區塊補 1.0.8/1.0.9/1.1.0、prd 清單補 MCP PRD、guides 描述對應版本校正。</li><li><code>changelog/README.md</code>：補齊落後的 0.3.37～1.0.6 與 0.3.32/0.3.40/1.0.1 缺列，加入 1.0.8/1.0.9/1.1.0。</li><li><code>prd/README.md</code>：現行系統版本 0.3.34→1.1.0、核對日期 2026/07/17、覆蓋矩陣核對版本欄批次更新、新增 MCP Server 列。</li></ul>
+<h3 id="內容對齊掃描-295-份後的實質修正">內容對齊（掃描 295 份後的實質修正）</h3>
+<ul><li><code>architecture/資料模型與資料庫.md</code>：補 <code>McpAccessKey</code>（DbSet／Entity／Migration 三表）、<code>LlmChatLog.Origin</code> 加 <code>Mcp</code>、<code>LlmTokenUsage.Operation</code> 加 MCP 專屬作業。</li><li><code>architecture/開發慣例與限制速查.md</code>：§1.5 補「MCP 工具」為團隊權控落點；新增 §1.5.1 MCP 金鑰與認證資安不變量（雙 migration、<code>FixedTimeEquals</code>、<code>McpAccess</code> policy、不記金鑰）。</li><li><code>security/認證授權與權限機制.md</code>：新增「MCP Server 認證（1.0.5 起）」節（三 scheme／<code>X-API-Key</code>／<code>McpAccessKey</code>）；<code>security/密碼種類與儲存機制.md</code> 補明文金鑰列。</li><li><code>guides/</code>：新手指南 §11.6 補 1.0.8/1.0.9、<code>EFCore.md</code> 補 <code>AddMcpAccessKey</code> migration 列、<code>guides/README.md</code> 補 MCP 說明書索引列；<code>完整操作手冊</code>/<code>Hands-on Lab</code>/<code>新手指南</code> 對應系統版本校正為 1.1.0。</li><li><code>prd/</code>：32 份 PRD header 現行系統版本→1.1.0、核對日期→2026/07/17；<code>AI可觀測性與成本治理</code>、<code>登入與帳號流程</code>、<code>知識庫問答</code> 內文補 MCP。</li><li><code>strategy/系統功能與特色清單-20項.md</code>（含 <code>.html</code>）版本字串 1.0.9→1.1.0。</li><li><code>planning/11-系統功能與文件同步審計.md</code>：功能表補齊 MCP/統計報表/可觀測性/維運各頁，新增 §6「1.0.x–1.1.0 對齊」章節。</li></ul>
+<h3 id="版本升號">版本升號</h3>
+<ul><li><code>appsettings.json</code> <code>SystemVersion</code> 1.0.9 → 1.1.0。</li></ul>
+<h2 id="已知限制刻意保留" class="t3">已知限制／刻意保留</h2>
+<ul><li>各文件「首次實作版本／對應版本：0.x.x」歷史標註、簡報時點數據快照（如 <code>strategy/01</code> 同步至 0.3.14）皆保留不動。</li><li>marketing/presentation 未新增 MCP 賣點（依指示不潤飾行銷文案，僅在有功能矛盾時校正——本輪無硬矛盾）。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ol><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠（所有 <code>docs/*.md</code> UTF-8 含 BOM、無亂碼）。</li><li><code>grep</code> 交叉檢查：<code>docs/</code> 中不再於「現況/狀態」語境殘留 1.0.6／0.3.34（歷史標註除外）。</li><li>三索引檔均含 1.0.8–1.1.0 條目且連結檔案存在。</li><li><code>appsettings.json</code> 仍為合法 JSON，版本顯示 1.1.0。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#校正-mcp-文件事實錯誤">校正 MCP 文件事實錯誤</a><a class="l3" href="#補建缺失-changelog每版一檔">補建缺失 changelog（每版一檔）</a><a class="l3" href="#新建-mcp-server-prd">新建 MCP Server PRD</a><a class="l3" href="#索引全面補齊">索引全面補齊</a><a class="l3" href="#內容對齊掃描-295-份後的實質修正">內容對齊（掃描 295 份後的實質修正）</a><a class="l3" href="#版本升號">版本升號</a><a class="l2" href="#已知限制刻意保留">已知限制／刻意保留</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-17-文件庫全面同步1.1.0.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>要做出一套產品｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 簡報</p><header class="hero"><div class="kicker">簡報</div><h1>要做出一套產品</h1></header><div class="docwrap"><main><hr>
+<p>marp: true title: 一個人，一支團隊 — AI 工程師的人才價值 author: vulcanlee paginate: true size: 16:9 theme: flagship-light</p>
+<hr>
+<p>&lt;!-- 這份 Markdown 是簡報的「單一真實來源」。 由 scripts/Build-FlagshipDeck.py 產出：</p>
+<ul><li>AI工程師-人才價值與合作談判.pptx（可在 PowerPoint 編輯）</li><li>AI工程師-人才價值與合作談判.html（自包含單檔，離線可放映）</li></ul>
+<p>投影片以單獨一行的 --- 分隔；front matter 與 &lt;style&gt; 會被略過。</p>
+<p>【可抽換結尾】</p>
+<ul><li>預設啟用「雇主版」結尾：以「===== 雇主版 =====」標記線框住的三張（談薪資對價）。</li><li>對外合作場合：把「雇主版」三張整段刪除或註解，並把檔尾註解區的「合夥版」三張</li></ul>
+<p>移出註解、各自以單行 --- 分頁，即成合作模式版結尾。</p>
+<ul><li>建置腳本會自動略過 HTML 註解，不影響輸出。</li></ul>
+<p>【刻意原則】全程不出現具體價碼／加薪字眼——讓價值說話，讓對方主動抬數字。 數據截至 v0.2.111（2026/06/22）。 --&gt;</p>
+<p>&lt;style&gt; section { font-family: "Microsoft JhengHei", "Noto Sans CJK TC", "PingFang TC", sans-serif; background: #ffffff; color: #1a1a1a; font-size: 26px; } h1 { color: #0ea5a4; font-size: 52px; } h2 { color: #2563eb; } strong { color: #f59e0b; } section.lead h1 { font-size: 60px; } table { font-size: 20px; } &lt;/style&gt;</p>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="要做出一套產品">要做出一套產品</h1>
+<p>過去，你得動用<strong>多少人</strong>？</p>
+<blockquote><p>先記住你心裡那個數字。</p></blockquote>
+<hr>
+<h2 id="傳統做法一場人的陣形" class="t1">傳統做法：一場「人的陣形」</h2>
+<p>一個系統要上線，通常需要這些角色各司其職</p>
+<ul><li><strong>產品經理</strong>：訂需求、開規格</li><li><strong>視覺設計師</strong>：介面與體驗</li><li><strong>前端工程師</strong>：刻畫面、串接</li><li><strong>後端工程師</strong>：寫 API、資料庫</li><li><strong>測試／QA</strong>：寫測試、抓 bug</li><li><strong>維運／DevOps</strong>：部署、環境、上線</li></ul>
+<blockquote><p>六種角色，六個行事曆，六套溝通成本。</p></blockquote>
+<hr>
+<h2 id="真正的成本不在寫程式" class="t2">真正的成本，不在寫程式</h2>
+<p>帳面付的是薪水，<strong>真正蒸發的是「人與人之間」</strong></p>
+<ul><li><strong>溝通</strong>：開會、對齊、來回確認</li><li><strong>等待</strong>：等規格、等審查、等別人交付、等排期</li><li><strong>交接</strong>：A 的腦袋搬到 B，每次都漏一點</li><li><strong>重工</strong>：理解落差 → 做錯 → 重做</li></ul>
+<blockquote><p>需求一變、系統一出問題，就回到輪迴——一個簡單問題，常卡 3～7 天。</p></blockquote>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="然後">然後——</h1>
+<p>這個成本結構</p>
+<p><strong>安靜地，死了。</strong></p>
+<hr>
+<h2 id="分工的本質變了" class="t3">分工的本質，變了</h2>
+<p>不是「人寫得更快」，是<strong>人與機器各司所長</strong></p>
+<ul><li><strong>人 ＝ 判斷力、品味、總指揮</strong>：決定要什麼、對不對、好不好</li><li><strong>AI ＝ 近乎無限的執行力</strong>：把決定，高速、大量地實現</li></ul>
+<p>於是——</p>
+<ul><li>七個角色，<strong>在同一顆大腦裡切換</strong></li><li>沒有交接、沒有等待、沒有會議、沒有版本不一致</li><li><strong>溝通成本，趨近於零</strong></li></ul>
+<blockquote><p>最快的溝通，是不需要溝通。</p></blockquote>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="這不是理論">這不是理論</h1>
+<h1 id="這是已經發生的事">這是已經發生的事</h1>
+<hr>
+<h2 id="鐵證一個人做了什麼" class="t4">鐵證：一個人做了什麼</h2>
+<p>一套完整的企業級系統，數字不會說謊</p>
+<div class="tw"><table><thead><tr><th>指標</th><th>數量</th></tr></thead><tbody><tr><td>開發天數 / 人力</td><td><strong>約 20 天 / 1 人</strong></td></tr><tr><td>提交 Commit</td><td><strong>335</strong></td></tr><tr><td>發行版本</td><td><strong>約 102 個</strong></td></tr><tr><td>原始碼檔案</td><td><strong>437</strong></td></tr><tr><td>雙資料庫遷移</td><td>每次模型異動成對產出</td></tr><tr><td>資安</td><td><strong>第一天就內建</strong></td></tr></tbody></table></div>
+<blockquote><p>平均每天一套以上的可發行版本。</p></blockquote>
+<hr>
+<h2 id="做出來的是真產品不是-demo" class="t5">做出來的，是真產品，不是 Demo</h2>
+<p>從匯入到知識，一條龍，且資安內建</p>
+<ul><li><strong>多來源匯入</strong>：音訊／影片、文件、圖片視覺解讀</li><li><strong>知識清洗管線</strong>：去重／遮罩／分類／摘要／信心門檻／人工審核</li><li><strong>品質可量測</strong>：清洗品質評測，清洗品質可校準</li><li><strong>企業治理</strong>：角色權限 ＋ 團隊資料權控、多重登入</li><li><strong>可攜部署</strong>：雙資料庫、雲端／地端 LLM 一鍵切換</li></ul>
+<blockquote><p>企業級的標準，不是「能跑」，是「敢交付」。</p></blockquote>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="所以請別誤會">所以，請別誤會</h1>
+<p>你不是在找</p>
+<p><strong>一個更快的工程師</strong></p>
+<hr>
+<h2 id="你面對的是一個新類別" class="t6">你面對的，是一個新「類別」</h2>
+<p>舊的尺，量不準新的東西</p>
+<ul><li>舊世界用「<strong>職等 × 行情</strong>」定價一名工程師</li><li>但這裡，一個人交付的是<strong>一支團隊的成果</strong></li><li>用單人薪資級距去套，量的是<strong>錯的那條軸</strong></li></ul>
+<blockquote><p>這不是「比較強的工程師」，是<strong>被壓縮成一個人的一支團隊</strong>。</p></blockquote>
+<hr>
+<h2 id="而且快不等於亂" class="t7">而且，快不等於亂</h2>
+<p>速度來自紀律，不是犧牲品質</p>
+<ul><li><strong>護欄先行</strong>：以不變量約束 AI，不得越界</li><li><strong>規格先於程式</strong>：先設計、再生成</li><li><strong>文件與程式同步</strong>：每次異動，文件一起更新</li><li><strong>版本即完成</strong>：每個可建置異動＝版本 ＋1 ＋ 紀錄</li></ul>
+<blockquote><p>有方法論的 AI 協作，才交得出企業級品質。</p></blockquote>
+<hr>
+<h2 id="我知道你在想什麼" class="t8">我知道你在想什麼</h2>
+<p>「全押一個人，萬一他是單點呢？」</p>
+<p>這是對的問題——而我<strong>早就把它設計掉了</strong></p>
+<ul><li><strong>文件與傳承內建</strong>：知識留在文件，不鎖在腦中</li><li><strong>流程可複製</strong>：護欄、腳手架、方法論，可被接手</li><li><strong>歡迎被檢查</strong>：關鍵決策、資安、合規，我主動請第二雙眼睛</li><li><strong>可量測、可稽核</strong>：版本即進度，產出全程可追溯</li></ul>
+<blockquote><p>把「單點風險」，變成<strong>可被制度接住的、可複製的能力</strong>。</p></blockquote>
+<hr>
+<h2 id="這筆帳請你自己算" class="t1">這筆帳，請你自己算</h2>
+<p>我不報價，我只把算式攤開</p>
+<ul><li><strong>傳統成本</strong> ＝（多人薪資 × 月數）＋ 溝通／重工損耗 ＋ 上市延遲的機會成本</li><li><strong>一人 × AI 成本</strong> ＝ 上述的<strong>一小部分</strong></li><li><strong>兩者的差額</strong> ＝ 我替你<strong>省下、並提前創造</strong>的價值</li></ul>
+<blockquote><p>合理的對價，應對齊「我創造的<strong>差額</strong>」——而不是某個職稱的行情。</p></blockquote>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="別聽我說">別聽我說</h1>
+<h1 id="讓結果說話">讓結果說話</h1>
+<p>給我一個短週期、一個真實任務—— <strong>讓產出，決定條件。</strong></p>
+<hr>
+<p>&lt;!-- ===== 雇主版：對外合作場合可整段移除，或抽換為檔尾「合夥版」投影片 ===== --&gt;</p>
+<h2 id="重新定義我的價值" class="t2">重新定義我的價值</h2>
+<p>我交付的，不是「一名工程師的產出」</p>
+<h1 id="是一支團隊的產出">是一支團隊的產出</h1>
+<ul><li>一個人，扮演了一支團隊的多個角色</li><li>省下的，是多人薪資、是數月工期、是溝通損耗</li><li>換來的，是<strong>最短時間把產品做到能賣</strong></li></ul>
+<blockquote><p>用一個人的成本，得到一支團隊的結果。</p></blockquote>
+<hr>
+<h2 id="我希望的是價值型回報" class="t3">我希望的，是價值型回報</h2>
+<p>把「省下的團隊與時間成本」，合理地分享</p>
+<ul><li><strong>薪資對齊</strong>：對齊我交付的「團隊級產值」</li><li><strong>利潤／專案分潤</strong>：與我加速上市的成果連動</li><li><strong>里程碑獎金</strong>：以可量測的交付計算</li><li><strong>彈性條件</strong>：時間自主、設備與工具、學習資源</li></ul>
+<blockquote><p>不是要更多——是<strong>對得起所創造的價值</strong>。</p></blockquote>
+<hr>
+<h2 id="我們可以怎麼開始" class="t4">我們可以怎麼開始</h2>
+<p>低風險，用一段真實合作驗證彼此</p>
+<ul><li><strong>① 選一個你最想加速的產品或模組</strong></li><li><strong>② 用一個短週期，看真實產出</strong></li><li><strong>③ 以可量測的成果，談長期條件</strong></li></ul>
+<blockquote><p>先用最小的賭注，換最大的確定性。</p></blockquote>
+<p>&lt;!-- ===== 雇主版結束 ===== --&gt;</p>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="一個人">一個人</h1>
+<h1 id="一支團隊的產值">一支團隊的產值</h1>
+<p>AI 放大的是判斷力與品味——而那，正是我帶來的。</p>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="one-more-thing">One more thing</h1>
+<p>這份簡報——文字、HTML、PPTX——</p>
+<p><strong>也是 AI 協作產出的。</strong></p>
+<blockquote><p>它自己，就是最後一個證據。</p></blockquote>
+<p>&lt;!-- ================================================================== 合夥版（替換投影片） 使用方式：對外合作場合，把上方「雇主版」三張（重新定義價值／價值型回報／ 怎麼開始）整段刪除或註解，並把下面三張的註解打開（移出註解，各自以單行 --- 分頁），即成「合夥模式」版結尾。 ==================================================================</p>
+<h2 id="重新定義交付" class="t5">重新定義交付</h2>
+<p>不是外包「一個人月」</p>
+<h1 id="是交付一支團隊的成果">是交付一支團隊的成果</h1>
+<ul><li>一個窗口，涵蓋規格、開發、測試、文件、部署</li><li>你省下的，是協調多家／多人的時間與摩擦</li><li>你得到的，是最短時間到「可上線、可銷售」</li></ul>
+<blockquote><p>用一支團隊的產值，收斂成單一合作介面。</p></blockquote>
+<p>〔投影片分隔——啟用時改成單獨一行的三個減號〕</p>
+<h2 id="合作模式價值對齊而非工時計價" class="t6">合作模式：價值對齊，而非工時計價</h2>
+<ul><li><strong>成果計價</strong>：以可驗收的里程碑與交付物計費</li><li><strong>加速分潤</strong>：與「提前上市」帶來的營收／節省連動</li><li><strong>彈性合作</strong>：專案制、顧問制、或長期駐點皆可</li><li><strong>透明可稽</strong>：版本即進度，文件與程式同步可查</li></ul>
+<blockquote><p>你買的不是工時，是「更快、更省、能賣」的結果。</p></blockquote>
+<p>〔投影片分隔——啟用時改成單獨一行的三個減號〕</p>
+<h2 id="下一步" class="t7">下一步</h2>
+<ol><li>選一個你最想加速的產品或模組</li><li>用一個短週期（數週）驗證這套做法的產出</li><li>以可量測的成果，談長期合作</li></ol>
+<p>歡迎安排一次對談與實機展示。</p>
+<blockquote><p>聯絡方式：{{聯絡方式}}</p></blockquote>
+<p>================================================================== 合夥版 結束 ================================================================== --&gt;</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（簡報）</h3><ul><li><a href="../../docs/presentation/ai-engineer-boundaries.html">真的沒問題嗎？</a></li><li><a href="../../docs/presentation/ai-leverage-dev.html">一套企業級系統</a></li><li><a href="../../docs/presentation/flagship-deck.html">你的公司，每天都在重複付錢</a></li><li><a href="../../docs/presentation/deck-speaker-notes.html">旗艦簡報・講者指南與使用說明</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#傳統做法一場人的陣形">傳統做法：一場「人的陣形」</a><a class="l2" href="#真正的成本不在寫程式">真正的成本，不在寫程式</a><a class="l2" href="#分工的本質變了">分工的本質，變了</a><a class="l2" href="#鐵證一個人做了什麼">鐵證：一個人做了什麼</a><a class="l2" href="#做出來的是真產品不是-demo">做出來的，是真產品，不是 Demo</a><a class="l2" href="#你面對的是一個新類別">你面對的，是一個新「類別」</a><a class="l2" href="#而且快不等於亂">而且，快不等於亂</a><a class="l2" href="#我知道你在想什麼">我知道你在想什麼</a><a class="l2" href="#這筆帳請你自己算">這筆帳，請你自己算</a><a class="l2" href="#重新定義我的價值">重新定義我的價值</a><a class="l2" href="#我希望的是價值型回報">我希望的，是價值型回報</a><a class="l2" href="#我們可以怎麼開始">我們可以怎麼開始</a><a class="l2" href="#重新定義交付">重新定義交付</a><a class="l2" href="#合作模式價值對齊而非工時計價">合作模式：價值對齊，而非工時計價</a><a class="l2" href="#下一步">下一步</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/presentation/AI工程師-人才價值與合作談判.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Google OAuth2 第三方登入｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 認證與資安</p><header class="hero"><div class="kicker">認證與資安</div><h1>Google OAuth2 第三方登入</h1></header><div class="docwrap"><main><h2 id="目的" class="t1">目的</h2>
+<p>本文件說明如何在本系統啟用「使用 Google 帳號登入」，並串接既有的權限控管（權控）與 Web API（JWT）機制。</p>
+<p>設計核心：<strong>Google OAuth2 只負責「網頁 Cookie 登入」這條路徑</strong>；API 仍維持既有的「帳號＋密碼換 JWT」機制。因此 <code>AuthController</code> 與 <code>JwtTokenService</code> 完全沒有更動，Google 使用者若要呼叫 API，透過「選用的 API 密碼」接軌即可。詳見「認證授權與權限機制」一文。</p>
+<hr>
+<h2 id="行為總覽定案規則" class="t2">行為總覽（定案規則）</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>行為</th></tr></thead><tbody><tr><td>帳號開通</td><td>首次以 Google 登入時，<strong>自動建立</strong>本地使用者，以 Google 的 Email 作為帳號名稱（<code>Account</code>）</td></tr><tr><td>網域限制</td><td><strong>不限制</strong>，任何 Google 帳號皆可進行驗證</td></tr><tr><td>預設角色</td><td>自動建立的帳號套用設定中的 <code>DefaultRoleName</code>（預設「預設角色」）</td></tr><tr><td>資安閘門</td><td>新帳號預設 <code>Status = false</code>（<strong>停用</strong>），需由管理者於「使用者管理」<strong>啟用並確認角色</strong>後才能登入</td></tr><tr><td>Email 連結</td><td>若已存在相同 Email 的本地帳號，<strong>自動連結</strong>（寫入 GoogleId，不重建、不覆寫狀態與權限）</td></tr><tr><td>網頁登入</td><td>純 Google 單一登入（SSO），<strong>不需設定密碼</strong></td></tr><tr><td>API / JWT</td><td><strong>選用</strong>：需要呼叫 API 的 Google 使用者，到「設定 API 密碼」頁自行設定密碼，之後用 <code>Email + 密碼</code> 呼叫 <code>/api/v1/auth/login</code> 取得 JWT</td></tr></tbody></table></div>
+<hr>
+<h2 id="一在-google-cloud-console-建立-oauth-用戶端" class="t3">一、在 Google Cloud Console 建立 OAuth 用戶端</h2>
+<ol><li>進入 <a href="https://console.cloud.google.com/" rel="noopener" target="_blank">Google Cloud Console</a> 並建立（或選擇）一個專案。</li><li>設定「OAuth 同意畫面」（OAuth consent screen）：</li><li>使用者類型：內部（限 Google Workspace 組織）或外部皆可。</li><li>填寫應用程式名稱、支援電子郵件等必填欄位。</li><li>前往「憑證」（Credentials）→「建立憑證」→「OAuth 用戶端 ID」：</li><li>應用程式類型：<strong>Web application（網頁應用程式）</strong>。</li><li><strong>授權重新導向 URI（Authorized redirect URIs）</strong> 必須填入本系統的回呼路徑（網址結尾固定為 <code>/signin-google</code>）：</li><li>開發（https）：<code>https://localhost:7044/signin-google</code></li><li>開發（http）：<code>http://localhost:5189/signin-google</code></li><li>正式：<code>https://&lt;your-domain&gt;/signin-google</code></li><li><code>/signin-google</code> 是 Google 中介軟體預設的回呼路徑（對應 <code>CallbackPath</code>），請務必與系統設定<strong>完全一致</strong>（差一個字 Google 就會拒絕）。本機開發埠以 <code>Properties/launchSettings.json</code> 為準。</li><li>建立完成後，畫面會顯示 <strong>用戶端 ID（ClientId）</strong> 與 <strong>用戶端密鑰（ClientSecret）</strong>，複製下來填入下一節的設定。</li></ol>
+<hr>
+<h2 id="二系統設定" class="t4">二、系統設定</h2>
+<p>設定區段位於 <code>appsettings.json</code> 的 <code>GoogleOAuthSettings</code>，並綁定到強型別 <code>KnowledgeExtraction.Web.Auth.GoogleOAuthSettings</code>：</p>
+<pre><code>"GoogleOAuthSettings": {
+  "Enabled": false,
+  "ClientId": "",
+  "ClientSecret": "",
+  "DefaultRoleName": "預設角色"
+}</code></pre>
+<div class="tw"><table><thead><tr><th>欄位</th><th>該填什麼</th><th>範例</th></tr></thead><tbody><tr><td><code>Enabled</code></td><td>是否啟用 Google 登入。要用就設 <code>true</code>；<code>false</code> 時不註冊 Google 驗證，登入頁也不顯示按鈕</td><td><code>true</code></td></tr><tr><td><code>ClientId</code></td><td>Google Cloud Console 產生的「用戶端 ID」</td><td><code>123456789-abc123.apps.googleusercontent.com</code></td></tr><tr><td><code>ClientSecret</code></td><td>Google Cloud Console 產生的「用戶端密鑰」</td><td><code>GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></td></tr><tr><td><code>DefaultRoleName</code></td><td>新帳號自動套用的角色名稱，<strong>保持 <code>預設角色</code> 即可</strong>（對應系統 seeding 出來的角色）</td><td><code>預設角色</code></td></tr></tbody></table></div>
+<blockquote><p>⚠️ <strong><code>ClientId</code> 與 <code>ClientSecret</code> 不是自己輸入任意字串，必須先到 Google Cloud Console 申請</strong>（見上方「一、在 Google Cloud Console 建立 OAuth 用戶端」）。未申請或填錯，Google 會在登入時拒絕。</p></blockquote>
+<p>啟用步驟：將 <code>Enabled</code> 設為 <code>true</code>，並填入向 Google 申請到的 <code>ClientId</code> 與 <code>ClientSecret</code>。<code>DefaultRoleName</code> 一般維持 <code>預設角色</code>。</p>
+<h3 id="填入方式擇一">填入方式（擇一）</h3>
+<p><strong>方式 A：user-secrets（開發環境建議）</strong></p>
+<p><code>ClientSecret</code> 屬機密，<strong>不應寫入版本控管的 <code>appsettings.json</code></strong>。專案已設定 <code>UserSecretsId</code>，可直接於 <code>KnowledgeExtraction.Web</code> 目錄執行：</p>
+<pre><code>cd src\KnowledgeExtraction\KnowledgeExtraction.Web
+dotnet user-secrets set "GoogleOAuthSettings:Enabled" "true"
+dotnet user-secrets set "GoogleOAuthSettings:ClientId" "你的用戶端ID"
+dotnet user-secrets set "GoogleOAuthSettings:ClientSecret" "你的用戶端密鑰"</code></pre>
+<p><code>appsettings.json</code> 內的該區段則維持留空當預設值即可。</p>
+<p><strong>方式 B：環境變數（正式環境建議）</strong></p>
+<p>鍵名以雙底線分隔：</p>
+<pre><code>GoogleOAuthSettings__Enabled=true
+GoogleOAuthSettings__ClientId=你的用戶端ID
+GoogleOAuthSettings__ClientSecret=你的用戶端密鑰</code></pre>
+<p><strong>方式 C：直接寫入 <code>appsettings.json</code>（僅限本機快速測試）</strong></p>
+<pre><code>"GoogleOAuthSettings": {
+  "Enabled": true,
+  "ClientId": "123456789-abc123.apps.googleusercontent.com",
+  "ClientSecret": "GOCSPX-xxxxxxxxxxxxxxxxxxxx",
+  "DefaultRoleName": "預設角色"
+}</code></pre>
+<blockquote><p>⚠️ 方式 C 會讓密鑰進版控，<strong>正式上線前務必改用方式 A / B，並把密鑰從 <code>appsettings.json</code> 移除</strong>。</p></blockquote>
+<p>只有在 <code>Enabled = true</code> 且 <code>ClientId</code>、<code>ClientSecret</code> 皆非空（<code>GoogleOAuthSettings.IsConfigured</code>）時，系統才會在 <code>Program.cs</code> 註冊 Google 驗證與外部暫存 Cookie；填好後重啟，登入頁就會出現「使用 Google 登入」按鈕。</p>
+<hr>
+<h2 id="三驗證流程" class="t5">三、驗證流程</h2>
+<h3 id="元件與-scheme">元件與 scheme</h3>
+<ul><li><strong>主 Cookie scheme</strong>：<code>MagicObjectHelper.CookieScheme</code>（既有網頁登入身分）。</li><li><strong>外部暫存 Cookie scheme</strong>：<code>MagicObjectHelper.ExternalCookieScheme</code>（OAuth 流程中暫存 Google 身分，效期 5 分鐘）。</li><li><strong>Google scheme</strong>：<code>GoogleDefaults.AuthenticationScheme</code>，<code>SignInScheme</code> 指向外部暫存 Cookie，<code>CallbackPath = /signin-google</code>。</li></ul>
+<h3 id="端點externalauthcontroller一般-mvc-控制器">端點（<code>ExternalAuthController</code>，一般 MVC 控制器）</h3>
+<div class="tw"><table><thead><tr><th>路由</th><th>說明</th></tr></thead><tbody><tr><td><code>GET /Auths/Google/Login?returnUrl=</code></td><td>觸發 Google OAuth Challenge，回呼導向 Callback</td></tr><tr><td><code>GET /Auths/Google/Callback?returnUrl=</code></td><td>Google 驗證完成後的處理端點</td></tr><tr><td><code>GET /signin-google</code></td><td>Google 中介軟體內建的回呼，登入到外部暫存 Cookie（不需自行撰寫）</td></tr></tbody></table></div>
+<h3 id="流程步驟">流程步驟</h3>
+<ol><li>使用者在 <code>/Auths/Login</code> 點擊「使用 Google 登入」按鈕（連到 <code>/Auths/Google/Login</code>）。</li><li>系統發出 <code>Challenge</code>，瀏覽器導向 Google 完成驗證，Google 再導回 <code>/signin-google</code>。</li><li>Google 中介軟體把身分寫入外部暫存 Cookie，並導向 <code>/Auths/Google/Callback</code>。</li><li>Callback 讀取外部 Cookie 的 Email、Name、<code>sub</code>，呼叫 <code>ExternalLoginService.FindOrCreateAsync(...)</code>：</li><li>先以 <strong>GoogleId</strong> 比對既有連結；</li><li>否則以 <strong>Email</strong> 連結既有本地帳號（寫入 GoogleId，不改狀態與權限）；</li><li>都沒有則 <strong>自動建立</strong>新帳號（<code>Status = false</code>、套用預設角色、無密碼）。</li><li>清除外部暫存 Cookie。</li><li>若 <code>Status = false</code> → 導向 <code>/Auths/Pending</code>（帳號待審核頁，<strong>不</strong>登入）。</li><li>若 <code>Status = true</code> → 比照帳密登入建立 Claims（<code>Role</code>、<code>Name</code>、<code>NameIdentifier</code>、<code>Sid</code>），以主 Cookie scheme 完成登入並導向 <code>returnUrl</code>（預設 <code>/knowledge-base-chat</code>，即AI 知識問答頁）。</li></ol>
+<pre><code>使用者 ──點擊 Google 登入──▶ /Auths/Google/Login ──Challenge──▶ Google
+                                                                  │
+/knowledge-base-chat ◀─啟用─┐                                       ▼
+                           │                          /signin-google（外部暫存 Cookie）
+   /Auths/Pending ◀─停用待審─┤                                        │
+                           └──── /Auths/Google/Callback ◀───────────┘
+                                 （查找/連結/建立帳號 → 依 Status 分流）</code></pre>
+<hr>
+<h2 id="四管理者審核啟用帳號" class="t6">四、管理者審核（啟用帳號）</h2>
+<ol><li>以管理者帳號（預設 <code>support</code>）登入。</li><li>進入「使用者管理」（<code>/myusers</code>）。</li><li>找到自動建立的 Google 使用者（帳號為其 Email），編輯：</li><li>勾選 <strong>啟用</strong>（<code>Status</code>）。</li><li>指派 <strong>角色</strong>（<code>RoleView</code>），確認權限符合需求。</li><li>密碼欄位可留白（Google 帳號不需密碼即可網頁登入）。</li><li>儲存後，該使用者即可再次以 Google 登入並進入系統，選單依角色權限顯示。</li></ol>
+<hr>
+<h2 id="五google-使用者呼叫-api取得-jwt" class="t7">五、Google 使用者呼叫 API（取得 JWT）</h2>
+<p>Google 使用者預設無本地密碼，因此無法直接用 <code>/api/v1/auth/login</code>。若需要呼叫 API：</p>
+<ol><li>以 Google 登入系統後，點右上角使用者選單的 <strong>「設定 API 密碼」</strong>（<code>/Profile</code>）。</li><li>設定一組 API 密碼（首次設定免輸入舊密碼）。</li><li>之後即可用 <strong>帳號（Email）＋ API 密碼</strong> 呼叫既有端點取得 JWT：</li></ol>
+<pre><code>   POST /api/v1/auth/login
+   Content-Type: application/json
+
+   { "account": "user@example.com", "password": "你設定的 API 密碼" }</code></pre>
+<ol><li>以回傳的 <code>accessToken</code> 作為 Bearer token 呼叫其他 API，例如 <code>GET /api/auth/me</code>。</li></ol>
+<blockquote><p>此密碼僅供 API 存取；網頁登入仍可繼續使用 Google 單一登入。</p></blockquote>
+<hr>
+<h2 id="六資料模型異動" class="t8">六、資料模型異動</h2>
+<p><code>MyUser</code> 新增兩個可空欄位（對應 EF 遷移 <code>AddGoogleOAuth</code>）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td><code>OAuthProvider</code></td><td><code>string?</code></td><td>外部驗證提供者；本地帳號為 <code>null</code>，Google 帳號為 <code>"Google"</code></td></tr><tr><td><code>GoogleId</code></td><td><code>string?</code></td><td>Google 的使用者唯一識別碼（<code>sub</code>）</td></tr></tbody></table></div>
+<ul><li><strong>SQLite</strong>：已產生遷移 <code>AddGoogleOAuth</code>，啟動時自動套用。</li><li><strong>SQL Server</strong>：已有獨立的 migration 專案 <code>KnowledgeExtraction.AccessDatas.SqlServerMigrations</code>（與 SQLite 各一套、目前各 40+ 個 migration），啟動時套用 <code>Migrate()</code>；切換到 SQL Server 時請參考「SQL Server 切換說明」。<strong>模型變更須同時產生兩套 migration</strong>。</li></ul>
+<blockquote><p>「強制改密碼」流程（密碼為 <code>123456</code> 時）對 Google 帳號自然不觸發，因為其本地密碼為空，永遠不會等於該預設密碼的雜湊值。</p></blockquote>
+<hr>
+<h2 id="七安全考量與限制" class="t1">七、安全考量與限制</h2>
+<ul><li><strong>開放註冊風險</strong>：目前為「任何 Google 帳號皆可驗證並自動建帳」。資安閘門是 <code>Status = false</code> 預設停用 + 管理者人工審核，請務必落實審核流程。若要更嚴格，可改為限制特定網域或關閉自動建帳。</li><li>自動建立的帳號雖套用「預設角色」，但在管理者啟用前無法登入。</li><li><code>ClientSecret</code> 請勿進版控；正式環境一律用 user-secrets / 環境變數。</li><li>回呼 URI（<code>/signin-google</code>）必須與 Google Console 設定完全一致，否則 Google 會拒絕。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（認證與資安）</h3><ul><li><a href="../../docs/security/password-storage.html">密碼種類與儲存機制</a></li><li><a href="../../docs/security/remember-me.html">記住我登入原理說明</a></li><li><a href="../../docs/security/auth-and-permissions.html">認證授權與權限機制</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#目的">目的</a><a class="l2" href="#行為總覽定案規則">行為總覽（定案規則）</a><a class="l2" href="#一在-google-cloud-console-建立-oauth-用戶端">一、在 Google Cloud Console 建立 OAuth 用戶端</a><a class="l2" href="#二系統設定">二、系統設定</a><a class="l3" href="#填入方式擇一">填入方式（擇一）</a><a class="l2" href="#三驗證流程">三、驗證流程</a><a class="l3" href="#元件與-scheme">元件與 scheme</a><a class="l3" href="#端點externalauthcontroller一般-mvc-控制器">端點（ExternalAuthController，一般 MVC 控制器）</a><a class="l3" href="#流程步驟">流程步驟</a><a class="l2" href="#四管理者審核啟用帳號">四、管理者審核（啟用帳號）</a><a class="l2" href="#五google-使用者呼叫-api取得-jwt">五、Google 使用者呼叫 API（取得 JWT）</a><a class="l2" href="#六資料模型異動">六、資料模型異動</a><a class="l2" href="#七安全考量與限制">七、安全考量與限制</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/security/Google OAuth2 第三方登入.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

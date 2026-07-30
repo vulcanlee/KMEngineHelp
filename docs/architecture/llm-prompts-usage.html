@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM 提示詞與用量透明化｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 系統架構</p><header class="hero"><div class="kicker">系統架構</div><h1>LLM 提示詞與用量透明化</h1></header><div class="docwrap"><main><blockquote><p>目的：集中說明本系統「每次呼叫大語言模型（LLM）時，到底送出哪些系統/提示詞、如何組合、哪些預設文字寫死在程式裡」，並評估「把這些提示詞搬到 <code>appsettings.json</code> 或資料庫」的可行性、影響，提出多種讓系統更有彈性、與 LLM 互動更透明的方案。</p>
+<p>適用版本：0.2.109 起。與本檔相關的鐵則見 <a href="../../docs/architecture/dev-conventions.html">開發慣例與限制速查 §1.1</a>（ILogger / 不記金鑰與本文）。</p></blockquote>
+<hr>
+<h2 id="摘要tldr為什麼這樣設計怎麼用看哪裡" class="t1">摘要（TL;DR：為什麼這樣設計、怎麼用、看哪裡）</h2>
+<p><strong>為什麼這樣設計</strong>：提示詞直接決定 LLM 輸出的品質與風格，但需求會隨使用者、情境、部署環境而變。全部寫死在程式裡 → 任何微調都要改碼、重編譯、重部署；全部開放 → 又可能讓人改壞「有格式契約」的提示詞（如信心只能輸出小數）。</p>
+<p><strong>想達到的結果</strong>：用<strong>四層優先序</strong>兼顧彈性與安全 —— 平台給合理預設、進階使用者可線上覆蓋、單次操作可臨時改寫，且程式永遠保有「一定能動」的底線：</p>
+<blockquote><p><strong>單次操作覆蓋（最高）→ DB「AI 提示詞」(同名鍵) → appsettings <code>LlmPrompts</code> → 程式 fallback <code>LlmPromptDefaults</code>（最低）</strong></p></blockquote>
+<p>任一層有值就用該層、否則往下退；全空＝用程式預設（系統第一次啟動即如此，不會自動寫入 DB）。</p>
+<p><strong>要實際操作，看這幾節</strong>：</p>
+<ul><li>每個提示詞的<strong>鍵名 / appsettings 屬性名 / 預設全文</strong> → §10.1「槽位鍵一覽」＋ §3「程式預設AI 提示詞」。</li><li><strong>怎麼把新提示詞寫到某一層</strong>、<strong>同名定義在多層時誰贏</strong> → §10.2「如何操作各層」＋ §10.3「覆蓋範例與衝突解析」。</li><li><strong>設計取捨、與其他系統的比較</strong> → §7、§7.1、§11。</li></ul>
+<hr>
+<h2 id="1-範圍" class="t2">1. 範圍</h2>
+<p>系統對外的 AI 呼叫只有 OpenAI（或 OpenAI 相容地端）兩類端點：</p>
+<ul><li><code>chat/completions</code>（文字 / 視覺 / 檔案 / 串流）— 由 <code>OpenAIChatCompletionClient</code> 實作。</li><li><code>audio/transcriptions</code>（語音轉錄 Whisper / gpt-4o-transcribe）— 由 <code>OpenAITranscriptionClient</code> 實作。</li></ul>
+<p>模型由 <code>OpenAISettings</code> 決定：聊天/生成用 <code>GenerationModel</code>（預設 <code>gpt-5.4</code>）、轉錄用 <code>Model</code>（預設 <code>gpt-4o-transcribe</code>）；可切雲端/地端（<code>GenerationProvider</code>）。</p>
+<hr>
+<h2 id="2-llm-互動全景表" class="t3">2. LLM 互動全景表</h2>
+<div class="tw"><table><thead><tr><th>功能</th><th>呼叫方法</th><th>提示詞來源</th><th>是否有硬編碼預設</th><th>組合方式</th></tr></thead><tbody><tr><td>資料清洗 去重</td><td><code>CompleteAsync</code></td><td>DB <code>Prompt</code>「清洗-去重」或 <code>CleaningProfile.DedupePrompt</code> → 否則硬編碼</td><td>是</td><td><code>提示詞 + "\n\n\n" + 內容</code></td></tr><tr><td>資料清洗 遮罩</td><td><code>CompleteAsync</code></td><td>DB「清洗-遮罩」/ <code>CleaningProfile.MaskPrompt</code> → 硬編碼</td><td>是</td><td>同上</td></tr><tr><td>資料清洗 分類</td><td><code>CompleteAsync</code></td><td>DB「清洗-分類」/ <code>CleaningProfile.ClassifyPrompt</code> → 硬編碼</td><td>是</td><td>同上</td></tr><tr><td>資料清洗 摘要</td><td><code>CompleteAsync</code></td><td>DB「清洗-摘要」/ <code>CleaningProfile.SummaryPrompt</code> → 硬編碼</td><td>是</td><td>同上</td></tr><tr><td>資料清洗 信心</td><td><code>CompleteAsync</code></td><td>DB「清洗-信心」/ <code>CleaningProfile.ConfidencePrompt</code> → 硬編碼</td><td>是</td><td>同上</td></tr><tr><td>知識來源 AI 對話</td><td><code>StreamAsync</code>（串流）</td><td>對話頁系統提示詞欄（可空）→ 硬編碼 <code>DefaultSystemPrompt</code>；另加「回答詳簡」指示</td><td>是</td><td><code>{系統提示詞}\n\n{詳簡指示}\n\n---\n以下為參考資料：\n{內容}</code> ＋ 歷史輪次 ＋ 本輪 user</td></tr><tr><td>逐字稿 LLM 產生</td><td><code>CompleteAsync</code></td><td>使用者於 UI 編輯的提示詞（必填）</td><td>否</td><td><code>editedPrompt + "\n\n\n" + 逐字稿</code></td></tr><tr><td>文件轉文字 LLM 產生（文字）</td><td><code>CompleteAsync</code></td><td>使用者於 UI 編輯的提示詞</td><td>否</td><td><code>editedPrompt + "\n\n\n" + Markdown</code></td></tr><tr><td>文件轉文字 LLM 產生（原始檔）</td><td><code>CompleteWithImageAsync</code> / <code>CompleteWithFileAsync</code></td><td>使用者於 UI 編輯的提示詞</td><td>否</td><td>提示詞 + 圖片/PDF（base64）</td></tr><tr><td>圖片辨識</td><td><code>CompleteWithImageAsync</code></td><td><code>ImageRecognition.RecognitionPrompt</code>（DB，使用者選定）</td><td>否</td><td>提示詞 + 圖片（base64）</td></tr><tr><td>語音轉錄（ASR 提示）</td><td><code>TranscribeAsync</code></td><td><code>OpenAISettings.Prompt</code>（已在 appsettings）</td><td>是（在 config）</td><td>作為 Whisper 的 <code>prompt</code> 表單欄位（僅中文時帶入）</td></tr><tr><td>圖譜 三元組抽取</td><td><code>CompleteAsync</code></td><td>四層解析「圖譜-三元組抽取」</td><td>是</td><td>提示詞 ＋ 該來源<strong>現行 Wiki 頁</strong>內容；要求回 JSON（主詞/型別/關係/受詞/型別/信心）</td></tr><tr><td>圖譜 社群摘要</td><td><code>CompleteAsync</code></td><td>四層解析「圖譜-社群摘要」</td><td>是</td><td>提示詞 ＋ 該社群的實體與關係清單。<strong>每個社群各一次呼叫</strong>（群數受 <code>GraphMaxCommunities</code> 限）</td></tr><tr><td>圖譜 全域問答 map</td><td><code>CompleteAsync</code></td><td>四層解析「圖譜-全域map」</td><td>是</td><td>提示詞 ＋ 單一社群摘要 ＋ 使用者問題。<strong>每個可存取社群各一次</strong>（受 <code>GraphGlobalCommunityCap</code> 限）</td></tr><tr><td>圖譜 全域問答 reduce</td><td><code>CompleteAsync</code></td><td>四層解析「圖譜-全域reduce」</td><td>是</td><td>提示詞 ＋ 所有 map 結果 ＋ 問題。<strong>僅 Blazor 聊天頁執行</strong>；MCP 與 REST 只回 map 結果</td></tr><tr><td>圖譜 別名建議</td><td><code>CompleteAsync</code></td><td>四層解析「圖譜-別名建議」</td><td>是</td><td>提示詞 ＋ 出現次數最高的實體名清單（上限 <code>GraphAliasNameCap</code>）；回「別名→標準名」候選，兩側須為既有實體才收</td></tr></tbody></table></div>
+<hr>
+<h2 id="3-程式預設ai-提示詞完整文字" class="t4">3. 程式預設AI 提示詞（完整文字）</h2>
+<blockquote><p><strong>唯一真實來源（single source of truth）＝ <code>Business/Services/Prompts/LlmPromptDefaults.cs</code></strong> 的 <code>const string</code>（自 0.2.110 起集中於此；原散落於 <code>CleaningEnhancer</code>／<code>KnowledgeSourceChatService</code> 的常數已搬入）。本節為<strong>對照副本</strong>，與程式內容不一致時<strong>以程式碼為準</strong>；如需修改預設，請改 <code>LlmPromptDefaults.cs</code> 並同步本節。</p>
+<p>這些是第四層「程式 fallback」——<strong>第一次啟動時 DB 與 appsettings 皆空，系統即用以下文字</strong>（不會寫入 DB，見 §10）。要覆蓋請走上層（DB「AI 提示詞」同名鍵／appsettings <code>LlmPrompts</code>／單次操作）。括號內為 <code>LlmPromptDefaults</code> 常數名（＝對應的槽位鍵見 §10）。</p></blockquote>
+<h3 id="31-清洗五步驟">3.1 清洗五步驟</h3>
+<ul><li><code>CleaningDedupe</code>（清洗-去重）：</li></ul>
+<blockquote><p>你是資料清洗助手。請移除以下內容中的重複段落與明顯雜訊（重複客套、無意義填充），保留所有有資訊價值的內容，維持原意與繁體中文。直接輸出清理後的內容，不要任何額外說明或前後綴。</p></blockquote>
+<ul><li><code>CleaningMask</code>（清洗-遮罩）：</li></ul>
+<blockquote><p>你是資安遮罩助手。請將以下內容中的個資與機密（身分證號、電話、Email、地址、金融帳號、密碼、金鑰等）以【已遮罩】取代，其餘內容原樣保留，維持繁體中文。直接輸出遮罩後內容，不要任何額外說明。</p></blockquote>
+<ul><li><code>CleaningClassify</code>（清洗-分類）：</li></ul>
+<blockquote><p>請閱讀以下內容，建議 1-5 個最貼切的主題分類標籤。僅輸出分類名稱、以「、」分隔於同一行，不要其他文字。</p></blockquote>
+<ul><li><code>CleaningSummary</code>（清洗-摘要）：</li></ul>
+<blockquote><p>請為以下內容寫一段約 100-200 字的繁體中文重點摘要；摘要後另起一行，以「關鍵實體：」開頭列出重要的人/組織/產品/主題（以「、」分隔）。直接輸出，不要額外說明。</p></blockquote>
+<ul><li><code>CleaningConfidence</code>（清洗-信心）：</li></ul>
+<blockquote><p>請評估你對上述清洗結果（去重、遮罩、摘要、分類）整體正確與完整的信心，僅輸出 0 到 1 之間的一個小數（例如 0.85），不要任何其他文字。</p></blockquote>
+<h3 id="32-知識來源對話">3.2 知識來源對話</h3>
+<ul><li><code>ChatSystem</code>（對話-系統；系統提示詞欄留空時）：</li></ul>
+<blockquote><p>你是一位專業的知識助理，請依據下方提供的參考資料，以台灣繁體中文回答使用者的問題；若參考資料中找不到答案，請明確說明。</p></blockquote>
+<ul><li>「回答詳簡」指示：</li><li><code>ChatConcise</code>（對話-簡潔）：回答請精簡扼要，以重點/條列為主、盡量簡短，避免冗長鋪陳。</li><li><code>ChatStandard</code>（對話-標準，預設）：回答請重點清楚、篇幅適中，避免不必要的冗長。</li><li><code>ChatDetailed</code>（對話-詳細）：回答可完整詳盡，必要時補充背景、結構與範例。</li></ul>
+<h3 id="33-轉錄-asr-提示特例fallback-在-openaisettingsprompt">3.3 轉錄 ASR 提示（特例：fallback 在 <code>OpenAISettings.Prompt</code>）</h3>
+<p>轉錄提示詞<strong>不在</strong> <code>LlmPromptDefaults</code>；其平台預設/最底層 fallback 沿用 <code>Models/Systems/OpenAISettings.cs</code> 的 <code>Prompt</code>（已在 appsettings），另由 DB「轉錄-提示」覆蓋（見 §10）。</p>
+<ul><li><code>OpenAISettings.Prompt</code>（預設，僅中文轉錄時帶入）：</li></ul>
+<blockquote><p>請以台灣繁體中文輸出逐字稿，例如：軟體、資訊、程式、伺服器。</p></blockquote>
+<h3 id="34-程式原始碼對照llmpromptdefaultscs節錄">3.4 程式原始碼對照：<code>LlmPromptDefaults.cs</code>（節錄）</h3>
+<p>以下<strong>節錄</strong> <code>KnowledgeExtraction.Business/Services/Prompts/LlmPromptDefaults.cs</code> 中與上方 §3.1–3.2 對應的常數，供快速查閱。轉錄提示詞不在此類別（見 §3.3）。</p>
+<blockquote><p>⚠️ <strong>這裡不是完整清單</strong>：該類別目前共有 <strong>14 個</strong> fallback 常數，本節只列清洗五段與對話四段。其餘（<code>KnowledgeBaseSystem</code>、<code>KnowledgeBaseQueryRewrite</code>、<code>DistillationGenerate</code>、<code>MeetingMinutes</code>、<code>DocumentPdfToMarkdown</code>）<strong>請直接看程式檔</strong>——刻意不在文件複製全文，避免兩處各自漂移（本文件過去正是因為宣稱「完整」而長期缺漏 5 個常數）。完整槽位對照見 §10.1。</p></blockquote>
+<pre><code>namespace KnowledgeExtraction.Business.Services.Prompts;
+
+/// &lt;summary&gt;
+/// LLM 提示詞的「程式 fallback」（最底層保險）。集中存放所有寫死在程式裡的預設提示詞文字，
+/// 當 單次操作覆蓋 / DB / appsettings 三層皆為空時使用，確保功能永遠可運作。
+/// &lt;/summary&gt;
+public static class LlmPromptDefaults
+{
+    public const string CleaningDedupe =
+        "你是資料清洗助手。請移除以下內容中的重複段落與明顯雜訊（重複客套、無意義填充），保留所有有資訊價值的內容，維持原意與繁體中文。直接輸出清理後的內容，不要任何額外說明或前後綴。";
+
+    public const string CleaningMask =
+        "你是資安遮罩助手。請將以下內容中的個資與機密（身分證號、電話、Email、地址、金融帳號、密碼、金鑰等）以【已遮罩】取代，其餘內容原樣保留，維持繁體中文。直接輸出遮罩後內容，不要任何額外說明。";
+
+    public const string CleaningClassify =
+        "請閱讀以下內容，建議 1-5 個最貼切的主題分類標籤。僅輸出分類名稱、以「、」分隔於同一行，不要其他文字。";
+
+    public const string CleaningSummary =
+        "請為以下內容寫一段約 100-200 字的繁體中文重點摘要；摘要後另起一行，以「關鍵實體：」開頭列出重要的人/組織/產品/主題（以「、」分隔）。直接輸出，不要額外說明。";
+
+    public const string CleaningConfidence =
+        "請評估你對上述清洗結果（去重、遮罩、摘要、分類）整體正確與完整的信心，僅輸出 0 到 1 之間的一個小數（例如 0.85），不要任何其他文字。";
+
+    public const string ChatSystem =
+        "你是一位專業的知識助理，請依據下方提供的參考資料，以台灣繁體中文回答使用者的問題；若參考資料中找不到答案，請明確說明。";
+
+    public const string ChatConcise =
+        "回答請精簡扼要，以重點/條列為主、盡量簡短，避免冗長鋪陳。";
+
+    public const string ChatStandard =
+        "回答請重點清楚、篇幅適中，避免不必要的冗長。";
+
+    public const string ChatDetailed =
+        "回答可完整詳盡，必要時補充背景、結構與範例。";
+}</code></pre>
+<hr>
+<h2 id="4-既有可客製機制與優先序" class="t5">4. 既有可客製機制與優先序</h2>
+<p>系統其實已有相當的客製能力，只是分散在不同地方：</p>
+<ul><li><strong>清洗</strong>：優先序＝<code>CleaningProfile</code> 各步驟欄位（非空）→ 否則 DB <code>Prompt</code> 表以鍵名「清洗-去重/遮罩/分類/摘要/信心」→ 否則硬編碼預設。前兩者皆可由管理 UI（清洗規則設定、AI 提示詞）線上編輯、免重啟。</li><li><strong>對話</strong>：對話頁「系統提示詞」欄可自由輸入或從 <code>Prompt</code> 表下拉帶入；「回答詳簡」控制長度。</li><li><strong>轉錄</strong>：<code>OpenAISettings.Prompt</code>（appsettings，改需重啟）。</li><li><strong>逐字稿/文件 LLM 產生、圖片辨識</strong>：提示詞本來就由使用者於操作當下輸入或選取（無預設）。</li></ul>
+<p><strong>結論</strong>：目前真正「只能改程式」的硬編碼預設，剩下 <code>DefaultSystemPrompt</code>、三段「詳簡指示」，以及清洗五步驟在「未建 DB 覆蓋時」的最後底線。</p>
+<hr>
+<h2 id="5-token-用量日誌現況02109-起" class="t6">5. token 用量日誌（現況，0.2.109 起）</h2>
+<ul><li>所有 <code>chat/completions</code> 呼叫（含串流）記一行 <code>Information</code>：<code>送出(prompt)/接收(completion)/理解(reasoning)/合計(total)</code>，並額外附 <code>完整明細=</code>——由 <code>TokenUsageFormatter.Format</code> <strong>遞迴攤平</strong> usage 物件的所有數值欄位，因此任何子欄位（<code>prompt_tokens_details.cached_tokens</code>、<code>*.audio_tokens</code>、<code>completion_tokens_details.reasoning_tokens</code> 等）都會出現，不需事先列舉。</li><li>語音轉錄改 <code>response_format=json</code>：逐字稿取 <code>text</code>，並記 <code>OpenAI 轉錄用量…完整明細=</code>（gpt-4o-transcribe 會回 <code>input_tokens/output_tokens/…</code>；whisper-1 無 usage 則記「不可用」）。</li><li>遵守鐵則：只記 token 數字，<strong>不記</strong> ApiKey 與請求/回應本文。</li></ul>
+<p><strong>知識圖譜相關作業別（<code>LlmTokenUsage.Operation</code>，1.0.84～1.0.96）</strong>：</p>
+<div class="tw"><table><thead><tr><th>常數</th><th>值</th><th><code>/token-usage</code> 顯示名</th><th>備註</th></tr></thead><tbody><tr><td><code>OperationGraphExtraction</code></td><td><code>GraphExtraction</code></td><td>知識圖譜抽取</td><td>背景管線；身分由入列服務帶入</td></tr><tr><td><code>OperationGraphCommunity</code></td><td><code>GraphCommunity</code></td><td>知識圖譜社群摘要</td><td>全域單例作業，每群一次呼叫</td></tr><tr><td><code>OperationEntityAliasPropose</code></td><td><code>EntityAliasPropose</code></td><td>實體別名建議</td><td>全域單例作業</td></tr><tr><td><code>OperationGraphGlobalChat</code></td><td><code>GraphGlobalChat</code></td><td>AI 知識問答（全域）</td><td>Blazor 聊天頁的全域模式（map ＋ reduce）</td></tr><tr><td><code>OperationApiGraphGlobalAsk</code></td><td><code>ApiGraphGlobalAsk</code></td><td>Web API 圖譜全域問答</td><td>REST <code>POST /api/v1/KnowledgeGraph/global-ask</code>（僅 map）</td></tr></tbody></table></div>
+<blockquote><p>⚠️ <strong><code>OperationApiGraphGlobalAsk</code> 刻意與 <code>OperationGraphGlobalChat</code> 分開，不重用 Blazor 常數。</strong> 兩者都是全域問答，但成本歸因需要分得出「是網頁使用者打的，還是外部程式透過 API 打的」——共用同一個作業別會讓報表上完全分不出來，而全域問答的單次成本是社群數的倍數，這條線分不開就無法追查異常花費的來源。新增顯示名時記得同步 <code>OperationLabelHelper</code>。</p></blockquote>
+<h3 id="51-token-用量查閱頁token-usage管理員專用">5.1 Token 用量查閱頁（<code>/token-usage</code>，管理員專用）</h3>
+<p>逐筆列出每次 OpenAI 呼叫的用量（時間／使用者／作業／型別／模型／各類 token），並提供篩選、統計與報表：</p>
+<ul><li><strong>篩選</strong>：帳號或姓名、起始日／結束日、作業、型別、模型。頂端顯示「篩選範圍合計」（輸入／輸出／快取／推理／合計）。</li><li><strong>帳號或姓名（可輸入可下拉）</strong>：以 AntDesign <code>Input</code>（自行輸入關鍵字做模糊比對）＋ <code>Select</code>（<code>EnableSearch</code> 下拉選取）組合。下拉來源＝<code>MyUser</code> 全部啟用帳號 ∪ 用量紀錄中出現過的帳號（以帳號去重），選項 <code>Value</code>＝帳號、<code>Label</code>＝「姓名（帳號）」（供顯示與搜尋），並在最前面固定一個「（系統自動）」專用選項——選取後只篩「帳號與姓名皆空」的系統自動紀錄（後端 <code>TokenUsageQueryFilter.SystemOnly</code>）。下拉選取會寫入輸入框（<code>filterUserKeyword</code> 為單一真實來源）。</li><li><strong>五個頁籤（1.0.80 起）</strong>：前四個是統計維度 <strong>依使用者／依作業／依模型／依型別</strong> 的彙總（依使用者含輸入／輸出／快取／推理／合計與呼叫次數），統計涵蓋「全部篩選結果」，非僅當前分頁（後端 <code>TokenUsageQueryService.AggregateAsync</code>）；第五個是 <strong>明細（N）</strong>，即逐筆用量表格（1.0.80 前位於頁籤區下方，已移入此頁籤；N＝篩選範圍總筆數，伺服器端分頁）。</li><li><strong>PDF 報表下載</strong>：<code>ReportPdfExporter</code>（QuestPDF，繁中字型已註冊）產出含「統計 + 全部明細」的 PDF，經 <code>keChat.downloadFileFromStream</code> 串流下載；明細為全部篩選結果（不受畫面分頁限制，後端 <code>ExportRowsAsync</code>）。</li></ul>
+<hr>
+<h2 id="6-把硬編碼提示詞搬到-appsettingsjson可行性與影響" class="t7">6. 把硬編碼提示詞搬到 appsettings.json：可行性與影響</h2>
+<p><strong>可行</strong>。系統已用 <code>services.Configure&lt;OpenAISettings&gt;()</code> / <code>Configure&lt;SystemSettings&gt;()</code> 綁定設定，新增一個區段（如 <code>LlmPrompts</code>）即可比照。但有三個必須正視的影響：</p>
+<ol><li><strong>改檔需重啟</strong>：現行各 Client 在建構式以 <code>options.Value</code> 取快照，設定變更不會熱重載。若要免重啟，需改用 <code>IOptionsMonitor&lt;T&gt;</code> 或把提示詞放 DB。</li><li><strong>與 DB 覆蓋的優先序要明確</strong>：清洗已是「Profile → DB Prompt → 預設」三層；若再加 appsettings，要明確定義 appsettings 是「取代硬編碼底線」而非凌駕 DB，否則會混亂。</li><li><strong>改錯提示詞會影響功能正確性</strong>：例如信心提示詞被改成不只輸出小數，會讓信心解析失敗→改走待審核。<strong>務必保留硬編碼 fallback 與測試</strong>。</li></ol>
+<hr>
+<h2 id="7-方案與取捨擇一或混合" class="t8">7. 方案與取捨（擇一或混合）</h2>
+<h3 id="方案-1集中式-llmpromptssettingsappsettings硬編碼-fallback">方案 1：集中式 <code>LlmPromptsSettings</code>（appsettings）＋硬編碼 fallback</h3>
+<ul><li>作法：新增 <code>LlmPrompts</code> 區段（清洗五步驟、對話系統提示詞、詳簡三段、轉錄提示詞），程式以 <code>IOptions</code> 讀取、值為空時用硬編碼預設。</li><li>優點：集中、版本控管、部署一致；變動小。</li><li>缺點：改檔需重啟；非技術人員仍需改 JSON；多環境要各自維護。</li></ul>
+<h3 id="方案-2統一到-db-prompt-表已存在以鍵對應用途">方案 2：統一到 DB <code>Prompt</code> 表（已存在），以「鍵」對應用途</h3>
+<ul><li>作法：把對話系統提示詞、詳簡三段、轉錄提示詞，比照清洗的「清洗-去重」鍵模式，改用約定鍵（如「對話-系統」「轉錄-提示」）由 <code>PromptService</code> 取得；找不到鍵才用硬編碼預設。</li><li>優點：可由現有「AI 提示詞」管理 UI <strong>線上編輯、免重啟</strong>、可加權限/稽核；對使用者最透明（看得到、改得到）。</li><li>缺點：DB 依賴（讀取成本，可快取）；需要治理鍵名；首次部署要塞預設資料（或維持 fallback）。</li></ul>
+<h3 id="方案-3推薦四層優先序平台預設下放單次操作可覆蓋">方案 3（推薦）：四層優先序，平台預設下放、單次操作可覆蓋</h3>
+<ul><li>優先序：<strong>程式 fallback → appsettings 平台預設 → DB 覆蓋（Prompt/Profile）→ 單次操作覆蓋（對話頁輸入、清洗規則設定）</strong>。</li><li>作法：先做方案 2（DB 化最有感、免重啟），appsettings 平台預設為可選層；硬編碼永遠是最終保險。</li><li>優點：彈性與安全兼顧、與現有機制相容、漸進可落地。</li><li>缺點：層數多需文件化清楚（本檔即為此）。</li></ul>
+<h3 id="方案-4透明化與上者並行">方案 4（透明化，與上者並行）</h3>
+<ul><li>UI 顯示「本次實際送出的完整提示詞/訊息」：對話頁已有「檢視參考資料」，可延伸顯示完整 system 訊息與每則 token 用量；清洗頁可加「檢視實際提示詞」。</li><li>token 用量落 DB：除日誌外，將每次 usage 寫入資料表，提供用量統計/成本報表。</li></ul>
+<h3 id="71-方案-3-概念澄清與其他考量">7.1 方案 3 概念澄清與其他考量</h3>
+<p>針對方案 3 常見的四個疑問逐一說明：</p>
+<p><strong>Q1：「程式 fallback」是什麼？</strong> 就是<strong>寫死在 C# 原始碼裡的預設提示詞常數</strong>（如 <code>CleaningEnhancer.DefaultDedupePrompt</code>、<code>KnowledgeSourceChatService.DefaultSystemPrompt</code>）。它是<strong>最底層的保險</strong>：編進執行檔、永遠存在；當上層（appsettings／DB／單次操作）都沒有提供值時就用它。即使設定檔被清空、DB 沒資料或連不上，功能仍能用一個合理預設運作。它位於優先序最底。</p>
+<p><strong>Q2：原先系統預設是否還會繼續存在？</strong> <strong>會，而且刻意保留。</strong> 上層只是在「有值時」<strong>覆蓋（override）</strong>它；一旦上層為空就<strong>自動退回</strong>程式 fallback，永不刪除——這是「一定能動」的保證。</p>
+<blockquote><p>⚠️ <strong>drift 警告</strong>：若又把同一段預設文字<strong>抄一份</strong>到 appsettings.json，等於同一預設存在兩處（程式 + json），日後容易各改各的而分歧。建議 <strong>appsettings 預設留空＝「沿用程式預設」</strong>，只有要改時才填值；程式 fallback 純當緊急底線。</p></blockquote>
+<p><strong>Q3：能否透過 appsettings「重新定義」原先預設？</strong> <strong>可以</strong>——把提示詞放進設定區段（如 <code>LlmPrompts</code>），執行時該值非空就用設定檔的、不用寫死的，等於<strong>不重新編譯就能改平台預設</strong>。代價：目前設定為建構式 <code>options.Value</code> 快照，<strong>改檔需重啟</strong>才生效（要免重啟需改 <code>IOptionsMonitor</code> 或改放 DB）。</p>
+<p><strong>Q4：能否透過 appsettings「自行擴充」？</strong></p>
+<div class="tw"><table><thead><tr><th>想做的事</th><th>只靠 appsettings</th><th>說明</th></tr></thead><tbody><tr><td>改既有提示詞內容</td><td>✅ 可以</td><td>填對應槽位即覆蓋</td></tr><tr><td>為「程式已會依鍵查找」的槽位新增條目</td><td>✅ 可以（需字典式綁定）</td><td>僅在<strong>程式會去查那個鍵</strong>時才生效，如清洗的「清洗-去重」鍵</td></tr><tr><td>發明全新的 LLM 功能/提示詞</td><td>❌ 不行</td><td>設定只是資料；<strong>沒有對應程式去讀它、呼叫 LLM，填了也沒人用</strong></td></tr></tbody></table></div>
+<p>一句話：<strong>appsettings 能「重新定義／微調已知槽位」，但不能「無中生有創造新行為」</strong>。真正要「動態增加任意提示詞槽位」，沿用 DB <code>Prompt</code> 鍵表比強型別設定類更適合（可線上加、免改 schema）。</p>
+<p><strong>其他考量與建議</strong></p>
+<ol><li><strong>強型別 vs 字典綁定</strong>：已知槽位用具名屬性（編譯檢查、不怕打錯鍵）；需動態擴充走 DB 鍵表。</li><li><strong>多層必配透明化</strong>：層數越多越難一眼看出「這次用了哪一層」→ 建議 UI/日誌顯示<strong>本次實際提示詞與其來源層級</strong>。</li><li><strong>格式契約提示詞要防呆</strong>：如「信心只輸出小數」，改錯會壞功能 → 標記進階/危險並保留格式檢查。</li><li><strong>多環境</strong>：可用 <code>appsettings.{Environment}.json</code> 讓 dev/prod 用不同提示詞。</li><li><strong>變更治理</strong>：提示詞屬影響產出品質的「軟設定」，DB 可記編輯者/時間、appsettings 走 git，皆要可回溯。</li><li><strong>機密</strong>：提示詞不得含金鑰，設定檔不放敏感資料。</li></ol>
+<hr>
+<h2 id="8-透明化建議彙整" class="t1">8. 透明化建議（彙整）</h2>
+<ol><li><strong>日誌完整 token</strong>（已於 0.2.109 完成）。</li><li><strong>UI 顯示實際提示詞與用量</strong>：讓使用者「所見即所送」，是最直接的透明化。</li><li><strong>提示詞 DB 化＋管理 UI</strong>（方案 2/3）：使用者可自助調整，免改檔免重啟。</li><li><strong>opt-in Debug 記錄完整 messages</strong>：僅在診斷時開啟，<strong>預設關閉</strong>（鐵則：不記請求/回應本文）。</li><li><strong>用量報表</strong>：token 落 DB 後可做每功能/每使用者/每來源的成本檢視。</li></ol>
+<hr>
+<h2 id="9-建議落地順序roadmap" class="t2">9. 建議落地順序（roadmap）</h2>
+<ol><li>（已做）完整 token 日誌、轉錄 usage。</li><li>對話頁/清洗加「檢視實際提示詞」唯讀面板（純前端、低風險）。</li><li>（<strong>已做，0.2.110</strong>）方案 3 四層提示詞解析 —— 見 §10。</li><li>（可選）appsettings <code>LlmPrompts</code> 改 <code>IOptionsMonitor</code> 熱重載（目前改值需重啟）。</li><li>（可選）token 用量落 DB ＋ 報表頁。</li></ol>
+<blockquote><p>上述第 2、4、5 項屬建議、尚未實作；本檔作為決策依據。實作前請逐項評估對清洗品質門檻與既有測試的影響。</p></blockquote>
+<hr>
+<h2 id="10-落地紀錄方案-3-四層提示詞解析02110" class="t3">10. 落地紀錄：方案 3 四層提示詞解析（0.2.110）</h2>
+<p>所有提示詞統一走 <code>LlmPromptResolver.ResolveAsync(key, perOperationOverride, fallback)</code>，優先序（高→低）：</p>
+<ol><li><strong>單次操作覆蓋</strong>（<code>perOperationOverride</code>）：對話頁系統提示詞欄、清洗規則設定欄位。</li><li><strong>DB 覆蓋</strong>：<code>Prompt</code> 表中<strong>啟用且同名（鍵）</strong>的提示詞（<code>PromptService.GetEnabledContentByNameAsync</code>）。可在「AI 提示詞」線上編輯、<strong>免重啟</strong>。</li><li><strong>appsettings 平台預設</strong>：<code>LlmPrompts</code> 區段對應屬性（<code>LlmPromptsSettings</code>）。<strong>改值需重啟</strong>；值留空＝跳過此層。</li><li><strong>程式 fallback</strong>：<code>LlmPromptDefaults</code> 常數（最底層保險，永遠存在）。</li></ol>
+<p>任一層為非空白即採用，否則往下退；<code>LlmPromptResolver</code> 以 <code>Debug</code> 記錄本次採用層級（PerOp/DB/Appsettings/Fallback）。<strong>不自動 seed</strong>：DB 空＝用 fallback。</p>
+<h3 id="101-槽位鍵一覽llmpromptkeys">10.1 槽位鍵一覽（<code>LlmPromptKeys</code>）</h3>
+<p>下表把每個提示詞槽位的三種對應名稱（DB 名稱、appsettings 屬性、程式 fallback 常數）並列；三者一一對應（轉錄為特例）。<strong>預設全文集中於程式 <code>LlmPromptDefaults.cs</code>，文件對照見 §3 對應小節</strong>。</p>
+<blockquote><p><strong>槽位鍵字串的唯一來源＝<code>Models/Systems/LlmPromptKeys.cs</code>（1.0.77 起）。</strong> 先前那些中文鍵在 <code>LlmPromptKeys</code>（Business）與 <code>LlmPromptsSettings.Get()</code>（Models）<strong>各寫死一份、互不引用</strong> —— 任一邊改字會讓 <strong>appsettings 層靜默失效</strong>（<code>Get()</code> 回 null 直接跳到程式 fallback），而 DB 層仍正常， 所以完全不會有人發現。1.0.77 把 <code>LlmPromptKeys</code> 移到 Models（相依方向是 <code>Business → Models</code>， Models 不能引用 Business，故必須是往這個方向搬）並讓 <code>Get()</code> 引用常數。</p>
+<p><strong>新增槽位鍵要同步 3 處</strong>，由 <code>Tests/LlmPromptSlotTests.cs</code> 守著：①<code>LlmPromptKeys</code> 常數 ＋ <code>AllKeys</code> ②<code>LlmPromptsSettings</code> 屬性 ＋ <code>Get()</code> 的 case ③<code>appsettings.json</code> 的 <code>LlmPrompts</code> 區段（值留空即可）。 漏 ② 是最危險的（靜默失效），而手寫的 <code>LlmPromptResolverTests</code> 抓不到——沒有人會為「自己剛忘記接線的鍵」補一條測試。</p>
+<p><strong>在 <code>/prompts</code> 覆蓋時名稱必須逐字完全一致</strong>（DB 比對是 <code>x.Name == name</code>，精確）。打錯不會有錯誤或日誌， 只會安靜退回內建預設。1.0.77 起該頁名稱欄會即時顯示是否命中槽位，並列出可點擊填入的完整槽位清單。</p></blockquote>
+<div class="tw"><table><thead><tr><th>槽位用途</th><th>DB <code>Prompt</code> 名稱（鍵）</th><th>appsettings <code>LlmPrompts</code> 屬性</th><th>程式 fallback（<code>LlmPromptDefaults</code>）</th><th>預設全文</th><th>單次操作覆蓋來源</th></tr></thead><tbody><tr><td>清洗 去重</td><td><code>清洗-去重</code></td><td><code>CleaningDedupe</code></td><td><code>CleaningDedupe</code></td><td>§3.1</td><td>清洗規則設定 <code>DedupePrompt</code></td></tr><tr><td>清洗 遮罩</td><td><code>清洗-遮罩</code></td><td><code>CleaningMask</code></td><td><code>CleaningMask</code></td><td>§3.1</td><td>清洗規則設定 <code>MaskPrompt</code></td></tr><tr><td>清洗 分類</td><td><code>清洗-分類</code></td><td><code>CleaningClassify</code></td><td><code>CleaningClassify</code></td><td>§3.1</td><td>清洗規則設定 <code>ClassifyPrompt</code></td></tr><tr><td>清洗 摘要</td><td><code>清洗-摘要</code></td><td><code>CleaningSummary</code></td><td><code>CleaningSummary</code></td><td>§3.1</td><td>清洗規則設定 <code>SummaryPrompt</code></td></tr><tr><td>清洗 信心</td><td><code>清洗-信心</code></td><td><code>CleaningConfidence</code></td><td><code>CleaningConfidence</code></td><td>§3.1</td><td>清洗規則設定 <code>ConfidencePrompt</code></td></tr><tr><td>對話 系統提示詞</td><td><code>對話-系統</code></td><td><code>ChatSystem</code></td><td><code>ChatSystem</code></td><td>§3.2</td><td>對話頁「系統提示詞」欄</td></tr><tr><td>對話 簡潔</td><td><code>對話-簡潔</code></td><td><code>ChatConcise</code></td><td><code>ChatConcise</code></td><td>§3.2</td><td>（由「回答詳簡」選等級）</td></tr><tr><td>對話 標準（預設）</td><td><code>對話-標準</code></td><td><code>ChatStandard</code></td><td><code>ChatStandard</code></td><td>§3.2</td><td>（同上）</td></tr><tr><td>對話 詳細</td><td><code>對話-詳細</code></td><td><code>ChatDetailed</code></td><td><code>ChatDetailed</code></td><td>§3.2</td><td>（同上）</td></tr><tr><td>知識庫 系統提示詞</td><td><code>知識庫-系統</code></td><td><code>KnowledgeBaseSystem</code></td><td><code>KnowledgeBaseSystem</code></td><td>§3.4</td><td>AI 知識問答頁「系統提示詞」欄</td></tr><tr><td>知識庫 查詢改寫</td><td><code>知識庫-查詢改寫</code></td><td><code>KnowledgeBaseQueryRewrite</code></td><td><code>KnowledgeBaseQueryRewrite</code></td><td>§3.4</td><td>（無；由 Query Rewrite 流程自動使用）</td></tr><tr><td>知識頁審核 生成</td><td><code>蒸餾-生成</code></td><td><code>DistillationGenerate</code></td><td><code>DistillationGenerate</code></td><td>見 <code>LlmPromptDefaults.cs</code></td><td>（無；由蒸餾管線自動使用）</td></tr><tr><td>圖譜 三元組抽取</td><td><code>圖譜-三元組抽取</code></td><td><code>GraphTripleExtract</code></td><td><code>GraphTripleExtract</code></td><td>見 <code>LlmPromptDefaults.cs</code></td><td>（無；由三元組抽取管線自動使用）</td></tr><tr><td>圖譜 社群摘要</td><td><code>圖譜-社群摘要</code></td><td><code>GraphCommunitySummary</code></td><td><code>GraphCommunitySummary</code></td><td>見 <code>LlmPromptDefaults.cs</code></td><td>（無；由社群摘要重建作業自動使用，每群一次）</td></tr><tr><td>圖譜 全域 map</td><td><code>圖譜-全域map</code></td><td><code>GraphGlobalMap</code></td><td><code>GraphGlobalMap</code></td><td>見 <code>LlmPromptDefaults.cs</code></td><td>（無；全域問答對每個可存取社群各呼叫一次）</td></tr><tr><td>圖譜 全域 reduce</td><td><code>圖譜-全域reduce</code></td><td><code>GraphGlobalReduce</code></td><td><code>GraphGlobalReduce</code></td><td>見 <code>LlmPromptDefaults.cs</code></td><td>（無；<strong>僅 Blazor 聊天頁</strong>做 reduce，MCP／REST 只做 map）</td></tr><tr><td>圖譜 別名建議</td><td><code>圖譜-別名建議</code></td><td><code>EntityAliasPropose</code></td><td><code>EntityAliasPropose</code></td><td>見 <code>LlmPromptDefaults.cs</code></td><td>（無；由「LLM 自動建議別名」作業自動使用）</td></tr><tr><td>會議 紀錄生成</td><td><code>會議-紀錄生成</code></td><td><code>MeetingMinutes</code></td><td><code>MeetingMinutes</code></td><td>見 <code>LlmPromptDefaults.cs</code></td><td>（無；由會議紀錄管線自動使用）</td></tr><tr><td>文件 PDF 轉 Markdown</td><td><code>文件-PDF轉Markdown</code></td><td><code>DocumentPdfToMarkdown</code></td><td><code>DocumentPdfToMarkdown</code></td><td>見 <code>LlmPromptDefaults.cs</code></td><td>（無；<code>MarkItDownSettings:PdfUseLlm</code> 開啟時自動使用）</td></tr><tr><td>轉錄 提示（僅中文）</td><td><code>轉錄-提示</code></td><td>（無；用 <code>OpenAISettings.Prompt</code>）</td><td>（無；fallback＝<code>OpenAISettings.Prompt</code>）</td><td>§3.3</td><td>（無）</td></tr></tbody></table></div>
+<blockquote><p>本表共 <strong>20 個槽位鍵</strong>（1.0.84～1.0.88 的 Graph RAG 新增 5 個），與 <code>LlmPromptKeys.AllKeys</code> 的常數數量一致；<code>LlmPromptDefaults.cs</code> 有 <strong>19 個</strong> fallback 常數（轉錄不在其中，見上表最後一列）。新增槽位時三處須同步：<code>LlmPromptKeys</code>、<code>LlmPromptsSettings</code>（含 <code>Get()</code> switch）、<code>LlmPromptDefaults</code>。</p>
+<p>⚠️ <strong>圖譜五鍵的 DB 名稱是中文的 <code>圖譜-*</code></strong>，不是 <code>GraphTripleExtract</code> 這類英文屬性名。在 <code>/prompts</code> 覆蓋時要填中文鍵，填英文屬性名不會命中（DB 比對是精確相等）。</p></blockquote>
+<h3 id="102-如何把提示詞寫到各層">10.2 如何把提示詞寫到各層</h3>
+<ul><li><strong>單次操作覆蓋（最高、最即時、通常不留存）</strong>：</li><li>對話系統提示詞：對話頁上方「系統提示詞」欄直接輸入（只影響本次對話）。</li><li>清洗：在「清洗規則設定」（<code>/cleaning-profiles</code>，權限 <code>角色_清洗設定檔</code>）建立/編輯設定檔的對應步驟欄位，清洗時選用該設定檔。</li><li><strong>DB 覆蓋（全站生效、免重啟、可線上編輯）—— 最常用的客製方式</strong>：</li><li>登入後到側邊選單「<strong>基礎資料設定 → AI 提示詞</strong>」（路由 <code>/prompts</code>，需 <code>角色_提示詞清單</code> 權限）。</li><li>按「新增」：<strong>名稱</strong>填上表的「DB 名稱（鍵）」（例如 <code>對話-系統</code>，須<strong>完全一致</strong>）、<strong>內容</strong>填你的提示詞、<strong>啟用</strong>打勾，儲存。</li><li><strong>立即生效</strong>（下次該功能呼叫 LLM 即採用，無需重啟）。停用或刪除該筆即退回下層。</li></ul>
+<blockquote><p>名稱必須與鍵<strong>完全相同</strong>（系統以名稱比對）；名稱具唯一性，無法建立兩筆同名。</p></blockquote>
+<ul><li><strong>appsettings 平台預設（部署層級、需重啟）</strong>：</li><li>編輯 <code>appsettings.json</code> 的 <code>LlmPrompts</code> 區段，填對應<strong>屬性名</strong>，例如 <code>"ChatSystem": "你是公司內部知識助理…"</code>。</li><li><strong>重啟</strong>應用程式後生效（設定於建構式快照、不熱重載）。值留空＝跳過此層。</li><li><strong>程式 fallback（最低、需改碼）</strong>：改 <code>LlmPromptDefaults.cs</code> 常數並重新建置 —— 等同改「出廠預設」，一般不需要。</li></ul>
+<h3 id="103-覆蓋範例與衝突解析同名定義在多層時誰贏">10.3 覆蓋範例與衝突解析（同名定義在多層時誰贏）</h3>
+<p>以槽位「對話-系統」為例，視各層是否有值，實際採用如下：</p>
+<div class="tw"><table><thead><tr><th>情境</th><th>單次操作（對話頁欄位）</th><th>DB「對話-系統」(啟用)</th><th>appsettings <code>ChatSystem</code></th><th>程式 fallback</th><th><strong>實際採用</strong></th></tr></thead><tbody><tr><td>A</td><td>「請用條列回答」</td><td>「你是法律助理」</td><td>「你是客服」</td><td>內建</td><td><strong>請用條列回答</strong>（單次操作最高）</td></tr><tr><td>B</td><td>（空白）</td><td>「你是法律助理」</td><td>「你是客服」</td><td>內建</td><td><strong>你是法律助理</strong>（DB 勝 appsettings）</td></tr><tr><td>C</td><td>（空白）</td><td>（無此筆／停用）</td><td>「你是客服」</td><td>內建</td><td><strong>你是客服</strong>（appsettings 勝 fallback）</td></tr><tr><td>D</td><td>（空白）</td><td>（無）</td><td>（空字串）</td><td>內建</td><td><strong>程式內建預設</strong>（全空→fallback，見 §3.2）</td></tr></tbody></table></div>
+<p>口訣：<strong>有就用、沒有往下找；越「臨時/個別」的層級，優先序越高</strong>。轉錄提示詞同理，但其 appsettings/fallback 都落在 <code>OpenAISettings.Prompt</code>（無獨立 <code>LlmPrompts</code> 屬性）。</p>
+<hr>
+<h2 id="11-與其他知識庫--llm-系統的比較這種設計常見嗎" class="t4">11. 與其他知識庫 / LLM 系統的比較：這種設計常見嗎？</h2>
+<p><strong>結論</strong>：「提示詞可外部設定、甚至分層覆蓋」是業界常見方向，但<strong>做到幾層、開放給誰改</strong>各家差異很大。</p>
+<ul><li><strong>開發框架 / 開源平台（傾向高度可配置）</strong>：LangChain、LlamaIndex 用 <code>PromptTemplate</code> 把提示詞抽成可替換物件；Dify、Flowise、RAGFlow 等低/無程式碼平台更直接在 UI 上編輯系統提示詞與範本。理念與本系統一致：提示詞是「軟設定」、應可不改碼調整。</li><li><strong>企業 / 受管產品（傾向只開放「最上層」、隱藏內部）</strong>：ChatGPT 的「自訂指令」、Claude 的「專案指示」、多數 RAG SaaS 通常只讓使用者改<strong>最上層的 system instructions</strong>，而把內部的檢索/重寫/安全提示詞<strong>隱藏、寫死或集中控管</strong>。</li><li><strong>高合規垂直系統（傾向寫死）</strong>：醫療、金融、法遵類常刻意<strong>不開放</strong>內部提示詞。</li></ul>
+<p><strong>為什麼有些系統「不加」這種分層覆蓋？</strong></p>
+<ol><li><strong>品質與一致性</strong>：提示詞是產品的一部分；開放修改會讓輸出不可預測，難以保證品質與回歸測試結果。</li><li><strong>保護「格式契約」</strong>：許多提示詞綁定下游解析（本系統的信心只能輸出小數）；改壞會直接讓功能失效。</li><li><strong>安全與防濫用</strong>：system prompt 常含安全護欄與防越獄規則，公開或開放編輯等於把護欄交出去。</li><li><strong>支援成本</strong>：使用者自改後「結果不如預期」會變成支援負擔，難以區分是 bug 還是設定。</li><li><strong>簡單性（YAGNI）</strong>：多數使用者不需要也不想碰提示詞；多一層設定就是多一份維護與文件。</li></ol>
+<p><strong>本系統為何仍採分層</strong>：本系統定位是<strong>可被單一團隊/個人客製的內部知識萃取工具</strong>，使用者往往同時是維運者，需要「不改碼就能依領域調整提示詞」的彈性；同時以「<strong>程式 fallback 永遠在</strong> + <strong>格式契約提示詞標記為進階/危險（§7.1）</strong>」抵銷上述風險。這正是方案 3「彈性與安全兼顧」的取捨。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>導入顧問：我要幫客戶設計基礎設定與提示詞</li></ul></div><div class="card"><h3>同類文件（系統架構）</h3><ul><li><a href="../../docs/architecture/two-stage-threshold.html">AI 知識問答：兩段式相似度門檻與查無依據攔截（設計文件）</a></li><li><a href="../../docs/architecture/knowledge-type-versioning.html">知識型態抽象 × 版本化 × 時效性（設計文件）</a></li><li><a href="../../docs/architecture/api-versioning.html">API Versioning 策略</a></li><li><a href="../../docs/architecture/dto-boundaries.html">DTO 與模型邊界規範</a></li><li><a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a></li><li><a href="../../docs/architecture/rag-rerank-analysis.html">RAG 是否導入 Re-rank（二階重排）分析與建議</a></li><li><a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例</a></li><li><a href="../../docs/architecture/wiki-vs-cleaned.html">Wiki 與 Cleaned 的角色差異</a></li><li><a href="../../docs/architecture/architecture-overview.html">架構總覽</a></li><li><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a></li><li><a href="../../docs/architecture/data-model.html">資料模型與資料庫</a></li><li><a href="../../docs/architecture/data-lifecycle.html">資料生命週期與維護（更新、刪除、級聯與孤兒）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要tldr為什麼這樣設計怎麼用看哪裡">摘要（TL;DR：為什麼這樣設計、怎麼用、看哪裡）</a><a class="l2" href="#1-範圍">1. 範圍</a><a class="l2" href="#2-llm-互動全景表">2. LLM 互動全景表</a><a class="l2" href="#3-程式預設ai-提示詞完整文字">3. 程式預設AI 提示詞（完整文字）</a><a class="l3" href="#31-清洗五步驟">3.1 清洗五步驟</a><a class="l3" href="#32-知識來源對話">3.2 知識來源對話</a><a class="l3" href="#33-轉錄-asr-提示特例fallback-在-openaisettingsprompt">3.3 轉錄 ASR 提示（特例：fallback 在 OpenAISettings.Prompt）</a><a class="l3" href="#34-程式原始碼對照llmpromptdefaultscs節錄">3.4 程式原始碼對照：LlmPromptDefaults.cs（節錄）</a><a class="l2" href="#4-既有可客製機制與優先序">4. 既有可客製機制與優先序</a><a class="l2" href="#5-token-用量日誌現況02109-起">5. token 用量日誌（現況，0.2.109 起）</a><a class="l3" href="#51-token-用量查閱頁token-usage管理員專用">5.1 Token 用量查閱頁（/token-usage，管理員專用）</a><a class="l2" href="#6-把硬編碼提示詞搬到-appsettingsjson可行性與影響">6. 把硬編碼提示詞搬到 appsettings.json：可行性與影響</a><a class="l2" href="#7-方案與取捨擇一或混合">7. 方案與取捨（擇一或混合）</a><a class="l3" href="#方案-1集中式-llmpromptssettingsappsettings硬編碼-fallback">方案 1：集中式 LlmPromptsSettings（appsettings）＋硬編碼 fallback</a><a class="l3" href="#方案-2統一到-db-prompt-表已存在以鍵對應用途">方案 2：統一到 DB Prompt 表（已存在），以「鍵」對應用途</a><a class="l3" href="#方案-3推薦四層優先序平台預設下放單次操作可覆蓋">方案 3（推薦）：四層優先序，平台預設下放、單次操作可覆蓋</a><a class="l3" href="#方案-4透明化與上者並行">方案 4（透明化，與上者並行）</a><a class="l3" href="#71-方案-3-概念澄清與其他考量">7.1 方案 3 概念澄清與其他考量</a><a class="l2" href="#8-透明化建議彙整">8. 透明化建議（彙整）</a><a class="l2" href="#9-建議落地順序roadmap">9. 建議落地順序（roadmap）</a><a class="l2" href="#10-落地紀錄方案-3-四層提示詞解析02110">10. 落地紀錄：方案 3 四層提示詞解析（0.2.110）</a><a class="l3" href="#101-槽位鍵一覽llmpromptkeys">10.1 槽位鍵一覽（LlmPromptKeys）</a><a class="l3" href="#102-如何把提示詞寫到各層">10.2 如何把提示詞寫到各層</a><a class="l3" href="#103-覆蓋範例與衝突解析同名定義在多層時誰贏">10.3 覆蓋範例與衝突解析（同名定義在多層時誰贏）</a><a class="l2" href="#11-與其他知識庫--llm-系統的比較這種設計常見嗎">11. 與其他知識庫 / LLM 系統的比較：這種設計常見嗎？</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/architecture/LLM 提示詞與用量透明化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

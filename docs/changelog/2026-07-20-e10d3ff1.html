@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>側邊選單拆分為「專案協作」與「資料匯入」（1.0.17）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>側邊選單拆分為「專案協作」與「資料匯入」（1.0.17）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/20</li><li>版本：1.0.16 → <strong>1.0.17</strong></li><li>類型：功能調整（選單重整）＋既有不一致修正＋新增守護測試</li><li>對應 PRD：<a href="../../docs/prd/prd-e9230a97.html">專案協作模組強化 PRD</a> 第一階段</li><li>代辦清單：<a href="../../docs/planning/todo-19efa315.html">專案協作模組強化開發代辦清單</a></li></ul>
+<hr>
+<h2 id="一變更內容" class="t1">一、變更內容</h2>
+<h3 id="11-選單結構">1.1 選單結構</h3>
+<p>原「專案管理」單一子選單同時容納六個職能不同的功能，語意混雜。本次拆為兩個頂層群組：</p>
+<div class="tw"><table><thead><tr><th>拆分前</th><th>拆分後</th></tr></thead><tbody><tr><td>專案管理 → 專案項目</td><td><strong>專案協作</strong> → 專案項目</td></tr><tr><td>專案管理 → 工作項目</td><td><strong>專案協作</strong> → 工作項目</td></tr><tr><td>專案管理 → 會議記錄</td><td><strong>專案協作</strong> → 會議記錄</td></tr><tr><td>專案管理 → 音訊轉錄</td><td><strong>資料匯入</strong> → 音訊轉錄</td></tr><tr><td>專案管理 → 文件萃取</td><td><strong>資料匯入</strong> → 文件萃取</td></tr><tr><td>專案管理 → 圖片清單</td><td><strong>資料匯入</strong> → 圖片清單</td></tr></tbody></table></div>
+<p>拆分後與既有「清洗與蒸餾」形成「匯入 → 清洗 → 蒸餾」的流水線語意。</p>
+<p>頂層順序（共 8 組）：首頁、專案協作、資料匯入、清洗與蒸餾、系統管理、資料定義、統計報表、登出。</p>
+<p><code>Menu.json</code> 頂層 <code>id</code> 順手重編為 1..8（原為 1,2,3,4,5,<strong>7,6</strong>，統計報表 id 7 排在登出 id 6 之前）。<code>SidebarMenuItemModel.Id</code> 全專案無任何程式讀取，純文件用途，重編零風險。</p>
+<h3 id="12-權限常數">1.2 權限常數</h3>
+<ul><li>新增 <code>MagicObjectHelper.角色_專案協作</code>（值 <code>"專案協作功能"</code>）</li><li>新增 <code>MagicObjectHelper.角色_資料匯入</code>（值 <code>"資料匯入功能"</code>）</li><li>移除 <code>MagicObjectHelper.角色_專案管理</code>（值 <code>"專案管理功能"</code>）</li><li><strong>六個葉節點權限字串逐字不變</strong>：<code>"專案項目"</code>、<code>"工作項目"</code>、<code>"會議項目"</code>、<code>"音訊轉錄"</code>、<code>"文件萃取"</code>、<code>"圖片清單"</code></li></ul>
+<h3 id="13-修正既有不一致projects-頁面守衛">1.3 修正既有不一致：<code>/projects</code> 頁面守衛</h3>
+<p><code>/projects</code> 原本是全站<strong>唯一</strong>用群組權限（<code>角色_專案管理</code>）做頁面守衛的頁面，而選單上「專案項目」綁的卻是 <code>角色_專案項目</code>——兩者不一致，導致<strong>只勾「專案項目」的角色看得到選單項、點進去卻被擋</strong>。</p>
+<p>本次改為 <code>角色_專案項目</code>（<code>ProjectViewView.razor.cs</code>），與其他五頁一致（各自使用自己的葉節點常數）。</p>
+<h3 id="14-新增位置索引守護測試">1.4 新增位置索引守護測試</h3>
+<p>新增 <code>KnowledgeExtraction.Tests/MenuPermissionAlignmentTests.cs</code>（3 個測試）。此前<strong>沒有任何測試</strong>守護 <code>Menu.json</code> ↔ <code>RolePermissionService</code> 的位置索引不變量，而該不變量一旦漂移是<strong>靜默失效</strong>：<code>ApplyPermissionStructure</code> 以陣列位置串接兩者（名稱從不參與比對），索引錯位時權限名會退化成選單項名稱，選單對非管理員直接消失。</p>
+<p>三項檢查：</p>
+<ol><li><code>Menu.json</code> 頂層數 == <code>GetRoleListPermissionAllName().Count</code></li><li>每組子權限數足以容納其 <code>subMenu</code>（容許動作型權限尾隨）</li><li>無任何選單子項退化為以自身名稱當權限</li></ol>
+<p><strong><code>adminOnly</code> 項豁免</strong>：<code>FilterMenuItems</code> 以 <code>hasPermission = item.AdminOnly</code> 直接放行，完全略過角色權限，故「系統管理」（10 子項／2 子權限）與「統計報表」（5 子項／0 子權限）的權限槽位可以是空的。這是既有的刻意設計（見速查文件 §1.6 adminOnly 豁免），測試需一併豁免。</p>
+<hr>
+<h2 id="二相容性重要" class="t2">二、相容性（重要）</h2>
+<p><strong>既有角色的頁面權限完全不受影響。</strong></p>
+<p><code>AuthenticationStateHelper.CheckAccessPage(name)</code> 只是對角色 <code>RoleView.TabViewJson</code> 反序列化出的字串做<strong>平面 <code>Contains</code></strong>。六個葉節點權限字串逐字不變，因此：</p>
+<ol><li><strong>不會失去任何頁面權限</strong> — 舊角色 <code>TabViewJson</code> 內的六個葉節點字串照樣命中。</li><li><strong>選單也不會消失</strong> — <code>FilterMenuItems</code> 的規則是「父節點自身無權限但有 ≥1 個可見子項時仍保留」，故舊角色即使沒有新的 <code>資料匯入功能</code> 群組字串，「資料匯入」父節點照樣顯示。</li><li><strong>無需資料遷移、無需改 SQL</strong> — 殘留的 <code>"專案管理功能"</code> 字串會被 <code>SetPermissionInput</code> 靜默忽略。</li><li><strong><code>預設角色</code> 自動修復</strong> — 每次啟動由 <code>Program.cs</code> 重寫為全部權限。</li></ol>
+<p><strong>唯一殘留</strong>：自訂角色在 <code>/roleviews</code> 會看到「專案協作功能」與「資料匯入功能」兩個<strong>未勾選</strong>的新群組標題。</p>
+<h3 id="發行說明">發行說明</h3>
+<blockquote><p>既有角色的頁面權限不受影響；如需勾選新的「專案協作／資料匯入」群組層級權限，請至角色管理重新勾選。</p>
+<p>另：<code>/projects</code> 的進入權限已由「專案管理功能」改為「專案項目」。若貴單位有角色只勾了「專案管理功能」而未勾「專案項目」，請至角色管理補勾「專案項目」。（該類角色原本就看不到「專案項目」選單，僅能靠直接輸入網址進入。）</p></blockquote>
+<hr>
+<h2 id="三異動檔案" class="t3">三、異動檔案</h2>
+<p><strong>新增</strong></p>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Tests/MenuPermissionAlignmentTests.cs</code></li><li><code>docs/changelog/2026-07-20-選單拆分專案協作與資料匯入.md</code>（本檔）</li></ul>
+<p><strong>修改</strong></p>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Datas/Menu.json</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/Projects/ProjectViewView.razor.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Tests/MenuIconTests.cs</code>（<code>AllowedParentIcons</code> 加 <code>cloud_upload</code>）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Tests/SidebarMenuServiceTests.cs</code>（字樣一致性）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json</code>（版本 1.0.16 → 1.0.17）</li><li><code>docs/architecture/開發慣例與限制速查.md</code>（§1.6 頂層順序＋守護測試說明）</li><li><code>docs/prd/專案項目-prd.md</code>、<code>docs/prd/工作項目-prd.md</code>、<code>docs/prd/會議記錄-prd.md</code>（選單位置）</li><li><code>docs/planning/專案協作模組強化-todo.md</code>（勾選第一階段）</li></ul>
+<hr>
+<h2 id="四驗證" class="t4">四、驗證</h2>
+<ul><li><code>dotnet build KnowledgeExtraction.slnx</code>：<strong>建置成功</strong>（移除 <code>角色_專案管理</code> 後編譯器已確認無殘留引用）</li><li><code>dotnet test KnowledgeExtraction.Tests</code>：<strong>573 通過 / 0 失敗</strong></li><li><code>scripts/Test-DocsEncoding.ps1</code>：全綠</li><li><code>Menu.json</code> 維持 UTF-8 <strong>無 BOM</strong>（與既有一致）</li></ul>
+<h3 id="守護測試的有效性驗證">守護測試的有效性驗證</h3>
+<p>新測試在<strong>未改動</strong>的程式碼上先跑過一次（3 通過），再刻意於 <code>RolePermissionService</code> 插入一個假群組製造漂移，確認<strong>3 個測試全部轉紅</strong>，移除後恢復全綠——證明它不是恆真的假測試。</p>
+<h3 id="待人工於瀏覽器驗收">待人工於瀏覽器驗收</h3>
+<ul class="check"><li><span class="box">☐</span>管理員登入：選單為 首頁 / 專案協作(3) / 資料匯入(3) / 清洗與蒸餾(7) / 系統管理(10) / 資料定義(4) / 統計報表(5) / 登出，逐一點過每個連結都導到正確頁面</li><li><span class="box">☐</span>以改動前建立、且未重新存檔的非管理員角色登入，六個頁面全部仍看得到、開得起來</li><li><span class="box">☐</span>只勾「音訊轉錄」的角色：資料匯入父節點顯示、專案協作不顯示</li><li><span class="box">☐</span>統計報表（管理員）與登出仍正常顯示</li><li><span class="box">☐</span><code>/roleviews</code> 出現兩個新群組，勾選存檔後重新登入仍正確</li><li><span class="box">☐</span>只勾「專案項目」的角色可正常進入 <code>/projects</code>（改動前會被擋）</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一變更內容">一、變更內容</a><a class="l3" href="#11-選單結構">1.1 選單結構</a><a class="l3" href="#12-權限常數">1.2 權限常數</a><a class="l3" href="#13-修正既有不一致projects-頁面守衛">1.3 修正既有不一致：/projects 頁面守衛</a><a class="l3" href="#14-新增位置索引守護測試">1.4 新增位置索引守護測試</a><a class="l2" href="#二相容性重要">二、相容性（重要）</a><a class="l3" href="#發行說明">發行說明</a><a class="l2" href="#三異動檔案">三、異動檔案</a><a class="l2" href="#四驗證">四、驗證</a><a class="l3" href="#守護測試的有效性驗證">守護測試的有效性驗證</a><a class="l3" href="#待人工於瀏覽器驗收">待人工於瀏覽器驗收</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-20-選單拆分專案協作與資料匯入.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

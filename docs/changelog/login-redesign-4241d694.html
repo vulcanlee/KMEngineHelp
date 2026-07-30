@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login 頁面改版紀錄｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Login 頁面改版紀錄</h1></header><div class="docwrap"><main><h2 id="變更目的" class="t1">變更目的</h2>
+<p>將 <code>/Auths/Login</code> 從簡單表單升級為具備玻璃擬態、漸層動畫與企業商務風格的登入頁面，並補齊登入體驗所需的記住我與驗證碼功能。</p>
+<h2 id="本次修改檔案" class="t2">本次修改檔案</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Auths/Login.razor</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Auths/Login.razor.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Auths/Login.razor.css</code></li><li><code>readme.md</code></li><li><code>docs/changelog/login-redesign.md</code></li></ul>
+<h2 id="ui-調整" class="t3">UI 調整</h2>
+<ul><li>重新設計登入頁整體版面，加入品牌展示區與登入卡片雙欄配置。</li><li>使用純 CSS 實作 glassmorphism 毛玻璃卡片與動態漸層背景。</li><li>加入綠色品牌 Logo，採 inline SVG 實作，不依賴額外圖片檔案。</li><li>新增響應式設計，支援桌面、平板與手機瀏覽。</li><li>第二輪優化移除左側品牌區塊的額外說明卡片，讓版面更乾淨。</li><li>第二輪優化提高帳號、密碼、驗證碼輸入框的背景、邊框與聚焦狀態對比。</li><li>第二輪優化調整驗證碼顯示區的底色、字色與字距，提升辨識度。</li></ul>
+<h2 id="功能調整" class="t4">功能調整</h2>
+<ul><li>新增「記住我」勾選框，綁定 Cookie 驗證的持久化設定。</li><li>新增 4 位數驗證碼輸入與比對邏輯。</li><li>驗證碼錯誤或登入失敗時，會重新產生新的驗證碼。</li></ul>
+<h2 id="編碼要求" class="t5">編碼要求</h2>
+<ul><li>本次新增與更新檔案皆以 UTF-8 編碼保存。</li><li>內容使用繁體中文撰寫，避免產生亂碼問題。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#變更目的">變更目的</a><a class="l2" href="#本次修改檔案">本次修改檔案</a><a class="l2" href="#ui-調整">UI 調整</a><a class="l2" href="#功能調整">功能調整</a><a class="l2" href="#編碼要求">編碼要求</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/login-redesign.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

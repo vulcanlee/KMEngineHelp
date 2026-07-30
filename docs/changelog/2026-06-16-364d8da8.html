@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>企業應用情境型錄（0.2.79）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>企業應用情境型錄（0.2.79）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-16</li><li>版本：0.2.78 → 0.2.79</li><li>類型：策略文件</li></ul>
+<h2 id="新增內容" class="t1">新增內容</h2>
+<ul><li>新增 <a href="../../docs/strategy/scenario-catalog.html">docs/strategy/09-企業應用情境型錄</a>：以本平台為「基底平台 + 蒸餾能力包」定位，盤點可衍生的企業應用情境作為未來開發藍圖。</li><li>定義六類共通蒸餾能力包：① Agent 審查/判讀技能、② SOP/作業指引、③ 考題與線上考試、④ 知識問答助理、⑤ 稽核 checklist、⑥ 摘要/決議追蹤。</li><li>收錄 <strong>28 個應用情境</strong>，橫跨研發/設計、製造/生產、品保、人資/教育訓練、業務、行銷、客服、法務/法遵、財務/採購、IT/資安、經營管理/知識傳承等 11 類部門（超過 20 個門檻）。</li><li>每情境採固定六欄模板（部門/角色、痛點、輸入來源、蒸餾產出、商業價值、平台對應），「平台對應」標明可重用既有能力與待補缺口，使型錄兼作開發優先序輸入。</li><li>含優先導入建議（燈塔案例候選）與「每情境可各自展開為 PRD」的後續路徑。</li></ul>
+<h2 id="連動更新" class="t2">連動更新</h2>
+<ul><li><code>docs/README.md</code> strategy 區塊新增第 09 項索引。</li><li><code>appsettings.json</code> <code>SystemVersion</code> 0.2.78 → 0.2.79。</li></ul>
+<h2 id="驗證" class="t3">驗證</h2>
+<ul><li><code>scripts/Test-DocsEncoding.ps1</code> 對新檔通過（UTF-8 含 BOM、無亂碼）。</li><li>情境數 28 ≥ 20、部門 11 ≥ 10；使用者三個主例（審圖技能=情境1、SOP 產生=情境5、員工線上考試=情境11）皆已收錄。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#新增內容">新增內容</a><a class="l2" href="#連動更新">連動更新</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-16-企業應用情境型錄.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

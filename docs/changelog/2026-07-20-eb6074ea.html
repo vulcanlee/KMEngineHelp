@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>背景管線處理過程逐則 toast 通知（1.0.23）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>背景管線處理過程逐則 toast 通知（1.0.23）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/20</li><li>版本：1.0.22 → <strong>1.0.23</strong></li><li>類型：功能新增（＋順手修一個既有 bug）</li><li>觸發來源：使用者上傳會議影片後，網頁上只看到 2 則通知（開始、完成），但後端日誌顯示中間有一長串處理動作（取得時長、切片、逐段轉錄、簡繁轉換、存逐字稿、送 LLM…），希望這些過程都能在畫面上看到</li><li>相關：<a href="../../docs/changelog/2026-07-20-ai-34102033.html">會議 AI 自動化</a>、<a href="../../docs/changelog/2026-07-20-ui-a5368795.html">會議模組 UI 優化（1.0.21）</a></li></ul>
+<hr>
+<h2 id="一問題的本質中間階段沒有回報通道" class="t1">一、問題的本質：中間階段沒有回報通道</h2>
+<p>原本畫面上那 2 則通知分別來自：</p>
+<div class="tw"><table><thead><tr><th>通知</th><th>來源</th><th>機制</th></tr></thead><tbody><tr><td>「已開始轉錄…」</td><td><code>MeetingRecordingUploadModal.razor.cs</code></td><td>上傳成功當下同步彈出</td></tr><tr><td>「《標題》會議紀錄已產生」</td><td><code>MeetingViewView.NotifyMinutesTransitions</code></td><td>5 秒輪詢比對 <code>Meeting.MinutesStatus</code> 轉換</td></tr></tbody></table></div>
+<p>中間所有動作<strong>只寫進 NLog 日誌，完全沒有對 UI 曝光</strong>。背景管線與 UI 之間唯一的連結是「寫 DB 狀態欄位 → 前端輪詢讀取」，而狀態欄位只有一個當下值。</p>
+<p><strong>光是「輪詢讀當下狀態」解不了這個問題</strong>：使用者提供的日誌顯示，<code>20:00:57.4319 ~ .4659</code> 這 0.03 秒內連續發生了「第 2/2 段轉錄完成 → 轉錄完成 → 會議紀錄排入佇列」三件事。5 秒才看一次的輪詢必然把它們壓成一則。</p>
+<h2 id="二做法追加式事件表--游標輪詢" class="t2">二、做法：追加式事件表 ＋ 游標輪詢</h2>
+<p>新增 <code>PipelineProgressEvent</code> 資料表，管線每完成一個動作就 append 一列；前端以「上次看過的最大 Id」為游標撈新事件，一次撈齊、逐則彈 toast。<strong>不新增 SignalR 或記憶體事件匯流排</strong>——沿用既有輪詢基礎建設，風險最低。</p>
+<pre><code>Processor 任一深處
+  └─ progressReporter.Report("已切成 3 段，開始逐段轉錄。")   ← 非阻塞、無 DbContext、失敗隔離
+       └─ Channel（記憶體）
+            └─ PipelineProgressWriterBackgroundService（自建 scope 的獨立 DbContext）
+                 └─ PipelineProgressEvent 資料表（追加式）
+                      └─ 前端每 5 秒以 Id 游標撈新事件 → 逐則彈 toast</code></pre>
+<p>端到端延遲 ＝ 寫入約 5ms ＋ 輪詢等待 0~5 秒 ＝ <strong>最差 5 秒、平均 2.5 秒</strong>，與既有狀態通知的延遲特性一致。</p>
+<h3 id="整套直接照抄既有的-token-用量樣板">整套直接照抄既有的 token 用量樣板</h3>
+<p><code>ITokenUsageRecorder</code>（Singleton＋Channel、非阻塞、失敗隔離）＋ <code>TokenUsageWriterBackgroundService</code>（自建 scope 批次落地）這組樣板與需求幾乎同構，沿用而非另創。兩點刻意不同：</p>
+<div class="tw"><table><thead><tr><th>面向</th><th><code>ITokenUsageRecorder</code></th><th><code>IPipelineProgressReporter</code></th></tr></thead><tbody><tr><td>無情境時</td><td>仍寫入（稽核資料要留全）</td><td><strong>直接丟棄</strong>（沒有提交者就沒人看得到）</td></tr><tr><td>輸入解析</td><td><code>TokenUsageParser</code> 解析 JSON</td><td>不需要——訊息已是成品字串</td></tr></tbody></table></div>
+<h3 id="最大的省法operationcontext-已經夠用">最大的省法：<code>OperationContext</code> 已經夠用</h3>
+<p><code>OperationContext</code>（AsyncLocal）的 <code>OperationInfo(Operation, RecordId, UserAccount, UserName, Teams)</code> 已由各 <code>*BackgroundService</code> 迴圈 Push，且 <code>Operation</code> 推的字串與 <code>PipelineNames</code> 常數值相同。所以呼叫端只需要：</p>
+<pre><code>progress.Report("已切成 3 段，開始逐段轉錄。");</code></pre>
+<p>管線名、紀錄 Id、提交者全部自動帶入，<strong>不必逐層傳參數</strong>，Processor 深處任何地方都能呼叫。</p>
+<h3 id="獨立一支-writer且刻意不加批次計時器">獨立一支 writer，且刻意不加批次計時器</h3>
+<p>沒有併進 <code>TokenUsageWriterBackgroundService</code>，因為兩者的 flush 策略相反：token 用量是無人等待的稽核資料、批越大越有效率；進度事件有使用者盯著螢幕，必須低延遲。</p>
+<p>writer 採「<code>await foreach</code> 阻塞等待 ＋ <code>TryRead</code> 只撈已在通道裡的、撈不到就立刻寫」模式，典型情況是「1 筆 → 立刻 SaveChanges」。<strong>若照 token 那支加「等 500ms 湊批次」只會白白疊加延遲</strong>，而事件到達速率本來就低（每條管線每幾秒才 1 則），湊批幾乎永遠只湊到 1 筆。</p>
+<h2 id="三畫面行為" class="t3">三、畫面行為</h2>
+<p>6 個背景管線清單頁（會議記錄、音訊轉錄、文件萃取、圖片清單、知識來源、AI 技能）都接了 <code>PipelineProgressToaster</code>。以上傳一支會被切成 3 段的會議影片為例：</p>
+<pre><code>開始處理媒體檔案…
+媒體長度 00:42:15，準備轉錄。
+檔案較大，將切成 3 段分批轉錄。
+第 1/3 段轉錄完成（33%）。
+第 2/3 段轉錄完成（67%）。
+第 3/3 段轉錄完成（100%）。
+已完成簡繁轉換（台灣繁體）。
+逐字稿已儲存（約 12,340 字）。
+✅ 語音轉錄完成。
+已排入會議紀錄產生佇列…
+開始產生會議紀錄…
+已讀入逐字稿（約 12,340 字），送交 AI 分析…
+✅ 會議紀錄產生完成。</code></pre>
+<p>最後既有的右下角 <code>NotificationService</code> 卡片照舊出現，兩套通知並存不衝突。</p>
+<h3 id="三個-ui-決策">三個 UI 決策</h3>
+<ol><li><strong>開頁不補播歷史</strong>：<code>InitializeAsync()</code> 把游標設到目前最大 Id。階段訊息過期後毫無價值（使用者要的是「現在到哪」），補播只會在開頁瞬間洗版；終局結果本來就有 <code>NotificationService</code> 卡片與清單狀態欄呈現，不會漏。</li><li><strong>對話窗開啟時 <code>silent: true</code></strong>：只推進游標不彈。若停著不推進，關窗瞬間會一次爆出整段累積的事件。</li><li><strong><code>PumpAsync</code> 放在「有無進行中項目」檢查之前</strong>：終局那幾則正好發生在狀態剛翻成終態的那一刻，放後面會被吃掉。代價是每 5 秒多一次索引 seek，有 <code>(UserAccount, Id)</code> 覆蓋索引且通常回 0 列，可忽略。</li></ol>
+<h3 id="為什麼逐則彈出不會洗版">為什麼逐則彈出不會洗版</h3>
+<p>切 20 片時每片要呼叫一次 OpenAI、<strong>每片耗時 10~40 秒</strong>，所以 20 則進度是分散在 5~13 分鐘內產生的，每次輪詢平均只撈到 0~1 則。日誌裡那個 0.03 秒爆發 3 則的情形是唯一的爆量點，上限就是 3~4 則。真正的兩個洗版風險（開頁補播、關窗爆量）已由上述決策 1、2 解掉，故<strong>不做節流或合併</strong>。仍保留 <code>MaxToastPerTick = 8</code> 作為防禦性上限。</p>
+<h2 id="四權控useraccount-精確比對刻意不套團隊權控" class="t4">四、權控：<code>UserAccount</code> 精確比對，刻意不套團隊權控</h2>
+<p>這是本次唯一的資安判斷點，論證寫在 <code>PipelineProgressQueryService</code> 的 XML 註解裡（避免未來維護者看到查詢沒用 <code>TagStringHelper</code> 而誤以為是漏洞）：</p>
+<p>事件的 <code>UserAccount</code> 來自 <code>OperationContext</code> ← <code>PipelineJob</code> ← 由入列服務在 <strong>UI 執行緒</strong>寫入 <code>CurrentUser.Account</code>，而所有入列服務在入列<strong>之前</strong>都已跑過團隊權控。因此「事件的 <code>UserAccount = X</code>」蘊含「X 當時對該紀錄有權限」，X 看自己的事件不構成越權。<code>WHERE UserAccount = @me</code> 這個條件<strong>嚴格窄於</strong>團隊權控。</p>
+<p><strong>額外防線</strong>：事件訊息不得含紀錄標題或任何內容本文，只放階段名、計數、字數、大小。保持訊息無狀態，即使日後使用者被移出團隊，舊事件也不會洩漏。管理員亦不豁免——這是 UI 回饋不是稽核查詢。</p>
+<h2 id="五順手修掉的既有-bug文件萃取管線的身分遺失" class="t5">五、順手修掉的既有 bug：文件萃取管線的身分遺失</h2>
+<p>追查入列點時發現，<strong><code>IDocumentExtractionQueue</code> 是 8 條管線中唯一沒有採用 <code>PipelineJob</code> 的</strong>：它排的是裸 <code>int</code>，且 <code>DocumentExtractionBackgroundService</code> 從未 <code>OperationContext.Push</code>（只有 <code>LogScope</code>）。</p>
+<p>後果不只是本次的進度通知發不出來——<strong>該管線的 token 用量長期歸屬不到使用者</strong>。</p>
+<p>已補齊為與其他 7 條同構（<code>Channel&lt;PipelineJob&gt;</code>、<code>EnqueueAsync</code> 帶 <code>userAccount</code>/<code>userName</code>、背景服務 Push <code>OperationContext</code>），並新增 <code>PipelineEnqueueIdentityTests</code> 掃描原始碼守護：Service 層不得出現單一引數的 <code>EnqueueAsync(x)</code> 呼叫。</p>
+<blockquote><p>這部分拆為<strong>獨立 commit</strong>，與主功能分開。</p></blockquote>
+<h2 id="六變更檔案" class="t6">六、變更檔案</h2>
+<p><strong>新增</strong></p>
+<div class="tw"><table><thead><tr><th>檔案</th><th>說明</th></tr></thead><tbody><tr><td><code>AccessDatas/Models/PipelineProgressEvent.cs</code></td><td>事件 Entity</td></tr><tr><td><code>Business/Services/Pipelines/PipelineProgressReporter.cs</code></td><td>Singleton＋Channel 回報器</td></tr><tr><td><code>Business/Services/Pipelines/PipelineProgressQueryService.cs</code></td><td>游標查詢（含權控論證註解）</td></tr><tr><td><code>Web/BackgroundServices/PipelineProgressWriterBackgroundService.cs</code></td><td>落地＋保留期清理</td></tr><tr><td><code>Web/Components/Views/Commons/PipelineProgressToaster.cs</code></td><td>前端 toast 幫手（Transient）</td></tr><tr><td><code>Tests/PipelineProgressReporterTests.cs</code>（6 項）</td><td>情境取值、無提交者丟棄、FIFO</td></tr><tr><td><code>Tests/PipelineProgressQueryServiceTests.cs</code>（6 項）</td><td>權控、游標、上限、空表</td></tr><tr><td><code>Tests/PipelineEnqueueIdentityTests.cs</code></td><td>入列身分守則</td></tr></tbody></table></div>
+<p><strong>修改</strong>：<code>BackendDBContext</code>（DbSet＋2 索引）、8 支 Processor（發事件）、6 個清單 View（接 toaster）、<code>ServiceCollectionExtensions</code>／<code>Program.cs</code>（DI 與 HostedService）、<code>DocumentExtractionService</code>／<code>IDocumentExtractionQueue</code>／<code>DocumentExtractionQueue</code>／<code>DocumentExtractionBackgroundService</code>（身分修補）</p>
+<p><strong>Migration</strong>：<code>AddPipelineProgressEvent</code>，Sqlite 與 SqlServer 雙 provider。</p>
+<h2 id="七驗證" class="t7">七、驗證</h2>
+<ul><li><code>dotnet build</code> 0 錯誤；<code>dotnet test</code> <strong>629 項全通過</strong>（含 13 項新測試），零迴歸</li><li>兩份 migration 產出乾淨，只有 <code>CreateTable</code> ＋ 2 個 <code>CreateIndex</code>，未夾帶 <code>MyTas</code>/<code>MyTask</code> 之類的非預期 rename</li></ul>
+<p>待實機驗證（需實際上傳影片）：toast 序列、F5 不重播、對話窗開關不爆量、他人看不到自己的進度、文件萃取頁修補後有通知。</p>
+<h2 id="八已知限制" class="t8">八、已知限制</h2>
+<ul><li><strong>重啟復原的作業沒有進度通知</strong>：<code>RecoverPendingAsync</code> 刻意以 null 身分入列（非使用者觸發，無人在等 toast）。</li><li><strong>會議紀錄產生階段本質無中途進度</strong>：<code>MeetingMinutesGenerationService.GenerateAsync</code> 是單次非串流 LLM 呼叫，只能報「送出」與「回覆」兩點，中間那 20 秒無法細分。</li><li><strong>事件保留 3 天</strong>：這是短命 UI 回饋資料，非稽核紀錄。若日後要做「處理歷程回顧」需重新評估保留策略。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一問題的本質中間階段沒有回報通道">一、問題的本質：中間階段沒有回報通道</a><a class="l2" href="#二做法追加式事件表--游標輪詢">二、做法：追加式事件表 ＋ 游標輪詢</a><a class="l3" href="#整套直接照抄既有的-token-用量樣板">整套直接照抄既有的 token 用量樣板</a><a class="l3" href="#最大的省法operationcontext-已經夠用">最大的省法：OperationContext 已經夠用</a><a class="l3" href="#獨立一支-writer且刻意不加批次計時器">獨立一支 writer，且刻意不加批次計時器</a><a class="l2" href="#三畫面行為">三、畫面行為</a><a class="l3" href="#三個-ui-決策">三個 UI 決策</a><a class="l3" href="#為什麼逐則彈出不會洗版">為什麼逐則彈出不會洗版</a><a class="l2" href="#四權控useraccount-精確比對刻意不套團隊權控">四、權控：UserAccount 精確比對，刻意不套團隊權控</a><a class="l2" href="#五順手修掉的既有-bug文件萃取管線的身分遺失">五、順手修掉的既有 bug：文件萃取管線的身分遺失</a><a class="l2" href="#六變更檔案">六、變更檔案</a><a class="l2" href="#七驗證">七、驗證</a><a class="l2" href="#八已知限制">八、已知限制</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-20-管線進度逐則通知.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

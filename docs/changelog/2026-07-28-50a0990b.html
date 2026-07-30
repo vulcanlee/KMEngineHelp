@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗每步驟進度回報與串流閒置逾時（1.0.97 → 1.0.98）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>清洗每步驟進度回報與串流閒置逾時（1.0.97 → 1.0.98）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-28</li><li>版本：1.0.97 → 1.0.98</li><li>類型：可觀測性改善 ＋ 韌性補強（<strong>無新表、無 migration</strong>）</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p>使用者按下清洗後，狀態<strong>停在 60% 很久，沒有任何進度與訊息</strong>，無從判斷是還在跑還是掛住。</p>
+<h2 id="先講結論那次清洗其實成功了花了-27-分鐘" class="t2">先講結論：那次清洗其實成功了，花了 27 分鐘</h2>
+<p>由日誌逐步還原（請求帶 <code>stream_options.include_usage=true</code>，故<strong>每個 LLM 步驟完成時都會吐一行 INFO 用量</strong>）：</p>
+<div class="tw"><table><thead><tr><th>時間</th><th>prompt</th><th>completion</th><th>步驟</th><th>耗時</th></tr></thead><tbody><tr><td>15:27:49</td><td>121,045</td><td>100,347</td><td>1 去重</td><td>~12 分</td></tr><tr><td>15:41:58</td><td>100,453</td><td>100,347</td><td>2 遮罩</td><td>~14 分</td></tr><tr><td>15:42:01</td><td>100,395</td><td>50</td><td>3 分類</td><td>3 秒</td></tr><tr><td>15:42:06</td><td>100,418</td><td>286</td><td>4 摘要</td><td>5 秒</td></tr><tr><td>15:42:07</td><td>100,408</td><td>6</td><td>5 信心自評</td><td>2 秒</td></tr><tr><td>15:42:07.9466</td><td>—</td><td>—</td><td><code>Cleaning completed. Id=5 Status=已清洗</code></td><td></td></tr></tbody></table></div>
+<p><strong>26 / 27 分鐘花在前兩步</strong>——去重與遮罩都要把整份約 10 萬 token 的內容重新輸出一遍；後三步只回 50／286／6 個 token。所以問題從頭到尾不是「掛住」，是<strong>沒有任何東西告訴使用者它在動</strong>。</p>
+<h2 id="根因一60--100-之間零回報" class="t3">根因一：60% → 100% 之間零回報</h2>
+<p><code>CleaningProcessor.cs:99</code> 設 60%，下一次狀態更新是 <code>:194</code> 的 100%。中間整段是 <code>enhancer.EnhanceAsync</code>＝<strong>5 次循序串流 LLM 呼叫</strong>。<code>CleaningEnhancer</code> 沒有注入任何進度回報器，各步驟只有 <code>logger.LogDebug("Cleaning step: …")</code>——INFO 等級下完全看不到。</p>
+<p>即使一切正常，大內容也會安靜地停在 60% 數十分鐘。這不是效能問題，是<strong>可觀測性缺口</strong>。</p>
+<h3 id="修正">修正</h3>
+<p><code>CleaningEnhancer.EnhanceAsync</code> 尾端新增可選參數 <code>CleaningStepReporter? onStep</code>，在<strong>每個步驟開始前</strong>回報：</p>
+<div class="tw"><table><thead><tr><th>步驟</th><th>標籤</th><th>%</th></tr></thead><tbody><tr><td>去重</td><td><code>AI 加值：去重（1/5）</code></td><td>60</td></tr><tr><td>遮罩</td><td><code>AI 加值：遮罩（2/5）</code></td><td>68</td></tr><tr><td>分類</td><td><code>AI 加值：分類（3/5）</code></td><td>76</td></tr><tr><td>摘要</td><td><code>AI 加值：摘要（4/5）</code></td><td>84</td></tr><tr><td>信心自評</td><td><code>AI 加值：信心自評（5/5）</code></td><td>92</td></tr></tbody></table></div>
+<p>⚠️ <strong>回報在步驟「之前」不是「之後」</strong>：使用者要知道「現在正在跑哪一步」，等 12 分鐘後才回報「去重完成」對判斷是否卡住毫無幫助。已由測試釘住（驗證每次回報當下 LLM 呼叫次數為 0、1、2、3、4）。</p>
+<p>⚠️ <strong>刻意是可選參數而非 DI 注入</strong>：<code>CleaningEnhancer</code> 另有非管線呼叫端（<code>GoldenSampleService</code> 的黃金評測、<code>KnowledgeSourceService</code>／<code>WikiPageService</code> 線上編修後的重新遮罩），注入回報器會讓那些情境也吐出管線事件。不傳時為 no-op，行為與 1.0.97 完全相同。</p>
+<p>⚠️ <strong>handler 以 <code>await</code> 串在同一非同步流程上，不是 <code>IProgress&lt;T&gt;</code> 的射後不理</strong>：它會呼叫 <code>UpdateStatusAsync</code> 寫 <code>BackendDBContext</code>，而 DbContext 非執行緒安全；射後不理會踩到 EF 的「A second operation was started on this context」，而且是<strong>間歇性</strong>的。</p>
+<h2 id="根因二串流讀取沒有閒置逾時" class="t4">根因二：串流讀取沒有閒置逾時</h2>
+<p>⚠️ <strong>這不是 bug，是 1.0.33 刻意的設計。</strong> <a href="../../docs/changelog/2026-07-23-0af39c15.html"><code>2026-07-23-清洗改串流避免逾時.md</code></a> 把清洗改走 SSE 串流，正是為了解除 <code>GenerationTimeoutSeconds=120</code> 的總時長硬上限（當時長內容單步就超過 120 秒而反覆重試失敗）。因為用了 <code>HttpCompletionOption.ResponseHeadersRead</code>，<code>HttpClient.Timeout</code> 只界定「取得回應 headers」的時間，不涵蓋讀取 body。</p>
+<p>該文並明列：</p>
+<blockquote><p>已知殘留風險（可接受）：移除總時間硬上限後，若連線中途完全停滯理論上可能久候；實務上停滯的 TCP 讀取仍會擲錯，且管線重試機制兜底。</p></blockquote>
+<p>本次補的就是這條殘留風險。順帶修正那句樂觀假設：<strong>Windows 預設 TCP keepalive 是 2 小時</strong>，實務上等同不會自己醒。</p>
+<h3 id="修正-1">修正</h3>
+<p>新增 <code>OpenAISettings.GenerationStreamIdleTimeoutSeconds</code>（預設 <strong>120</strong>）。<code>StreamAsync</code> 以 linked CTS 對讀取設閒置逾時，<strong>每成功讀到一行就 <code>CancelAfter</code> 重設</strong>計時器。</p>
+<p>⚠️ <strong>這是閒置逾時，不是總時長逾時</strong>——只要資料持續流動就永不觸發，故<strong>不會推翻 1.0.33 的設計</strong>。本次資料證明單一步驟合法地連續串流 14 分鐘；若誤做成總時長逾時，那種合法情境會在第 2 分鐘被砍掉。已由測試直接釘住這個分野（「持續有資料、總時長超過閒置上限 → 不得逾時」）。</p>
+<p>⚠️ <strong>必須區分兩種取消</strong>：使用者取消照原樣拋 <code>OperationCanceledException</code>（<code>CleaningProcessor:63</code> 以 <code>cancellationToken.IsCancellationRequested</code> 判斷才認得出「已取消」而非「失敗」）；閒置逾時則丟 <code>TimeoutException</code>。判別依據就是該旗標。</p>
+<p><strong>為什麼丟 <code>TimeoutException</code> 是對的</strong>：<code>PipelineRetryHelper.IsTransient</code> 對它回 <strong>false</strong>（既有註解：「逾時＝太久，重試多半只是再等一輪並拖長總處理時間」）→ 不重試、直接標失敗並把可行動的中文原因顯示給使用者。若讓原始的 <code>OperationCanceledException</code> 逸出，訊息會退化成無用的 "A task was canceled"。</p>
+<p>⚠️ <strong>預設 120 秒刻意保留餘裕</strong>：reasoning 模型在吐出第一個 token 前可能長時間無輸出（本次資料 <code>reasoning_tokens=0</code> 未觸及此情境）。</p>
+<p><strong>影響面</strong>：<code>StreamAsync</code> 同時供 <strong>Blazor 知識問答串流</strong>與 <strong>MCP</strong> 使用，閒置逾時對它們一併生效——原本它們同樣可能永久卡住，屬一併受益。</p>
+<h2 id="驗證" class="t5">驗證</h2>
+<ul><li><code>dotnet build</code> 成功、<strong>警告數與位置完全相同</strong>（26 條，逐條比對零新增）。</li><li><code>dotnet test</code> <strong>956 全綠</strong>（既有 950 + 新增 6）：</li><li><code>CleaningEnhancerTests</code> +3：五步驟各回報一次且<strong>回報在該步驟的 LLM 呼叫之前</strong>（以回報當下的呼叫次數 0/1/2/3/4 驗證）、未設定 LLM 時<strong>一次都不回報</strong>、不傳回報器時行為與 1.0.97 相同。</li><li><code>OpenAIChatCompletionClientTests</code> +3（新增可控節奏的假 SSE 串流）：上游停住 → 丟 <code>TimeoutException</code> 且訊息含秒數、<strong>持續有資料且總時長超過閒置上限 → 不得逾時</strong>（釘住 1.0.33 的設計）、使用者取消 → 丟 <code>OperationCanceledException</code> 而非 <code>TimeoutException</code>。</li><li>無 model 變更，<strong>確認未產生 migration</strong>。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 0 失敗；版本 1.0.98。</li></ul>
+<h2 id="已知限制" class="t6">已知限制</h2>
+<ul><li><strong>單一步驟內部仍然沒有進度</strong>：回報粒度是「步驟」，所以去重那 12 分鐘期間畫面仍停在 60%／「AI 加值：去重（1/5）」不動。要做到步驟內的心跳，得讓 enhancer 觀察串流分塊，屬更大的改動。閒置逾時是這段期間「它還活著」的保證。</li><li>⚠️ <strong>大輸入的效率問題未處理</strong>（使用者明確排除）：121k tokens 送進去、去重步驟把整份內容重寫一遍，前兩步就佔掉 96% 的時間與絕大部分成本。要改善得動清洗演算法（分塊、或跳過某些步驟），會變動清洗結果品質，應另案評估。</li><li><strong>閒置逾時的真實觸發未做人工驗證</strong>（需製造上游停滯），以自動測試涵蓋。</li><li>⚠️ 「持續有資料不得逾時」那條測試<strong>天生時間敏感</strong>：初版用 300ms 間隔對 1 秒閒置上限，單獨跑會過、完整回合下因機器負載排程延遲而誤觸。已改為 250ms 間隔對 2 秒上限（餘裕 1.75 秒），並連跑三次確認穩定。日後調整此測試的節奏時要維持足夠餘裕。</li><li>百分比 60/68/76/84/92 是<strong>均分</strong>，不反映各步驟的真實耗時差異（實測前兩步佔 96%）。做成加權會讓數字更貼近實際，但也更難維護；目前優先讓使用者看得出「在哪一步」。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#先講結論那次清洗其實成功了花了-27-分鐘">先講結論：那次清洗其實成功了，花了 27 分鐘</a><a class="l2" href="#根因一60--100-之間零回報">根因一：60% → 100% 之間零回報</a><a class="l3" href="#修正">修正</a><a class="l2" href="#根因二串流讀取沒有閒置逾時">根因二：串流讀取沒有閒置逾時</a><a class="l3" href="#修正-1">修正</a><a class="l2" href="#驗證">驗證</a><a class="l2" href="#已知限制">已知限制</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-28-清洗進度回報與串流閒置逾時.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

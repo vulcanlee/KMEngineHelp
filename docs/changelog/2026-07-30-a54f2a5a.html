@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識庫命名規範與速查卡（1.0.106 → 1.0.107）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>知識庫命名規範與速查卡（1.0.106 → 1.0.107）</h1></header><div class="docwrap"><main><ul><li>變更日期：2026/07/30</li><li>版本：1.0.106 → <strong>1.0.107</strong></li><li>性質：<strong>純文件＋版本字串</strong>。無程式邏輯變更、無新表、無 migration、無 UI 變更。</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="一為什麼做" class="t1">一、為什麼做</h2>
+<p><a href="../../docs/strategy/multi-tenant-planning.html">多客戶、多客製、多型號的知識庫規劃分析</a> §9「落地檢查清單」第一階段明寫一項待辦：</p>
+<blockquote><p>決定來源命名規則（§3.3），<strong>寫成一頁規範發給所有會建資料的人</strong></p></blockquote>
+<p>這份規範一直不存在。既有 <code>docs/guides/</code> 的 24 份指南回答的是「這個按鈕做什麼」，沒有任何一份回答「名字該怎麼取」。而命名在這套系統裡不是格式偏好——它直接決定權控是否失準、AI 是否分得清型號、評測基線是否失效。</p>
+<p>本次補上這一層，並拆成「完整版」與「一頁可列印版」兩份：完整版給規劃者，速查卡給每一個實際會建資料的人。</p>
+<h2 id="二新增文件" class="t2">二、新增文件</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>內容</th></tr></thead><tbody><tr><td><a href="../../docs/guides/naming-rules.html">guides/知識庫命名規範與範例</a></td><td>命名的四個消費者（人／AI／評測／權控）＋十件會讓你「改不動」的系統行為＋13 種物件的命名總表（格式、系統長度上限、建議長度、可否事後改、改了會壞什麼）＋逐物件正反例＋型號/版次/日期書寫規約＋更新改版時怎麼命名＋不可放進標題的七類資訊＋上線前 12 條自我檢查</td></tr><tr><td><a href="../../docs/guides/naming-cheatsheet.html">guides/知識庫命名規範－速查卡</a></td><td>一頁可列印：六個格式模板＋八條紅線（各附「違反會發生什麼」）＋三個最常犯的錯＋<strong>20 個系統保留提示詞名稱</strong>＋全公司統一寫法＋建立資料前的三個自問</td></tr></tbody></table></div>
+<h2 id="三規範所依據的系統行為逐項已對程式確認" class="t3">三、規範所依據的系統行為（逐項已對程式確認）</h2>
+<p>命名之所以必須是硬規範，來自以下十項。<strong>N1／N3／N4／N5 是「改不動」或「靜默失敗」類，代價最高。</strong></p>
+<div class="tw"><table><thead><tr><th>#</th><th>系統行為</th><th>出處</th></tr></thead><tbody><tr><td>N1</td><td>分類／團隊以<strong>名稱字串</strong>存於每筆紀錄的 <code>Categories</code>／<code>Teams</code>，改主檔名稱<strong>不會回寫既有紀錄</strong>（無 rename cascade）</td><td><code>TagStringHelper.cs</code>、<code>CategoryRepository.UpdateAsync</code>（只寫 <code>Category</code> 表）</td></tr><tr><td>N2</td><td>刪除分類／團隊<strong>不檢查引用</strong>；已知「刪掉仍被引用的專案分類會在重啟後復活」</td><td>既有 <code>基礎設定指南 §五</code></td></tr><tr><td>N3</td><td>知識來源標題<strong>原文進入 LLM 參考資料前綴</strong> <code>【來源：{標題}｜{層}｜{錨點}】</code></td><td><code>KnowledgeBaseChatService.cs:235</code></td></tr><tr><td>N4</td><td>檢索品質評測以<strong>來源標題逐字比對</strong>（<code>OrdinalIgnoreCase</code>）當 ground truth；改標題會讓基線<strong>靜默失效</strong></td><td><code>RagEvaluator.cs:34</code>、<code>RagEvalSample.ExpectedSourceTitles</code></td></tr><tr><td>N5</td><td>提示詞有 <strong>20 個槽位鍵</strong>，比對為 <code>StringComparer.Ordinal</code>（大小寫與空白皆不寬鬆）</td><td><code>LlmPromptKeys.cs</code>（<code>IsSlotKey</code>）</td></tr><tr><td>N6</td><td>素材清單搜尋範圍含 <strong><code>OriginalFileName</code></strong></td><td><code>DocumentExtractionService.cs:74</code>、<code>MediaTranscriptionService.cs:106</code>、<code>ImageRecognitionService.cs:77</code></td></tr><tr><td>N7</td><td>知識來源清單搜尋<strong>只吃</strong> <code>Title</code> + <code>Description</code></td><td><code>KnowledgeSourceService.cs:79</code></td></tr><tr><td>N8</td><td><code>WikiPage.Title</code> 是 <code>[[wikilink]]</code> 比對鍵</td><td><code>WikiPage.cs</code>（<code>LinkTitles</code>）</td></tr><tr><td>N9</td><td>關鍵字切詞<strong>切開連字號</strong>、<strong>中文不斷詞</strong>；chunk <strong>不含章節標題</strong></td><td>既有 <code>2026-07-29</code> §2.2 的 F4／F5／F6</td></tr><tr><td>N10</td><td>標題長度限制<strong>不一致</strong>：分類／團隊／專案分類／提示詞／清洗設定檔名稱 100 字、團隊代號 50、描述 2000、提示詞本文 8000、圖片標題部分路徑 200，<strong>影音／文件／知識來源標題未設 <code>StringLength</code></strong></td><td>各 <code>*CreateUpdateDto.cs</code>、<code>*AdapterModel.cs</code></td></tr></tbody></table></div>
+<p>另記兩項「不用擔心」的行為，避免規範過度保守：標籤比對是<strong>精確成員比對</strong>（<code>\n名稱\n</code> 包夾），所以「業務」不會誤中「業務二部」；<code>ToStored</code> 會 Trim 頭尾空白並忽略大小寫去重。</p>
+<h2 id="四與既有文件的分工已明寫在新文件開頭" class="t4">四、與既有文件的分工（已明寫在新文件開頭）</h2>
+<ul><li><a href="../../docs/guides/setup-guide.html">基礎設定指南</a>：頁面<strong>怎麼操作</strong>。</li><li><a href="../../docs/strategy/multi-tenant-planning.html">多客戶多型號規劃分析</a>：多客戶／多型號情境<strong>為什麼</strong>要這樣切（機制推導 F1～F13）。本次新文件的盒子命名格式 <code>{範圍}｜{對象}｜{版本或期間}｜{文件族}</code> 與該文 §3.3 的 <code>{客戶}｜{系統}｜{大版本}｜{文件族}</code> <strong>完全相容</strong>（客戶＝範圍的一種取值），並在文中明寫此關係。</li><li><strong>本次新增</strong>：名字<strong>長什麼樣</strong>、正反例、改名的後果。</li></ul>
+<h2 id="五同步更新" class="t5">五、同步更新</h2>
+<ul><li><code>docs/README.md</code>：guides 區新增兩筆。</li><li><code>docs/guides/README.md</code>：使用者操作指南表新增兩列，並註明與基礎設定指南的分工。</li><li><code>docs/changelog/README.md</code>：新增本篇索引列。</li><li><code>appsettings.json</code> 的 <code>SystemSettings.SystemVersion</code>：<code>1.0.106 (2026/07/29)</code> → <code>1.0.107 (2026/07/30)</code>。</li></ul>
+<h2 id="六後續階段同一批規劃" class="t6">六、後續階段（同一批規劃）</h2>
+<p>本篇是三階段導入前準備文件組的第一階段（地基）。後續：</p>
+<ul><li><strong>1.0.108</strong>：基礎設定內容設計指南（分類詞庫／團隊／提示詞的<strong>內容</strong>怎麼寫）＋企業實戰情境劇本（工程／採購／製造品保／客服人資四組部門的資料準備、操作順序、預期效果、系統做不到什麼）。</li><li><strong>1.0.109</strong>：知識傳承與經驗累積方法論＋導入實施顧問手冊（對內）＋五份 HTML。</li></ul>
+<p>⚠️ <strong>本階段的已知落差</strong>：新文件中指向 <code>基礎設定內容設計指南</code> 與 <code>企業實戰情境劇本</code> 的連結，要到 1.0.108 才會有對應檔案。文件庫目前<strong>沒有</strong> md 連結有效性的守門測試，故不影響測試結果。</p>
+<h2 id="七驗證" class="t7">七、驗證</h2>
+<ul><li><code>pwsh -File scripts/Test-DocsEncoding.ps1</code> 全綠（新增兩份 md 皆 UTF-8 含 BOM、無替代字元）。</li><li>速查卡的 20 個保留名稱與 <code>LlmPromptKeys.cs</code> <strong>逐字比對相符</strong>。</li><li>命名總表的長度上限數字與各 <code>*CreateUpdateDto.cs</code>／<code>*AdapterModel.cs</code> 相符。</li></ul>
+<hr>
+<blockquote><p>返回 <a href="../../docs/changelog/readme-436e4418.html">changelog 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一為什麼做">一、為什麼做</a><a class="l2" href="#二新增文件">二、新增文件</a><a class="l2" href="#三規範所依據的系統行為逐項已對程式確認">三、規範所依據的系統行為（逐項已對程式確認）</a><a class="l2" href="#四與既有文件的分工已明寫在新文件開頭">四、與既有文件的分工（已明寫在新文件開頭）</a><a class="l2" href="#五同步更新">五、同步更新</a><a class="l2" href="#六後續階段同一批規劃">六、後續階段（同一批規劃）</a><a class="l2" href="#七驗證">七、驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-30-知識庫命名規範.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

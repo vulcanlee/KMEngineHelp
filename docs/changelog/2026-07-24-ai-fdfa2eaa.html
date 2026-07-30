@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>移除「AI技能產生器」畫面與功能（1.0.45）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>移除「AI技能產生器」畫面與功能（1.0.45）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-24</li><li>版本：1.0.44 → 1.0.45</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>系統不再需要「AI技能產生器」（路由 <code>/skills</code>、選單 id 43、權限常數 <code>角色_AI技能產生器</code>）。本次將該畫面、僅為其存在的程式碼、資料表與功能表項目一併移除，並同步修正相關文件。既有的實作／PRD changelog（2026-06-20 兩則）保留為歷史紀錄不予更動。</p>
+<h2 id="內容" class="t2">內容</h2>
+<h3 id="1-畫面與端點移除">1. 畫面與端點移除</h3>
+<ul><li>刪除頁面 <code>SkillPage.razor</code>、檢視 <code>SkillView.razor(.cs/.css)</code>、下載端點 <code>SkillController.cs</code>。</li><li><code>Menu.json</code> 移除 id 43「AI技能產生器」子項；<code>RolePermissionService</code> 與 <code>MagicObjectHelper</code> 同步移除 <code>角色_AI技能產生器</code>（維持選單↔權限的位置索引對齊）。</li></ul>
+<h3 id="2-服務背景管線移除">2. 服務／背景管線移除</h3>
+<ul><li>刪除 <code>SkillDefinitionService</code>、<code>SkillGenerationProcessor</code>、<code>SkillGenerationBackgroundService</code>、<code>ISkillGenerationQueue</code>/<code>SkillGenerationQueue</code>、<code>SkillContentHelper</code>、<code>SkillPromptDefaults</code>。</li><li>移除 DI 註冊、<code>Program.cs</code> 的 <code>SkillOutputPath</code> 目錄建立與 <code>AddHostedService&lt;SkillGenerationBackgroundService&gt;()</code>。</li><li><code>PipelineNames.SkillGeneration</code> 移除；背景處理管線由 8 條調整為 7 條。</li><li>儀表板（<code>DashboardService</code>）移除「AI 技能」統計卡片、管線狀態與最近清單列。</li><li>系統健康檢查（<code>SystemHealthService</code>）移除 <code>SkillGenerationBackgroundService</code> 檢查項。</li></ul>
+<h3 id="3-提示詞與設定">3. 提示詞與設定</h3>
+<ul><li>提示詞槽位「技能-Meta」（<code>SkillMeta</code>）自 <code>LlmPromptKeys</code>、<code>LlmPromptDefaults</code>、<code>LlmPromptsSettings</code> 與 <code>appsettings.json</code> 移除。</li><li><code>SystemSettings.SkillOutputPath</code> 與 <code>appsettings.json</code> 對應設定移除。</li></ul>
+<h3 id="4-資料模型與資料庫">4. 資料模型與資料庫</h3>
+<ul><li>移除實體 <code>SkillDefinition</code>、<code>SkillSourceItem</code> 及其 <code>DbSet</code>、關聯設定與 AutoMapper 對應、Adapter 模型。</li><li>新增雙資料庫 migration <code>RemoveSkillGenerator</code>（Sqlite 與 SqlServer 各一），刪除 <code>SkillDefinition</code>／<code>SkillSourceItem</code> 兩張資料表。<strong>既有技能資料將永久刪除。</strong></li></ul>
+<h3 id="5-文件">5. 文件</h3>
+<ul><li>刪除專屬文件 <code>docs/prd/AI技能產生器-prd.md</code>、<code>docs/guides/AI技能產生器使用指南.md</code>。</li><li>全庫同步移除各索引、權限對照表、開發慣例速查、PRD 矩陣、guides 章節、架構總覽、行銷／策略／簡報等文件中的相關內容。</li></ul>
+<h2 id="備註" class="t3">備註</h2>
+<ul><li>Token 用量紀錄的操作類型常數 <code>LlmTokenUsage.OperationSkillGeneration</code> 與其用量報表標籤<strong>刻意保留</strong>：它服務的是已寫入的歷史 Token 用量資料，非畫面程式碼，移除會使舊紀錄顯示異常。</li><li>既有角色權限 <code>TabViewJson</code> 中殘留的 "AI技能產生器" 字串為孤兒字串，依名稱比對找不到節點即忽略，不影響資料正確性。</li><li>驗證：<code>dotnet build</code> 0 錯誤；623 測試全綠；<code>MenuPermissionAlignmentTests</code> 通過（確認位置索引未漂移）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#內容">內容</a><a class="l3" href="#1-畫面與端點移除">1. 畫面與端點移除</a><a class="l3" href="#2-服務背景管線移除">2. 服務／背景管線移除</a><a class="l3" href="#3-提示詞與設定">3. 提示詞與設定</a><a class="l3" href="#4-資料模型與資料庫">4. 資料模型與資料庫</a><a class="l3" href="#5-文件">5. 文件</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-24-移除AI技能產生器.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

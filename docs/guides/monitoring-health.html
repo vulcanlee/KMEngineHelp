@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>系統監控與健康檢查指南｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>系統監控與健康檢查指南</h1><p class="sub">說明「系統健康監控」頁與部署探針端點的用途、如何看懂燈號與各檢查項、常見紅/黃項的對策，以及同群組的「資料一致性巡檢」「日誌下載」「待處理背景工作」怎麼用——讓管理員快速判斷系統與各依賴是否正常。</p></header><div class="docwrap"><main><ul><li>文件用途：說明「系統健康監控」頁與部署探針端點的用途、如何看懂燈號與各檢查項、常見紅/黃項的對策，以及同群組的「資料一致性巡檢」「日誌下載」「待處理背景工作」怎麼用——讓管理員快速判斷系統與各依賴是否正常。</li><li>主要讀者：系統管理員、維運人員、導入顧問</li><li>文件版本：1.3（背景管線 7 條→8 條含三元組抽取；補知識圖譜兩項全域單例作業與相關 FAQ）</li><li>建立日期：2026/06/26</li><li>更新日期：2026/07/29</li><li>對應系統版本：1.0.100（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>相關：上手地圖見 <a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a>；安裝與第三方工具見 <a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊</a>；上線檢查見 <a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a>。</p></blockquote>
+<hr>
+<h2 id="一為什麼需要" class="t1">一、為什麼需要</h2>
+<p>系統依賴多個外部元件（資料庫、第三方工具 ffmpeg/yt-dlp/markitdown/Node、OpenAI 金鑰、檔案目錄權限…）。任何一項出問題，往往要等使用者操作到該功能才報錯。健康檢查把這些<strong>一次集中體檢</strong>，讓你在上線前或出狀況時，<strong>一眼看出哪裡紅燈</strong>。</p>
+<hr>
+<h2 id="二系統健康監控-system-health僅管理員" class="t2">二、系統健康監控 <code>/system-health</code>（僅管理員）</h2>
+<p><strong>進入路徑</strong>：左側選單「<strong>系統管理 → 系統監控 → 系統健康監控</strong>」（三層選單，要多點一層）。畫面標題是「系統健康監控」。</p>
+<p>頁面由三個部分組成：</p>
+<ol><li><strong>整體健康</strong>：紅/黃/綠燈號 ＋ 健康分數（0–100）＋ 最後檢查時間。</li><li><strong>≥ 90 綠</strong>：系統健康。</li><li><strong>70–89 黃</strong>：可運作，有項目需關注。</li><li><strong>&lt; 70 紅</strong>：健康程度不足，應立即檢查。</li></ol>
+<p>分數為各項<strong>加權平均</strong>（正常＝滿分、<strong>警示＝半分</strong>、異常＝0）。24 項的權重合計為 <strong>232</strong>，其中「資料庫」權重最高（25），其次是日誌與身分驗證（各 15）、向量索引涵蓋率（15）。</p>
+<ol><li><strong>檢查項目（共 24 項）</strong>：<strong>畫面上是單一扁平清單</strong>（不是分成幾個區塊顯示），每項會標註它的分類與權重，並顯示紅/黃/綠、名稱、狀態文字、<strong>證據</strong>（實際檢查到的值）與失敗訊息。下面依分類整理，方便你理解每項在檢查什麼：</li><li><strong>基礎系統（9 項）</strong>：網站/應用程式（環境/版本/運作時間）、API（Controller 數/Swagger）、<strong>資料庫</strong>（Provider/連線/待套用 migration 數）、<strong>資料庫大小與資料量</strong>（1.0.13 新增，資訊型：SQLite 檔案大小＋知識來源/知識頁/向量/聊天紀錄/Token 用量列數，恆為正常）、日誌（NLog 目錄/今日檔）、身分驗證（Cookie/JWT 設定；<strong>1.0.72 起 Production 下另檢查是否沿用開發預設金鑰／密碼，命中為警示黃燈</strong>）、檔案系統（6 個關鍵目錄存在且可寫）、主機資源（記憶體/磁碟空間）、安全設定（Production 下 Swagger/CORS/錯誤詳情）。</li><li><strong>語音轉文字工具（5 項）</strong>：ffmpeg、yt-dlp、markitdown、Node.js、抖音助手腳本（路徑與版本；抖音助手為選用，未設為警示）。</li><li><strong>語音轉文字設定（2 項）</strong>：OpenAI API 設定（缺 ApiKey 為異常）、轉錄儲存目錄（存在且可寫）。</li><li><strong>知識庫 RAG（1 項）</strong>：<strong>向量索引涵蓋率</strong>——統計「已清洗來源」中已建立向量索引的比例；未設定嵌入為警示，有可索引來源但索引為空（chunk=0）為異常（AI 知識問答將一律查無依據）。</li><li><strong>基礎設施與整合（7 項；5 項 1.0.11 新增、2 項 1.0.13 新增）</strong>：</li><li><strong>MCP Server</strong>——<code>/mcp</code> 端點、<code>McpAccess</code> policy、<code>McpApiKey</code> scheme 是否就緒＋啟用中金鑰數；<strong>0 把啟用金鑰為警示</strong>（外部無狀態 Agent 無法用 <code>X-API-Key</code>，JWT/Cookie 仍可），policy/scheme/端點缺失為異常。</li><li><strong>分散式快取</strong>——Memory 直接正常；Redis 以寫入/回讀一筆 ping 實測連線，失敗為異常。</li><li><strong>AI 生成/嵌入 Provider</strong>——依 Cloud/Local 分流檢查生成與嵌入端點設定是否齊備（缺 ApiKey 或地端缺 BaseUrl/模型為異常）。</li><li><strong>RAG 檢索設定</strong>——權重與門檻合理性（權重和非 1 為警示、門檻越界為異常；檢查 appsettings 值）。</li><li><strong>背景管線</strong>——八條匯入/處理背景服務（含 1.0.84 起的三元組抽取），<strong>加上 1.0.72 納入的 2 支寫入服務</strong>（用量寫入、進度寫入），是否都已註冊（缺任一為異常；僅檢查註冊，未偵測卡死或佇列積壓）。</li><li><strong>大語言模型可用性（1.0.13 新增）</strong>——<strong>實際呼叫一次</strong>主生成模型（極小提示詞、8 秒逾時）：有回應為正常（證據含模型/耗時/回應長度）、逾時或呼叫失敗為異常、未設定端點為警示（略過實呼叫）。每次進頁會產生一次微量 LLM 呼叫，用量以作業別「健康檢查」記錄於 <code>/token-usage</code>，統計時可篩選排除。</li><li><strong>嵌入端點可用性（1.0.13 新增）</strong>——<strong>實際嵌入</strong>一段探針文字（8 秒逾時）：成功回報向量維度（與設定不一致為警示）、逾時或失敗為異常、未設定為警示。與 LLM 檢查同樣以「健康檢查」作業別記錄用量。</li></ol>
+<ol><li><strong>日誌尾端</strong>：最後 100 筆 NLog 紀錄與日誌檔路徑，方便就地排查。</li></ol>
+<hr>
+<h2 id="三部署探針端點給容器負載平衡器" class="t3">三、部署探針端點（給容器/負載平衡器）</h2>
+<p>供 Kubernetes、反向代理或監控系統做存活/就緒探測（<strong>不含</strong>詳細診斷，回應精簡）：</p>
+<ul><li><strong><code>/health/live</code></strong>：liveness（程式是否活著）。</li><li><strong><code>/health/ready</code></strong>：readiness（是否可服務；包含資料庫連線檢查）。</li></ul>
+<hr>
+<h2 id="四常見紅黃項與對策" class="t4">四、常見紅/黃項與對策</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>典型狀況</th><th>對策</th></tr></thead><tbody><tr><td>資料庫</td><td>有待套用的 migration、連線失敗</td><td>套用 migration（見 <a href="../../docs/guides/efcore.html">EFCore.md</a>）；檢查連線字串/SQL Server 是否可達</td></tr><tr><td>OpenAI API 設定</td><td>缺 ApiKey（紅）</td><td>在 <code>appsettings.json</code> 填 <code>OpenAISettings:ApiKey</code>（或設定地端 LLM）</td></tr><tr><td>向量索引涵蓋率</td><td>有已清洗來源但索引為空（紅）/部分未索引（黃）/未設嵌入（黃）</td><td>到「知識來源加工」對已清洗來源按「建立索引」；確認已設定嵌入端點</td></tr><tr><td>ffmpeg / yt-dlp / markitdown</td><td>路徑未設或版本抓不到</td><td>安裝工具並把路徑填回設定檔（見 <a href="../../docs/guides/install-and-operate.html">安裝手冊 §3</a>）</td></tr><tr><td>Node.js / 抖音助手</td><td>未安裝/未設（黃，選用）</td><td>不轉錄抖音可忽略；要用則安裝 Node 工具鏈並設定路徑</td></tr><tr><td>檔案系統</td><td>某關鍵目錄不存在或不可寫</td><td>確認 <code>ExternalFileSystem.*</code> 路徑存在且程式有寫入權限</td></tr><tr><td>安全設定</td><td>Production 仍開 Swagger／回傳錯誤詳情／CORS 過寬</td><td>依 <a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a> 收斂</td></tr><tr><td>主機資源</td><td>磁碟空間不足、記憶體偏高</td><td>清理空間／調整資源</td></tr><tr><td>大語言模型可用性</td><td>實呼叫逾時/失敗（紅）、未設定（黃）</td><td>確認金鑰/地端端點與網路可達；黃燈表示 AI 生成/問答功能停用，補設定即可</td></tr><tr><td>嵌入端點可用性</td><td>實呼叫逾時/失敗（紅）、維度不一致或未設定（黃）</td><td>確認嵌入金鑰/端點；維度不一致請核對 <code>EmbeddingDimensions</code> 與模型，避免索引與查詢失配</td></tr><tr><td><strong>MCP Server</strong></td><td>啟用中金鑰 0 把（黃）；policy/scheme/端點缺失（紅）</td><td>黃燈：若不需要外部無狀態 Agent 可忽略（JWT/Cookie 仍可用）；要用就到 <code>/mcp-api-keys</code> 建一把金鑰。紅燈屬部署或程式註冊問題，看證據判斷缺哪一項</td></tr><tr><td><strong>分散式快取</strong></td><td>Redis 寫入/回讀 ping 失敗（紅）</td><td>確認 <code>CacheSettings.RedisConnection</code> 與 Redis 可達。出貨預設是 <code>Memory</code>（單機直接正常，不需 Redis）</td></tr><tr><td><strong>背景管線</strong></td><td>八條背景服務或 2 支寫入服務缺任一（紅）</td><td>屬程式註冊問題，非設定可解；注意<strong>此項只檢查「有沒有註冊」，不會偵測卡死或佇列積壓</strong> —— 管線卡住時這一項仍是綠燈，要看各功能頁的狀態欄。1.0.72 起把「用量寫入」「進度寫入」兩支也納入：前者沒起來會讓 <strong>Token 用量默默不再記錄</strong>（統計報表跟著失準且無錯誤訊息）</td></tr><tr><td><strong>身分驗證</strong></td><td>Production 沿用開發預設金鑰或 support 預設密碼（<strong>黃</strong>）</td><td>1.0.72 新增。證據列會標出是金鑰還是密碼。這<strong>不是故障</strong>、不影響站台運作，但代表任何看得到原始碼的人都能偽造 token —— 請依《正式部署與安全檢查清單》更換後重啟。非 Production 不會亮此燈</td></tr><tr><td><strong>RAG 檢索設定</strong></td><td>權重和不等於 1（黃）、門檻越界（紅）</td><td>調整 <code>Retrieval</code> 的向量/關鍵字權重使其和為 1、門檻回到 0–1 範圍。⚠ <strong>此項檢查的是 appsettings 的值</strong>；若你在 <code>/rag-diagnostics</code> 熱套用過覆寫，實際生效值可能與這裡顯示的不同</td></tr></tbody></table></div>
+<hr>
+<h2 id="四之二資料一致性巡檢-data-consistency僅管理員" class="t5">四之二、資料一致性巡檢 <code>/data-consistency</code>（僅管理員）</h2>
+<p><strong>進入路徑</strong>：系統管理 → 診斷與日誌 → 資料一致性巡檢。</p>
+<p><strong>與健康檢查的分工</strong>：健康檢查看的是「<strong>系統與依賴</strong>還活著嗎」；這一頁看的是「<strong>資料本身</strong>有沒有前後不一致」。兩者互補，健康檢查全綠時這頁仍可能有待處理項目。</p>
+<p>畫面說明文字（逐字）：</p>
+<blockquote><p>本頁僅管理員可見，統計為全庫。列出「孤兒成員」（引用的素材已不存在）、「過時來源」（成員異動或素材編修後尚未重跑清洗）與「低比值來源」（清洗後內容相對彙整前明顯偏小，可能曾被模型輸出上限截斷）。</p></blockquote>
+<p><strong>三顆按鈕</strong>：</p>
+<div class="tw"><table><thead><tr><th>按鈕</th><th>作用</th><th>停用條件</th></tr></thead><tbody><tr><td>重新整理</td><td>重跑巡檢</td><td>—</td></tr><tr><td><strong>清除所有孤兒成員</strong></td><td>移除所有失效參照，並把所屬來源標記為過時</td><td>孤兒數為 0 時不可按</td></tr><tr><td><strong>重新清洗所有過時來源</strong></td><td>把所有過時來源逐一排入重新清洗（背景處理）</td><td>過時數為 0 時不可按</td></tr></tbody></table></div>
+<p><strong>三個區塊</strong>（1.0.116 起）：</p>
+<ul><li><strong>孤兒成員（N）</strong>：欄位為 <code>所屬知識來源</code>、<code>素材型別</code>、<code>素材 Id</code>、<code>成員列 Id</code>。沒有時顯示「沒有孤兒成員，資料一致。」</li><li><strong>過時來源（N）</strong>：欄位為 <code>標題</code>、<code>清洗狀態</code>、<code>更新時間</code>、<code>操作</code>（單筆「重新清洗」）。沒有時顯示「沒有過時來源。」</li><li><strong>低比值來源（N）</strong>（1.0.116 新增）：欄位為 <code>標題</code>、<code>比值</code>（預設由小到大排序）、<code>彙整量（估計）</code>、<code>清洗後</code>、<code>清洗時間</code>、<code>操作</code>（單筆「重新清洗」）。沒有時顯示「沒有低比值來源。」</li></ul>
+<h3 id="低比值來源是什麼為什麼要有這一項">低比值來源是什麼、為什麼要有這一項</h3>
+<p>清洗後的內容應該與彙整前<strong>同一量級</strong>（去重會縮，但不會縮到只剩零頭）。比值明顯偏低，常見原因是<strong>內容曾被模型的輸出上限截斷</strong>。</p>
+<p><strong>1.0.112 起</strong>清洗被截斷會直接失敗或在清洗結果留 <code>&gt; 註記：</code>；但<strong>該版之前清洗的資料完全沒有留下痕跡</strong>——狀態是「已清洗」、信心分數可能還很高。唯一看得出端倪的就是這個比值。<strong>這一項的用途就是把那些舊資料自動指認出來，取代人工逐筆稽核。</strong></p>
+<div class="tw"><table><thead><tr><th>要注意</th><th>說明</th></tr></thead><tbody><tr><td>⚠️ <strong>這是提示，不是判決</strong></td><td>內容本來就高度重複的素材（大量制式表單、範本化工單）合理地會有很低的比值。那是誤報</td></tr><tr><td><strong>最快的處置是「重新清洗」</strong></td><td>1.0.112 起若真的被截斷，遮罩會直接失敗並說明原因——一次就知道</td></tr><tr><td><strong>彙整量是估計值</strong></td><td>只讀檔案大小、不讀內容，所以「檔案只含空白字元」會被算成可用</td></tr><tr><td><strong>門檻可設定</strong></td><td><code>SystemSettings.Cleaning.CleanedRatioWarnBelow</code>，預設 <strong>0.30</strong>；<strong>0 或負數＝停用這項檢查</strong>。改設定需重啟</td></tr><tr><td><strong>這一項的成本最高</strong></td><td>要對每一筆已清洗來源量測其成員檔案大小（每筆數次檔案查詢）。因為是「按下去才跑的巡檢」所以可接受，但來源很多時這一頁會比以前慢；未清洗的來源完全不碰</td></tr></tbody></table></div>
+<p><strong>兩個確認訊息</strong>（逐字，動手前先讀懂）：</p>
+<ul><li>清除孤兒：<code>將移除所有『素材已不存在』的成員參照，並把其所屬知識來源標記為『內容已過時』（提醒你重跑清洗）。此動作僅移除失效參照，不影響仍存在的素材。</code></li><li>重新清洗全部：<code>將對所有『內容已過時』的知識來源逐一排入重新清洗（背景處理）。清洗完成後可視需要再蒸餾與建立索引。</code></li></ul>
+<p><strong>建議處理順序</strong>：先「清除孤兒成員」（移掉指向不存在素材的死參照）→ 再「重新清洗所有過時來源」→ 視需要蒸餾與建立索引。</p>
+<blockquote><p><strong>孤兒是怎麼來的？</strong> 知識來源的成員是<strong>軟參照</strong>（記型別＋Id、沒有外鍵），所以素材被刪掉時成員列不會自動消失。系統在刪除素材時會主動清理，但如果曾直接改資料庫、還原舊備份，或早期版本留下的資料，就可能殘留孤兒。</p></blockquote>
+<h2 id="四之三日誌下載-log-download僅管理員" class="t6">四之三、日誌下載 <code>/log-download</code>（僅管理員）</h2>
+<p><strong>進入路徑</strong>：系統管理 → 診斷與日誌 → 日誌下載。</p>
+<p>健康監控頁底只看得到<strong>最後 100 筆</strong>日誌；要追一段時間的完整脈絡就用這一頁，它會把區間內的日誌逐筆過濾、依時間合併成單一 <code>.log</code> 再以 zip 封裝下載。</p>
+<p><strong>操作</strong>：</p>
+<ol><li>（可選）從「<strong>快速區間</strong>」下拉挑一個：<code>最近10分鐘</code>／<code>最近30分鐘</code>／<code>最近1小時</code>／<code>最近2小時</code>／<code>最近3小時</code>。選了會以現在時間回推填入起訖，<strong>仍可手動微調</strong>。</li><li>或直接填「起始時間」「結束時間」（可選到時分秒）。進頁時預設是「最近一小時」。</li><li>按「<strong>下載</strong>」。</li></ol>
+<p><strong>限制（重要）</strong>：</p>
+<div class="tw"><table><thead><tr><th>項目</th><th>值</th></tr></thead><tbody><tr><td>區間上限</td><td><strong>31 天</strong>（超過會被擋，訊息 <code>時間區間過長，請限制在 31 天內。</code>）</td></tr><tr><td>輸出大小上限</td><td><strong>200 MB</strong>（超過訊息 <code>選取範圍的日誌量過大，請縮小時間區間。</code>）</td></tr><tr><td>日誌保留期</td><td>NLog 每日輪替、<strong>保留 30 天</strong></td></tr></tbody></table></div>
+<p><strong>其他錯誤訊息</strong>：未選時間 <code>請選擇起始與結束時間。</code>；起訖顛倒 <code>起始時間不可晚於結束時間。</code>；非管理員 <code>您沒有權限下載系統日誌。</code>；伺服器未設路徑 <code>NLog:BasePath 未設定。</code></p>
+<blockquote><p>區間內沒有任何資料時，<strong>仍會下載一個空的日誌檔</strong>（不是錯誤）——這本身也是資訊：代表那段時間確實沒有符合的紀錄。</p></blockquote>
+<hr>
+<h2 id="四之四待處理背景工作-pipeline-jobs僅管理員1078-新增" class="t7">四之四、待處理背景工作 <code>/pipeline-jobs</code>（僅管理員，1.0.78 新增）</h2>
+<p><strong>進入路徑</strong>：系統管理 → 系統監控 → 待處理背景工作。首頁管理者專區第五張卡也可直達。</p>
+<p><strong>與「背景管線」健康項的分工</strong>（兩者常被混淆）：</p>
+<div class="tw"><table><thead><tr><th></th><th>看什麼</th><th>答得出什麼問題</th></tr></thead><tbody><tr><td><code>/system-health</code> 的「背景管線」項</td><td>8 條管線 ＋ 2 支寫入服務<strong>有沒有註冊／實例化</strong></td><td>「管線服務是不是根本沒起來？」</td></tr><tr><td>本頁</td><td>每條管線目前<strong>實際有幾筆在等、幾筆在跑</strong></td><td>「東西為什麼還沒好？是排在後面，還是卡住了？」</td></tr></tbody></table></div>
+<p>服務都註冊了（健康項綠燈）但使用者覺得慢，答案通常在本頁——前面排了一長串。</p>
+<p><strong>列出的內容</strong>：8 條管線「等待中／處理中」的工作（1.0.84 起新增「<strong>三元組抽取</strong>」，即知識圖譜的實體關係抽取），每 5 秒自動更新。同一筆知識來源最多出現四列（清洗／蒸餾／索引／三元組抽取是同一張表的四個階段）。</p>
+<p><strong>數字取自資料庫狀態，不是佇列長度</strong>。佇列是記憶體 <code>Channel</code>、讀取即消耗、無法列舉；而且佇列長度與實際狀態必然有落差（取出瞬間、取消之後、重啟之後都會不一致）。所以首頁卡片的數字永遠等於本頁的列數。</p>
+<p><strong>取消</strong>：兩種狀態都能取消。「等待中／排隊中」是把狀態改成「已取消」，背景服務之後取出該筆時會檢查狀態並跳過；「處理中／產生中」是對正在執行的工作發出取消訊號中斷它。兩者都不刪紀錄，取消後可到來源頁重新觸發。</p>
+<p><strong>沒有「全部取消」是刻意的</strong>：每條管線同時只處理一筆，全系統最多同時 8 筆在跑，批次能省的極少；而批次會放大「處理中」取消的競態窗口。</p>
+<h3 id="知識圖譜的兩項全域單例作業1095-起">知識圖譜的兩項「全域單例」作業（1.0.95 起）</h3>
+<p>除了上述 8 條 per-record 管線，本頁另會列出知識圖譜的兩項<strong>全域</strong>作業：</p>
+<div class="tw"><table><thead><tr><th>作業</th><th>誰觸發</th><th>成本</th></tr></thead><tbody><tr><td><strong>社群摘要重建</strong></td><td>管理員在「知識圖譜審核」頁頂按「重建社群摘要」</td><td><strong>每個社群一次 LLM</strong>（群數上限 <code>GraphMaxCommunities</code>，預設 50）</td></tr><tr><td><strong>LLM 別名建議</strong></td><td>管理員在「知識圖譜審核 → 實體合併」按「LLM 自動建議別名」</td><td>一次 LLM（送出的實體名上限 <code>GraphAliasNameCap</code>，預設 300）</td></tr></tbody></table></div>
+<ul><li>它們<strong>不屬於 8 條管線</strong>（<code>PipelineNames</code>）：因為是全域的、不對應任何單一紀錄，無法掛在某筆資料的狀態欄上，所以另以獨立的作業狀態表（<code>GraphJobState</code>）記錄，本頁一併呈現。</li><li>一樣可取消，服務重啟後未完成的作業會被撿回。</li><li>⚠️ <strong>取消不是立刻停</strong>：單次 LLM 呼叫進行中無法中斷，取消只在<strong>呼叫之間</strong>生效——按了取消卻看到它還在跑幾十秒是正常的。</li><li>⚠️ <strong>多台機器部署時</strong>，記憶體中的「正在建置」旗標只反映本機，<strong>本頁（資料庫）才是全域真相</strong>。</li></ul>
+<blockquote><p>圖譜的抽取狀態機、成本與參數見 <a href="../../docs/guides/knowledge-graph.html">知識圖譜（Graph RAG）使用指南 §五</a>。</p></blockquote>
+<hr>
+<h2 id="五建議的使用時機" class="t8">五、建議的使用時機</h2>
+<ul><li><strong>上線前</strong>：開 <code>/system-health</code> 確認整體綠燈、無紅項，再開放使用。</li><li><strong>出狀況時</strong>：先看健康頁找紅/黃項與證據 → 看頁底最後 100 筆日誌 → 不夠就到 <code>/log-download</code> 撈該時段完整日誌。</li><li><strong>例行巡檢</strong>：定期查看，特別是換機器、改設定、更新工具版本後；順手看一下 <code>/data-consistency</code> 有沒有累積孤兒/過時來源。</li><li><strong>改過素材或直接動過資料庫之後</strong>：一定要看 <code>/data-consistency</code>。</li><li><strong>自動化監控</strong>：用 <code>/health/ready</code>／<code>/health/live</code> 接你的監控/負載平衡器。</li></ul>
+<hr>
+<h2 id="六常見問題faq" class="t1">六、常見問題（FAQ）</h2>
+<div class="tw"><table><thead><tr><th>問題</th><th>說明</th></tr></thead><tbody><tr><td>進不了 <code>/system-health</code></td><td>僅管理員可見；用管理員帳號登入。</td></tr><tr><td>全綠但某功能仍失敗</td><td>健康檢查涵蓋常見依賴，仍可能有未涵蓋的執行期問題；看該功能錯誤訊息與日誌。</td></tr><tr><td>抖音助手紅/黃要不要理</td><td>它是選用項；不轉錄抖音可不處理。</td></tr><tr><td>探針端點看不到細節</td><td><code>/health/live</code>、<code>/health/ready</code> 刻意精簡；詳細診斷看 <code>/system-health</code>。</td></tr><tr><td>找不到「系統健康檢查」</td><td>頁名是「<strong>系統健康監控</strong>」，且在三層選單下：系統管理 → 系統監控 → 系統健康監控。</td></tr><tr><td>背景管線綠燈但功能卡住</td><td>該項<strong>只檢查服務有沒有註冊</strong>，不偵測卡死或佇列積壓。要看實際積壓請開 <strong><code>/pipeline-jobs</code>（待處理背景工作）</strong>——那頁列出 8 條管線目前等待中／處理中的每一筆；另可看各功能頁的狀態欄與 <code>/log-download</code> 的日誌。</td></tr><tr><td>RAG 檢索設定顯示的值與實際不符</td><td>該項讀 <code>appsettings.json</code>；<code>/rag-diagnostics</code> 的熱套用覆寫會蓋掉生效值。以 <code>/rag-diagnostics</code> 顯示的為準。</td></tr><tr><td>健康分數被某項拉低但那項我不需要</td><td>警示（黃）只扣一半權重。選用項（抖音助手、MCP 金鑰數為 0）通常是黃燈，可接受；不必為了衝分數硬補。</td></tr><tr><td>按了「重建社群摘要」，要去哪看進度</td><td><code>/pipeline-jobs</code>（待處理背景工作）。它與 8 條 per-record 管線並列，但屬<strong>全域單例</strong>作業，狀態存在獨立的作業狀態表。</td></tr><tr><td>取消了圖譜作業，為什麼它還在跑</td><td>單次 LLM 呼叫進行中無法中斷，取消只在<strong>呼叫之間</strong>生效。社群摘要重建是「每群一次 LLM」，所以要等當前那一群跑完才會真正停。</td></tr><tr><td>三元組抽取一直是「處理中」</td><td>先看該來源的錯誤訊息，再到 <code>/system-health</code> 確認「大語言模型可用性」。服務重啟時殘留的「處理中」會自動改回「等待中」重新排程，不會永久卡住。</td></tr><tr><td>日誌下載按了沒反應/檔案很小</td><td>先確認區間有資料；區間內無紀錄會下載<strong>空的</strong>日誌檔。超過 31 天或 200MB 會被擋並顯示訊息。</td></tr></tbody></table></div><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：問答結果不如預期，我要找出原因</li><li>知識庫管理者：上線之後的日常維運與盤點</li><li>導入顧問：客戶環境出問題，我要排查</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一為什麼需要">一、為什麼需要</a><a class="l2" href="#二系統健康監控-system-health僅管理員">二、系統健康監控 /system-health（僅管理員）</a><a class="l2" href="#三部署探針端點給容器負載平衡器">三、部署探針端點（給容器/負載平衡器）</a><a class="l2" href="#四常見紅黃項與對策">四、常見紅/黃項與對策</a><a class="l2" href="#四之二資料一致性巡檢-data-consistency僅管理員">四之二、資料一致性巡檢 /data-consistency（僅管理員）</a><a class="l3" href="#低比值來源是什麼為什麼要有這一項">低比值來源是什麼、為什麼要有這一項</a><a class="l2" href="#四之三日誌下載-log-download僅管理員">四之三、日誌下載 /log-download（僅管理員）</a><a class="l2" href="#四之四待處理背景工作-pipeline-jobs僅管理員1078-新增">四之四、待處理背景工作 /pipeline-jobs（僅管理員，1.0.78 新增）</a><a class="l3" href="#知識圖譜的兩項全域單例作業1095-起">知識圖譜的兩項「全域單例」作業（1.0.95 起）</a><a class="l2" href="#五建議的使用時機">五、建議的使用時機</a><a class="l2" href="#六常見問題faq">六、常見問題（FAQ）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/系統監控與健康檢查指南.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

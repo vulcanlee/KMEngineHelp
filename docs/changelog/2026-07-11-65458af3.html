@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日誌可診斷化強化：分級生效＋執行環境情境＋例外快照＋守則測試（0.3.22→0.3.23）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>日誌可診斷化強化：分級生效＋執行環境情境＋例外快照＋守則測試（0.3.22→0.3.23）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-11</li><li>版本：0.3.22 → 0.3.23</li><li>類型：可觀測性強化（延伸既有日誌標準，非重寫；無 migration）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>讓日誌能判斷系統是否如預期運作、問題發生時看到重要資訊與例外堆疊、把「當時程式運作環境」按等級寫入，且日後新程式碼一律遵循。系統已有成熟日誌標準（開發慣例速查 §1.1 三鐵則＋0.2.104 覆蓋），故本次<strong>補關鍵缺口</strong>而非機械式全面補日誌。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="分級真正生效debugtrace臨時切換">分級真正生效（Debug/Trace）＋臨時切換</h3>
+<ul><li>修正先前 <code>LogDebug</code> 被 NLog 二次過濾丟棄、<code>Trace</code> 全然不可見的問題：把「效果等級」的唯一有效開關集中到 NLog <code>*</code> 規則。</li><li><code>nlog.config</code>：應用層 <code>*</code> 規則加 <code>ruleName="AppCatchAll"</code>、<code>minlevel</code> 維持 <strong><code>info</code></strong>（＝預設效果等級）；因 <code>autoReload="true"</code>，改該行 <code>minlevel</code> 存檔即<strong>免重啟</strong>生效，改回 <code>info</code> 即恢復。</li><li><code>appsettings.json</code>／<code>appsettings.Development.json</code>：<code>Logging:LogLevel:Default</code> → <code>Trace</code>（MEL <strong>放行</strong>，把實際等級交給上述 NLog 規則；保留 <code>Microsoft.AspNetCore=Warning</code>）。</li><li><strong>管理員執行期切換畫面</strong>：新增 <code>Web/Diagnostics/ILogLevelController</code>＋<code>NLogLevelController</code>（以 <code>FindRuleByName("AppCatchAll")</code>＋<code>SetLoggingLevels</code>＋<code>ReconfigExistingLoggers</code> 執行期改等級，註冊為 Singleton）；新增頁 <code>/log-settings</code>（<code>LogSettingsPage</code>＋<code>LogSettingsView</code>，admin-only，下拉 Trace/Debug/Information/Warning/Error＋套用，立即生效）；<code>Menu.json</code> 群組「系統管理」新增子項（id 46「日誌等級」，<code>icon=tune</code>）。此切換為<strong>執行期暫時覆蓋</strong>——<code>nlog.config</code> 存檔（autoReload）或重啟後回到檔案預設（<code>info</code>）。</li></ul>
+<h3 id="執行環境情境scope系統環境">執行環境情境（scope）＋系統環境</h3>
+<ul><li>新增 <code>KnowledgeExtraction.Share.Helpers.LogScope</code>（建立 <code>BeginScope</code> 情境字典）與 <code>RuntimeEnvironmentInfo</code>（<code>StartupSummary</code>／<code>Snapshot</code>）。</li><li><code>nlog.config</code> layout（file/console）新增 <code>user=/op=/id=</code> 情境欄位（渲染 MEL scope 屬性；<code>TraceId</code> 既有）。</li><li>請求層 <code>UseHttpRequestLogging</code> 以 <code>BeginScope</code> 帶登入者＋操作；七條背景管線各帶 <code>Operation</code>＋<code>RecordId</code>（涵蓋其 Processor/Enhancer 日誌）。</li><li><code>Program.cs</code> 啟動記一行系統環境摘要（OS/Framework/機器/環境/版本/DB/LLM 提供者）。</li></ul>
+<h3 id="例外堆疊系統快照">例外堆疊＋系統快照</h3>
+<ul><li><code>ApiExceptionFilterAttribute</code>、<code>/Error</code> 頁：例外日誌加 <code>RuntimeEnvironmentInfo.Snapshot()</code>（機器/程序/記憶體/執行緒）。</li><li>新增 <code>LoggingErrorBoundary</code>（繼承 <code>ErrorBoundary</code>），於 <code>MainLayout</code> 包住內容區——Blazor 元件未處理例外now會 <code>LogError</code>＋快照並顯示友善畫面（先前無 <code>ErrorBoundary</code>、元件例外不落日誌）。</li></ul>
+<h3 id="補靜默-catch-與無日誌檔">補靜默 catch 與無日誌檔</h3>
+<ul><li><code>LlmGenerationService</code>／<code>DocumentLlmGenerationService</code> 舊檔刪除的空 <code>catch (IOException) {}</code> → 補 <code>LogDebug</code>。</li><li><code>SystemHealthService</code> 新增 <code>ILogger</code> 並於目錄可寫探測失敗記 <code>LogDebug</code>（原全檔無日誌）。</li><li>誠實記錄：<code>OpenAIChatCompletionClient.TryParseChunk</code>、<code>PipelineCancellationRegistry.TryCancel</code>、兩個 View 的 <code>ParseMetrics</code> 為 <strong>static／已加註解的非空 fallback</strong>，屬低價值高頻或已文件化，維持現狀（非空 catch、不觸犯守則）。</li></ul>
+<h3 id="守則測試">守則測試</h3>
+<ul><li>新增 <code>LoggingConventionTests</code>：掃 <code>src</code> 產品碼（排除 Tests/Migrations/自動產生/obj/bin），<strong>禁止空 <code>catch {}</code></strong>，違反即失敗並列 file:line。</li></ul>
+<h3 id="文件">文件</h3>
+<ul><li>擴充 <code>docs/architecture/開發慣例與限制速查.md</code> §1.1（Trace 語意、分級與臨時切換兩法、情境 scope＋啟動摘要＋例外快照、ErrorBoundary、守則測試）。</li><li>更新 <code>docs/operations/日誌與設定檔說明.md</code>（§2.1 預設 info＋兩種臨時開 Trace 方式、新增 §2.2 情境欄位與快照）。</li></ul>
+<h2 id="範圍決策誠實記錄" class="t3">範圍決策（誠實記錄）</h2>
+<ul><li><strong>不做全面機械式補日誌</strong>：既有覆蓋已廣（Warning 355/Info 317/Error 195/Debug 184），全面補會重複並違反「view 層不重複記錄」原則。</li><li>沿用三鐵則：不記金鑰/密碼/token/請求本文；情境 scope 僅放帳號/團隊名/操作/Id。</li><li>無 schema 變更 → 無 migration。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li><code>appsettings.json</code> SystemVersion 0.3.22 → 0.3.23。</li><li><code>nlog.config</code>、<code>appsettings.json</code>／<code>appsettings.Development.json</code>、<code>Program.cs</code>、<code>ApplicationBuilderExtensions</code>、<code>ApiExceptionFilterAttribute</code>、<code>MainLayout.razor</code>、<code>Error.razor</code>、7×BackgroundService、<code>SystemHealthService</code>、<code>LlmGenerationService</code>、<code>DocumentLlmGenerationService</code>、<code>ServiceCollectionExtensions</code>、<code>Menu.json</code>；新增 <code>LogScope</code>、<code>RuntimeEnvironmentInfo</code>、<code>LoggingErrorBoundary</code>、<code>LoggingConventionTests</code>、<code>ILogLevelController</code>／<code>NLogLevelController</code>、<code>LogSettingsPage</code>／<code>LogSettingsView</code>。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>dotnet build</code> 成功、<code>dotnet test</code> 綠燈（497 通過，含 <code>LoggingConventionTests</code>）。</li><li>Development 啟動：日誌出現「執行環境摘要」行、<code>LogDebug</code> 確實輸出、每筆含 <code>user=/op=/id=/TraceId</code>。</li><li>觸發例外：API/Blazor/MVC 皆記完整堆疊＋系統快照＋TraceId。</li><li>臨時開 Trace 兩法皆免重啟：(a) admin「系統管理 → 日誌等級」切 Trace → 看得到 Trace/Debug、切回 Information 恢復；(b) 改 <code>nlog.config</code> <code>*</code> 那行 <code>minlevel="Trace"</code> 存檔（autoReload）→ 生效、改回 <code>info</code> 恢復。</li><li>新增一個空 <code>catch {}</code> → <code>LoggingConventionTests</code> 失敗（守護有效）。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#分級真正生效debugtrace臨時切換">分級真正生效（Debug/Trace）＋臨時切換</a><a class="l3" href="#執行環境情境scope系統環境">執行環境情境（scope）＋系統環境</a><a class="l3" href="#例外堆疊系統快照">例外堆疊＋系統快照</a><a class="l3" href="#補靜默-catch-與無日誌檔">補靜默 catch 與無日誌檔</a><a class="l3" href="#守則測試">守則測試</a><a class="l3" href="#文件">文件</a><a class="l2" href="#範圍決策誠實記錄">範圍決策（誠實記錄）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-11-日誌可診斷化強化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

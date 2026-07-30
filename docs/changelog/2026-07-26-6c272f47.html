@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>選單舊名補漏與會議紀錄型素材修正（1.0.70）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>選單舊名補漏與會議紀錄型素材修正（1.0.70）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-26</li><li>版本：1.0.69 → 1.0.70</li><li>類型：顯示標籤補漏（無邏輯變更）＋<strong>資料損毀修正</strong>＋過時標記補漏＋腳手架腳本修正</li></ul>
+<h2 id="起因" class="t1">起因</h2>
+<p>盤點 <code>docs/guides/</code> 22 份文件與程式碼的落差時，發現兩組「加了新東西卻沒補齊所有相關處」的漏改，且都會實際影響使用者：</p>
+<ol><li><strong>1.0.58「畫面標籤與選單名稱統一」其實沒改完</strong>，但該份 changelog 的驗證段落卻寫「<code>grep</code> 確認程式中已無舊選單名作為顯示標籤（0 筆殘留）」。</li><li><strong>1.0.25 新增第四種素材型別「會議紀錄」時只補了兩處</strong>，漏掉的其中一處會造成<strong>真實資料損毀</strong>。</li></ol>
+<h2 id="一更正-1058-的不實驗證宣稱" class="t2">一、更正 1.0.58 的不實驗證宣稱</h2>
+<p><a href="../../docs/changelog/2026-07-25-7ce16ede.html">2026-07-25 畫面標籤與選單名稱統一</a> 的「驗證」第 2 點宣稱 0 筆殘留，<strong>這個結論是錯的</strong>。原因是該次採用的規則是「只改<strong>目前值剛好等於</strong>舊選單名」的標籤，於是下列同樣是使用者可見舊名的字串全被排除在 grep 之外：</p>
+<ul><li><strong>複合字串</strong>：<code>新增文件萃取</code>／<code>修改文件萃取</code>／<code>新增音訊轉錄</code>／<code>修改音訊轉錄</code>（值不等於 <code>文件萃取</code>，而是包含它）</li><li><strong>被引號包住的指路字串</strong>：<code>請至『知識來源管理清單』按『建立索引』</code></li><li><strong>從來不是選單名、但同樣過時的字串</strong>：<code>圖片辨識</code>（作業別／儀表板標籤）、<code>系統健康檢查</code>（此頁名從未存在，選單一直是「系統健康監控」）</li></ul>
+<p>另外 <code>KnowledgeSourceView.razor</code> 的「素材型別」下拉被列在該次的問題清單裡，但 <code>git log -L</code> 確認它<strong>從未被修改過</strong> —— 一直是 <code>音訊轉錄／文件萃取／圖片清單</code>。</p>
+<h2 id="二補完漏改的顯示字串10-檔-25-處" class="t3">二、補完漏改的顯示字串（10 檔 25 處）</h2>
+<p>沿用 1.0.57 <code>Menu.json</code> 的權威改名對照：<code>音訊轉錄→影音轉逐字稿</code>、<code>文件萃取→文件轉文字</code>、<code>圖片清單/圖片辨識→圖片解讀</code>、<code>知識庫問答→AI 知識問答</code>、<code>知識來源管理清單→知識來源加工</code>、<code>AI 聊天紀錄→問答稽核明細</code>、<code>對話總覽→完整對話紀錄</code>、<code>清洗設定檔→清洗規則設定</code>、<code>系統健康檢查→系統健康監控</code>。</p>
+<div class="tw"><table><thead><tr><th>檔案</th><th>內容</th></tr></thead><tbody><tr><td><code>Views/KnowledgeSources/KnowledgeSourceView.razor</code></td><td>素材型別下拉三個選項改新名（同畫面左欄成員清單早已用新名，這裡與它自相矛盾）</td></tr><tr><td><code>Views/ChatLogs/ChatLogsView.razor(.cs)</code></td><td>h2、說明文、篩選 option、<code>RoleMessage</code> 與存取拒絕日誌</td></tr><tr><td><code>Views/ChatSessions/ChatSessionsView.razor(.cs)</code></td><td>同上（<code>對話總覽</code> 正是 1.0.42 的舊選單名）</td></tr><tr><td><code>Views/KnowledgeBase/KnowledgeBaseChatView.razor</code></td><td>頁面標題 <code>知識庫問答</code> → <code>AI 知識問答</code></td></tr><tr><td><code>Views/CleaningProfiles/CleaningProfileViewView.razor.cs</code></td><td><code>modalTitle</code> 初值</td></tr><tr><td><code>Services/DataAccess/DashboardService.cs</code></td><td>統計卡／管線狀態／最新資料三處 <code>圖片辨識</code>（同一份 list 其他項 1.0.58 已改，只漏這三處）</td></tr><tr><td><code>Views/DocumentExtractions/DocumentExtractionView.razor.cs</code>&lt;br&gt;<code>Views/MediaTranscriptions/MediaTranscriptionView.razor.cs</code></td><td>新增／修改視窗標題各 2 處</td></tr><tr><td><code>Health/SystemHealthService.cs</code>&lt;br&gt;<code>Services/DataAccess/KnowledgeBaseChatService.cs</code>&lt;br&gt;<code>Services/DataAccess/RagDiagnosticsService.cs</code>&lt;br&gt;<code>Views/WikiPages/WikiPageView.razor</code></td><td>4 處指路字串 <code>知識來源管理清單</code> → <code>知識來源加工</code></td></tr><tr><td><code>Views/Projects/MeetingViewView.razor.cs</code></td><td><code>系統健康檢查</code> → <code>系統健康監控</code></td></tr></tbody></table></div>
+<p><strong>刻意不動</strong>：</p>
+<ul><li><code>KnowledgeSourceView.razor</code> 的 <code>會議紀錄</code> 選項 —— <code>ResolveTypeName(TypeMeeting)</code> 回傳的就是這個字，同畫面左欄也印它；且 1.0.57 的舊選單名是「會議<strong>記</strong>錄」，此處是「會議<strong>紀</strong>錄」，本來就不等於舊選單名。</li><li><code>MagicObjectHelper.角色_*</code> 常數<strong>值</strong>、<code>RolePermissionService</code> 權限樹字串、<code>LlmTokenUsage.Operation*</code> 常數值、<code>KnowledgeSourceItemAdapterModel.Type*</code> 常數值 —— 全是 DB 既存值，改了所有既有角色會掉權限。</li><li><code>ChatLogService.cs</code> 寫入稽核檔案的 <code># AI 聊天紀錄</code> 標題 —— 歷史檔案都是這個字，改了會讓新舊檔案標題分歧。</li><li>實體名詞用法（<code>工作項目</code>／<code>會議記錄</code>／<code>黃金評測樣本</code>／<code>RAG 評測樣本</code>／<code>清洗設定檔</code> 的 Service 訊息，約 30 處）—— 已記入 backlog 另批處理，理由見 <a href="../../docs/planning/08-todo-74ef467f.html">優化建議清單</a>。</li></ul>
+<h2 id="三資料一致性巡檢會刪掉正常的會議紀錄成員資料損毀" class="t4">三、資料一致性巡檢會刪掉正常的會議紀錄成員（資料損毀）</h2>
+<p><code>DataConsistencyService.GetReportAsync</code> 的 <code>existing</code> 字典只列了三種素材型別（註解也自承「比對三個素材表」），沒有 <code>TypeMeeting</code>。因此 <code>ItemType == "Meeting"</code> 時 <code>TryGetValue</code> 直接回 false → <strong>每一筆正常的會議紀錄成員都被判定為孤兒</strong>；而 <code>CleanupOrphansAsync</code> 會把報表上的孤兒全部 <code>RemoveRange</code>。</p>
+<p><strong>後果</strong>：管理員在「系統管理 → 系統監控與日誌 → 資料一致性巡檢」按一下「清除孤兒」，就會刪掉所有正常的會議紀錄成員，並把所屬知識來源標記為過時。</p>
+<p>同時 <code>GetSummaryAsync</code> 的 OR 條件也漏了 Meeting，造成儀表板顯示 0 筆孤兒、巡檢頁顯示 N 筆，兩邊互相矛盾。</p>
+<p><strong>修正</strong>：<code>existing</code> 補 <code>TypeMeeting</code>、<code>GetSummaryAsync</code> 補對應 OR 條件、修正註解「三個」→「四個」。</p>
+<h2 id="四編修刪除會議紀錄不會標記所屬來源過時" class="t5">四、編修／刪除會議紀錄不會標記所屬來源過時</h2>
+<p>音訊／文件／圖片三型在「編修素材文字」與「刪除素材」時都會呼叫 <code>KnowledgeSourceMaintenanceHelper.MarkOwningSourcesStaleAsync</code>，會議紀錄型漏了：</p>
+<ul><li><code>MeetingService.UpdateGeneratedContentAsync</code>：補 <code>removeOrphanItems: false</code>（成員保留，只標記過時）</li><li><code>MeetingService.DeleteAsync</code>：補 <code>removeOrphanItems: true</code>（清孤兒成員＋標記過時）</li><li>順帶補上該方法缺少的 <code>Directory.CreateDirectory</code>（原本目錄不存在時會丟 <code>DirectoryNotFoundException</code>，被 catch 吞掉只回「會議紀錄寫入失敗」）</li></ul>
+<p>判定依據是「有沒有寫回被 <code>KnowledgeSourceContentAggregator</code> 讀取的那個檔案」，也就是 <code>GeneratedContentRelativePath</code> 指向的 .md 全文；<strong><code>Summary</code>／<code>Decisions</code>／<code>Participants</code> 不進聚合內容</strong>，因此 <code>UpdateAsync</code>（只改中介資料）與 <code>ApplyGeneratedFieldsAsync</code> 刻意<strong>不</strong>標記過時，與另三型一致。</p>
+<h2 id="五腳手架密碼清洗失效安全" class="t6">五、腳手架密碼清洗失效（安全）</h2>
+<p><code>scripts/New-StarterProject.ps1</code> 的清洗與安全檢查都比對固定字串 <code>'"SupportPassword": "support"'</code>，但 <code>appsettings.json</code> 的實際值早已不是 <code>support</code> → <strong>取代永遠不命中、安全檢查永遠不警告</strong>。而 <code>Program.cs</code> 每次啟動都會用 <code>BootstrapSettings.SupportPassword</code> 重設 support 帳號的密碼雜湊，等於每個 scaffold 出來的專案都內建一組已知管理帳密。</p>
+<p>修正內容：</p>
+<ul><li>清洗改為<strong>以鍵名為準的 regex</strong>（<code>("Key"\s*:\s*)"…"</code>），用 <code>MatchEvaluator</code> 而非取代字串（避免密碼含 <code>$</code> 被當成 <code>$1</code>）；涵蓋 <code>SupportPassword</code>、<code>SupportEmail</code>、<code>SigningKey</code>（取代值 ≥32 字元，因 <code>JwtSettings.SigningKey</code> 有 <code>[MinLength(32)]</code>）。</li><li>安全檢查改為「讀回值是否等於預期佔位值」，清洗沒生效就會警告。</li><li>檔名比對放寬為 <code>appsettings*.json</code>。</li><li><strong>修掉 BOM 副作用</strong>：原本 <code>Set-Content -Encoding UTF8</code> 在 PowerShell 7 是「無 BOM」，會剝掉 <code>docs/</code> 下所有 .md 的 BOM，導致 scaffold 出來的專案第一次跑 <code>Test-DocsEncoding.ps1</code> 就整批 FAILED。改用 <code>File.ReadAllBytes</code>／<code>WriteAllText</code> <strong>逐檔保留原本的 BOM 有無</strong>。</li><li><strong>修掉巢狀排除目錄未生效</strong>：<code>$excludedDirectories</code> 原本只過濾最上層，巢狀的 <code>src/&lt;方案&gt;/.vs</code> 會被一併複製，而 <code>.vsidx</code> 在 Visual Studio 開著時是鎖定的 → 腳本在複製階段就崩潰，根本走不到密碼清洗。改為逐檔複製並過濾任何層級。</li></ul>
+<h2 id="影響範圍" class="t7">影響範圍</h2>
+<ul><li>10 個檔案的顯示字串；<code>DataConsistencyService</code>、<code>MeetingService</code>、<code>KnowledgeSourceMaintenanceHelper</code>；<code>scripts/New-StarterProject.ps1</code>。</li><li>無資料庫 migration、無 API 合約變更。</li><li>新增測試檔 <code>Tests/MeetingKnowledgeSourceStaleTests.cs</code>（6 條）、<code>Tests/DataConsistencyTests.cs</code> 增 2 條。</li><li><code>docs/architecture/開發慣例與限制速查.md</code> §1.2 新增不變量：<strong>新增 <code>ItemType</code> 型別必須同步 4 處</strong>。</li><li><code>appsettings.json</code> <code>SystemVersion</code> 1.0.69 → 1.0.70。</li></ul>
+<h2 id="驗證" class="t8">驗證</h2>
+<ol><li><code>dotnet build KnowledgeExtraction.slnx</code> 成功。</li><li><code>dotnet test</code>：<strong>653 → 661 全數通過、0 失敗</strong>。</li><li>新測試先驗「修好前必紅」：還原 <code>DataConsistencyService</code> 後 2 條紅（報表 2 筆孤兒 vs 摘要 0 筆，正是那個矛盾）；還原 <code>MeetingService</code> 後 6 條中 3 條紅（3 條「不該標記」的守護測試前後皆綠）。</li><li>既有斷言回歸：<code>MenuPermissionAlignmentTests</code>／<code>OperationLabelTests</code>／<code>ChatReportServiceTests</code> 皆未受影響。</li><li><code>pwsh -File scripts/Test-DocsEncoding.ps1</code>：0 FAILED。</li><li>腳手架實測：<code>SupportPassword</code> 已清洗為 <code>change-me</code>、原密碼 0 筆殘留、JSON 仍可解析、<code>SigningKey</code> 70 字元；scaffold 專案的 <code>Test-DocsEncoding.ps1</code> 0 FAILED；<code>.vs</code>/<code>bin</code>/<code>obj</code>/<code>.git</code> 皆未複製；<code>dotnet build</code> 成功。</li><li>殘留 grep：舊選單名只剩上述「刻意不動」項。</li></ol>
+<h2 id="後續" class="t1">後續</h2>
+<p><code>docs/guides/</code> 22 份文件的全量對版同步（約 130 項，含 12 項會誤導或讓操作失敗的實質錯誤）尚未進行，將於後續版本處理。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#起因">起因</a><a class="l2" href="#一更正-1058-的不實驗證宣稱">一、更正 1.0.58 的不實驗證宣稱</a><a class="l2" href="#二補完漏改的顯示字串10-檔-25-處">二、補完漏改的顯示字串（10 檔 25 處）</a><a class="l2" href="#三資料一致性巡檢會刪掉正常的會議紀錄成員資料損毀">三、資料一致性巡檢會刪掉正常的會議紀錄成員（資料損毀）</a><a class="l2" href="#四編修刪除會議紀錄不會標記所屬來源過時">四、編修／刪除會議紀錄不會標記所屬來源過時</a><a class="l2" href="#五腳手架密碼清洗失效安全">五、腳手架密碼清洗失效（安全）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a><a class="l2" href="#後續">後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-26-選單舊名補漏與會議紀錄型素材修正.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

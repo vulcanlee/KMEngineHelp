@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAG 評測基線快照（EVAL-1）＋查詢期參數化 UI（EVAL-5）（0.3.8→0.3.9）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>RAG 評測基線快照（EVAL-1）＋查詢期參數化 UI（EVAL-5）（0.3.8→0.3.9）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-09</li><li>版本：0.3.8 → 0.3.9</li><li>類型：新增功能（RAG 補強清單）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>補齊補強清單兩項互補 P1：<strong>EVAL-1</strong>（RAG 評測基線）與 <strong>EVAL-5</strong>（參數化設定 UI）。EVAL-5 提供「可熱套用的調參手段」，EVAL-1 的基線快照提供「量測調參是否變好的尺規」，兩者合成「調參—量測」閉環。</p>
+<ul><li><strong>EVAL-5 現況缺口</strong>：<code>/rag-diagnostics</code> 僅兩段式門檻可熱套用（0.3.3）；TopK／CandidateTopK／融合權重／MinScore 只能改 appsettings 重啟，且 <code>RetrievalService</code> 直接吃 <code>IOptions&lt;SystemSettings&gt;</code> 不走 provider。</li><li><strong>EVAL-1 現況缺口</strong>：<code>/rag-evaluation</code> 頁面與服務已完整，但評測結果<strong>只保留最近一次</strong>（覆寫 <code>LastMetricsJson</code>），無法凍結基線、無法量測前後差異。</li></ul>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="資料層雙-migration-addevalparamoverrideandbaseline">資料層（雙 migration <code>AddEvalParamOverrideAndBaseline</code>）</h3>
+<ul><li>新增 <code>RetrievalParamOverride</code>（單列覆蓋表：<code>TopK?</code>／<code>CandidateTopK?</code>／<code>VectorWeight?</code>／<code>KeywordWeight?</code>／<code>MinScore?</code>／<code>UpdatedAt</code>／<code>UpdatedBy</code>）——<strong>與門檻表 <code>RetrievalSettingOverride</code> 分表</strong>，避免兩者「回復預設」互相清除。</li><li>新增 <code>RagEvalBaseline</code>（單列基線表：<code>Label</code>／<code>CapturedAt</code>／<code>EvaluatedCount</code>／<code>AggregateJson</code>／<code>ParamsJson</code>／<code>CapturedBy</code>）。</li><li>Sqlite 與 SqlServer 各一份 migration + 兩 snapshot。</li></ul>
+<h3 id="商業層">商業層</h3>
+<ul><li><code>IRetrievalSettingsProvider</code> 擴充查詢期參數：新 record <code>EffectiveRetrievalParams</code> + <code>GetEffectiveParamsAsync</code>／<code>SetParamsAsync</code>／<code>ClearParamsAsync</code>（解析「DB 覆蓋 → appsettings → 預設」；驗證 <code>TopK≥1</code>、<code>CandidateTopK≥TopK</code>、權重與 MinScore ∈ [0,1]）。門檻方法與 <code>RetrievalSettingOverride</code> 保持不動。</li><li><strong><code>RetrievalService</code> 改走 provider</strong>：由建構式直接吃 <code>IOptions&lt;SystemSettings&gt;</code> 改為每次檢索 <code>GetEffectiveParamsAsync()</code> 即時解析 → TopK／CandidateTopK／權重／MinScore <strong>熱生效</strong>（免重啟）。融合、權控、切詞邏輯不動。</li><li><code>RagDiagnosticsService</code>：新增 <code>GetEffectiveParamsAsync</code>／<code>ApplyParamsAsync</code>／<code>ResetParamsAsync</code>（委派 provider）。</li><li><code>RagEvaluationService</code>：新增 <code>SaveBaselineAsync</code>（upsert 單列，快照當下彙總＋生效參數/門檻）／<code>GetBaselineAsync</code>；注入 <code>IRetrievalSettingsProvider</code> 以擷取參數。</li><li>純函式 <code>RagEvalComparer</code>：<code>Compare(current, baseline)</code> 逐指標算 delta 與進步方向（越權洩漏／延遲為「越低越好」）。</li></ul>
+<h3 id="ui-層">UI 層</h3>
+<ul><li><code>/rag-diagnostics</code>（<code>RagDiagnosticsView</code>）：新增「查詢期檢索參數」區塊——TopK／CandidateTopK／VectorWeight／KeywordWeight／MinScore 輸入 + 套用／回復預設 + 現值與覆蓋狀態；明示切塊參數須重建索引、不納入熱套用。</li><li><code>/rag-evaluation</code>（<code>RagEvaluationView</code>）：新增「設為基線」（可命名）與「目前 vs 基線」逐指標 delta 比較面板（進步綠／退步紅）。</li></ul>
+<h3 id="測試">測試</h3>
+<ul><li>更新 <code>RetrievalServiceTests</code>／<code>RagEvaluationServiceTests</code>／<code>KnowledgeBaseChatServiceTests</code> 建構式（RetrievalService 改注入 provider；RagEvaluationService 增 provider 參數）。</li><li>新增 <code>RetrievalParamOverrideTests</code>（解析／upsert／清除不影響門檻／驗證 5 例）、<code>RagEvalComparerTests</code>（delta 與方向）、<code>RetrievalServiceTests</code> 熱套用一例、<code>RagEvaluationServiceTests</code> 基線 round-trip／upsert／空樣本擋下。</li><li>全測試 <strong>461 通過、0 失敗</strong>。</li></ul>
+<h2 id="範圍決策誠實記錄" class="t3">範圍決策（誠實記錄）</h2>
+<ul><li><strong>EVAL-5 僅查詢期參數</strong>：切塊三參數改動須重建索引才生效，與查詢期熱套用性質不同，本次不納入（維持 appsettings）。</li><li><strong>EVAL-1 輕量單一基線</strong>：僅保留一份基線（upsert 覆寫），非完整 run 歷史。足以量測「調參前後」；多版本歷史/趨勢留待日後（可對應 EVAL-9 觀測性）。</li><li><strong>基線數字仍需維運資料工作</strong>：程式交付的是「快照＋比較機制」，種子樣本只是範本，正式基線需沉澱代表性問句並實跑。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>進度：EVAL-1 ✅、EVAL-5 ✅ 完成。詳見 <code>docs/planning/12-...</code> §〇。</li><li>同步更新 <code>docs/guides/檢索品質評測使用指南.md</code>、<code>docs/operations/RAG問題診斷手冊.md</code>、<code>docs/planning/12-RAG系統補強總彙整與優先序.md</code>。</li><li><code>appsettings.json</code> SystemVersion 0.3.8 → 0.3.9；需套用雙 migration。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>dotnet build</code> 成功、<code>dotnet test</code> 綠燈（461 通過）。</li><li>手動 EVAL-5：<code>/rag-diagnostics</code> 把 TopK 調小套用 → <code>/rag-evaluation</code> 評測確認回傳數變少（免重啟）→ 回復預設；錯誤輸入被擋。</li><li>手動 EVAL-1：評測全部 → 設為基線 → 調參重跑 → 比較面板顯示 delta。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#資料層雙-migration-addevalparamoverrideandbaseline">資料層（雙 migration AddEvalParamOverrideAndBaseline）</a><a class="l3" href="#商業層">商業層</a><a class="l3" href="#ui-層">UI 層</a><a class="l3" href="#測試">測試</a><a class="l2" href="#範圍決策誠實記錄">範圍決策（誠實記錄）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-09-EVAL評測基線與查詢期參數化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

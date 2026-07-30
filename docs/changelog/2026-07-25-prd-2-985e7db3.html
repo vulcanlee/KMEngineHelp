@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRD 核對：第 2 段 — 知識庫與評測（1.0.62）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>PRD 核對：第 2 段 — 知識庫與評測（1.0.62）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/25</li><li>版本：1.0.61 → <strong>1.0.62</strong></li><li>範圍：<code>docs/prd/</code> 的 13 份「知識庫與評測」PRD</li><li>程式異動：無（僅 <code>appsettings.json</code> 版本號）</li></ul>
+<h2 id="一背景" class="t1">一、背景</h2>
+<p><code>docs/</code> 全庫稽核的第 4 批（PRD 核對）分三段進行。本次為<strong>第 2 段</strong>，處理知識庫主線與評測相關的 13 份 PRD：</p>
+<p><code>知識來源管理</code>、<code>資料清洗與品質保證</code>、<code>清洗設定檔</code>、<code>知識蒸餾</code>、<code>知識瀏覽與Wiki導覽</code>、<code>知識庫問答</code>、<code>知識來源AI對話</code>、<code>嵌入索引與混合檢索</code>、<code>黃金評測</code>、<code>RAG評測</code>、<code>RAG診斷與查詢期調校</code>、<code>資料版本時效性與一致性生命週期</code>、<code>PDF型RAG處理</code>。</p>
+<p>第 1 段的實測結論是：對 PRD 做自動化識別字比對的投報率低（651 個候選只有 2 個真需修正），而真正的問題多半自動化抓不到。因此本段改以<strong>人工逐條核對為主、腳本為輔</strong>，重點放在四件事：「規劃中」的宣稱是否仍成立、參數與門檻預設值、狀態機的狀態值、文件內自相矛盾。</p>
+<h2 id="二內容勘誤" class="t2">二、內容勘誤</h2>
+<h3 id="21-pdf型rag處理-prdmd補上-1054-的-llm-轉換路徑">2.1 <code>PDF型RAG處理-prd.md</code>：補上 1.0.54 的 LLM 轉換路徑</h3>
+<p>原文的「本系統現況（基準）」段寫「PDF 可經 <code>markitdown</code> 轉成單一 Markdown……尚無表格／圖表感知」，這在 1.0.54 之後已不完整——<code>MarkItDownSettings:PdfUseLlm</code> 開啟後，PDF 改走 LLM 轉 Markdown，內建提示詞明確要求保留表格語法、以描述段落表達圖片與圖表。</p>
+<p>本次於 §1.1 新增「1.0.54 起的部分進展」段落，說明這條路徑解決了本 PRD「<strong>讀懂</strong>」面向的一部分，並明列它<strong>未</strong>涵蓋的範圍：</p>
+<ul><li>沒有 PDF 類型判斷（原生文字型／掃描型／圖文混排）與 OCR 分流</li><li>沒有頁碼、章節、條款編號等版面座標與定位資訊</li><li>產出仍是單一 Markdown，沒有結構化 chunk metadata</li><li>因此仍無法做到「答得出來源在哪一頁、哪一條」的可追溯引用</li></ul>
+<p>文件狀態據此由「設計藍圖」調整為「<strong>部分實作＋設計藍圖</strong>」，藍圖主體維持未實作。</p>
+<h3 id="22-已移除功能殘留">2.2 已移除功能殘留</h3>
+<p><code>資料版本時效性與一致性生命週期-prd.md</code>：「清洗、Wiki、索引與<strong>技能</strong>產物」——「技能」為已移除功能，改為「LLM 生成產物」。</p>
+<h3 id="23-選單新名造成的語意破壞修正">2.3 選單新名造成的語意破壞修正</h3>
+<p>全庫選單改名套用到本段 13 份 PRD 後，有 6 處因機械替換而語意失真，已逐一改寫：</p>
+<div class="tw"><table><thead><tr><th>檔案</th><th>問題</th><th>處置</th></tr></thead><tbody><tr><td><code>RAG診斷與查詢期調校-prd.md</code></td><td>標題成為「檢索診斷與調校<strong>與查詢期調校</strong>」</td><td>改為「檢索診斷與查詢期調校 PRD」</td></tr><tr><td><code>嵌入索引與混合檢索-prd.md</code></td><td>同上（連結文字）</td><td>同上</td></tr><tr><td><code>知識庫問答-prd.md</code></td><td>「調校由 檢索診斷與調校 PRD」多餘空白</td><td>移除</td></tr><tr><td><code>PDF型RAG處理-prd.md</code></td><td>「出處與 檢索品質評測」多餘空白</td><td>移除</td></tr><tr><td><code>PDF型RAG處理-prd.md</code></td><td>「知識蒸餾<strong>為</strong> Wiki 實體頁」的動詞用法被換成頁面名</td><td>改為「蒸餾為 Wiki 實體頁（知識頁審核）」</td></tr><tr><td><code>知識來源管理-prd.md</code></td><td>「往後做<strong>清洗與蒸餾</strong>」被換成群組名「知識庫」</td><td>還原為原動詞語意</td></tr></tbody></table></div>
+<p>用語原則沿用批次 3：<strong>頁面／群組名一律用新名，動詞與流程階段用語維持原詞</strong>（如「蒸餾」「清洗」）。</p>
+<h2 id="三查證結論未變更文件者" class="t3">三、查證結論（未變更文件者）</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>結論</th></tr></thead><tbody><tr><td>參數與門檻</td><td>13 份中提及 <code>TopK</code>/<code>CandidateTopK</code>/<code>VectorWeight</code>/<code>KeywordWeight</code>/<code>MinScore</code>/<code>RejectThreshold</code>/<code>LowConfidenceThreshold</code>/<code>Chunk*Chars</code>/<code>ConfidenceThreshold</code>/<code>EmbeddingDimensions</code> 之處，逐一比對 <code>appsettings.json</code> 後<strong>全部相符</strong>；腳本標記的 9 行皆為誤判（清單序號、有效區間敘述、模型名 <code>gpt-5.4-mini</code> 被誤讀為數值）</td></tr><tr><td>狀態機</td><td>清洗 8 狀態、蒸餾 6 狀態、索引 6 狀態與各 <code>*AdapterModel</code> 常數<strong>逐字相符</strong></td></tr><tr><td>「規劃中」宣稱</td><td>逐項查證仍未實作：專用 re-ranker（另有 <code>RAG-rerank是否導入分析.md</code> 明確結論不導入）、跨概念關係圖、線上 A/B 實驗、跨租戶索引隔離、跨版本內容差異檢視、LLM 輔助自動歸群</td></tr><tr><td>權限值</td><td><code>角色_*</code> 常數值全數未變動（權限以名稱字串存於 <code>RoleView.TabViewJson</code>，改值等同清空既有角色權限）</td></tr></tbody></table></div>
+<h2 id="四中繼資料" class="t4">四、中繼資料</h2>
+<p>13 份 PRD 標頭統一更新：<code>現行系統版本</code> → <code>1.0.62</code>、<code>最後核對日期</code> → <code>2026/07/25</code>。</p>
+<h2 id="五後續" class="t5">五、後續</h2>
+<ul><li>批次 4 第 3 段：基礎資料與系統管理 PRD（12 份，含重建 <code>prd/README.md</code> 覆蓋矩陣）</li><li>批次 5：重複文件合併與歸檔</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景">一、背景</a><a class="l2" href="#二內容勘誤">二、內容勘誤</a><a class="l3" href="#21-pdf型rag處理-prdmd補上-1054-的-llm-轉換路徑">2.1 PDF型RAG處理-prd.md：補上 1.0.54 的 LLM 轉換路徑</a><a class="l3" href="#22-已移除功能殘留">2.2 已移除功能殘留</a><a class="l3" href="#23-選單新名造成的語意破壞修正">2.3 選單新名造成的語意破壞修正</a><a class="l2" href="#三查證結論未變更文件者">三、查證結論（未變更文件者）</a><a class="l2" href="#四中繼資料">四、中繼資料</a><a class="l2" href="#五後續">五、後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-PRD核對第2段-知識庫與評測.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

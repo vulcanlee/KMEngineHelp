@@ -1,0 +1,1663 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>提示詞清單（Prompt）管理頁面 Implementation Plan｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../../index.html">角色首頁</a>
+    <a href="../../../all-docs.html">全部文件</a>
+    <a href="../../../search.html">搜尋</a>
+    <a href="../../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../../all-docs.html">全部文件</a> ／ superpowers/plans</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">superpowers/plans</div><h1>提示詞清單（Prompt）管理頁面 Implementation Plan</h1></header><div class="docwrap"><main><blockquote><p><strong>Archived historical implementation plan:</strong> 本檔保留當時 agent 執行計畫與脈絡；下列步驟不再作為目前 backlog 追蹤。</p></blockquote>
+<p><strong>Goal:</strong> 新增一個「提示詞清單」CRUD 管理頁面，位於側邊選單「資料定義」群組，供使用者集中維護可重複使用的 LLM 提示詞。</p>
+<p><strong>Architecture:</strong> 與既有「分類清單(Category)」同構的垂直切片（Entity → Repository → Service → Controller → DTO → AdapterModel → Blazor View），唯一資料差異是多一個「提示詞本文」(<code>Content</code>) 長文字欄位。不套用團隊權控（與分類/團隊清單一致，屬全系統共用資料定義）。預設依 <code>UpdatedAt</code> 由新到舊排序，名稱唯一（Trim + 忽略大小寫，編輯排除自身）。</p>
+<p><strong>Tech Stack:</strong> .NET 10、Blazor Server、Ant Design Blazor、EF Core（Sqlite + SQL Server 雙 provider）、AutoMapper、xUnit。</p>
+<p><strong>參考 PRD:</strong> <code>docs/prd/提示詞清單-prd.md</code></p>
+<hr>
+<h2 id="file-structure" class="t1">File Structure</h2>
+<p><strong>新增檔案：</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/Models/Prompt.cs</code> — EF Core 實體</li><li><code>KnowledgeExtraction.Models/AdapterModel/PromptAdapterModel.cs</code> — Blazor 綁定模型</li><li><code>KnowledgeExtraction.Dtos/Models/PromptDto.cs</code>、<code>PromptCreateUpdateDto.cs</code> — API DTO</li><li><code>KnowledgeExtraction.Dtos/Commons/PromptSearchRequestDto.cs</code> — 搜尋請求</li><li><code>KnowledgeExtraction.Business/Repositories/PromptRepository.cs</code> — 資料存取</li><li><code>KnowledgeExtraction.Business/Services/DataAccess/PromptService.cs</code> — Blazor 用服務</li><li><code>KnowledgeExtraction.Web/Controllers/PromptController.cs</code> — Web API</li><li><code>KnowledgeExtraction.Web/Components/Pages/Prompts/PromptPage.razor</code> — 頁面殼</li><li><code>KnowledgeExtraction.Web/Components/Views/Prompts/PromptViewView.razor</code>（<code>.razor.cs</code>、<code>.razor.css</code>）— 檢視元件</li><li><code>KnowledgeExtraction.Tests/PromptServiceTests.cs</code> — 服務測試</li><li>EF migration：<code>KnowledgeExtraction.AccessDatas/Migrations/*_AddPrompt.cs</code>（Sqlite）與 <code>KnowledgeExtraction.AccessDatas.SqlServerMigrations/Migrations/*_AddPrompt.cs</code>（SqlServer）</li></ul>
+<p><strong>修改檔案：</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/BackendDBContext.cs</code> — 新增 <code>DbSet&lt;Prompt&gt;</code></li><li><code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code> — 新增 Prompt 映射</li><li><code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs</code> — DI 註冊</li><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code> — 新增權限常數</li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code> — 權限群組</li><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code> — 選單</li><li><code>KnowledgeExtraction.Web/appsettings.json</code> — 版本號 +1</li></ul>
+<blockquote><p>所有路徑相對於 <code>src/KnowledgeExtraction/</code>。新增程式碼檔一律 UTF-8 繁體中文、不得有亂碼。</p></blockquote>
+<hr>
+<h2 id="task-1-prompt-實體adaptermodeldbset-與-automapper-映射" class="t2">Task 1: Prompt 實體、AdapterModel、DbSet 與 AutoMapper 映射</h2>
+<p>建立資料定義與映射，讓後續 Service 測試可編譯與執行（測試用 SQLite in-memory + <code>EnsureCreatedAsync</code>，依模型建表，不需 migration）。</p>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.AccessDatas/Models/Prompt.cs</code></li><li>Create: <code>KnowledgeExtraction.Models/AdapterModel/PromptAdapterModel.cs</code></li><li>Modify: <code>KnowledgeExtraction.AccessDatas/BackendDBContext.cs:28</code>（在 <code>DbSet&lt;Team&gt;</code> 之後）</li><li>Modify: <code>KnowledgeExtraction.Business/Models/AutoMapping.cs:93</code>（在 Category region 之後）</li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 建立 Prompt 實體</strong></li></ul>
+<p>Create <code>KnowledgeExtraction.AccessDatas/Models/Prompt.cs</code>:</p>
+<pre><code>using System.ComponentModel.DataAnnotations;
+
+namespace KnowledgeExtraction.AccessDatas.Models;
+
+public class Prompt
+{
+    public int Id { get; set; }
+
+    [Required(ErrorMessage = "提示詞名稱 不可為空白")]
+    public string Name { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "提示詞本文 不可為空白")]
+    public string Content { get; set; } = string.Empty;
+
+    public string? Description { get; set; }
+
+    public bool IsEnabled { get; set; } = true;
+
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 建立 PromptAdapterModel</strong></li></ul>
+<p>Create <code>KnowledgeExtraction.Models/AdapterModel/PromptAdapterModel.cs</code>:</p>
+<pre><code>using System.ComponentModel.DataAnnotations;
+
+namespace KnowledgeExtraction.Models.AdapterModel;
+
+public class PromptAdapterModel : ICloneable
+{
+    public int Id { get; set; }
+
+    [Required(ErrorMessage = "提示詞名稱 不可為空白")]
+    [StringLength(100, ErrorMessage = "提示詞名稱長度不可超過 100 字元")]
+    public string Name { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "提示詞本文 不可為空白")]
+    [StringLength(8000, ErrorMessage = "提示詞本文長度不可超過 8000 字元")]
+    public string Content { get; set; } = string.Empty;
+
+    [StringLength(2000, ErrorMessage = "描述長度不可超過 2000 字元")]
+    public string? Description { get; set; }
+
+    public bool IsEnabled { get; set; } = true;
+
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+
+    public PromptAdapterModel Clone()
+    {
+        return ((ICloneable)this).Clone() as PromptAdapterModel ?? new PromptAdapterModel();
+    }
+
+    object ICloneable.Clone()
+    {
+        return MemberwiseClone();
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: 在 BackendDBContext 註冊 DbSet</strong></li></ul>
+<p>Modify <code>KnowledgeExtraction.AccessDatas/BackendDBContext.cs</code> — 在第 28 行 <code>public virtual DbSet&lt;Team&gt; Team { get; set; }</code> 之後新增：</p>
+<pre><code>    public virtual DbSet&lt;Team&gt; Team { get; set; }
+    public virtual DbSet&lt;Prompt&gt; Prompt { get; set; }</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4: 新增 AutoMapper 映射</strong></li></ul>
+<p>Modify <code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code> — 在 <code>#region Category ... #endregion</code>（第 86-93 行）之後新增：</p>
+<pre><code>        #region Prompt
+        CreateMap&lt;Prompt, PromptAdapterModel&gt;();
+        CreateMap&lt;PromptAdapterModel, Prompt&gt;();
+        CreateMap&lt;Prompt, PromptDto&gt;();
+        CreateMap&lt;PromptDto, Prompt&gt;();
+        CreateMap&lt;Prompt, PromptCreateUpdateDto&gt;();
+        CreateMap&lt;PromptCreateUpdateDto, Prompt&gt;();
+        #endregion</code></pre>
+<blockquote><p>注意：此 region 引用了 <code>PromptDto</code> / <code>PromptCreateUpdateDto</code>，這兩個型別於 Task 4 建立。本步驟先只加入 <code>Prompt ↔ PromptAdapterModel</code> 兩行使其可編譯，DTO 兩組映射待 Task 4 一併補上。<strong>改為先寫：</strong></p>
+<pre><code>        #region Prompt
+        CreateMap&lt;Prompt, PromptAdapterModel&gt;();
+        CreateMap&lt;PromptAdapterModel, Prompt&gt;();
+        #endregion</code></pre></blockquote>
+<ul><li>（歷史步驟）<strong>Step 5: 建置確認可編譯</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.sln</code> Expected: Build succeeded（0 Error）</p>
+<ul><li>（歷史步驟）<strong>Step 6: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas/Models/Prompt.cs src/KnowledgeExtraction/KnowledgeExtraction.Models/AdapterModel/PromptAdapterModel.cs src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas/BackendDBContext.cs src/KnowledgeExtraction/KnowledgeExtraction.Business/Models/AutoMapping.cs
+git commit -m "feat: 新增 Prompt 實體、AdapterModel、DbSet 與 AutoMapper 映射"</code></pre>
+<hr>
+<h2 id="task-2-promptservicetdd" class="t3">Task 2: PromptService（TDD）</h2>
+<p>比照 <code>CategoryService</code>，提供 Blazor 用查詢/新增/編輯/刪除與名稱唯一性前置檢查。先寫失敗測試，再實作。</p>
+<p><strong>Files:</strong></p>
+<ul><li>Test: <code>KnowledgeExtraction.Tests/PromptServiceTests.cs</code></li><li>Create: <code>KnowledgeExtraction.Business/Services/DataAccess/PromptService.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 寫失敗測試</strong></li></ul>
+<p>Create <code>KnowledgeExtraction.Tests/PromptServiceTests.cs</code>:</p>
+<pre><code>using AutoMapper;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using KnowledgeExtraction.AccessDatas;
+using KnowledgeExtraction.AccessDatas.Models;
+using KnowledgeExtraction.Business.Services.DataAccess;
+using KnowledgeExtraction.Models.AdapterModel;
+using KnowledgeExtraction.Models.Systems;
+
+namespace KnowledgeExtraction.Tests;
+
+public sealed class PromptServiceTests
+{
+    [Fact]
+    public async Task BeforeAddCheckAsync_WithDuplicateNameIgnoringCaseAndWhitespace_ShouldFail()
+    {
+        await using var fixture = await PromptServiceFixture.CreateAsync();
+        await fixture.AddPromptAsync("會議紀錄提示詞");
+        var service = fixture.CreateService();
+
+        var result = await service.BeforeAddCheckAsync(new PromptAdapterModel { Name = "  會議紀錄提示詞  ", Content = "x" });
+
+        Assert.False(result.Success);
+    }
+
+    [Fact]
+    public async Task BeforeAddCheckAsync_WithDuplicateNameDifferentCase_ShouldFail()
+    {
+        await using var fixture = await PromptServiceFixture.CreateAsync();
+        await fixture.AddPromptAsync("Alpha");
+        var service = fixture.CreateService();
+
+        var result = await service.BeforeAddCheckAsync(new PromptAdapterModel { Name = "alpha", Content = "x" });
+
+        Assert.False(result.Success);
+    }
+
+    [Fact]
+    public async Task BeforeAddCheckAsync_WithUniqueName_ShouldSucceed()
+    {
+        await using var fixture = await PromptServiceFixture.CreateAsync();
+        await fixture.AddPromptAsync("會議紀錄提示詞");
+        var service = fixture.CreateService();
+
+        var result = await service.BeforeAddCheckAsync(new PromptAdapterModel { Name = "工作待辦提示詞", Content = "x" });
+
+        Assert.True(result.Success);
+    }
+
+    [Fact]
+    public async Task BeforeUpdateCheckAsync_KeepingOwnName_ShouldSucceed()
+    {
+        await using var fixture = await PromptServiceFixture.CreateAsync();
+        var prompt = await fixture.AddPromptAsync("會議紀錄提示詞");
+        var service = fixture.CreateService();
+
+        var result = await service.BeforeUpdateCheckAsync(new PromptAdapterModel
+        {
+            Id = prompt.Id,
+            Name = "  會議紀錄提示詞  ",
+            Content = "x"
+        });
+
+        Assert.True(result.Success);
+    }
+
+    [Fact]
+    public async Task BeforeUpdateCheckAsync_UsingAnotherPromptName_ShouldFail()
+    {
+        await using var fixture = await PromptServiceFixture.CreateAsync();
+        await fixture.AddPromptAsync("Alpha");
+        var beta = await fixture.AddPromptAsync("Beta");
+        var service = fixture.CreateService();
+
+        var result = await service.BeforeUpdateCheckAsync(new PromptAdapterModel
+        {
+            Id = beta.Id,
+            Name = "ALPHA",
+            Content = "x"
+        });
+
+        Assert.False(result.Success);
+    }
+
+    [Fact]
+    public async Task GetAsync_WithoutSort_ShouldOrderByMostRecentlyUpdatedFirst()
+    {
+        await using var fixture = await PromptServiceFixture.CreateAsync();
+        await fixture.AddPromptAsync("舊資料", new DateTime(2026, 1, 1));
+        await fixture.AddPromptAsync("新資料", new DateTime(2026, 6, 1));
+        await fixture.AddPromptAsync("中間資料", new DateTime(2026, 3, 1));
+        var service = fixture.CreateService();
+
+        var result = await service.GetAsync(new DataRequest { CurrentPage = 1, PageSize = 10, Take = 0 });
+
+        var names = result.Result.Select(x =&gt; x.Name).ToList();
+        Assert.Equal(new[] { "新資料", "中間資料", "舊資料" }, names);
+    }
+
+    private sealed class PromptServiceFixture : IAsyncDisposable
+    {
+        private readonly SqliteConnection connection;
+        private readonly IMapper mapper;
+        private readonly ILoggerFactory loggerFactory;
+
+        private PromptServiceFixture(SqliteConnection connection, BackendDBContext context)
+        {
+            this.connection = connection;
+            Context = context;
+
+            loggerFactory = LoggerFactory.Create(_ =&gt; { });
+            var mapperConfiguration = new MapperConfiguration(
+                configuration =&gt; configuration.AddProfile&lt;AutoMapping&gt;(),
+                loggerFactory);
+            mapper = mapperConfiguration.CreateMapper();
+        }
+
+        public BackendDBContext Context { get; }
+
+        public static async Task&lt;PromptServiceFixture&gt; CreateAsync()
+        {
+            var connection = new SqliteConnection("Data Source=:memory:");
+            await connection.OpenAsync();
+
+            var options = new DbContextOptionsBuilder&lt;BackendDBContext&gt;()
+                .UseSqlite(connection)
+                .Options;
+
+            var context = new BackendDBContext(options);
+            await context.Database.EnsureCreatedAsync();
+
+            return new PromptServiceFixture(connection, context);
+        }
+
+        public PromptService CreateService()
+        {
+            return new PromptService(
+                Context,
+                mapper,
+                loggerFactory.CreateLogger&lt;PromptService&gt;());
+        }
+
+        public async Task&lt;Prompt&gt; AddPromptAsync(string name, DateTime? updatedAt = null)
+        {
+            var now = updatedAt ?? DateTime.Now;
+            var prompt = new Prompt
+            {
+                Name = name,
+                Content = "預設提示詞本文",
+                IsEnabled = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+
+            Context.Prompt.Add(prompt);
+            await Context.SaveChangesAsync();
+            Context.ChangeTracker.Clear();
+
+            return prompt;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await Context.DisposeAsync();
+            await connection.DisposeAsync();
+            loggerFactory.Dispose();
+        }
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 執行測試確認失敗</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.sln</code> Expected: 編譯失敗，錯誤為 <code>PromptService</code> 型別不存在（CS0246）。</p>
+<ul><li>（歷史步驟）<strong>Step 3: 實作 PromptService</strong></li></ul>
+<p>Create <code>KnowledgeExtraction.Business/Services/DataAccess/PromptService.cs</code>:</p>
+<pre><code>using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using KnowledgeExtraction.AccessDatas;
+using KnowledgeExtraction.AccessDatas.Models;
+using KnowledgeExtraction.Business.Factories;
+using KnowledgeExtraction.Business.Helpers;
+using KnowledgeExtraction.Models.AdapterModel;
+using KnowledgeExtraction.Models.Systems;
+
+namespace KnowledgeExtraction.Business.Services.DataAccess;
+
+public class PromptService
+{
+    private readonly BackendDBContext context;
+
+    public IMapper Mapper { get; }
+    public ILogger&lt;PromptService&gt; Logger { get; }
+
+    public PromptService(
+        BackendDBContext context,
+        IMapper mapper,
+        ILogger&lt;PromptService&gt; logger)
+    {
+        this.context = context;
+        Mapper = mapper;
+        Logger = logger;
+    }
+
+    public async Task&lt;DataRequestResult&lt;PromptAdapterModel&gt;&gt; GetAsync(DataRequest dataRequest)
+    {
+        DataRequestResult&lt;PromptAdapterModel&gt; result = new();
+        IQueryable&lt;Prompt&gt; dataSource = context.Prompt.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(dataRequest.Search))
+        {
+            var search = dataRequest.Search.Trim();
+            dataSource = dataSource.Where(x =&gt;
+                x.Name.Contains(search) ||
+                (x.Description ?? string.Empty).Contains(search));
+        }
+
+        #region 排序 (預設為更新時間新到舊)
+        if (dataRequest.SortField == nameof(PromptAdapterModel.Name))
+        {
+            dataSource = dataRequest.SortDescending == true
+                ? dataSource.OrderByDescending(x =&gt; x.Name).ThenByDescending(x =&gt; x.Id)
+                : dataRequest.SortDescending == false
+                    ? dataSource.OrderBy(x =&gt; x.Name).ThenBy(x =&gt; x.Id)
+                    : dataSource.OrderByDescending(x =&gt; x.UpdatedAt).ThenByDescending(x =&gt; x.Id);
+        }
+        else if (dataRequest.SortField == nameof(PromptAdapterModel.IsEnabled))
+        {
+            dataSource = dataRequest.SortDescending == true
+                ? dataSource.OrderByDescending(x =&gt; x.IsEnabled).ThenByDescending(x =&gt; x.Id)
+                : dataRequest.SortDescending == false
+                    ? dataSource.OrderBy(x =&gt; x.IsEnabled).ThenBy(x =&gt; x.Id)
+                    : dataSource.OrderByDescending(x =&gt; x.UpdatedAt).ThenByDescending(x =&gt; x.Id);
+        }
+        else if (dataRequest.SortField == nameof(PromptAdapterModel.CreatedAt))
+        {
+            dataSource = dataRequest.SortDescending == true
+                ? dataSource.OrderByDescending(x =&gt; x.CreatedAt).ThenByDescending(x =&gt; x.Id)
+                : dataRequest.SortDescending == false
+                    ? dataSource.OrderBy(x =&gt; x.CreatedAt).ThenBy(x =&gt; x.Id)
+                    : dataSource.OrderByDescending(x =&gt; x.UpdatedAt).ThenByDescending(x =&gt; x.Id);
+        }
+        else if (dataRequest.SortField == nameof(PromptAdapterModel.UpdatedAt))
+        {
+            dataSource = dataRequest.SortDescending == false
+                ? dataSource.OrderBy(x =&gt; x.UpdatedAt).ThenBy(x =&gt; x.Id)
+                : dataSource.OrderByDescending(x =&gt; x.UpdatedAt).ThenByDescending(x =&gt; x.Id);
+        }
+        else
+        {
+            // 預設：最近更新時間新到舊
+            dataSource = dataSource.OrderByDescending(x =&gt; x.UpdatedAt).ThenByDescending(x =&gt; x.Id);
+        }
+        #endregion
+
+        result.Count = await dataSource.CountAsync();
+        dataSource = dataSource.Skip((dataRequest.CurrentPage - 1) * dataRequest.PageSize);
+        if (dataRequest.Take != 0)
+        {
+            dataSource = dataSource.Take(dataRequest.PageSize);
+        }
+
+        var records = await dataSource.ToListAsync();
+        result.Result = Mapper.Map&lt;List&lt;PromptAdapterModel&gt;&gt;(records);
+        return result;
+    }
+
+    public async Task&lt;PromptAdapterModel&gt; GetAsync(int id)
+    {
+        Prompt? item = await context.Prompt
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x =&gt; x.Id == id);
+
+        if (item is null)
+        {
+            Logger.LogWarning("Prompt not found. PromptId={PromptId}", id);
+            return new PromptAdapterModel();
+        }
+
+        return Mapper.Map&lt;PromptAdapterModel&gt;(item);
+    }
+
+    public async Task&lt;VerifyRecordResult&gt; AddAsync(PromptAdapterModel paraObject)
+    {
+        try
+        {
+            CleanTrackingHelper.Clean&lt;Prompt&gt;(context);
+            Prompt itemParameter = Mapper.Map&lt;Prompt&gt;(paraObject);
+
+            await context.Prompt.AddAsync(itemParameter);
+            await context.SaveChangesAsync();
+            CleanTrackingHelper.Clean&lt;Prompt&gt;(context);
+
+            return VerifyRecordResultFactory.Build(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to create prompt. Name={Name}", paraObject.Name);
+            return VerifyRecordResultFactory.Build(false, "新增提示詞失敗。", ex);
+        }
+    }
+
+    public async Task&lt;VerifyRecordResult&gt; UpdateAsync(PromptAdapterModel paraObject)
+    {
+        try
+        {
+            CleanTrackingHelper.Clean&lt;Prompt&gt;(context);
+            Prompt? currentItem = await context.Prompt
+                .FirstOrDefaultAsync(x =&gt; x.Id == paraObject.Id);
+
+            if (currentItem == null)
+            {
+                return VerifyRecordResultFactory.Build(false, "找不到要修改的提示詞資料。");
+            }
+
+            currentItem.Name = paraObject.Name;
+            currentItem.Content = paraObject.Content;
+            currentItem.Description = paraObject.Description;
+            currentItem.IsEnabled = paraObject.IsEnabled;
+            currentItem.UpdatedAt = DateTime.Now;
+
+            await context.SaveChangesAsync();
+            CleanTrackingHelper.Clean&lt;Prompt&gt;(context);
+
+            return VerifyRecordResultFactory.Build(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to update prompt. PromptId={PromptId}, Name={Name}", paraObject.Id, paraObject.Name);
+            return VerifyRecordResultFactory.Build(false, "修改提示詞失敗。", ex);
+        }
+    }
+
+    public async Task&lt;VerifyRecordResult&gt; DeleteAsync(int id)
+    {
+        try
+        {
+            CleanTrackingHelper.Clean&lt;Prompt&gt;(context);
+            Prompt? item = await context.Prompt.FirstOrDefaultAsync(x =&gt; x.Id == id);
+
+            if (item == null)
+            {
+                return VerifyRecordResultFactory.Build(false, "找不到要刪除的提示詞資料。");
+            }
+
+            context.Prompt.Remove(item);
+            await context.SaveChangesAsync();
+            CleanTrackingHelper.Clean&lt;Prompt&gt;(context);
+
+            return VerifyRecordResultFactory.Build(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete prompt. PromptId={PromptId}", id);
+            return VerifyRecordResultFactory.Build(false, "刪除提示詞失敗。", ex);
+        }
+    }
+
+    public async Task&lt;VerifyRecordResult&gt; BeforeAddCheckAsync(PromptAdapterModel paraObject)
+    {
+        return await ValidateNameUniqueAsync(paraObject);
+    }
+
+    public async Task&lt;VerifyRecordResult&gt; BeforeUpdateCheckAsync(PromptAdapterModel paraObject)
+    {
+        CleanTrackingHelper.Clean&lt;Prompt&gt;(context);
+        Prompt? searchItem = await context.Prompt
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x =&gt; x.Id == paraObject.Id);
+
+        if (searchItem == null)
+        {
+            return VerifyRecordResultFactory.Build(false, "要修改的提示詞資料不存在。");
+        }
+
+        return await ValidateNameUniqueAsync(paraObject, paraObject.Id);
+    }
+
+    public Task&lt;VerifyRecordResult&gt; BeforeDeleteCheckAsync(PromptAdapterModel paraObject)
+    {
+        return Task.FromResult(VerifyRecordResultFactory.Build(true));
+    }
+
+    /// &lt;summary&gt;
+    /// 驗證提示詞名稱唯一性 (忽略大小寫並去除頭尾空白)
+    /// &lt;/summary&gt;
+    private async Task&lt;VerifyRecordResult&gt; ValidateNameUniqueAsync(PromptAdapterModel paraObject, int? excludeId = null)
+    {
+        var normalized = (paraObject.Name ?? string.Empty).Trim().ToLower();
+
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return VerifyRecordResultFactory.Build(false, "提示詞名稱 不可為空白。");
+        }
+
+        var query = context.Prompt
+            .AsNoTracking()
+            .Where(x =&gt; x.Name.Trim().ToLower() == normalized);
+
+        if (excludeId.HasValue)
+        {
+            query = query.Where(x =&gt; x.Id != excludeId.Value);
+        }
+
+        if (await query.AnyAsync())
+        {
+            return VerifyRecordResultFactory.Build(false, $"提示詞名稱 '{(paraObject.Name ?? string.Empty).Trim()}' 已存在。");
+        }
+
+        return VerifyRecordResultFactory.Build(true);
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4: 執行測試確認通過</strong></li></ul>
+<p>Run: <code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests --filter FullyQualifiedName~PromptServiceTests</code> Expected: PASS（6 passed）</p>
+<ul><li>（歷史步驟）<strong>Step 5: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Tests/PromptServiceTests.cs src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/PromptService.cs
+git commit -m "feat: 新增 PromptService 與名稱唯一性測試"</code></pre>
+<hr>
+<h2 id="task-3-promptrepository" class="t4">Task 3: PromptRepository</h2>
+<p>供 API Controller 使用，比照 <code>CategoryRepository</code>。</p>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Business/Repositories/PromptRepository.cs</code></li><li>依賴：<code>PromptSearchRequestDto</code>（於 Task 4 建立）→ 故本任務在 Task 4 之後執行；或先在此先建立 <code>PromptSearchRequestDto</code>。為降低依賴，<strong>先建立 <code>PromptSearchRequestDto</code></strong>。</li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 建立 PromptSearchRequestDto</strong></li></ul>
+<p>Create <code>KnowledgeExtraction.Dtos/Commons/PromptSearchRequestDto.cs</code>:</p>
+<pre><code>namespace KnowledgeExtraction.Dtos.Commons;
+
+/// &lt;summary&gt;
+/// 提示詞搜尋請求參數
+/// &lt;/summary&gt;
+public class PromptSearchRequestDto : SearchRequestBaseDto
+{
+    /// &lt;summary&gt;
+    /// 是否啟用 (null 表示不過濾)
+    /// &lt;/summary&gt;
+    public bool? IsEnabled { get; set; }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 建立 PromptRepository</strong></li></ul>
+<p>Create <code>KnowledgeExtraction.Business/Repositories/PromptRepository.cs</code>:</p>
+<pre><code>using Microsoft.EntityFrameworkCore;
+using KnowledgeExtraction.AccessDatas;
+using KnowledgeExtraction.AccessDatas.Models;
+using KnowledgeExtraction.Dtos.Commons;
+
+namespace KnowledgeExtraction.Business.Repositories;
+
+public class PromptRepository
+{
+    private readonly BackendDBContext context;
+
+    public PromptRepository(BackendDBContext context)
+    {
+        this.context = context;
+    }
+
+    #region 查詢方法
+
+    public async Task&lt;Prompt?&gt; GetByIdAsync(int id)
+    {
+        return await context.Prompt
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c =&gt; c.Id == id);
+    }
+
+    public async Task&lt;PagedResult&lt;Prompt&gt;&gt; GetPagedAsync(PromptSearchRequestDto request)
+    {
+        var query = context.Prompt.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            var keyword = request.Keyword.Trim();
+            query = query.Where(c =&gt;
+                c.Name.Contains(keyword) ||
+                (c.Description != null &amp;&amp; c.Description.Contains(keyword)));
+        }
+
+        if (request.IsEnabled.HasValue)
+        {
+            query = query.Where(c =&gt; c.IsEnabled == request.IsEnabled.Value);
+        }
+
+        #region 根據 SortBy 及 SortDescending 排序 (預設為更新時間新到舊)
+        query = request.SortBy?.ToLower() switch
+        {
+            "name" =&gt; request.SortDescending
+                ? query.OrderByDescending(c =&gt; c.Name)
+                : query.OrderBy(c =&gt; c.Name),
+            "isenabled" =&gt; request.SortDescending
+                ? query.OrderByDescending(c =&gt; c.IsEnabled)
+                : query.OrderBy(c =&gt; c.IsEnabled),
+            "createdat" =&gt; request.SortDescending
+                ? query.OrderByDescending(c =&gt; c.CreatedAt)
+                : query.OrderBy(c =&gt; c.CreatedAt),
+            "updatedat" =&gt; request.SortDescending
+                ? query.OrderByDescending(c =&gt; c.UpdatedAt)
+                : query.OrderBy(c =&gt; c.UpdatedAt),
+            _ =&gt; query.OrderByDescending(c =&gt; c.UpdatedAt),
+        };
+        #endregion
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .Skip((request.PageIndex - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .ToListAsync();
+
+        return new PagedResult&lt;Prompt&gt;
+        {
+            Items = items,
+            PageIndex = request.PageIndex,
+            PageSize = request.PageSize,
+            TotalCount = totalCount
+        };
+    }
+
+    /// &lt;summary&gt;
+    /// 檢查提示詞名稱是否存在 (忽略大小寫並去除頭尾空白)
+    /// &lt;/summary&gt;
+    public async Task&lt;bool&gt; ExistsByNameAsync(string name, int? excludeId = null)
+    {
+        var normalized = (name ?? string.Empty).Trim().ToLower();
+
+        var query = context.Prompt.Where(c =&gt; c.Name.Trim().ToLower() == normalized);
+
+        if (excludeId.HasValue)
+        {
+            query = query.Where(c =&gt; c.Id != excludeId.Value);
+        }
+
+        return await query.AnyAsync();
+    }
+
+    #endregion
+
+    #region 新增方法
+
+    public async Task&lt;Prompt&gt; AddAsync(Prompt prompt)
+    {
+        prompt.CreatedAt = DateTime.Now;
+        prompt.UpdatedAt = DateTime.Now;
+
+        await context.Prompt.AddAsync(prompt);
+        await context.SaveChangesAsync();
+
+        return prompt;
+    }
+
+    #endregion
+
+    #region 更新方法
+
+    public async Task&lt;bool&gt; UpdateAsync(Prompt prompt)
+    {
+        var existingPrompt = await context.Prompt.FindAsync(prompt.Id);
+        if (existingPrompt == null)
+        {
+            return false;
+        }
+
+        prompt.UpdatedAt = DateTime.Now;
+        prompt.CreatedAt = existingPrompt.CreatedAt; // 保留原建立時間
+
+        context.Entry(existingPrompt).CurrentValues.SetValues(prompt);
+        await context.SaveChangesAsync();
+
+        return true;
+    }
+
+    #endregion
+
+    #region 刪除方法
+
+    public async Task&lt;bool&gt; DeleteAsync(int id)
+    {
+        var prompt = await context.Prompt.FindAsync(id);
+        if (prompt == null)
+        {
+            return false;
+        }
+
+        context.Prompt.Remove(prompt);
+        await context.SaveChangesAsync();
+
+        return true;
+    }
+
+    #endregion
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: 建置確認</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.sln</code> Expected: Build succeeded（0 Error）</p>
+<ul><li>（歷史步驟）<strong>Step 4: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Dtos/Commons/PromptSearchRequestDto.cs src/KnowledgeExtraction/KnowledgeExtraction.Business/Repositories/PromptRepository.cs
+git commit -m "feat: 新增 PromptRepository 與 PromptSearchRequestDto"</code></pre>
+<hr>
+<h2 id="task-4-dtoautomapper-dto-映射controllerdi-註冊" class="t5">Task 4: DTO、AutoMapper DTO 映射、Controller、DI 註冊</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Dtos/Models/PromptCreateUpdateDto.cs</code>、<code>PromptDto.cs</code></li><li>Modify: <code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code>（補 DTO 映射）</li><li>Create: <code>KnowledgeExtraction.Web/Controllers/PromptController.cs</code></li><li>Modify: <code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs:75</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 建立 PromptCreateUpdateDto</strong></li></ul>
+<p>Create <code>KnowledgeExtraction.Dtos/Models/PromptCreateUpdateDto.cs</code>:</p>
+<pre><code>using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+
+namespace KnowledgeExtraction.Dtos.Models;
+
+/// &lt;summary&gt;
+/// 提示詞資料傳輸物件 (新增 / 編輯)
+/// &lt;/summary&gt;
+public class PromptCreateUpdateDto
+{
+    public PromptCreateUpdateDto()
+    {
+    }
+
+    /// &lt;summary&gt;
+    /// 提示詞唯一代碼 (僅更新時使用)
+    /// &lt;/summary&gt;
+    [Required(ErrorMessage = "提示詞唯一代碼 不可為空白")]
+    [JsonPropertyName("id")]
+    public int? Id { get; set; }
+
+    /// &lt;summary&gt;
+    /// 提示詞名稱 (唯一值)
+    /// &lt;/summary&gt;
+    [Required(ErrorMessage = "提示詞名稱 不可為空白")]
+    [StringLength(100, ErrorMessage = "提示詞名稱長度不可超過 100 字元")]
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    /// &lt;summary&gt;
+    /// 提示詞本文
+    /// &lt;/summary&gt;
+    [Required(ErrorMessage = "提示詞本文 不可為空白")]
+    [StringLength(8000, ErrorMessage = "提示詞本文長度不可超過 8000 字元")]
+    [JsonPropertyName("content")]
+    public string Content { get; set; } = string.Empty;
+
+    /// &lt;summary&gt;
+    /// 提示詞描述
+    /// &lt;/summary&gt;
+    [StringLength(2000, ErrorMessage = "描述長度不可超過 2000 字元")]
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    /// &lt;summary&gt;
+    /// 是否啟用
+    /// &lt;/summary&gt;
+    [JsonPropertyName("isEnabled")]
+    public bool IsEnabled { get; set; } = true;
+
+    /// &lt;summary&gt;
+    /// 建立時間
+    /// &lt;/summary&gt;
+    [JsonPropertyName("createdAt")]
+    public DateTime? CreatedAt { get; set; }
+
+    /// &lt;summary&gt;
+    /// 更新時間
+    /// &lt;/summary&gt;
+    [JsonPropertyName("updatedAt")]
+    public DateTime? UpdatedAt { get; set; }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 建立 PromptDto</strong></li></ul>
+<p>Create <code>KnowledgeExtraction.Dtos/Models/PromptDto.cs</code>:</p>
+<pre><code>namespace KnowledgeExtraction.Dtos.Models;
+
+/// &lt;summary&gt;
+/// 提示詞資料傳輸物件
+/// &lt;/summary&gt;
+public class PromptDto : PromptCreateUpdateDto
+{
+    public PromptDto()
+    {
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: 補上 AutoMapper DTO 映射</strong></li></ul>
+<p>Modify <code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code> — 將 Task 1 加入的 Prompt region 補成完整（DTO 兩組映射）：</p>
+<pre><code>        #region Prompt
+        CreateMap&lt;Prompt, PromptAdapterModel&gt;();
+        CreateMap&lt;PromptAdapterModel, Prompt&gt;();
+        CreateMap&lt;Prompt, PromptDto&gt;();
+        CreateMap&lt;PromptDto, Prompt&gt;();
+        CreateMap&lt;Prompt, PromptCreateUpdateDto&gt;();
+        CreateMap&lt;PromptCreateUpdateDto, Prompt&gt;();
+        #endregion</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4: 建立 PromptController</strong></li></ul>
+<p>Create <code>KnowledgeExtraction.Web/Controllers/PromptController.cs</code>:</p>
+<pre><code>using AutoMapper;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using KnowledgeExtraction.AccessDatas.Models;
+using KnowledgeExtraction.Business.Repositories;
+using KnowledgeExtraction.Dtos.Commons;
+using KnowledgeExtraction.Dtos.Models;
+using KnowledgeExtraction.Web.Filters;
+
+namespace KnowledgeExtraction.Web.Controllers;
+
+[Route("api/[controller]")]
+[Route("api/v1/[controller]")]
+[ApiController]
+[ApiValidationFilter]
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+public class PromptController : ControllerBase
+{
+    private readonly ILogger&lt;PromptController&gt; logger;
+    private readonly PromptRepository promptRepository;
+    private readonly IMapper mapper;
+
+    public PromptController(
+        ILogger&lt;PromptController&gt; logger,
+        PromptRepository promptRepository,
+        IMapper mapper)
+    {
+        this.logger = logger;
+        this.promptRepository = promptRepository;
+        this.mapper = mapper;
+    }
+
+    [HttpGet("{id}")]
+    public async Task&lt;ActionResult&lt;ApiResult&lt;PromptDto&gt;&gt;&gt; GetById(int id)
+    {
+        try
+        {
+            var prompt = await promptRepository.GetByIdAsync(id);
+
+            if (prompt == null)
+            {
+                return NotFound(ApiResult&lt;PromptDto&gt;.NotFoundResult($"找不到 ID 為 {id} 的提示詞"));
+            }
+
+            var promptDto = mapper.Map&lt;PromptDto&gt;(prompt);
+            return Ok(ApiResult&lt;PromptDto&gt;.SuccessResult(promptDto, "取得提示詞成功"));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to get prompt. PromptId={PromptId}", id);
+            return this.ApiServerError&lt;PromptDto&gt;("取得提示詞失敗", ex);
+        }
+    }
+
+    [HttpPost("search")]
+    public async Task&lt;ActionResult&lt;ApiResult&lt;PagedResult&lt;PromptDto&gt;&gt;&gt;&gt; Search([FromBody] PromptSearchRequestDto request)
+    {
+        try
+        {
+            var pagedResult = await promptRepository.GetPagedAsync(request);
+            var promptDtos = mapper.Map&lt;List&lt;PromptDto&gt;&gt;(pagedResult.Items);
+
+            var result = new PagedResult&lt;PromptDto&gt;
+            {
+                Items = promptDtos,
+                TotalCount = pagedResult.TotalCount,
+                PageIndex = request.PageIndex,
+                PageSize = request.PageSize,
+                TotalPages = (int)Math.Ceiling(pagedResult.TotalCount / (double)request.PageSize)
+            };
+
+            return Ok(ApiResult&lt;PagedResult&lt;PromptDto&gt;&gt;.SuccessResult(result, "搜尋提示詞成功"));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to search prompts");
+            return this.ApiServerError&lt;PagedResult&lt;PromptDto&gt;&gt;("搜尋提示詞失敗", ex);
+        }
+    }
+
+    [HttpPost]
+    public async Task&lt;ActionResult&lt;ApiResult&lt;PromptDto&gt;&gt;&gt; Create([FromBody] PromptCreateUpdateDto promptDto)
+    {
+        try
+        {
+            if (await promptRepository.ExistsByNameAsync(promptDto.Name))
+            {
+                return Conflict(ApiResult&lt;PromptDto&gt;.ConflictResult($"提示詞名稱 '{promptDto.Name}' 已存在"));
+            }
+
+            var prompt = mapper.Map&lt;Prompt&gt;(promptDto);
+            var createdPrompt = await promptRepository.AddAsync(prompt);
+            var createdPromptDto = mapper.Map&lt;PromptDto&gt;(createdPrompt);
+
+            return Ok(ApiResult&lt;PromptDto&gt;.SuccessResult(createdPromptDto, "新增提示詞成功"));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to create prompt. Name={Name}", promptDto.Name);
+            return this.ApiServerError&lt;PromptDto&gt;("新增提示詞失敗", ex);
+        }
+    }
+
+    [HttpPut("{id}")]
+    public async Task&lt;ActionResult&lt;ApiResult&gt;&gt; Update(int id, [FromBody] PromptCreateUpdateDto promptDto)
+    {
+        try
+        {
+            if (id != promptDto.Id)
+            {
+                return BadRequest(ApiResult.ValidationError("路由 ID 與資料 ID 不一致"));
+            }
+
+            if (await promptRepository.ExistsByNameAsync(promptDto.Name, id))
+            {
+                return Conflict(ApiResult.ConflictResult($"提示詞名稱 '{promptDto.Name}' 已被其他提示詞使用"));
+            }
+
+            var prompt = mapper.Map&lt;Prompt&gt;(promptDto);
+            var success = await promptRepository.UpdateAsync(prompt);
+
+            if (!success)
+            {
+                return NotFound(ApiResult.NotFoundResult($"找不到 ID 為 {id} 的提示詞"));
+            }
+
+            return Ok(ApiResult.SuccessResult("更新提示詞成功"));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to update prompt. PromptId={PromptId}", id);
+            return this.ApiServerError("更新提示詞失敗", ex);
+        }
+    }
+
+    [HttpDelete("{id}")]
+    public async Task&lt;ActionResult&lt;ApiResult&gt;&gt; Delete(int id)
+    {
+        try
+        {
+            var success = await promptRepository.DeleteAsync(id);
+
+            if (!success)
+            {
+                return NotFound(ApiResult.NotFoundResult($"找不到 ID 為 {id} 的提示詞"));
+            }
+
+            return Ok(ApiResult.SuccessResult("刪除提示詞成功"));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete prompt. PromptId={PromptId}", id);
+            return this.ApiServerError("刪除提示詞失敗", ex);
+        }
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 5: DI 註冊</strong></li></ul>
+<p>Modify <code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs</code> — 在第 75 行 <code>services.AddScoped&lt;CategoryRepository&gt;();</code> 之後新增：</p>
+<pre><code>        services.AddScoped&lt;CategoryService&gt;();
+        services.AddScoped&lt;CategoryRepository&gt;();
+        services.AddScoped&lt;PromptService&gt;();
+        services.AddScoped&lt;PromptRepository&gt;();</code></pre>
+<ul><li>（歷史步驟）<strong>Step 6: 建置與全測試</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.sln</code> 然後 <code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests</code> Expected: Build succeeded；所有測試 PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 7: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Dtos/Models/PromptCreateUpdateDto.cs src/KnowledgeExtraction/KnowledgeExtraction.Dtos/Models/PromptDto.cs src/KnowledgeExtraction/KnowledgeExtraction.Business/Models/AutoMapping.cs src/KnowledgeExtraction/KnowledgeExtraction.Web/Controllers/PromptController.cs src/KnowledgeExtraction/KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs
+git commit -m "feat: 新增 Prompt DTO、Controller、DTO 映射與 DI 註冊"</code></pre>
+<hr>
+<h2 id="task-5-雙-provider-ef-core-migration" class="t6">Task 5: 雙 provider EF Core Migration</h2>
+<p>為 <code>Prompt</code> 表各產生一次 Sqlite 與 SQL Server migration，並套用至 Sqlite 開發資料庫。</p>
+<p><strong>Files:</strong></p>
+<ul><li>Create（自動產生）：<code>KnowledgeExtraction.AccessDatas/Migrations/*_AddPrompt.cs</code></li><li>Create（自動產生）：<code>KnowledgeExtraction.AccessDatas.SqlServerMigrations/Migrations/*_AddPrompt.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 產生 Sqlite migration</strong></li></ul>
+<p>Run（於 <code>src/KnowledgeExtraction/</code>）：</p>
+<pre><code>dotnet ef migrations add AddPrompt --project KnowledgeExtraction.AccessDatas --startup-project KnowledgeExtraction.Web</code></pre>
+<p>Expected: 於 <code>KnowledgeExtraction.AccessDatas/Migrations/</code> 產生 <code>*_AddPrompt.cs</code>，內含 <code>CreateTable("Prompt", ...)</code>，欄位含 <code>Name</code>、<code>Content</code>、<code>Description</code>、<code>IsEnabled</code>、<code>CreatedAt</code>、<code>UpdatedAt</code>。</p>
+<ul><li>（歷史步驟）<strong>Step 2: 產生 SQL Server migration</strong></li></ul>
+<p>Run（於 <code>src/KnowledgeExtraction/</code>，同一行設環境變數）：</p>
+<pre><code>$env:SystemSettings__DatabaseProvider="SqlServer"; dotnet ef migrations add AddPrompt --project KnowledgeExtraction.AccessDatas.SqlServerMigrations --startup-project KnowledgeExtraction.Web; $env:SystemSettings__DatabaseProvider=""</code></pre>
+<p>Expected: 於 <code>KnowledgeExtraction.AccessDatas.SqlServerMigrations/Migrations/</code> 產生 <code>*_AddPrompt.cs</code>。</p>
+<ul><li>（歷史步驟）<strong>Step 3: 套用至 Sqlite 開發資料庫</strong></li></ul>
+<p>Run（於 <code>src/KnowledgeExtraction/</code>）：</p>
+<pre><code>dotnet ef database update --project KnowledgeExtraction.AccessDatas --startup-project KnowledgeExtraction.Web</code></pre>
+<p>Expected: 套用成功，Sqlite <code>BackendDB.db</code> 出現 <code>Prompt</code> 表。</p>
+<ul><li>（歷史步驟）<strong>Step 4: 建置確認</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.sln</code> Expected: Build succeeded。</p>
+<ul><li>（歷史步驟）<strong>Step 5: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas/Migrations src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas.SqlServerMigrations/Migrations
+git commit -m "feat: 新增 Prompt 資料表雙 provider migration"</code></pre>
+<hr>
+<h2 id="task-6-blazor-頁面與檢視元件" class="t7">Task 6: Blazor 頁面與檢視元件</h2>
+<p>比照 <code>CategoryPage</code> / <code>CategoryViewView</code>。</p>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Web/Components/Pages/Prompts/PromptPage.razor</code></li><li>Create: <code>KnowledgeExtraction.Web/Components/Views/Prompts/PromptViewView.razor</code></li><li>Create: <code>KnowledgeExtraction.Web/Components/Views/Prompts/PromptViewView.razor.cs</code></li><li>Create: <code>KnowledgeExtraction.Web/Components/Views/Prompts/PromptViewView.razor.css</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 建立頁面殼 PromptPage.razor</strong></li></ul>
+<p>Create <code>KnowledgeExtraction.Web/Components/Pages/Prompts/PromptPage.razor</code>:</p>
+<pre><code>@page "/prompts"
+@layout MainLayout
+
+&lt;PageTitle&gt;提示詞清單&lt;/PageTitle&gt;
+
+&lt;PromptViewView /&gt;</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 建立 PromptViewView.razor</strong></li></ul>
+<p>Create <code>KnowledgeExtraction.Web/Components/Views/Prompts/PromptViewView.razor</code>:</p>
+<pre><code>@if (string.IsNullOrEmpty(RoleMessage) == false)
+{
+    &lt;div class="alert alert-danger" role="alert"&gt;
+        @RoleMessage
+    &lt;/div&gt;
+}
+else
+{
+    &lt;div&gt;
+        &lt;div class="prompt-view-toolbar"&gt;
+            &lt;div class="prompt-view-toolbar-left"&gt;
+                &lt;Tooltip Title="新增"&gt;
+                    &lt;Button Type="ButtonType.Default" Class="prompt-view-icon-button"
+                            OnClick="@(async () =&gt; await OnAddAsync())"&gt;
+                        ➕
+                    &lt;/Button&gt;
+                &lt;/Tooltip&gt;
+                &lt;Tooltip Title="重新整理"&gt;
+                    &lt;Button Type="ButtonType.Default" Class="prompt-view-icon-button"
+                            OnClick="@(async () =&gt; await OnRefreshAsync())"&gt;
+                        🔄
+                    &lt;/Button&gt;
+                &lt;/Tooltip&gt;
+            &lt;/div&gt;
+            &lt;div class="prompt-view-toolbar-right"&gt;
+                &lt;Input class="prompt-view-search-input" @bind-Value="searchText" Placeholder="請輸入搜尋關鍵字" /&gt;
+                @if (!string.IsNullOrWhiteSpace(searchText))
+                {
+                    &lt;Tooltip Title="清空搜尋"&gt;
+                        &lt;Button Type="ButtonType.Default" Class="prompt-view-icon-button" OnClick="@(async () =&gt; { searchText = string.Empty; _pageIndex = 1; await ReloadAsync(); })"&gt;
+                            ❌
+                        &lt;/Button&gt;
+                    &lt;/Tooltip&gt;
+                }
+                &lt;Tooltip Title="搜尋"&gt;
+                    &lt;Button Type="ButtonType.Default" Class="prompt-view-icon-button" OnClick="@(async () =&gt; await OnSearchAsync())"&gt;
+                        🔍
+                    &lt;/Button&gt;
+                &lt;/Tooltip&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class="prompt-view-table-wrap"&gt;
+            &lt;Table @ref="table"
+                   TItem="PromptAdapterModel"
+                   Class="prompt-view-table"
+                   RemoteDataSource="true"
+                   DataSource="@promptAdapterModels"
+                   OnChange="OnTableChange"
+                   @bind-PageIndex="_pageIndex"
+                   @bind-PageSize="_pageSize"
+                   @bind-Total="_total"&gt;
+                &lt;Column TData="string" DataIndex="@nameof(PromptAdapterModel.Name)" Title="名稱" Sortable /&gt;
+                &lt;Column TData="string" DataIndex="@nameof(PromptAdapterModel.Description)" Title="描述" /&gt;
+                &lt;Column TData="bool" DataIndex="@nameof(PromptAdapterModel.IsEnabled)" Title="啟用狀態" Sortable&gt;
+                    @if (context.IsEnabled)
+                    {
+                        &lt;span class="prompt-status prompt-status-enabled"&gt;啟用&lt;/span&gt;
+                    }
+                    else
+                    {
+                        &lt;span class="prompt-status prompt-status-disabled"&gt;停用&lt;/span&gt;
+                    }
+                &lt;/Column&gt;
+                &lt;Column TData="DateTime" DataIndex="@nameof(PromptAdapterModel.UpdatedAt)" Title="更新時間" Sortable DefaultSortOrder="SortDirection.Descending" /&gt;
+                &lt;ActionColumn Fixed="ColumnFixPlacement.Right" Title="操作"&gt;
+                    &lt;Space&gt;
+                        &lt;SpaceItem&gt;
+                            &lt;button class="btn-edit" title="修改"
+                                    @onclick="@(async () =&gt; await OnEditAsync(context))"&gt;
+                                &lt;span class="icon-edit"&gt;✏️&lt;/span&gt;
+                            &lt;/button&gt;
+                        &lt;/SpaceItem&gt;
+                        &lt;SpaceItem&gt;
+                            &lt;button class="btn-edit" title="刪除"
+                                    @onclick="@(async () =&gt; await OnDeleteAsync(context))"&gt;
+                                &lt;span class="icon-edit"&gt;🗑️&lt;/span&gt;
+                            &lt;/button&gt;
+                        &lt;/SpaceItem&gt;
+                    &lt;/Space&gt;
+                &lt;/ActionColumn&gt;
+            &lt;/Table&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+
+    &lt;Modal Title="@modalTitle"
+           Class="prompt-view-modal"
+           @bind-Visible="@modalVisible"
+           Keyboard="true"
+           OnOk="OnModalOKHandleAsync"
+           OnCancel="OnModalCancelHandleAsync"&gt;
+        &lt;div&gt;
+            &lt;EditForm Model="@CurrentRecord" Context="editContext" @onkeydown="OnModalKeyDownAsync"&gt;
+                &lt;DataAnnotationsValidator /&gt;
+                &lt;ValidationSummary /&gt;
+                &lt;InputWatcher EditContextActionChanged="OnEditContestChanged" /&gt;
+
+                &lt;AntDesign.Form TModel="PromptAdapterModel" Model="@CurrentRecord" Layout="FormLayout.Vertical" Context="formContext"&gt;
+                    &lt;FormItem Label="名稱" Required&gt;
+                        &lt;Input @bind-Value="CurrentRecord.Name" Placeholder="請輸入提示詞名稱" /&gt;
+                        &lt;ValidationMessage For="() =&gt; CurrentRecord.Name" /&gt;
+                    &lt;/FormItem&gt;
+
+                    &lt;FormItem Label="提示詞本文" Required&gt;
+                        &lt;TextArea @bind-Value="CurrentRecord.Content" Rows="10" Placeholder="請輸入提示詞本文（實際要餵給 LLM 的指令文字）" /&gt;
+                        &lt;ValidationMessage For="() =&gt; CurrentRecord.Content" /&gt;
+                    &lt;/FormItem&gt;
+
+                    &lt;FormItem Label="描述"&gt;
+                        &lt;TextArea @bind-Value="CurrentRecord.Description" Rows="3" Placeholder="請輸入提示詞用途描述" /&gt;
+                        &lt;ValidationMessage For="() =&gt; CurrentRecord.Description" /&gt;
+                    &lt;/FormItem&gt;
+
+                    &lt;FormItem Label="啟用狀態"&gt;
+                        &lt;Switch @bind-Value="CurrentRecord.IsEnabled" CheckedChildren="啟用" UnCheckedChildren="停用" /&gt;
+                    &lt;/FormItem&gt;
+                &lt;/AntDesign.Form&gt;
+            &lt;/EditForm&gt;
+        &lt;/div&gt;
+    &lt;/Modal&gt;
+}
+
+&lt;FormModalHelper /&gt;</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: 建立 PromptViewView.razor.cs</strong></li></ul>
+<p>Create <code>KnowledgeExtraction.Web/Components/Views/Prompts/PromptViewView.razor.cs</code>:</p>
+<pre><code>using AntDesign;
+using AntDesign.TableModels;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.AspNetCore.Components.Web;
+using KnowledgeExtraction.Business.Services.DataAccess;
+using KnowledgeExtraction.Models.AdapterModel;
+using KnowledgeExtraction.Models.Systems;
+using KnowledgeExtraction.Share.Helpers;
+
+namespace KnowledgeExtraction.Web.Components.Views.Prompts;
+
+public partial class PromptViewView
+{
+    private readonly ILogger&lt;PromptViewView&gt; logger;
+    private readonly PromptService promptService;
+    private readonly ModalService modalService;
+    private readonly MessageService messageService;
+    private readonly NotificationService notificationService;
+    private ITable? table;
+    private int _pageIndex = 1;
+    private int _pageSize = MagicObjectHelper.PageSize;
+    private int _total;
+    private string searchText = string.Empty;
+    private string sortField = nameof(PromptAdapterModel.UpdatedAt);
+    private string sortDirection = "Descending";
+
+    private List&lt;PromptAdapterModel&gt; promptAdapterModels = [];
+
+    private string modalTitle = "提示詞維護";
+    private bool modalVisible;
+    private PromptAdapterModel CurrentRecord = new();
+    public EditContext? LocalEditContext { get; set; }
+    private bool isNewRecordMode;
+    private string RoleMessage = string.Empty;
+
+    [Inject]
+    public AuthenticationStateHelper AuthenticationStateHelper { get; set; } = default!;
+
+    [Inject]
+    public AuthenticationStateProvider authStateProvider { get; set; } = default!;
+
+    [Inject]
+    public NavigationManager NavigationManager { get; set; } = default!;
+
+    public PromptViewView(
+        ILogger&lt;PromptViewView&gt; logger,
+        PromptService promptService,
+        ModalService modalService,
+        MessageService messageService,
+        NotificationService notificationService)
+    {
+        this.logger = logger;
+        this.promptService = promptService;
+        this.modalService = modalService;
+        this.messageService = messageService;
+        this.notificationService = notificationService;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var checkResult = await AuthenticationStateHelper.Check(authStateProvider, NavigationManager);
+        if (checkResult != AuthenticationCheckResult.Succeeded)
+        {
+            return;
+        }
+
+        if (AuthenticationStateHelper.CheckAccessPage(MagicObjectHelper.角色_提示詞清單) == false)
+        {
+            RoleMessage = MagicObjectHelper.你沒有權限存取此頁面;
+            return;
+        }
+
+        await ReloadAsync();
+    }
+
+    public async Task ReloadAsync()
+    {
+        DataRequestResult&lt;PromptAdapterModel&gt; dataRequestResult = await promptService.GetAsync(new DataRequest
+        {
+            Search = searchText,
+            SortField = sortField,
+            SortDescending = sortDirection == "Descending" ? true : sortDirection == "Ascending" ? false : (bool?)null,
+            CurrentPage = _pageIndex,
+            PageSize = _pageSize,
+            Take = 0,
+        });
+
+        promptAdapterModels = dataRequestResult.Result.ToList();
+        _total = dataRequestResult.Count;
+        StateHasChanged();
+    }
+
+    private async Task OnTableChange(QueryModel&lt;PromptAdapterModel&gt; args)
+    {
+        _pageIndex = args.PageIndex;
+
+        if (args.SortModel?.Any() == true)
+        {
+            var tableSortModel = GetCurrentSortModel(args.SortModel);
+            sortDirection = tableSortModel.SortDirection.ToString() ?? string.Empty;
+            sortField = ResolveSortFieldName(tableSortModel);
+        }
+        else
+        {
+            sortField = string.Empty;
+            sortDirection = "None";
+        }
+
+        await ReloadAsync();
+    }
+
+    private static ITableSortModel GetCurrentSortModel(IEnumerable&lt;ITableSortModel&gt; sortModels)
+    {
+        return sortModels.FirstOrDefault(model =&gt; HasSortDirection(model.SortDirection))
+            ?? sortModels.Last();
+    }
+
+    private static bool HasSortDirection(SortDirection sortDirection)
+    {
+        return sortDirection == SortDirection.Ascending || sortDirection == SortDirection.Descending;
+    }
+
+    private static string ResolveSortFieldName(ITableSortModel sortModel)
+    {
+        if (!string.IsNullOrWhiteSpace(sortModel.FieldName))
+        {
+            return sortModel.FieldName;
+        }
+
+        object? column = sortModel.GetType().GetProperty("Column")?.GetValue(sortModel);
+        if (column is null)
+        {
+            return string.Empty;
+        }
+
+        string? columnFieldName = column.GetType().GetProperty("FieldName")?.GetValue(column)?.ToString();
+        if (!string.IsNullOrWhiteSpace(columnFieldName))
+        {
+            return columnFieldName;
+        }
+
+        object? dataIndex = column.GetType().GetProperty("DataIndex")?.GetValue(column);
+        return dataIndex?.ToString() ?? string.Empty;
+    }
+
+    private async Task OnSearchAsync()
+    {
+        _pageIndex = 1;
+        await ReloadAsync();
+    }
+
+    private async Task OnRefreshAsync()
+    {
+        await ReloadAsync();
+
+        _ = notificationService.Open(new NotificationConfig
+        {
+            Message = "系統訊息",
+            Description = "已更新最新資料",
+            NotificationType = NotificationType.Warning,
+            Placement = NotificationPlacement.BottomRight
+        });
+    }
+
+    private async Task OnEditAsync(PromptAdapterModel promptAdapterModel)
+    {
+        isNewRecordMode = false;
+        modalTitle = "修改提示詞";
+        CurrentRecord = await promptService.GetAsync(promptAdapterModel.Id);
+        modalVisible = true;
+    }
+
+    private async Task OnDeleteAsync(PromptAdapterModel promptAdapterModel)
+    {
+        var beforeDeleteCheckResult = await promptService.BeforeDeleteCheckAsync(promptAdapterModel);
+        if (!beforeDeleteCheckResult.Success)
+        {
+            _ = notificationService.Open(new NotificationConfig
+            {
+                Message = "系統訊息",
+                Description = beforeDeleteCheckResult.Message,
+                NotificationType = NotificationType.Error,
+                Placement = NotificationPlacement.BottomRight
+            });
+            return;
+        }
+
+        var ok = await modalService.ConfirmAsync(new ConfirmOptions
+        {
+            Title = "確認刪除",
+            Content = "確定要刪除這筆紀錄嗎？此操作無法復原。",
+            OkText = "刪除",
+            CancelText = "取消",
+            OkButtonProps = new ButtonProps { Danger = true },
+            MaskClosable = false
+        });
+
+        if (!ok)
+        {
+            return;
+        }
+
+        await promptService.DeleteAsync(promptAdapterModel.Id);
+
+        _ = notificationService.Open(new NotificationConfig
+        {
+            Message = "系統訊息",
+            Description = "刪除成功",
+            NotificationType = NotificationType.Warning,
+            Placement = NotificationPlacement.BottomRight
+        });
+
+        await ReloadAsync();
+    }
+
+    private Task OnAddAsync()
+    {
+        CurrentRecord = new PromptAdapterModel
+        {
+            IsEnabled = true
+        };
+
+        isNewRecordMode = true;
+        modalTitle = "新增提示詞";
+        modalVisible = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task OnModalOKHandleAsync(MouseEventArgs args)
+    {
+        if (LocalEditContext?.Validate() == false)
+        {
+            IEnumerable&lt;string&gt; allErrors = LocalEditContext.GetValidationMessages();
+            foreach (var error in allErrors)
+            {
+                _ = notificationService.Open(new NotificationConfig
+                {
+                    Message = "驗證失敗",
+                    Description = error,
+                    NotificationType = NotificationType.Error,
+                    Placement = NotificationPlacement.BottomRight,
+                    Duration = 5
+                });
+            }
+
+            modalVisible = true;
+            return;
+        }
+
+        VerifyRecordResult actionResult;
+
+        if (isNewRecordMode)
+        {
+            var beforeAddCheckResult = await promptService.BeforeAddCheckAsync(CurrentRecord);
+            if (!beforeAddCheckResult.Success)
+            {
+                _ = notificationService.Open(new NotificationConfig
+                {
+                    Message = "系統訊息",
+                    Description = beforeAddCheckResult.Message,
+                    NotificationType = NotificationType.Error,
+                    Placement = NotificationPlacement.BottomRight
+                });
+
+                modalVisible = true;
+                return;
+            }
+
+            CurrentRecord.CreatedAt = DateTime.Now;
+            CurrentRecord.UpdatedAt = DateTime.Now;
+
+            actionResult = await promptService.AddAsync(CurrentRecord);
+        }
+        else
+        {
+            var beforeUpdateCheckResult = await promptService.BeforeUpdateCheckAsync(CurrentRecord);
+            if (!beforeUpdateCheckResult.Success)
+            {
+                _ = notificationService.Open(new NotificationConfig
+                {
+                    Message = "系統訊息",
+                    Description = beforeUpdateCheckResult.Message,
+                    NotificationType = NotificationType.Error,
+                    Placement = NotificationPlacement.BottomRight
+                });
+
+                modalVisible = true;
+                return;
+            }
+
+            CurrentRecord.UpdatedAt = DateTime.Now;
+            actionResult = await promptService.UpdateAsync(CurrentRecord);
+        }
+
+        if (!actionResult.Success)
+        {
+            _ = notificationService.Open(new NotificationConfig
+            {
+                Message = "系統訊息",
+                Description = actionResult.Message,
+                NotificationType = NotificationType.Error,
+                Placement = NotificationPlacement.BottomRight
+            });
+
+            modalVisible = true;
+            return;
+        }
+
+        _ = notificationService.Open(new NotificationConfig
+        {
+            Message = "系統訊息",
+            Description = isNewRecordMode ? "新增成功" : "修改成功",
+            NotificationType = NotificationType.Warning,
+            Placement = NotificationPlacement.BottomRight
+        });
+
+        if (isNewRecordMode)
+        {
+            _ = messageService.SuccessAsync("新增成功");
+        }
+
+        await ReloadAsync();
+        modalVisible = false;
+    }
+
+    private Task OnModalCancelHandleAsync(MouseEventArgs args)
+    {
+        modalVisible = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task OnModalKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape" || args.Key == "Esc")
+        {
+            await OnModalCancelHandleAsync(new MouseEventArgs());
+        }
+    }
+
+    public void OnEditContestChanged(EditContext context)
+    {
+        LocalEditContext = context;
+    }
+}</code></pre>
+<blockquote><p>注意：<code>CategoryViewView</code> 的 <code>OnModalKeyDownAsync</code> 在 Enter 時自動送出。因為提示詞本文是多行 <code>TextArea</code>，Enter 應換行而非送出，故本元件<strong>移除 Enter 自動送出</strong>，只保留 Escape 取消。</p></blockquote>
+<ul><li>（歷史步驟）<strong>Step 4: 建立 PromptViewView.razor.css</strong></li></ul>
+<p>Create <code>KnowledgeExtraction.Web/Components/Views/Prompts/PromptViewView.razor.css</code>:</p>
+<pre><code>.prompt-view-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.prompt-view-toolbar-left,
+.prompt-view-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.prompt-view-search-input {
+    width: 260px;
+}
+
+.prompt-view-icon-button {
+    width: 36px;
+    padding: 0;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.prompt-status {
+    display: inline-block;
+    padding: 1px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 20px;
+}
+
+.prompt-status-enabled {
+    color: #237804;
+    background-color: #f6ffed;
+    border: 1px solid #b7eb8f;
+}
+
+.prompt-status-disabled {
+    color: #a8071a;
+    background-color: #fff1f0;
+    border: 1px solid #ffa39e;
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 5: 建置確認</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.sln</code> Expected: Build succeeded（0 Error）。若有 <code>_Imports.razor</code> 未涵蓋的命名空間（如 <code>KnowledgeExtraction.Web.Components.Views.Prompts</code>），確認 <code>PromptPage.razor</code> 能解析 <code>&lt;PromptViewView /&gt;</code>；既有 Category 採全域 <code>_Imports</code>，通常無需額外 using。</p>
+<ul><li>（歷史步驟）<strong>Step 6: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Pages/Prompts src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/Prompts
+git commit -m "feat: 新增提示詞清單 Blazor 頁面與檢視元件"</code></pre>
+<hr>
+<h2 id="task-7-選單與權限三處同步" class="t8">Task 7: 選單與權限三處同步</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs:40</code></li><li>Modify: <code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs:29</code></li><li>Modify: <code>KnowledgeExtraction.Web/Datas/Menu.json</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 新增權限常數</strong></li></ul>
+<p>Modify <code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code> — 在第 40 行 <code>public const string 角色_團隊清單 = "團隊清單";</code> 之後新增：</p>
+<pre><code>    public const string 角色_團隊清單 = "團隊清單";
+    public const string 角色_提示詞清單 = "提示詞清單";</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 在權限群組加入提示詞清單</strong></li></ul>
+<p>Modify <code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code> — 將「資料定義」群組（第 26-30 行）末端加入 <code>角色_提示詞清單</code>：</p>
+<pre><code>            [
+                MagicObjectHelper.角色_資料定義,
+                MagicObjectHelper.角色_分類清單,
+                MagicObjectHelper.角色_團隊清單,
+                MagicObjectHelper.角色_提示詞清單,
+            ],</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: 在 Menu.json 加入子選單</strong></li></ul>
+<p>Modify <code>KnowledgeExtraction.Web/Datas/Menu.json</code> — 在「資料定義」(id 4) 的 <code>subMenu</code> 中，「團隊清單」(id 42) 之後新增 id 43。修改後該群組為：</p>
+<pre><code>  {
+    "id": 4,
+    "name": "資料定義",
+    "icon": "dataset",
+    "subMenu": [
+      {
+        "id": 41,
+        "name": "分類清單",
+        "icon": "category",
+        "url": "/categories"
+      },
+      {
+        "id": 42,
+        "name": "團隊清單",
+        "icon": "groups",
+        "url": "/teams"
+      },
+      {
+        "id": 43,
+        "name": "提示詞清單",
+        "icon": "edit_note",
+        "url": "/prompts"
+      }
+    ]
+  },</code></pre>
+<blockquote><p>子項 <code>name</code>「提示詞清單」須與 <code>MagicObjectHelper.角色_提示詞清單</code> 的值（<code>"提示詞清單"</code>）完全一致；群組內順序（分類→團隊→提示詞）須與 <code>RolePermissionService</code> 群組順序以位置索引對齊。</p></blockquote>
+<ul><li>（歷史步驟）<strong>Step 4: 建置確認</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.sln</code> Expected: Build succeeded。</p>
+<ul><li>（歷史步驟）<strong>Step 5: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs src/KnowledgeExtraction/KnowledgeExtraction.Web/Datas/Menu.json
+git commit -m "feat: 提示詞清單選單與權限三處同步"</code></pre>
+<hr>
+<h2 id="task-8-版本號-1文件同步與最終驗收" class="t1">Task 8: 版本號 +1、文件同步與最終驗收</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>KnowledgeExtraction.Web/appsettings.json:56</code></li><li>Modify: <code>docs/architecture/開發慣例與限制速查.md</code>（更新「資料定義」群組現況）</li><li>Modify: <code>docs/security/認證授權與權限機制.md</code>（權限對應表新增一列）</li><li>Create: <code>docs/changelog/2026-06-09-提示詞清單功能.md</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 版本號 +1</strong></li></ul>
+<p>Modify <code>KnowledgeExtraction.Web/appsettings.json</code> — 第 56 行：</p>
+<pre><code>      "SystemVersion": "0.2.43 (2026/06/09)"</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 更新權限對應文件</strong></li></ul>
+<p>Modify <code>docs/security/認證授權與權限機制.md</code> — 在權限對應表「團隊清單」列之後新增：</p>
+<pre><code>| `角色_提示詞清單` | 提示詞清單 | 提示詞清單（id 43） | `/prompts` |</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: 更新慣例速查的選單頂層順序說明（如有列出子項則補上）</strong></li></ul>
+<p>Modify <code>docs/architecture/開發慣例與限制速查.md</code> — 若 §1.6 或他處列出「資料定義」子項，補上「提示詞清單」。若僅列頂層順序則無需更動（頂層未變）。</p>
+<ul><li>（歷史步驟）<strong>Step 4: 建立 changelog</strong></li></ul>
+<p>Create <code>docs/changelog/2026-06-09-提示詞清單功能.md</code>:</p>
+<pre><code># 2026-06-09 提示詞清單功能
+
+## 摘要
+
+新增「提示詞清單（Prompt）」CRUD 管理頁面（路由 `/prompts`），位於側邊選單「資料定義」群組，供使用者集中維護可重複使用的 LLM 提示詞。系統版本 0.2.42 → 0.2.43。
+
+## 異動內容
+
+- 新增 `Prompt` 實體與雙 provider migration（`AddPrompt`，Sqlite 與 SQL Server）。
+- 新增 `PromptAdapterModel`、`PromptDto`、`PromptCreateUpdateDto`、`PromptSearchRequestDto`。
+- 新增 `PromptRepository`、`PromptService`（名稱唯一性：Trim + 忽略大小寫，編輯排除自身；預設依 `UpdatedAt` 新到舊）。
+- 新增 `PromptController`（`search` / `get` / `create` / `update` / `delete`，名稱重複回 409）。
+- 新增 Blazor 頁面 `PromptPage` 與檢視元件 `PromptViewView`。
+- 權限三處同步：`MagicObjectHelper` 新增 `角色_提示詞清單`；`RolePermissionService` 於「資料定義」群組末端加入；`Menu.json` 新增子項 id 43。
+- 提示詞本文 `Content` 為必填長文字欄位（上限 8000 字）。
+- 新增 `PromptServiceTests`。
+
+## 範圍外（未來延伸）
+
+- 將提示詞串接至音訊轉錄／會議紀錄等 LLM 生成流程。
+- 提示詞用途分類、變數樣板、版本控管、匯入匯出。</code></pre>
+<ul><li>（歷史步驟）<strong>Step 5: 確保 docs 為 UTF-8 含 BOM</strong></li></ul>
+<p>Run（PowerShell，於 repo 根目錄）：</p>
+<pre><code>$files = @(
+  "docs/changelog/2026-06-09-提示詞清單功能.md",
+  "docs/security/認證授權與權限機制.md",
+  "docs/architecture/開發慣例與限制速查.md"
+)
+$utf8Bom = New-Object System.Text.UTF8Encoding($true)
+foreach ($f in $files) {
+  $p = Join-Path (Get-Location) $f
+  $c = [System.IO.File]::ReadAllText($p)
+  [System.IO.File]::WriteAllText($p, $c, $utf8Bom)
+}
+pwsh -File scripts/Test-DocsEncoding.ps1</code></pre>
+<p>Expected: 全部 <code>BOM=True ReplacementCharacter=False</code>。</p>
+<ul><li>（歷史步驟）<strong>Step 6: 最終建置與全測試</strong></li></ul>
+<p>Run:</p>
+<pre><code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.sln
+dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests</code></pre>
+<p>Expected: Build succeeded；所有測試 PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 7: 手動驗收（啟動 App）</strong></li></ul>
+<p>啟動 Web 專案，登入後確認：</p>
+<ol><li>側邊選單「資料定義」下出現「提示詞清單」，位於分類清單、團隊清單之後（需以有權限角色登入；既有角色須於角色管理頁重新勾選「提示詞清單」）。</li><li>列表預設依更新時間新到舊。</li><li>新增：名稱、提示詞本文必填；重複名稱（忽略大小寫、去空白）被拒。</li><li>編輯：可改各欄位，名稱唯一性排除自身；存後回到列表最前。</li><li>刪除：確認後實體刪除。</li></ol>
+<ul><li>（歷史步驟）<strong>Step 8: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json docs
+git commit -m "docs: 提示詞清單功能文件同步與版本升至 0.2.43"</code></pre>
+<hr>
+<h2 id="self-review" class="t2">Self-Review</h2>
+<p><strong>Spec coverage（對照 <code>docs/prd/提示詞清單-prd.md</code>）：</strong></p>
+<ul><li>五、資料模型（含 Content）→ Task 1、5 ✅</li><li>七、分層元件（Repository/Service/DTO/AdapterModel/Controller/AutoMapper/DI）→ Task 1–4 ✅</li><li>八、UI（表格欄位、Modal、TextArea、預設排序、權限檢查、Clone）→ Task 6 ✅</li><li>九、API 端點 → Task 4 ✅</li><li>十、選單與權限三處同步 → Task 7 ✅</li><li>十一、測試（CRUD + 名稱唯一性 + 排序）→ Task 2 ✅</li><li>十二、編碼 UTF-8 BOM → Task 8 Step 5 ✅</li><li>十三、驗收條件 → Task 8 Step 7 ✅</li><li>雙 provider migration → Task 5 ✅</li><li>版本 +1（0.2.42→0.2.43）→ Task 8 ✅</li></ul>
+<p><strong>Placeholder scan：</strong> 無 TBD/TODO；所有程式碼步驟均含完整可貼上的程式碼。</p>
+<p><strong>Type consistency：</strong> <code>PromptService</code>/<code>PromptRepository</code>/<code>PromptAdapterModel</code>/<code>PromptDto</code>/<code>PromptCreateUpdateDto</code>/<code>PromptSearchRequestDto</code> 命名與方法簽章在 Task 間一致；<code>DbSet&lt;Prompt&gt; Prompt</code>、<code>角色_提示詞清單</code>、<code>Content</code> 欄位於各層一致。</p>
+<p><strong>注意事項：</strong> Task 1 Step 4 先只加 AdapterModel 映射、Task 4 Step 3 再補 DTO 映射，避免引用尚未建立的型別而編譯失敗（已於步驟內註明）。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（superpowers/plans）</h3><ul><li><a href="../../../docs/superpowers/plans/2026-06-02-73d2ea8b.html">音訊／影片轉錄服務 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-04-35c13737.html">抖音影片自動轉錄整合 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-11-knowledge-source-crud-6e918bdb.html">知識來源管理清單（KnowledgeSource）CRUD + 成員聚合 實作計畫</a></li><li><a href="../../../docs/superpowers/plans/2026-07-10-d75d8738.html">KnowledgeExtraction.AI 安全優先穩定化計畫</a></li><li><a href="../../../docs/superpowers/plans/2026-07-12-prd-e14e5def.html">PRD 全庫基線重建 Implementation Plan</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#file-structure">File Structure</a><a class="l2" href="#task-1-prompt-實體adaptermodeldbset-與-automapper-映射">Task 1: Prompt 實體、AdapterModel、DbSet 與 AutoMapper 映射</a><a class="l2" href="#task-2-promptservicetdd">Task 2: PromptService（TDD）</a><a class="l2" href="#task-3-promptrepository">Task 3: PromptRepository</a><a class="l2" href="#task-4-dtoautomapper-dto-映射controllerdi-註冊">Task 4: DTO、AutoMapper DTO 映射、Controller、DI 註冊</a><a class="l2" href="#task-5-雙-provider-ef-core-migration">Task 5: 雙 provider EF Core Migration</a><a class="l2" href="#task-6-blazor-頁面與檢視元件">Task 6: Blazor 頁面與檢視元件</a><a class="l2" href="#task-7-選單與權限三處同步">Task 7: 選單與權限三處同步</a><a class="l2" href="#task-8-版本號-1文件同步與最終驗收">Task 8: 版本號 +1、文件同步與最終驗收</a><a class="l2" href="#self-review">Self-Review</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/superpowers/plans/2026-06-09-提示詞清單.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

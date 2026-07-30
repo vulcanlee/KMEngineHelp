@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文件萃取支援 YAML（.yaml / .yml）（1.0.92 → 1.0.93）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>文件萃取支援 YAML（.yaml / .yml）（1.0.92 → 1.0.93）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-28</li><li>版本：1.0.92 → 1.0.93</li><li>類型：功能小幅擴充（允許清單）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>使用者詢問系統是否支援 YAML 上傳，盤點後確認<strong>完全不支援</strong>：<code>src/</code> 全域搜尋 <code>yaml</code>／<code>yml</code> 零命中，也沒有任何 YAML 函式庫參考。</p>
+<p>但 <code>DocumentFormatValidator.AllowedExtensions</code> 已收錄 <code>.json</code>、<code>.xml</code>、<code>.csv</code>、<code>.md</code> 等結構化／純文字格式，唯獨少了 <code>.yaml</code>／<code>.yml</code>。以格式性質而言比較像是當初漏列而非刻意排除——YAML 是設定檔、API 規格（OpenAPI）、CI 流程等企業文件的常見載體，納入知識庫有實際價值。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="程式碼只動一行">程式碼只動一行</h3>
+<p><code>Business/Helpers/DocumentFormatValidator.cs</code> 的允許清單加入 <code>".yaml", ".yml"</code>。</p>
+<p>允許清單是<strong>單一常數</strong>，下列六個連動點全部共用它，因此<strong>不需要個別修改</strong>：</p>
+<div class="tw"><table><thead><tr><th>連動點</th><th>位置</th></tr></thead><tbody><tr><td>前端 <code>&lt;InputFile accept&gt;</code></td><td><code>DocumentExtractionView.razor:198</code>（<code>AcceptAttribute</code>）</td></tr><tr><td>UI「支援格式：…」文字（單檔／批次各一處）</td><td>同檔 <code>:199</code>、<code>:251</code>（<code>AllowedExtensionsText</code>）</td></tr><tr><td>後端上傳驗證</td><td><code>DocumentExtractionService.cs:165</code>（<code>BeforeAddCheckAsync</code>）</td></tr><tr><td>ZIP 批次 zip bomb 預檢</td><td>同檔 <code>:415</code></td></tr><tr><td>ZIP 批次逐筆過濾（不支援者列入 Skipped）</td><td>同檔 <code>:448</code></td></tr></tbody></table></div>
+<h3 id="為什麼不必動轉換流程這是本次唯一的實質風險已先查證">為什麼不必動轉換流程——這是本次唯一的實質風險，已先查證</h3>
+<p><code>MarkItDownConverter</code> 是<strong>副檔名無關</strong>的（直接 <code>Process.Start(markitdown "in" -o "out")</code>），能不能轉完全由外部 MarkItDown 決定，所以允許清單放行不等於轉得出來。查證系統實際設定的那份（<code>MarkItDownSettings:MarkItDownPath</code>，版本 <strong>0.1.6</strong>）：</p>
+<ul><li><code>_plain_text_converter.py</code> 的 <code>ACCEPTED_FILE_EXTENSIONS</code>（<code>.txt/.text/.md/.markdown/.json/.jsonl</code>）<strong>不含</strong> <code>.yaml</code>；<code>ACCEPTED_MIME_TYPE_PREFIXES</code>（<code>text/</code>、<code>application/json</code>、<code>application/markdown</code>）也<strong>不含</strong> <code>application/yaml</code>。<strong>單看這兩個清單會得到「不支援」的錯誤結論。</strong></li><li>真正放行的是 <code>accepts()</code> 的第一道判斷 <code>if stream_info.charset is not None: return True</code>。MarkItDown 在 <code>_get_stream_info_guesses()</code> 會先用 magika 辨識<strong>串流內容</strong>，只要 <code>is_text=True</code> 就填入 charset。</li><li>以 YAML 內容實測 magika：<code>label=yaml, is_text=True, mime=application/x-yaml</code>。</li><li>端對端實測 <code>markitdown sample.yaml -o sample.md</code>：<strong>ExitCode 0</strong>，輸出為原始 YAML 文字（含中文正常）。</li></ul>
+<p>結論：<code>.yaml</code>／<code>.yml</code> 走 <code>PlainTextConverter</code> <strong>純文字直通</strong>，與現有 <code>.json</code> 行為一致，因此 <code>DocumentExtractionProcessor</code> <strong>不新增任何分支</strong>。</p>
+<p>⚠️ 這條路徑依賴 magika 的內容辨識，<strong>不是副檔名白名單</strong>。若日後升級 MarkItDown 後 YAML 轉換失敗，先查的是 magika 而非副檔名對照表；退路是在 <code>DocumentExtractionProcessor.ProcessCoreAsync</code> 呼叫 MarkItDown 前加一條純文字直通分支。</p>
+<h3 id="刻意不改的地方">刻意不改的地方</h3>
+<ul><li><strong><code>DocumentExtractionService.GuessContentType()</code> 不動</strong>。它推得的 ContentType 唯一用途是 <code>IsLlmFileSupported()</code>，而該方法只允許 <code>image/*</code> 與 <code>application/pdf</code>。YAML 落到 <code>application/octet-stream</code> 不影響任何行為，加 <code>text/yaml</code> 是無作用的推測性變更（CLAUDE.md §2）。</li><li><code>ImageFormatValidator</code>／<code>MediaFormatValidator</code> 與本次無關。</li><li>無模型變更 → <strong>無 migration</strong>；無新增頁面 → 不涉及 <code>Menu.json</code>／<code>RolePermissionService</code>／<code>MagicObjectHelper</code> 三處同步；不需要 YamlDotNet（系統只做格式轉換，不解析 YAML 語意）。</li></ul>
+<h2 id="測試" class="t3">測試</h2>
+<p><code>DocumentFormatValidatorTests</code> 的允許清單 <code>[Theory]</code> 新增 3 條：<code>openapi.yaml</code>、<code>pipeline.yml</code>、<code>CONFIG.YAML</code>（第三條同時涵蓋 <code>OrdinalIgnoreCase</code> 大小寫不敏感，與既有 <code>NOTE.TXT</code> 同風格）。</p>
+<p>⚠️ <strong>本批未取得測試執行結果</strong>：撰寫當下工作區存在另一批未提交的 Graph RAG 檢索快取進行中變更（<code>GraphRetrievalCache</code>／<code>IGraphRetrievalCache</code> 為未追蹤新檔），<code>KnowledgeExtraction.Tests</code> 因該批 WIP 而編譯失敗（<code>GraphExtractionProcessorTests</code>／<code>GraphTripleServiceTests</code>／<code>GraphEntityAliasServiceTests</code>／<code>RetrievalServiceTests</code>／<code>Mcp/*</code> 的建構式參數與型別不符），與本次變更無關。<code>KnowledgeExtraction.Business</code> 與 <code>KnowledgeExtraction.Web</code> 建置成功。<strong>待該批 WIP 收斂後需補跑一次測試確認全綠。</strong></p>
+<h2 id="影響與相容性" class="t4">影響與相容性</h2>
+<ul><li>文件轉文字頁的檔案選擇器可選到 <code>.yaml</code>／<code>.yml</code>，「支援格式」提示同步出現這兩項。</li><li>ZIP 批次匯入中的 YAML 不再被列入「不支援格式」而略過，改為成功建立記錄。</li><li>轉出的 Markdown 為 YAML 原文（未加程式碼區塊圍欄），與 <code>.json</code> 現行行為一致。</li><li>既有記錄不受影響；無 API 合約變更。</li></ul>
+<h2 id="文件同步" class="t5">文件同步</h2>
+<ul><li><code>guides/資料匯入指南-音訊文件圖片.md</code>、<code>guides/新手完整操作指南.md</code>、<code>guides/完整操作手冊.md</code>、<code>guides/實作練習手冊-Hands-on Lab.md</code>：支援格式清單加入 <code>.yaml</code>、<code>.yml</code>。</li><li><code>prd/文件萃取-markitdown-prd.md</code>：允許清單描述補上 YAML，並註明自 1.0.93 起納入。</li><li>未改 <code>changelog/2026-06-20-文件萃取限制副檔名.md</code>——該篇是當時變更的歷史紀錄，不回頭改寫。</li></ul>
+<h2 id="版本" class="t6">版本</h2>
+<ul><li><code>appsettings.json</code> <code>SystemVersion</code>：<code>1.0.92</code> → <code>1.0.93</code>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#程式碼只動一行">程式碼只動一行</a><a class="l3" href="#為什麼不必動轉換流程這是本次唯一的實質風險已先查證">為什麼不必動轉換流程——這是本次唯一的實質風險，已先查證</a><a class="l3" href="#刻意不改的地方">刻意不改的地方</a><a class="l2" href="#測試">測試</a><a class="l2" href="#影響與相容性">影響與相容性</a><a class="l2" href="#文件同步">文件同步</a><a class="l2" href="#版本">版本</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-28-文件萃取支援YAML.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-06-21 方案 3：四層提示詞解析（LlmPromptResolver）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>2026-06-21 方案 3：四層提示詞解析（LlmPromptResolver）</h1></header><div class="docwrap"><main><p>版本：0.2.109 → <strong>0.2.110</strong></p>
+<p>承 <a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a> §7 方案 3。</p>
+<h2 id="需求" class="t1">需求</h2>
+<p>讓所有 LLM 提示詞可被多層覆蓋、可線上客製、互動更透明，且保留程式預設為最終保險。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="新增businessservicespromptsmodelssystems">新增（<code>Business/Services/Prompts/</code>、<code>Models/Systems/</code>）</h3>
+<ul><li><code>LlmPromptKeys</code>：槽位鍵常數（清洗五鍵沿用舊名、對話/詳簡/技能/轉錄）。</li><li><code>LlmPromptDefaults</code>：集中程式 fallback 預設文字（自 CleaningEnhancer/KnowledgeSourceChatService/SkillPromptDefaults 搬入；<code>SkillPromptDefaults.MetaPrompt</code> 改為 re-export 以免 drift）。</li><li><code>LlmPromptsSettings</code>：appsettings <code>LlmPrompts</code> 區段（強型別具名屬性，值留空＝用 fallback）＋ <code>Get(key)</code>。</li><li><code>LlmPromptResolver.ResolveAsync(key, perOpOverride, fallback)</code>：四層優先序「單次操作 → DB(同名鍵) → appsettings → fallback」，Debug 記錄採用層級。</li><li><code>PromptService.GetEnabledContentByNameAsync(name)</code>：依名稱取啟用提示詞本文（DB 覆蓋層）。</li></ul>
+<h3 id="整合改走-resolver上層皆空時輸出與-02109-一致">整合（改走 resolver；上層皆空時輸出與 0.2.109 一致）</h3>
+<ul><li><code>CleaningEnhancer</code>：五步驟改 resolver（單次操作＝清洗設定檔欄位）；移除五段常數與本地字典/helper。</li><li><code>KnowledgeSourceChatService</code>：<code>BuildMessages</code> → <code>BuildMessagesAsync</code>，系統提示詞與詳簡指示走 resolver；對話頁改 <code>await</code>。</li><li><code>SkillGenerationProcessor</code>：技能 Meta 走 resolver（單次操作＝CustomPromptText）。</li><li><code>TranscriptionProcessor</code>：中文轉錄提示詞加 DB「轉錄-提示」覆蓋層，fallback 沿用 <code>OpenAISettings.Prompt</code>。</li><li>DI：<code>Configure&lt;LlmPromptsSettings&gt;</code>、<code>AddScoped&lt;LlmPromptResolver&gt;</code>；<code>appsettings.json</code> 新增 <code>LlmPrompts</code> 區段（值留空、附說明）。</li></ul>
+<h2 id="影響範圍" class="t3">影響範圍</h2>
+<ul><li>變更檔：<code>LlmPromptKeys/Defaults/Resolver</code>（新）、<code>LlmPromptsSettings</code>（新）、<code>LlmPromptResolverTests</code>（新）、<code>PromptService</code>、<code>CleaningEnhancer</code>、<code>KnowledgeSourceChatService</code>、<code>KnowledgeSourceChatView.razor.cs</code>、<code>SkillGenerationProcessor</code>、<code>TranscriptionProcessor</code>、<code>SkillPromptDefaults</code>、<code>ServiceCollectionExtensions</code>、<code>appsettings.json</code>、文件。</li><li>轉錄維持 json 回應（0.2.109 起）；<strong>無資料庫變更、不需 migration</strong>（<code>Prompt</code> 表沿用）。</li><li>行為不變量：DB 與 appsettings 皆空時＝沿用程式預設，既有產出與測試不變。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ol><li><code>dotnet test</code> 全綠（281 通過，含 5 筆新 <code>LlmPromptResolverTests</code>）。</li><li>「提示詞清單」新增啟用同名鍵 → 對應功能改用；清空→退 appsettings→再退 fallback；對話頁/設定檔等單次輸入蓋過所有層。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#新增businessservicespromptsmodelssystems">新增（Business/Services/Prompts/、Models/Systems/）</a><a class="l3" href="#整合改走-resolver上層皆空時輸出與-02109-一致">整合（改走 resolver；上層皆空時輸出與 0.2.109 一致）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-21-方案3四層提示詞解析.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

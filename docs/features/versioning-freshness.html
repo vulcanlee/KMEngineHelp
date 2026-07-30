@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>版本化與時效性｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 功能機制</p><header class="hero"><div class="kicker">功能機制</div><h1>版本化與時效性</h1></header><div class="docwrap"><main><h2 id="文件目的" class="t1">文件目的</h2>
+<p>說明知識庫中「Wiki 頁版本狀態機（VER-1）」與「向量失效標記／<code>as-of</code> 時點檢索（VER-2）」的機制：知識更新時如何保留歷史、只讓現行版參與問答、以及如何做時間點回溯查詢。此能力自 <strong>0.3.14</strong> 起完整落地。</p>
+<blockquote><p>相關：<a href="../../docs/architecture/knowledge-type-versioning.html">知識型態抽象 × 版本化 × 時效性（設計文件）</a>、<a href="../../docs/architecture/wiki-vs-cleaned.html">Wiki 與 Cleaned 的角色差異 §八</a>、<a href="../../docs/guides/wiki-review.html">知識頁審核與 Wiki 頁管理指南</a>。</p></blockquote>
+<hr>
+<h2 id="1-為什麼需要版本化與時效性" class="t2">1. 為什麼需要版本化與時效性</h2>
+<p>知識會演進：同一個概念（例如「請假辦法」）可能被多次重蒸餾或線上編修。若每次都覆蓋或刪除舊內容，會遺失歷史、無法回答「上個月的規定是什麼」，也難以稽核。版本化的目標是：</p>
+<ul><li><strong>不遺失知識</strong>：舊版保留、可回溯。</li><li><strong>問答只用最新</strong>：預設只讓現行版參與檢索，避免新舊混答。</li><li><strong>可時間旅行</strong>：能查詢「某個時間點當時的有效知識」（<code>as-of</code>）。</li></ul>
+<hr>
+<h2 id="2-概念鍵與欄位" class="t3">2. 概念鍵與欄位</h2>
+<p><strong>概念鍵 ＝ <code>(KnowledgeSourceId, Title)</code></strong>：同一來源下、同一標題視為同一個概念；同一概念<strong>至多一個現行版（<code>current</code>）</strong>。</p>
+<h3 id="wikipage-版本治理欄位"><code>WikiPage</code> 版本／治理欄位</h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>Version</code></td><td>版本序號，核准新版時遞增。</td></tr><tr><td><code>EffectiveStatus</code></td><td>版本治理狀態：<code>current</code>（現行）／<code>superseded</code>（已被超越）／<code>null</code>（草稿，尚未核准）。<strong>與審核狀態 <code>Status</code>（待審核／已完成／已退回）正交。</strong></td></tr><tr><td><code>EffectiveDate</code></td><td>生效時間（核准為現行版時設定）。</td></tr><tr><td><code>ExpiryDate</code></td><td>失效時間（被新版超越時設定）。</td></tr><tr><td><code>SupersededByPageId</code></td><td>指向超越本頁的新版頁 Id。</td></tr><tr><td><code>PreviousVersionPageId</code></td><td>指向前一版頁 Id，構成版本鏈。</td></tr><tr><td><code>Owner</code></td><td>知識負責人（治理欄位）。</td></tr><tr><td><code>ChangeSummary</code></td><td>本次變更摘要（治理欄位）。</td></tr><tr><td><code>LastReviewedAt</code></td><td>最後複審時間（治理欄位）。</td></tr></tbody></table></div>
+<h3 id="vectorembedding-時效欄位"><code>VectorEmbedding</code> 時效欄位</h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>IsCurrent</code></td><td>此向量是否屬現行版；預設檢索只取 <code>IsCurrent=true</code>。</td></tr><tr><td><code>EffectiveDate</code></td><td>向量生效時間（Wiki 層繼承其頁；Cleaned 層為 <code>null</code>）。</td></tr><tr><td><code>ExpiryDate</code></td><td>向量失效時間（被超越時設定；<code>null</code> 表示仍有效）。</td></tr></tbody></table></div>
+<hr>
+<h2 id="3-版本狀態機核准即超越" class="t4">3. 版本狀態機（核准即超越）</h2>
+<p>核准一個 Wiki 頁（<code>WikiPageService.ApproveAsync</code>）時：</p>
+<ol><li>將本頁設為 <code>current</code>、設定 <code>EffectiveDate</code>、<code>Version</code> 遞增。</li><li>找出同概念的前一個 <code>current</code> 版，轉為 <code>superseded</code>：設定 <code>ExpiryDate</code>、<code>SupersededByPageId</code>，並將其向量標記 <code>IsCurrent=false</code>（<strong>保留、不刪除</strong>）。</li><li>新現行版透過重索引建立其向量。</li></ol>
+<p>重蒸餾（<code>DistillationProcessor</code>）時<strong>不再刪除舊頁</strong>：改為建立版本鏈；若新頁自動核准，則超越舊現行版並使其向量失效；審核中的草稿（<code>EffectiveStatus=null</code>）不影響仍在線上的現行版，待核准後才接手。</p>
+<hr>
+<h2 id="4-只索引現行版舊版保留供回溯" class="t5">4. 只索引現行版；舊版保留供回溯</h2>
+<p><code>EmbeddingIndexProcessor</code> 只為「<code>Status=已完成</code> 且 <code>EffectiveStatus=current</code>」的 Wiki 頁建索引；<code>superseded</code> 舊版的頁、檔案與向量都保留，但向量 <code>IsCurrent=false</code>，預設不參與問答。Cleaned 層不版本化，只要存在即索引。</p>
+<hr>
+<h2 id="5-事件觸發自動重索引" class="t6">5. 事件觸發自動重索引</h2>
+<p>為縮短「內容已改、索引還舊」的落差，自 0.3.12 起：</p>
+<ul><li>線上編修 Wiki 內容（<code>UpdateContentAsync</code>）或核准 Wiki（<code>ApproveAsync</code>）時，會呼叫 <code>WikiPageService.TryEnqueueSourceReindexAsync</code> <strong>自動把來源排入重索引佇列</strong>。</li><li>有守門：來源須為「已清洗」，且未有進行中的索引作業（避免重複排入）。</li><li>底層沿用 <code>EmbeddingIndexQueue</code> → <code>EmbeddingIndexBackgroundService</code> → <code>EmbeddingIndexProcessor</code>（增量、冪等）。</li></ul>
+<hr>
+<h2 id="6-as-of-時點檢索" class="t7">6. <code>as-of</code> 時點檢索</h2>
+<p><code>EffectiveVersionFilter.ApplyEffective(asOf)</code> 疊在<strong>團隊權控（ACL）之上</strong>於 <code>RetrievalService</code> 套用：</p>
+<ul><li><code>asOf</code> 為 <code>null</code>：只回傳 <code>IsCurrent=true</code> 的向量（預設行為）。</li><li><code>asOf = T</code>：回傳在 T 當時有效的版本，即 <code>EffectiveDate ≤ T</code> 且（<code>ExpiryDate</code> 為 <code>null</code> 或 <code>&gt; T</code>）。</li><li>Cleaned 層 <code>EffectiveDate=null</code>、永遠納入，不受版本過濾影響。</li></ul>
+<p><code>RetrievalQuery.AsOf</code> 會傳遞到 <code>VectorQuery</code>；診斷頁（<code>RagDiagnosticsService.TryRetrieveAsync</code>）提供 <code>as-of</code> 試檢索，可實際比對「當時 vs 現在」。</p>
+<hr>
+<h2 id="7-使用者介面" class="t8">7. 使用者介面</h2>
+<ul><li><strong>版本歷史</strong>：Wiki 頁管理與知識百科可查看同概念的版本鏈（<code>GetVersionChainAsync</code>，依 <code>Version</code> 遞減）。</li><li><strong>治理編輯</strong>：可維護 <code>Owner</code>／<code>ChangeSummary</code>（<code>UpdateGovernanceAsync</code>）。</li><li><strong>診斷 as-of 試檢索</strong>：<code>/rag-diagnostics</code> 可指定時間點做點檢索試驗。</li></ul>
+<hr>
+<h2 id="8-不變量" class="t1">8. 不變量</h2>
+<ul><li><strong>權控優先於版本過濾</strong>：版本過濾<strong>不取代</strong>團隊權控；非管理員的越權洩漏必須維持 0。</li><li><strong>向後相容</strong>：導入時以雙資料庫 migration <code>AddVersioningFields</code> + 回填（既有已完成頁 → <code>current</code>、既有向量 <code>IsCurrent=true</code>）確保既有知識不遺失。</li><li><strong>舊版不刪除</strong>：<code>superseded</code> 版本保留供 <code>as-of</code> 與稽核。</li></ul>
+<hr>
+<h2 id="9-相關檔案" class="t2">9. 相關檔案</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas/Models/WikiPage.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas/Models/VectorEmbedding.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Embeddings/EffectiveVersionFilter.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Embeddings/EmbeddingIndexProcessor.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Embeddings/RetrievalService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/WikiPageService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Distillations/DistillationProcessor.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/RagDiagnosticsService.cs</code></li><li>雙資料庫 migration：<code>AddVersioningFields</code>（<code>KnowledgeExtraction.AccessDatas</code> 與 <code>KnowledgeExtraction.AccessDatas.SqlServerMigrations</code>）</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫系統銷售人員：客戶問技術問題，我不想答錯也不想失去專業</li></ul></div><div class="card"><h3>同類文件（功能機制）</h3><ul><li><a href="../../docs/features/distributed-cache.html">分散式快取機制</a></li><li><a href="../../docs/features/i18n.html">多語系與本地化</a></li><li><a href="../../docs/features/file-upload.html">檔案上傳機制</a></li><li><a href="../../docs/features/wiki-and-wikilink.html">知識百科與 WikiLink</a></li><li><a href="../../docs/features/health-monitoring.html">系統健康監控</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#文件目的">文件目的</a><a class="l2" href="#1-為什麼需要版本化與時效性">1. 為什麼需要版本化與時效性</a><a class="l2" href="#2-概念鍵與欄位">2. 概念鍵與欄位</a><a class="l3" href="#wikipage-版本治理欄位">WikiPage 版本／治理欄位</a><a class="l3" href="#vectorembedding-時效欄位">VectorEmbedding 時效欄位</a><a class="l2" href="#3-版本狀態機核准即超越">3. 版本狀態機（核准即超越）</a><a class="l2" href="#4-只索引現行版舊版保留供回溯">4. 只索引現行版；舊版保留供回溯</a><a class="l2" href="#5-事件觸發自動重索引">5. 事件觸發自動重索引</a><a class="l2" href="#6-as-of-時點檢索">6. as-of 時點檢索</a><a class="l2" href="#7-使用者介面">7. 使用者介面</a><a class="l2" href="#8-不變量">8. 不變量</a><a class="l2" href="#9-相關檔案">9. 相關檔案</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/features/版本化與時效性.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

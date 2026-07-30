@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>archive — 已完成或已過期的文件｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 已歸檔</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">已歸檔</div><h1>archive — 已完成或已過期的文件</h1></header><div class="docwrap"><main><ul><li>建立版本：1.0.64（2026/07/25）</li></ul>
+<h2 id="這個目錄是什麼" class="t1">這個目錄是什麼</h2>
+<p>本目錄收納<strong>已完成、已被取代或已過期</strong>的文件，保留供回溯當時的決策脈絡與實作歷程。</p>
+<blockquote><p><strong>重要</strong>：這裡的內容<strong>一律不代表現行需求或系統現況</strong>。查現況請到 <code>docs/prd/</code>（產品需求）、<code>docs/architecture/</code>（技術設計）、<code>docs/guides/</code>（操作教學）、<code>docs/operations/</code>（維運）。每份歸檔文件開頭都有「已歸檔」標頭，註明歸檔原因與該改看哪一份。</p></blockquote>
+<p>之所以保留而不刪除，是因為這些文件記錄了<strong>當初為什麼那樣決定</strong>——刪掉會失去設計歷史；但留在原目錄又會讓人誤以為是現行規劃。</p>
+<h2 id="歸檔清單" class="t2">歸檔清單</h2>
+<h3 id="腳手架期的規劃-todo2026-06-02-定稿全數完成後未再異動">腳手架期的規劃 TODO（2026-06-02 定稿，全數完成後未再異動）</h3>
+<p>這六份是專案從腳手架起步時的規劃文件，每一個 checkbox 都已勾選完成，內容也已被長青文件吸收。</p>
+<div class="tw"><table><thead><tr><th>文件</th><th>原位置</th><th>改看</th></tr></thead><tbody><tr><td><a href="../../docs/archive/01-todo-7b613bd7.html">01-專案總覽與定位</a></td><td><code>planning/</code></td><td><code>guides/腳手架新專案啟動流程.md</code>、<code>operations/正式部署與安全檢查清單.md</code></td></tr><tr><td><a href="../../docs/archive/02-todo-3f55bf3e.html">02-現有架構盤點</a></td><td><code>planning/</code></td><td><code>architecture/架構總覽.md</code>、<code>architecture/DTO 與模型邊界規範.md</code></td></tr><tr><td><a href="../../docs/archive/03-todo-4317ce18.html">03-缺口與風險清單</a></td><td><code>planning/</code></td><td><code>operations/正式部署與安全檢查清單.md</code>、<code>security/</code></td></tr><tr><td><a href="../../docs/archive/04-webapi-jwt-apiresult-todo-63b775bd.html">04-WebAPI-JWT-ApiResult-設計</a></td><td><code>planning/</code></td><td><code>architecture/Web API 設計慣例.md</code>、<code>security/認證授權與權限機制.md</code></td></tr><tr><td><a href="../../docs/archive/05-todo-e50e4e40.html">05-腳手架補強實作路線圖</a></td><td><code>planning/</code></td><td>同上，另見 <code>planning/09-開發歷程總覽與未來建議.md</code></td></tr><tr><td><a href="../../docs/archive/06-todo-55e99cf3.html">06-開發與文件維護規範</a></td><td><code>planning/</code></td><td><code>operations/維護規範.md</code>、<code>architecture/開發慣例與限制速查.md</code>、<code>CLAUDE.md</code></td></tr></tbody></table></div>
+<blockquote><p><strong>這六份裡有兩個已失效的宣稱，別把它們當現況</strong>：</p>
+<ol><li>01／03／05／06 都提到 <code>.github/workflows/dotnet-ci.yml</code>，但該目錄<strong>目前是空的且未被 git 追蹤</strong>——等同尚無 CI（對應 <code>planning/12</code> 的 ENG-3，仍未完成）。</li><li>03 寫「Production 啟動安全檢查已納入 JWT key 與 support 預設密碼」，實際上 <code>StartupSafetyValidator</code> 的比對常數與 <code>appsettings.json</code> 的預設值不相等，<strong>守門永不觸發</strong>。此風險已列入 <code>planning/08-優化建議清單-TODO.md</code>。</li></ol></blockquote>
+<h3 id="一次性活動的產物">一次性活動的產物</h3>
+<div class="tw"><table><thead><tr><th>文件</th><th>原位置</th><th>為何歸檔</th><th>改看</th></tr></thead><tbody><tr><td><a href="../../docs/archive/10-todo-2aadf980.html">10-知識蒸餾與問答疑問釐清及需求</a></td><td><code>planning/</code></td><td>文件自稱「階段三起點的釐清快照」（撰寫時 0.2.119）；所列三個缺口皆已於 0.2.127–0.3.13 實作</td><td><code>prd/知識蒸餾-prd.md</code>、<code>prd/知識瀏覽與Wiki導覽-prd.md</code></td></tr><tr><td><a href="../../docs/archive/11-68d22fc1.html">11-系統功能與文件同步審計</a></td><td><code>planning/</code></td><td>三輪一次性稽核的報告，修完即成歷史；§1 功能清單已過期（仍列 1.0.45 移除的 <code>SkillController</code>）。<strong>尚未完成的 7 項建議已移入 <code>planning/08</code></strong></td><td><code>changelog/2026-07-25-PRD核對第1～3段-*.md</code>、<code>prd/README.md</code> 覆蓋矩陣</td></tr><tr><td><a href="../../docs/archive/rag-ef495a4d.html">RAG補強修正測試指南</a></td><td><code>guides/</code></td><td>一次性補強的測試計畫，內容停在 0.3.7；此後 10 項補強完成都未回填，文件自訂的維護契約已失效。<strong>§〇 的測試套件執行方式已移入 <code>operations/維護規範.md</code> §6</strong></td><td><code>operations/維護規範.md</code> §6、<code>planning/12-RAG系統補強總彙整與優先序.md</code></td></tr></tbody></table></div>
+<h2 id="沒有被歸檔但常被誤認為過期的文件" class="t3">沒有被歸檔、但常被誤認為過期的文件</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>為什麼保留</th></tr></thead><tbody><tr><td><code>planning/07-資料清洗開發代辦清單-TODO.md</code></td><td>第五階段的 <strong>PoC 驗證三項仍未勾選</strong>，是 PoC 待辦的唯一權威追蹤點</td></tr><tr><td><code>planning/08-優化建議清單-TODO.md</code></td><td><strong>現行有效的 backlog</strong>，近期仍在新增項目</td></tr><tr><td><code>planning/12-RAG系統補強總彙整與優先序.md</code></td><td>P0／P1 已完成，但 22 項 P2／P3（rerank、adjacent chunk、向量庫升級、CI 等）<strong>經查證仍未實作</strong></td></tr><tr><td><code>guides/知識庫RAG-PoC執行與驗收指南.md</code></td><td>PoC <strong>尚未執行完成</strong>（見 <code>planning/07</code> 第五階段），且被 7 份現行文件引用，每次導入新客戶都可重跑</td></tr><tr><td><code>docs/prompts/</code>（22 份）</td><td>該目錄自我定位就是「開發過程實際用過的提示詞稿，供回溯與重用」——<strong>本身即是歸檔區</strong>，不需再搬</td></tr></tbody></table></div>
+<blockquote><p>返回 <a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（已歸檔）</h3><ul><li><a href="../../docs/archive/01-todo-7b613bd7.html">專案總覽與定位 TODO</a></li><li><a href="../../docs/archive/02-todo-3f55bf3e.html">現有架構盤點 TODO</a></li><li><a href="../../docs/archive/03-todo-4317ce18.html">缺口與風險清單 TODO</a></li><li><a href="../../docs/archive/04-webapi-jwt-apiresult-todo-63b775bd.html">WebAPI JWT ApiResult 設計 TODO</a></li><li><a href="../../docs/archive/05-todo-e50e4e40.html">腳手架補強實作路線圖 TODO</a></li><li><a href="../../docs/archive/06-todo-55e99cf3.html">開發與文件維護規範 TODO</a></li><li><a href="../../docs/archive/10-todo-2aadf980.html">知識頁審核與問答疑問釐清及需求（階段三起點）</a></li><li><a href="../../docs/archive/11-68d22fc1.html">系統功能與文件同步審計</a></li><li><a href="../../docs/archive/rag-ef495a4d.html">RAG 補強修正測試指南</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#這個目錄是什麼">這個目錄是什麼</a><a class="l2" href="#歸檔清單">歸檔清單</a><a class="l3" href="#腳手架期的規劃-todo2026-06-02-定稿全數完成後未再異動">腳手架期的規劃 TODO（2026-06-02 定稿，全數完成後未再異動）</a><a class="l3" href="#一次性活動的產物">一次性活動的產物</a><a class="l2" href="#沒有被歸檔但常被誤認為過期的文件">沒有被歸檔、但常被誤認為過期的文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/archive/README.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

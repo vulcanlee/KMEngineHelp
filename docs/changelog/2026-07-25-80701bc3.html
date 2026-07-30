@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>長青文件內容勘誤（1.0.59）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>長青文件內容勘誤（1.0.59）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-25</li><li>版本：1.0.58 → 1.0.59</li><li>類型：文件修正（docs 全庫稽核批次 2／共 5 批）</li></ul>
+<h2 id="範圍" class="t1">範圍</h2>
+<p><code>docs/README.md</code>、<code>architecture/</code>、<code>operations/</code>、<code>security/</code>、<code>features/</code>。<strong>只修內容錯誤，不處理選單改名</strong>（那是批次 3）——兩件事混在同一 commit 會讓 diff 無法審閱。</p>
+<h2 id="修正的假安全宣稱" class="t2">🔴 修正的假安全宣稱</h2>
+<p><code>security/認證授權與權限機制.md</code> 原本以 <code>[x]</code> 宣稱「正式環境若仍使用開發預設 <code>JwtSettings:SigningKey</code> 會中止啟動」。<strong>實測為假</strong>：</p>
+<ul><li><code>StartupSafetyValidator</code> 比對的常數是 <code>DevelopmentOnly-ChangeThisJwtSigningKey-AtLeast32Chars</code></li><li><code>appsettings.json</code> 的實際預設值是 <code>DevelopmentOnly-ChangeThisJwtSigningKey-AtLeast32CharsSigningKeySigningKeySigningKeySigningKey</code></li><li>兩者不相等，<code>string.Equals</code> 永遠為 false → <strong>Production 沿用開發預設金鑰不會被擋下</strong></li></ul>
+<p>同一支驗證器的 <code>SupportPassword</code> 檢查亦失效（擋字面值 <code>support</code>，但預設值已改為 <code>1qaz@WSX</code>）。</p>
+<p>已將該項改為 <code>[ ]</code> 並註明守門失效；<code>operations/全新機器部署SOP.md</code> 中「會直接中止啟動」的敘述也改為據實說明「哪兩項有效、哪兩項無效」。<strong>程式修正記入 <code>planning/08</code> backlog</strong>，本批不動程式。</p>
+<h2 id="其他-p0-修正" class="t3">其他 P0 修正</h2>
+<p><strong><code>operations/全新機器部署SOP.md</code></strong></p>
+<ul><li>刪除「<code>appsettings.Production.json</code> 預設把 <code>DatabaseProvider</code> 設為 <code>SqlServer</code>」的警告——該檔實際<strong>只有一個 <code>OpenAISettings:ApiKey</code> 佔位符</strong>，會誤導人去找不存在的設定</li><li><code>SupportPassword</code> 預設值 <code>support</code> → <code>1qaz@WSX</code></li><li><code>Security:ReturnExceptionDetails</code>「Prod 範本 <code>false</code>」→ 實際未設定（<code>null</code>）</li><li>四個外部工具路徑由 PATH 名稱改為現行的 <code>C:\KMEngineTools\*</code> 絕對路徑</li><li>「無強制改密碼流程」→ <strong>實際有</strong>（偵測到密碼等於 <code>NeedChangePassword</code> 時導向 <code>/ChangePassword</code>），與權限機制文件的 <code>[x] 已建立</code> 一致化</li></ul>
+<p><strong><code>operations/日誌與設定檔說明.md</code></strong></p>
+<p>§4 的 appsettings JSON 快照與現況脫節十餘處，已逐處校正並補上三個<strong>完全沒有文件</strong>的設定鍵（<code>DatabaseCommandTimeoutSeconds</code>、<code>FfmpegTimeoutSeconds</code>、<code>YtDlpTimeoutSeconds</code>）、<code>LlmPrompts</code> 補 <code>MeetingMinutes</code>。</p>
+<p>修正後以程式比對驗證：文件快照與實際 <code>appsettings.json</code> <strong>缺少鍵 0、多餘鍵 0、值不一致 0</strong>。</p>
+<p><strong><code>security/認證授權與權限機制.md</code> §頁面權限與選單對應（整節重寫）</strong></p>
+<p>原內容停留在 6 組選單時代：資料定義 id 5／四個子頁、圖片清單掛在專案管理群組、清洗與蒸餾只列 4 個權限，且<strong>完全漏掉統計報表群組與系統管理第三層</strong>。已依 <code>Menu.json</code> 與 <code>RolePermissionService</code> 重建全部對照表（8 組、各群組子項、動作型權限）。</p>
+<p>重寫時保留一條鐵則並在文件中明白寫出：<strong>「權限值」欄大多是舊選單名，這是正確的</strong>——權限常數的值是 DB 既存字串，更動會使所有既有角色掉權限且沒有任何測試抓得到。</p>
+<h2 id="p1-修正" class="t4">P1 修正</h2>
+<div class="tw"><table><thead><tr><th>檔案</th><th>修正</th></tr></thead><tbody><tr><td><code>architecture/資料模型與資料庫.md</code></td><td>DbSet 表補 7 個（<code>CleaningProfile</code>／<code>VectorEmbedding</code>／<code>KnowledgeBaseQueryAudit</code>／<code>RetrievalSettingOverride</code>／<code>RetrievalParamOverride</code>／<code>RagEvalBaseline</code>／<code>LlmChatSession</code>）。程式比對驗證：31 = 31，零缺漏</td></tr><tr><td><code>architecture/LLM 提示詞與用量透明化.md</code></td><td>§10.1 槽位表補 3 鍵（蒸餾-生成／會議-紀錄生成／文件-PDF轉Markdown）；§3.4 取消「完整類別」的不實宣稱</td></tr><tr><td><code>architecture/知識庫RAG設計與執行.md</code></td><td>刪除「一鍵全量重建索引尚未實作」（<code>TriggerEmbeddingIndexAllAsync</code> 已存在且 UI 有按鈕）；<code>EmbeddingProvider</code> 預設 空白→<code>Cloud</code></td></tr><tr><td><code>architecture/架構總覽.md</code></td><td>專案數 7→8；DI 清單改為指向 <code>AddApplicationServices</code> 單一真實來源</td></tr><tr><td><code>architecture/README.md</code></td><td>「八條背景管線／技能」→ 七條（技能管線已於 1.0.45 移除）</td></tr><tr><td><code>operations/README.md</code></td><td>補列漏掉的 IIS 佈署文件</td></tr><tr><td><code>operations/RAG問題診斷手冊.md</code></td><td>§一稱 topScore 分佈儀表板「尚無」、§四稱「已完整落地」的自相矛盾（§四正確）</td></tr><tr><td><code>features/系統健康監控.md</code></td><td>「此頁不放入左側選單」已錯；Node 版本 v22→v20+；背景管線標示為六條並註明缺口</td></tr><tr><td><code>security/Google OAuth2 第三方登入.md</code></td><td>「SQL Server 尚未使用遷移」已錯（有完整 migration 鏈、46 個）</td></tr><tr><td><code>security/密碼種類與儲存機制.md</code></td><td><code>SupportPassword</code> 預設值 3 處</td></tr><tr><td><code>features/知識百科與WikiLink.md</code></td><td>複製機制已於 1.0.38 由 <code>navigator.clipboard</code> 改為 <code>keChat.copyText</code></td></tr><tr><td><code>changelog/2026-06-20-AI技能產生器實作.md</code></td><td>修掉全庫唯一一條死連結（指向已隨功能刪除的 PRD）</td></tr></tbody></table></div>
+<h2 id="慣例調整引用程式碼一律用符號名" class="t5">慣例調整：引用程式碼一律用符號名</h2>
+<p>稽核發現長青文件中的 <code>檔案:行號</code> 引用<strong>無一存活</strong>——程式一改就全部失準，且不會有工具提醒。本批把 <code>architecture</code>／<code>operations</code>／<code>security</code>／<code>features</code> 底下<strong>全部行號引用改為符號名</strong>（檔名 + 類別／方法名），改完剩餘 <strong>0 筆</strong>。</p>
+<p>同時在 <code>operations/維護規範.md</code> 新增「規範四」，明訂此慣例，並要求<strong>不要在文件中複製程式碼的完整清單</strong>（DI 清單、常數全文、設定鍵列舉）——複製一份就多一個漂移來源，應指向單一真實來源。本批已據此處理 §3.4 與架構總覽的 DI 清單。</p>
+<h2 id="記入-backlog" class="t6">記入 backlog</h2>
+<p><code>planning/08-優化建議清單-TODO.md</code> 新增三項：①<code>StartupSafetyValidator</code> 守門失效（安全，高）②健康檢查漏 <code>MeetingMinutesBackgroundService</code> ③<code>OperationLabel</code> 對應表在兩個 View 重複。</p>
+<h2 id="驗證" class="t7">驗證</h2>
+<ol><li><strong>程式化比對</strong>：文件 JSON 快照 vs 實際 <code>appsettings.json</code> → 鍵與值完全一致；DbSet 表 vs <code>BackendDBContext</code> → 31 = 31</li><li>行號引用殘留：長青文件 <strong>0 筆</strong></li><li>死連結：全庫由 1 條降為 <strong>0 條</strong></li><li><code>Test-DocsEncoding.ps1</code> 全數 <code>BOM=True ReplacementCharacter=False</code></li><li><code>dotnet test</code> 643 全綠（本批不動程式，僅確認未受影響）</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#範圍">範圍</a><a class="l2" href="#修正的假安全宣稱">🔴 修正的假安全宣稱</a><a class="l2" href="#其他-p0-修正">其他 P0 修正</a><a class="l2" href="#p1-修正">P1 修正</a><a class="l2" href="#慣例調整引用程式碼一律用符號名">慣例調整：引用程式碼一律用符號名</a><a class="l2" href="#記入-backlog">記入 backlog</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-長青文件內容勘誤.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

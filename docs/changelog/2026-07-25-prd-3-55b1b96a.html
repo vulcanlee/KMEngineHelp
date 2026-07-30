@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRD 核對：第 3 段 — 基礎資料與系統管理（1.0.63）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>PRD 核對：第 3 段 — 基礎資料與系統管理（1.0.63）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/25</li><li>版本：1.0.62 → <strong>1.0.63</strong></li><li>範圍：<code>docs/prd/</code> 剩餘 11 份 PRD ＋ <code>prd/README.md</code></li><li>程式異動：僅兩處註解（零行為變更）＋ <code>appsettings.json</code> 版本號</li></ul>
+<h2 id="一範圍" class="t1">一、範圍</h2>
+<p><code>docs/</code> 全庫稽核的第 4 批（PRD 核對）到此完成。三段合計核對 35 份 PRD ＋ README：</p>
+<div class="tw"><table><thead><tr><th>段</th><th>份數</th><th>版本</th></tr></thead><tbody><tr><td>1 — 核心匯入管線與專案協作</td><td>11</td><td>1.0.61</td></tr><tr><td>2 — 知識庫與評測</td><td>13</td><td>1.0.62</td></tr><tr><td><strong>3 — 基礎資料與系統管理</strong></td><td><strong>11 ＋ README</strong></td><td><strong>1.0.63</strong></td></tr></tbody></table></div>
+<p>本段 11 份：<code>使用者管理</code>、<code>角色管理</code>、<code>登入與帳號流程</code>、<code>紀錄分類與團隊權控</code>、<code>分類清單</code>、<code>團隊清單</code>、<code>提示詞清單</code>、<code>AI可觀測性與成本治理</code>、<code>MCP-Server整合</code>、<code>系統健康監控</code>、<code>知識庫統計報表</code>。</p>
+<p>本段涵蓋的是 1.0.2x–1.0.6x 之間改動最密集的區域（系統管理選單改三層巢狀、統計報表 5 頁、儀表板經營洞察、完整對話紀錄、日誌下載、專案分類主檔），因此問題型態與前兩段不同：偏向<strong>整個頁面沒有任何 PRD 描述</strong>與<strong>文件宣稱已實作但其實沒有</strong>。</p>
+<h2 id="二能力缺文件本段最重要的發現" class="t2">二、能力缺文件（本段最重要的發現）</h2>
+<p>兩個已上線的頁面<strong>沒有任何 PRD 涵蓋</strong>，<code>prd/README.md</code> 覆蓋矩陣也漏列：</p>
+<div class="tw"><table><thead><tr><th>頁面</th><th>路由</th><th>處置</th></tr></thead><tbody><tr><td>完整對話紀錄</td><td><code>/chat-sessions</code></td><td><code>AI可觀測性與成本治理-prd.md</code> 新增 §二之一</td></tr><tr><td>日誌下載</td><td><code>/log-download</code></td><td><code>系統健康監控-prd.md</code> 範圍與 §十納入</td></tr></tbody></table></div>
+<p><code>/chat-sessions</code> 與既有 <code>/chat-logs</code> 的差別是<strong>粒度</strong>：後者一列＝一輪問答（稽核用），前者一列＝一整段對話（<code>LlmChatSession</code>）。儲存架構相同——資料列只存中繼資料，對話全文存實體 JSON 檔。</p>
+<h2 id="三文件宣稱已實作實際沒有" class="t3">三、文件宣稱已實作、實際沒有</h2>
+<p><code>紀錄分類與團隊權控-prd.md</code> §六宣稱「對外 API 的 <code>*SearchRequestDto</code> 亦新增 <code>CategoryFilters</code>、<code>TeamFilters</code>」。實際上這兩欄只存在於 <code>Models/Systems/DataRequest</code>，<code>Dtos/Commons/</code> 的 8 個 <code>*SearchRequestDto</code>、基底 <code>SearchRequestBaseDto</code> 與各 Controller 皆無。</p>
+<p>已移入新的 §15.4「未依原設計落地的項目」，並<strong>明確註明這只影響 API 層的過濾能力、不影響權控</strong>——Controller 的可見性仍由 Service／Repository 的 <code>IRecordAccessScopeProvider</code> 強制。不寫明的話，下次稽核容易把它誤判為資安缺口。</p>
+<p>同表另記錄 5 項設計與實作的落差：介面實際命名為 <code>IRecordAccessScopeProvider</code> 且實作在 <code>Web/Auth</code>（因需 <code>IHttpContextAccessor</code>）、非管理員團隊下拉未限縮、專案／工作／會議改用 <code>WorkCategoryService</code>、Modal 已抽為獨立元件、<code>GetAllEnabledNamesAsync</code> 早已實作。</p>
+<h2 id="四權控涵蓋清單補齊" class="t4">四、權控涵蓋清單補齊</h2>
+<p><code>紀錄分類與團隊權控-prd.md</code> 的權控落點清單停在首次實作，補進 7 個後續新增的落點：<code>DashboardService</code>、<code>DataConsistencyService</code>、<code>RagDiagnosticsService</code>、<code>ContentInventoryReportService</code>、<code>MeetingActionItemService</code>、<code>Web/Mcp/KnowledgeSearchTool</code>、<code>LogArchiveController</code>；紀錄型別也由「五種」更新為六種（含 <code>ImageRecognition</code>）。</p>
+<p>另新增 §15.3 記錄<strong>刻意不套團隊權控的例外</strong>：<code>PipelineProgressQueryService</code> 改以 <code>UserAccount</code> 精確相等過濾（只回報自己送出的管線進度）。程式內已有註記，文件同步記載以免日後誤報成漏洞。</p>
+<h2 id="五事實錯誤與過期敘述" class="t5">五、事實錯誤與過期敘述</h2>
+<div class="tw"><table><thead><tr><th>檔案</th><th>原文</th><th>實際</th></tr></thead><tbody><tr><td><code>系統健康監控-prd.md</code></td><td>選單「不放入左側選單」</td><td><code>Menu.json</code> id 53 已在「系統管理 ▸ 系統監控與日誌」</td></tr><tr><td><code>系統健康監控-prd.md</code></td><td>背景管線檢查「七條」</td><td><code>expected</code> 陣列實為 <strong>6</strong> 條；<code>PipelineNames</code> 有 7 個常數，<code>MeetingMinutesBackgroundService</code> 未納入健康檢查（已在 backlog）</td></tr><tr><td><code>知識庫統計報表-prd.md</code></td><td>「每頁共同版面」含趨勢區</td><td>趨勢區僅 AI 回答滿意度、問答使用統計<strong>兩頁</strong>提供</td></tr><tr><td><code>知識庫統計報表-prd.md</code></td><td>PDF 管線指向 <code>ChatPdfExporter.cs</code></td><td>報表頁走 <code>ReportPdfExporter.cs</code> ＋ <code>ReportPdfButton.razor</code>；<code>ChatPdfExporter</code> 是聊天匯出專用的另一支</td></tr><tr><td><code>AI可觀測性與成本治理-prd.md</code></td><td>「稽核匯出」列為尚未實作</td><td>Token 用量頁<strong>已支援 PDF 匯出</strong>；未實作的是聊天稽核與對話全文匯出</td></tr><tr><td><code>AI可觀測性與成本治理-prd.md</code></td><td>首頁僅「最近 30 天摘要」</td><td>已擴充為<strong>區間可切換</strong>的經營洞察區塊（管理員限定、Top N 排名，與報表共用 <code>ReportRankList</code>）</td></tr><tr><td><code>角色管理-prd.md</code></td><td>角色欄位含「說明」「啟用狀態」；權限樹「覆蓋所有正式選單頁」</td><td><code>RoleView</code> 無此兩欄（故無「停用角色」）；權限樹只覆蓋<strong>非 <code>adminOnly</code></strong> 頁面，<code>adminOnly</code> 群組改以管理員身分把關、僅保留佔位常數對齊</td></tr><tr><td><code>使用者管理-prd.md</code></td><td>欄位含 OAuth provider、GoogleId</td><td>畫面實為帳號／名稱／Email／角色／狀態／管理員／時間；OAuth 欄位僅供登入比對，未呈現</td></tr><tr><td><code>使用者管理</code>／<code>角色管理</code>／<code>MCP-Server整合</code></td><td>選單「系統管理 → X」</td><td>1.0.42 起「系統管理」下分三個子群組，路徑為三層</td></tr><tr><td><code>分類清單-prd.md</code></td><td>「專案、工作、會議…使用分類」</td><td>與同文件 §一矛盾；三頁自 1.0.18 起改用專案分類主檔</td></tr><tr><td><code>團隊清單-prd.md</code>、<code>紀錄分類與團隊權控-prd.md</code></td><td>權控涵蓋「技能」</td><td>AI 技能產生器已於 1.0.45 移除</td></tr></tbody></table></div>
+<h2 id="六提示詞槽位鍵規格補完" class="t6">六、提示詞槽位鍵規格補完</h2>
+<p><code>提示詞清單-prd.md</code> 原本對「鍵」只有一句「清洗全域提示詞以固定 <code>清洗-*</code> 名稱解析」，完全沒有槽位鍵清單與四層解析的說明。新增第十七節說明四層優先序與 14 個槽位鍵的涵蓋範圍，並<strong>指向既有權威對照表</strong> <a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a>，不重列表格以免兩份清單各自漂移。</p>
+<p>同時修正 §六「本功能不需新增任何外部路徑或服務設定」——實際上有專屬的 <code>LlmPrompts</code> 區段；並補列四條已實作但未列入的串接：知識庫查詢改寫、知識頁生成、會議紀錄生成、PDF 轉 Markdown（1.0.54）。</p>
+<h2 id="七prdreadmemd-全面重建" class="t7">七、<code>prd/README.md</code> 全面重建</h2>
+<p>原覆蓋矩陣停在 1.0.11，漏列兩個頁面、殘留「技能」與「第 8 條背景管線」、入口路徑仍是舊的兩層選單。已依 <code>Menu.json</code> 的 8 個頂層群組重建為分組表，<strong>每個實際頁面都能在表中找到歸屬 PRD</strong>，並補上三條維護規則：權限樹以位置索引對應、<code>角色_xxx</code> 常數值不得變更、<code>adminOnly</code> 群組不進權限樹。</p>
+<h2 id="八選單新名同步與語意複查" class="t8">八、選單新名同步與語意複查</h2>
+<p>保護式替換 108 處。替換後人工複查發現兩類需回頭修的問題，共 22 處：</p>
+<ol><li><strong>重複詞與缺空白</strong>：「日誌等級切換<strong>切換</strong>」、「稽核AI 知識問答」（中英文間缺空格）等。</li><li><strong>設計歷史區塊被改名</strong>：三份基礎資料 PRD 的「選單與權限」節描述的是<strong>首次實作當時</strong>的結構（<code>資料定義</code> id 4、子項 41／42／43、登出 id 5）。把群組名替換成現行的「基礎資料設定」會讓歷史敘述變成事實錯誤，且與同節未被替換的 JSON 程式碼區塊自相矛盾。<strong>已還原這些區塊的舊名</strong>，改在節首加註現況（id 6、5 個子項、6 個權限常數、登出 id 8）。</li></ol>
+<p>另全 <code>docs/prd/</code> 補上 14 處中英文之間缺失的空格（<code>AI 知識問答</code>、<code>Token 用量統計</code> 等在中文字後緊接時）。</p>
+<p>用語原則沿用前兩段：<strong>頁面／群組名用新名，動詞與流程階段用原詞；描述歷史結構時保留當時的名稱並加註現況</strong>。</p>
+<h2 id="九程式異動僅註解零行為變更" class="t1">九、程式異動（僅註解，零行為變更）</h2>
+<ul><li><code>SystemHealthService.cs</code>：XML 註解寫「七條」、evidence 字串寫「六條」、陣列實為 6 條——同一支檔案內自相矛盾，註解改為「六條」。</li><li><code>LlmPromptResolver.cs</code>：註解殘留已移除的「/技能 CustomPromptText」。</li></ul>
+<p>健康檢查漏掉 <code>MeetingMinutesBackgroundService</code> 屬功能缺陷，<strong>維持在 <a href="../../docs/planning/08-todo-74ef467f.html">優化建議清單</a> 不在本次處理</strong>。</p>
+<h2 id="十中繼資料" class="t2">十、中繼資料</h2>
+<p>11 份 PRD 標頭更新為 <code>現行系統版本 1.0.63</code>、<code>最後核對日期 2026/07/25</code>；<code>prd/README.md</code> 同步。</p>
+<h2 id="十一後續" class="t3">十一、後續</h2>
+<p>批次 5：重複文件合併與歸檔（<code>guides/</code> 的操作手冊整併、評測指南合併、約 15 份文件移入 <code>docs/archive/</code>）。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一範圍">一、範圍</a><a class="l2" href="#二能力缺文件本段最重要的發現">二、能力缺文件（本段最重要的發現）</a><a class="l2" href="#三文件宣稱已實作實際沒有">三、文件宣稱已實作、實際沒有</a><a class="l2" href="#四權控涵蓋清單補齊">四、權控涵蓋清單補齊</a><a class="l2" href="#五事實錯誤與過期敘述">五、事實錯誤與過期敘述</a><a class="l2" href="#六提示詞槽位鍵規格補完">六、提示詞槽位鍵規格補完</a><a class="l2" href="#七prdreadmemd-全面重建">七、prd/README.md 全面重建</a><a class="l2" href="#八選單新名同步與語意複查">八、選單新名同步與語意複查</a><a class="l2" href="#九程式異動僅註解零行為變更">九、程式異動（僅註解，零行為變更）</a><a class="l2" href="#十中繼資料">十、中繼資料</a><a class="l2" href="#十一後續">十一、後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-PRD核對第3段-基礎資料與系統管理.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

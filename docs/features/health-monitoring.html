@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>系統健康監控｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 功能機制</p><header class="hero"><div class="kicker">功能機制</div><h1>系統健康監控</h1></header><div class="docwrap"><main><h2 id="文件目的" class="t1">文件目的</h2>
+<p>說明本專案的健康檢查端點與人工巡檢頁面，讓維運人員可以快速判斷網站、API、資料庫、日誌、身分驗證、檔案系統、主機資源與安全設定是否正常。</p>
+<hr>
+<h2 id="1-部署探針" class="t2">1. 部署探針</h2>
+<p>系統保留 ASP.NET Core Health Checks 端點：</p>
+<div class="tw"><table><thead><tr><th>路徑</th><th>用途</th><th>說明</th></tr></thead><tbody><tr><td><code>/health/live</code></td><td>Liveness</td><td>檢查應用程式處理程序是否仍存活。</td></tr><tr><td><code>/health/ready</code></td><td>Readiness</td><td>檢查資料庫連線是否可用，供部署平台判斷是否可接流量。</td></tr></tbody></table></div>
+<p>這兩個端點只提供簡短狀態，適合部署平台、反向代理或外部監控系統輪詢，不提供詳細診斷資料。</p>
+<hr>
+<h2 id="2-人工巡檢頁" class="t3">2. 人工巡檢頁</h2>
+<p>管理員可直接開啟：</p>
+<pre><code>/system-health</code></pre>
+<p>此頁位於左側選單「系統管理 → 系統監控 → 系統健康監控」（<code>adminOnly</code>），必須先以 Cookie 登入，且目前使用者必須是管理員（<code>IsAdmin=true</code>）才可查看。</p>
+<p>頁面內容包含：</p>
+<ul><li>整體健康百分比。</li><li>整體紅 / 黃 / 綠燈號。</li><li>每個檢查項目的紅 / 黃 / 綠燈號、權重、狀態、證據與失敗訊息。</li><li>頁尾顯示目前 NLog 今日日誌檔案的最後 100 筆原始紀錄。</li></ul>
+<hr>
+<h2 id="3-燈號與分數" class="t4">3. 燈號與分數</h2>
+<p>整體健康分數採加權計算：</p>
+<div class="tw"><table><thead><tr><th>狀態</th><th>單項得分</th><th>燈號</th></tr></thead><tbody><tr><td>Healthy</td><td>取得完整權重</td><td>綠燈</td></tr><tr><td>Degraded</td><td>取得一半權重</td><td>黃燈</td></tr><tr><td>Unhealthy</td><td>不得分</td><td>紅燈</td></tr></tbody></table></div>
+<p>整體燈號門檻：</p>
+<div class="tw"><table><thead><tr><th>分數</th><th>燈號</th><th>說明</th></tr></thead><tbody><tr><td><code>&gt;= 90</code></td><td>綠燈</td><td>系統健康。</td></tr><tr><td><code>70-89</code></td><td>黃燈</td><td>系統可運作，但有項目需要關注。</td></tr><tr><td><code>&lt; 70</code></td><td>紅燈</td><td>系統健康程度不足，應立即檢查失敗項目與日誌。</td></tr></tbody></table></div>
+<hr>
+<h2 id="4-檢查項目" class="t5">4. 檢查項目</h2>
+<h3 id="基礎系統category-application--api--database--logging--authentication--filesystem--host--security">基礎系統（Category: Application / API / Database / Logging / Authentication / FileSystem / Host / Security）</h3>
+<div class="tw"><table><thead><tr><th>項目</th><th>權重</th><th>主要證據</th></tr></thead><tbody><tr><td>網站 / 應用程式</td><td>10</td><td>環境、版本、啟動時間、運作時間。</td></tr><tr><td>API</td><td>10</td><td>Controller action 數量、Swagger 啟用狀態。</td></tr><tr><td>資料庫</td><td>25</td><td>Provider、連線狀態、待套用 migration 數量。</td></tr><tr><td>日誌</td><td>15</td><td>NLog 目錄、今日 log 檔、最後 100 筆讀取狀態。</td></tr><tr><td>身分驗證</td><td>15</td><td>Cookie scheme、JWT bearer、Issuer/Audience 是否設定、SigningKey 長度（≥32）。<strong>1.0.72 起另檢查金鑰／密碼內容</strong>：Production 下若 <code>JwtSettings:SigningKey</code> 仍以 <code>DevelopmentOnly-</code> 開頭，或 <code>BootstrapSettings:SupportPassword</code> 仍是 <code>support</code>／<code>1qaz@WSX</code>，本項轉<strong>警示（黃）</strong>並在證據列出原因。刻意用黃而非紅——接線本身沒壞，這是設定衛生問題（1.0.69 之所以整條移除，就是因為紅燈被誤判為身分驗證故障）。非 Production 不生效。</td></tr><tr><td>檔案系統</td><td>10</td><td>Database、Download、Upload、ProjectFile、TaskFile、MeetingFile 目錄存在與可寫入。</td></tr><tr><td>主機資源</td><td>5</td><td>Process working set、目前磁碟可用空間。</td></tr><tr><td>安全設定</td><td>10</td><td>Swagger in Production、CORS origins、<code>Security.ReturnExceptionDetails</code>。</td></tr></tbody></table></div>
+<h3 id="語音轉文字工具category-transcriptiontools">語音轉文字工具（Category: TranscriptionTools）</h3>
+<div class="tw"><table><thead><tr><th>項目</th><th>權重</th><th>主要證據</th><th>設定來源</th></tr></thead><tbody><tr><td>ffmpeg</td><td>8</td><td>工具路徑與版本字串。</td><td><code>OpenAISettings:FfmpegPath</code></td></tr><tr><td>yt-dlp</td><td>8</td><td>工具路徑、版本字串、Cookies 設定狀態。</td><td><code>OpenAISettings:YtDlpPath</code></td></tr><tr><td>markitdown</td><td>6</td><td>工具路徑與版本（若 <code>--version</code> 不支援則以 <code>--help</code> 確認存在）。</td><td><code>MarkItDownSettings:MarkItDownPath</code></td></tr><tr><td>Node.js</td><td>5</td><td>工具路徑與版本（要求 major ≥ 20，建議最新 LTS）。</td><td><code>OpenAISettings:NodePath</code></td></tr><tr><td>抖音助手腳本</td><td>4</td><td>腳本路徑與檔案存在狀態（選用功能，未設定為 Degraded）。</td><td><code>OpenAISettings:DouyinHelperScript</code></td></tr></tbody></table></div>
+<h3 id="語音轉文字設定category-transcriptionsettings">語音轉文字設定（Category: TranscriptionSettings）</h3>
+<div class="tw"><table><thead><tr><th>項目</th><th>權重</th><th>主要證據</th><th>說明</th></tr></thead><tbody><tr><td>OpenAI API 設定</td><td>8</td><td>ApiKey、BaseUrl、Model 是否設定。ApiKey 未設定一律為 Unhealthy（必要設定，缺它整個功能無法運作）；其餘問題缺 1 項為 Degraded、缺 2 項以上為 Unhealthy。證據僅顯示 ApiKey「已設定／未設定」，不顯示金鑰內容。</td><td><code>OpenAISettings:{ApiKey,BaseUrl,Model}</code></td></tr><tr><td>轉錄儲存目錄</td><td>6</td><td>MediaUploadPath 與 TranscriptionFilePath 存在且可寫入。</td><td><code>SystemSettings:ExternalFileSystem</code></td></tr></tbody></table></div>
+<h3 id="向量索引category-embeddingindex">向量索引（Category: EmbeddingIndex）</h3>
+<div class="tw"><table><thead><tr><th>項目</th><th>權重</th><th>主要證據</th></tr></thead><tbody><tr><td>向量索引涵蓋率</td><td>15</td><td>已清洗來源是否都已建立向量索引；嵌入未設定或索引為空時示警（直接影響AI 知識問答能否檢索）。</td></tr></tbody></table></div>
+<h3 id="基礎設施與整合1011-新增-5-項">基礎設施與整合（1.0.11 新增 5 項）</h3>
+<div class="tw"><table><thead><tr><th>項目</th><th>權重</th><th>主要證據</th><th>紅/黃/綠判定</th></tr></thead><tbody><tr><td>MCP Server</td><td>8</td><td><code>/mcp</code> 端點是否註冊、<code>McpAccess</code> policy 與 <code>McpApiKey</code> scheme 是否就緒、啟用中金鑰數。</td><td>綠＝基礎設施就緒且 ≥1 把啟用金鑰；<strong>黃＝0 把啟用金鑰</strong>（外部無狀態 Agent 無法用 <code>X-API-Key</code>，JWT/Cookie 仍可）；紅＝policy／scheme／端點缺失。</td></tr><tr><td>分散式快取</td><td>8</td><td>Provider（Memory/Redis）；Redis 時以 <code>IDistributedCache</code> 寫入/回讀一筆 ping 實測連線。</td><td>Memory→綠；Redis 連線成功→綠、失敗→紅。</td></tr><tr><td>AI 生成/嵌入 Provider</td><td>10</td><td>依 Cloud/Local 分流的生成與嵌入端點設定是否齊備（模型、維度）。</td><td>兩者皆就緒→綠；任一未就緒（Cloud 缺 ApiKey／Local 缺 BaseUrl+model）或 provider 值非法→紅。</td></tr><tr><td>RAG 檢索設定</td><td>6</td><td>向量/關鍵字權重、Reject/LowConfidence 門檻、TopK/CandidateTopK。</td><td>全合理→綠；權重和非 1→黃；門檻越界或大小顛倒等→紅。（檢查 appsettings 值，DB override 可能覆蓋生效值）</td></tr><tr><td>背景管線</td><td>8</td><td><strong>七條</strong>匯入/處理背景服務（預期清單由 <code>PipelineNames</code> 常數<strong>反射推導</strong>，慣例 <code>{管線名}BackgroundService</code>，新增管線自動納入），<strong>加上 1.0.72 納入的 2 支寫入服務</strong>（<code>PipelineProgressWriter</code>／<code>TokenUsageWriter</code>；它們沒有 <code>PipelineNames</code> 常數故無法推導，改為硬編維護）。</td><td>全部就緒→綠；缺任一→紅。（僅檢查註冊/實例化，未偵測卡死或佇列積壓）&lt;br&gt;⚠️ 為何要檢查寫入服務：<code>TokenUsageWriter</code> 沒起來＝<strong>Token 用量默默不再記錄</strong>（成本治理與 5 份統計報表的資料基礎，且不會有錯誤訊息）；<code>PipelineProgressWriter</code> 沒起來＝進度不更新、完成 toast 消失。1.0.66–1.0.71 期間這兩支完全不在檢查範圍內。</td></tr></tbody></table></div>
+<blockquote><p>註：<code>PipelineProgressWriterBackgroundService</code> 與 <code>TokenUsageWriterBackgroundService</code> 不是業務管線（無對應 <code>PipelineNames</code> 常數），刻意不在本項範圍；這兩支目前尚無健康檢查涵蓋，記於 <a href="../../docs/planning/08-todo-74ef467f.html">優化建議清單</a>。</p></blockquote>
+<p>分數計算採動態加權（earned / totalWeight × 100），新增項目不影響原有項目的相對比例。目前共 <strong>24</strong> 項檢查（基礎系統 9＋轉錄工具 5＋轉錄設定 2＋向量索引 1＋基礎設施與整合 7；1.0.13 新增「大語言模型可用性」「嵌入端點可用性」兩項實呼叫檢查與資訊型「資料庫大小與資料量」）。</p>
+<hr>
+<h2 id="5-日誌顯示注意事項" class="t6">5. 日誌顯示注意事項</h2>
+<p><code>/system-health</code> 頁尾會顯示最後 100 筆原始日誌紀錄，不會額外遮罩內容。此設計是為了讓管理員快速追查失敗項目，但也代表頁面可能顯示路徑、帳號或例外訊息。</p>
+<p>部署時請確認：</p>
+<ul><li>只有可信任管理員可以登入此頁。</li><li>NLog 不應寫入密碼、token、完整連線字串等 secret。</li><li>正式環境的日誌保存期限與存取權限符合組織政策。</li></ul>
+<hr>
+<h2 id="6-相關檔案" class="t7">6. 相關檔案</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Health/SystemHealthService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Health/HealthLogReader.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Pages/SystemHealthPage.razor</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Pages/SystemHealthPage.razor.css</code></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（功能機制）</h3><ul><li><a href="../../docs/features/distributed-cache.html">分散式快取機制</a></li><li><a href="../../docs/features/i18n.html">多語系與本地化</a></li><li><a href="../../docs/features/file-upload.html">檔案上傳機制</a></li><li><a href="../../docs/features/versioning-freshness.html">版本化與時效性</a></li><li><a href="../../docs/features/wiki-and-wikilink.html">知識百科與 WikiLink</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#文件目的">文件目的</a><a class="l2" href="#1-部署探針">1. 部署探針</a><a class="l2" href="#2-人工巡檢頁">2. 人工巡檢頁</a><a class="l2" href="#3-燈號與分數">3. 燈號與分數</a><a class="l2" href="#4-檢查項目">4. 檢查項目</a><a class="l3" href="#基礎系統category-application--api--database--logging--authentication--filesystem--host--security">基礎系統（Category: Application / API / Database / Logging / Authentication / FileSystem / Host / Security）</a><a class="l3" href="#語音轉文字工具category-transcriptiontools">語音轉文字工具（Category: TranscriptionTools）</a><a class="l3" href="#語音轉文字設定category-transcriptionsettings">語音轉文字設定（Category: TranscriptionSettings）</a><a class="l3" href="#向量索引category-embeddingindex">向量索引（Category: EmbeddingIndex）</a><a class="l3" href="#基礎設施與整合1011-新增-5-項">基礎設施與整合（1.0.11 新增 5 項）</a><a class="l2" href="#5-日誌顯示注意事項">5. 日誌顯示注意事項</a><a class="l2" href="#6-相關檔案">6. 相關檔案</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/features/系統健康監控.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

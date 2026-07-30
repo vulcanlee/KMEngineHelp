@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>缺口與風險清單 TODO｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 已歸檔</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">已歸檔</div><h1>缺口與風險清單 TODO</h1></header><div class="docwrap"><main><blockquote><h2 id="已歸檔10642026-07-25" class="t1">⚠️ 已歸檔（1.0.64，2026-07-25）</h2>
+<p><strong>本文件不代表現行需求或現況</strong>，僅保留供回溯當時的決策脈絡。</p>
+<ul><li><strong>歸檔原因</strong>：腳手架期的缺口清單，12 項全部完成。<strong>注意：本文件宣稱的「Production 啟動安全檢查已納入 JWT key 與 support 預設密碼」實際上失效</strong>（守門常數與 appsettings 預設值不相等），該風險已在 <code>planning/08</code> 追蹤。</li><li><strong>改看</strong>：<code>operations/正式部署與安全檢查清單.md</code>、<code>security/</code> 全目錄</li></ul>
+<p>歸檔清單與說明見 <a href="../../docs/archive/readme-98f9f271.html">archive/README.md</a>。</p></blockquote>
+<hr>
+<h1 id="缺口與風險清單-todo">缺口與風險清單 TODO</h1>
+<h2 id="已處理風險" class="t2">已處理風險</h2>
+<ul class="check"><li><span class="box">☑</span>目標說明：記錄安全、套件、測試、CI、warning、密碼與預設帳號等風險，避免腳手架問題被複製到新系統。</li><li><span class="box">☑</span>現況盤點：AutoMapper 已為 16.1.1；套件弱點掃描目前未列出已知易受攻擊套件。</li><li><span class="box">☑</span>實作待辦：已新增 JWT Bearer、ApiResult 例外封裝、測試專案與 CI。</li><li><span class="box">☑</span>驗收標準：<code>dotnet list src/KnowledgeExtraction/KnowledgeExtraction.slnx package --vulnerable --include-transitive</code> 未列出弱點套件。</li><li><span class="box">☑</span>相關檔案：<code>src/KnowledgeExtraction/KnowledgeExtraction.Web/KnowledgeExtraction.Web.csproj</code>、<code>src/KnowledgeExtraction/KnowledgeExtraction.Tests</code>、<code>.github/workflows/dotnet-ci.yml</code>。</li><li><span class="box">☑</span>備註風險：<code>ApiResult.Exception</code> 已改為依 <code>Security:ReturnExceptionDetails</code> 控制；Production 預設不回傳完整堆疊資訊。</li></ul>
+<h2 id="尚待處理風險" class="t3">尚待處理風險</h2>
+<ul class="check"><li><span class="box">☑</span>將 build warning 從 56 個收斂到 0 個；剩餘僅有 .NET preview SDK 提示訊息，非程式碼 warning。</li><li><span class="box">☑</span>將 <code>appsettings.json</code> 內開發用 JWT signing key 改成部署環境 secret 的要求已納入 release checklist；實際正式 secret 需由部署環境提供。</li><li><span class="box">☑</span>強化預設帳號與密碼策略：新增 <code>BootstrapSettings</code>，可用設定或環境變數覆寫預設 support 帳號與密碼；正式部署替換流程已寫入 checklist。</li><li><span class="box">☑</span>補 refresh token 不落庫限制說明：目前無法可靠撤銷單一 refresh token，只能靠 signing key 輪替或縮短有效期。</li><li><span class="box">☑</span>建立正式部署前安全檢查清單，包含 HTTPS、Swagger UI 暴露範圍、CORS、secret、日誌敏感資訊。文件：<code>docs/operations/正式部署與安全檢查清單.md</code>。</li><li><span class="box">☑</span>Production 啟動安全檢查已納入 JWT key、support 預設密碼與 Swagger 策略。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（已歸檔）</h3><ul><li><a href="../../docs/archive/01-todo-7b613bd7.html">專案總覽與定位 TODO</a></li><li><a href="../../docs/archive/02-todo-3f55bf3e.html">現有架構盤點 TODO</a></li><li><a href="../../docs/archive/04-webapi-jwt-apiresult-todo-63b775bd.html">WebAPI JWT ApiResult 設計 TODO</a></li><li><a href="../../docs/archive/05-todo-e50e4e40.html">腳手架補強實作路線圖 TODO</a></li><li><a href="../../docs/archive/06-todo-55e99cf3.html">開發與文件維護規範 TODO</a></li><li><a href="../../docs/archive/10-todo-2aadf980.html">知識頁審核與問答疑問釐清及需求（階段三起點）</a></li><li><a href="../../docs/archive/11-68d22fc1.html">系統功能與文件同步審計</a></li><li><a href="../../docs/archive/rag-ef495a4d.html">RAG 補強修正測試指南</a></li></ul></div></div></main></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/archive/03-缺口與風險清單-TODO.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

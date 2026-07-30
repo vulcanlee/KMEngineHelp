@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>音訊轉錄：下載原始來源檔案（0.2.115）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>音訊轉錄：下載原始來源檔案（0.2.115）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-23</li><li>版本：0.2.114 → 0.2.115</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>「音訊轉錄」頁面原本僅能下載<strong>逐字稿</strong>。本次新增「<strong>下載來源檔案</strong>」按鈕：只要該筆紀錄已成功取得影片或聲音檔，即可在操作區一鍵下載<strong>原始來源媒體檔</strong>。</p>
+<h2 id="內容" class="t2">內容</h2>
+<ul><li><strong>顯示時機</strong>：只要紀錄已有媒體檔（<code>MediaRelativePath</code> 非空）就顯示，不限轉錄是否完成。</li><li>上傳來源：建立後立即可下載。</li><li>影片連結來源（YouTube／小紅書／抖音等）：於背景下載完成後即可下載。</li><li><strong>選檔規則（原始優先，退回 mp3）</strong>：</li><li><strong>上傳來源</strong>：下載當初上傳的原始檔（檔名與型別均為原始值）。</li><li><strong>影片連結來源</strong>：優先下載 yt-dlp 以 <code>-k</code> 保留的<strong>原始影片</strong>（<code>OriginalMediaRelativePath</code>，如 <code>.mp4</code>／<code>.webm</code>），檔名取自影片標題；</li></ul>
+<p>若該來源未保留原始影片（如抖音、或搬移失敗），則<strong>退回</strong>下載抽取後的 <code>.mp3</code> 音訊。</p>
+<ul><li><strong>團隊權控</strong>：下載比照既有「下載逐字稿」，於服務層以 <code>TagStringHelper.IsTeamAccessible</code> 把關；</li></ul>
+<p>非管理員僅能下載「無團隊（公開）或與其角色團隊交集」的紀錄，否則回 404。</p>
+<h2 id="實作" class="t3">實作</h2>
+<ul><li><code>MediaTranscriptionService.GetSourceMediaAsync(int id)</code>：含團隊權控，依上述規則選檔，</li></ul>
+<p>以串流（<code>File.OpenRead</code>）回傳，避免大檔（上傳上限 1GB）載入記憶體；另含副檔名→MIME 對照與路徑正規化輔助方法。</p>
+<ul><li><code>MediaTranscriptionController</code>：新增 <code>GET /api/MediaTranscription/{id}/source</code>，</li></ul>
+<p>以 <code>File(stream, contentType, fileName, enableRangeProcessing: true)</code> 回傳（支援斷點續傳）。</p>
+<ul><li><code>MediaTranscriptionView.razor</code>：操作區新增「下載來源檔案」<code>CrudActionButton</code>（<code>Icon="download"</code>），</li></ul>
+<p>以 <code>Href</code> 連結端點；<code>MediaTranscriptionView.razor.cs</code> 新增 <code>GetSourceUrl(id)</code>。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#內容">內容</a><a class="l2" href="#實作">實作</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-23-音訊轉錄來源檔案下載.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

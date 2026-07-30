@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM 雲端/地端切換 + 容量邊界文件（0.2.67）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>LLM 雲端/地端切換 + 容量邊界文件（0.2.67）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-12</li><li>版本：0.2.66 → 0.2.67</li><li>對應路線圖：<a href="../../docs/planning/07-todo-f1c7d6cc.html">資料清洗開發代辦清單</a>（第三階段尾巴 + A4）</li></ul>
+<h2 id="一llm-雲端地端切換設定驅動" class="t1">一、LLM 雲端/地端切換（設定驅動）</h2>
+<p>聊天/生成＋視覺 LLM 可由設定切換雲端 OpenAI 或地端 OpenAI 相容伺服器（Ollama／LM Studio／vLLM）， 支援「資料不出企業環境」的地端部署。<strong>語音轉錄（Whisper／gpt-4o-transcribe）維持雲端</strong>（OpenAI 專屬）。</p>
+<ul><li><code>OpenAISettings</code> 新增 <code>GenerationProvider</code>（Cloud/Local）、<code>LocalBaseUrl</code>、<code>LocalGenerationModel</code>、</li></ul>
+<p><code>LocalApiKey</code>（選填）、<code>LocalGenerationTimeoutSeconds</code>（預設 300）；新增 <code>GetGenerationProvider()</code>／ <code>ResolveChatLlm()</code>／<code>IsChatLlmConfigured()</code>。</p>
+<ul><li><code>OpenAIChatCompletionClient</code>：金鑰檢查改為<strong>依 provider</strong>（<code>RequiresApiKey</code>）——地端免金鑰時不拋錯、不送</li></ul>
+<p>Authorization 標頭；BaseUrl/Model/逾時取自解析後的設定。<code>Program.cs</code> 的聊天 HttpClient 依 <code>ResolveChatLlm()</code> 配置。</p>
+<ul><li><code>CleaningEnhancer</code> 的「未設定 LLM 則略過」改用 <code>IsChatLlmConfigured()</code>（地端已設定即不再誤略過）。</li><li>切換於啟動時生效（改設定需重啟，比照 <code>DatabaseProvider</code>）。地端模型須支援視覺才適用圖片解讀。</li><li>設定說明與 Ollama 範例見 <a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明 §4.8</a>。</li><li>測試：<code>OpenAISettingsTests</code>（provider 解析、<code>ResolveChatLlm</code>、<code>IsChatLlmConfigured</code>、金鑰必要性）共 14 筆；全測試 236 筆綠燈。</li></ul>
+<h2 id="二a4-容量邊界文件" class="t2">二、A4 容量邊界文件</h2>
+<p>新增 <a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a>：彙整各管線上傳上限（文件 1GB／圖片 50MB／音訊 1GB）、 Whisper 25MB·1200s 自動分段、各逾時、允許格式，以及「靜默失敗風險」（MarkItDown 格式未預檢、FFmpeg 路徑、 抖音逾時、Kestrel/SignalR 預設、Blazor InputFile 30MB）。數值對齊程式常數。</p>
+<h2 id="備註" class="t3">備註</h2>
+<ul><li>純文件部分（容量邊界）不獨立計版本，隨本版（含 LLM 切換程式）一起提交。</li><li>地端 ASR（語音轉錄）為未來另案。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一llm-雲端地端切換設定驅動">一、LLM 雲端/地端切換（設定驅動）</a><a class="l2" href="#二a4-容量邊界文件">二、A4 容量邊界文件</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-12-LLM雲端地端切換與容量文件.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

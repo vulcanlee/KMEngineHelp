@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>多語系與本地化｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 功能機制</p><header class="hero"><div class="kicker">功能機制</div><h1>多語系與本地化</h1></header><div class="docwrap"><main><h2 id="文件目的" class="t1">文件目的</h2>
+<p>說明本專案如何處理 .NET 在地化、瀏覽器語系自動偵測，以及 AntDesign Blazor 元件的本地化字串覆寫。</p>
+<hr>
+<h2 id="1-支援文化" class="t2">1. 支援文化</h2>
+<p>目前內建兩種文化：</p>
+<div class="tw"><table><thead><tr><th>Culture</th><th>顯示</th><th>預設</th></tr></thead><tbody><tr><td><code>zh-TW</code></td><td>繁體中文（台灣）</td><td>✅ 預設</td></tr><tr><td><code>en-US</code></td><td>英文（美國）</td><td></td></tr></tbody></table></div>
+<p>設定位置：<code>ServiceCollectionExtensions.AddConfiguredLocalization</code>（由 <code>Program.cs</code> 呼叫）。</p>
+<hr>
+<h2 id="2-net-requestlocalization" class="t3">2. .NET RequestLocalization</h2>
+<pre><code>var supportedCultures = new[] { new CultureInfo("zh-TW"), new CultureInfo("en-US") };
+var defaultCulture = supportedCultures[0];
+
+builder.Services.Configure&lt;RequestLocalizationOptions&gt;(options =&gt;
+{
+    options.DefaultRequestCulture = new RequestCulture(defaultCulture);
+    options.SupportedCultures = supportedCultures;
+    options.SupportedUICultures = supportedCultures;
+    options.RequestCultureProviders = new List&lt;IRequestCultureProvider&gt;
+    {
+        new AcceptLanguageHeaderRequestCultureProvider()
+    };
+});</code></pre>
+<p>關鍵點：</p>
+<ul><li>採用 <code>AcceptLanguageHeaderRequestCultureProvider</code>，<strong>根據瀏覽器 <code>Accept-Language</code> 標頭自動切換文化</strong>。</li><li>移除預設的 Cookie / Query 文化提供者，避免使用者手動鎖定文化。</li><li>中介軟體啟用：<code>app.UseRequestLocalization(localizationOptions);</code>（<code>Program.cs</code> 的中介軟體管線）。</li></ul>
+<blockquote><p>若日後要支援使用者手動切換語系（例如下拉式選單），需另行加入 Cookie / Query Provider，並提供切換 UI。</p></blockquote>
+<hr>
+<h2 id="3-antdesign-元件本地化" class="t4">3. AntDesign 元件本地化</h2>
+<p>AntDesign Blazor 內建多語字典，但部分字串（例如表格排序、過濾、確認）需要客製。本專案以 <code>AntDesignLocaleFactory</code> 集中覆寫：</p>
+<pre><code>LocaleProvider.SetLocale("zh-TW", AntDesignLocaleFactory.Create("zh-TW"));
+LocaleProvider.DefaultLanguage = defaultCulture.Name;</code></pre>
+<p>檔案：<code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Localization/AntDesignLocaleFactory.cs</code></p>
+<p>工廠職責：</p>
+<ol><li>取得 AntDesign 內建 <code>Locale</code>（依 culture 名稱）。</li><li>覆寫需要客製的字串（例：表格欄位排序提示、確認對話框預設文字）。</li><li>回傳客製後的 <code>Locale</code> 物件交給 <code>LocaleProvider</code>。</li></ol>
+<p>新增覆寫項目時請集中於此檔，避免散落於各元件。</p>
+<hr>
+<h2 id="4-在元件中使用本地化" class="t5">4. 在元件中使用本地化</h2>
+<h3 id="41-使用-istringlocalizer">4.1 使用 <code>IStringLocalizer&lt;T&gt;</code></h3>
+<p>於需要翻譯的元件以 DI 注入：</p>
+<pre><code>@inject IStringLocalizer&lt;MyComponent&gt; Localizer
+
+&lt;h1&gt;@Localizer["Welcome"]&lt;/h1&gt;</code></pre>
+<p>對應字串需放在 <code>Resources/MyComponent.zh-TW.resx</code>、<code>Resources/MyComponent.en-US.resx</code>（資料夾結構需與元件命名空間對齊）。</p>
+<blockquote><p>本範本目前以「即時硬編碼字串」為主，若要全面導入 IStringLocalizer，請於 <code>KnowledgeExtraction.Web/Resources/</code> 下建立資源檔。</p></blockquote>
+<h3 id="42-antdesign-元件自動套用">4.2 AntDesign 元件自動套用</h3>
+<p><code>&lt;Table&gt;</code>、<code>&lt;DatePicker&gt;</code>、<code>&lt;Modal&gt;</code> 等元件會自動使用 <code>LocaleProvider.CurrentLocale</code>，無須手動傳入 <code>Locale</code> 屬性。</p>
+<hr>
+<h2 id="5-文化切換驗證" class="t6">5. 文化切換驗證</h2>
+<p>可用瀏覽器設定變更語系驗證：</p>
+<ol><li>Chrome → 設定 → 語言 → 將想測試的語言（例如 English (United States)）拉到第一順位。</li><li>重新整理頁面，AntDesign 表格、按鈕等預設字串會切換到 <code>en-US</code> 對應翻譯。</li></ol>
+<p>或者以 PowerShell 直接送出帶 <code>Accept-Language</code> 標頭的請求：</p>
+<pre><code>Invoke-WebRequest -Uri "https://localhost:5001/" -Headers @{ "Accept-Language" = "en-US" }</code></pre>
+<hr>
+<h2 id="6-延伸閱讀" class="t7">6. 延伸閱讀</h2>
+<ul><li><a href="../../docs/architecture/architecture-overview.html">架構總覽</a> — 啟動流程內 Localization 註冊的位置。</li><li><a href="../../docs/changelog/login-redesign-4241d694.html">Login 頁面改版紀錄</a> — 登入頁文字目前仍為繁體中文硬編碼，未來導入 IStringLocalizer 時可擴充。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（功能機制）</h3><ul><li><a href="../../docs/features/distributed-cache.html">分散式快取機制</a></li><li><a href="../../docs/features/file-upload.html">檔案上傳機制</a></li><li><a href="../../docs/features/versioning-freshness.html">版本化與時效性</a></li><li><a href="../../docs/features/wiki-and-wikilink.html">知識百科與 WikiLink</a></li><li><a href="../../docs/features/health-monitoring.html">系統健康監控</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#文件目的">文件目的</a><a class="l2" href="#1-支援文化">1. 支援文化</a><a class="l2" href="#2-net-requestlocalization">2. .NET RequestLocalization</a><a class="l2" href="#3-antdesign-元件本地化">3. AntDesign 元件本地化</a><a class="l2" href="#4-在元件中使用本地化">4. 在元件中使用本地化</a><a class="l3" href="#41-使用-istringlocalizer">4.1 使用 IStringLocalizer</a><a class="l3" href="#42-antdesign-元件自動套用">4.2 AntDesign 元件自動套用</a><a class="l2" href="#5-文化切換驗證">5. 文化切換驗證</a><a class="l2" href="#6-延伸閱讀">6. 延伸閱讀</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/features/多語系與本地化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>修正切換 Azure OpenAI 端點時 LLM 404（BaseUrl 缺結尾斜線）（1.0.26）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>修正切換 Azure OpenAI 端點時 LLM 404（BaseUrl 缺結尾斜線）（1.0.26）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/21</li><li>版本：1.0.25 → <strong>1.0.26</strong></li><li>類型：錯誤修正（HttpClient 端點組合）</li><li>觸發來源：測試客戶提供的智庫引擎（Azure OpenAI）金鑰與端點時，執行 LLM 檔案解讀出現 <code>HTTP 404 Resource not found</code>。</li><li>相關：無</li></ul>
+<hr>
+<h2 id="一問題的本質v1-被-net-吃掉" class="t1">一、問題的本質：<code>/v1</code> 被 .NET 吃掉</h2>
+<p>客戶端點為 Azure OpenAI 的 v1 介面 <code>https://&lt;資源&gt;.openai.azure.com/openai/v1</code>（<strong>結尾無斜線</strong>）。</p>
+<p><code>OpenAIChatCompletionClient</code> 等三個 client 皆以<strong>相對路徑</strong> <code>chat/completions</code>（見 <code>OpenAIChatCompletionClient.cs:308</code> 等）送出請求，而 <code>BaseAddress</code> 於 <code>Program.cs</code> 啟動時以 <code>new Uri(BaseUrl)</code> 綁定。</p>
+<p>.NET 的 <code>new Uri(base, "chat/completions")</code> 合併規則：<strong>base 路徑若不以 <code>/</code> 結尾，最後一段會被視為檔名而被覆蓋</strong>。因此：</p>
+<ul><li>預設 OpenAI <code>https://api.openai.com/v1/</code>（<strong>有</strong> <code>/</code>）→ <code>.../v1/chat/completions</code> ✓（所以原本能動）</li><li>客戶 Azure <code>.../openai/v1</code>（<strong>無</strong> <code>/</code>）→ <code>.../openai/chat/completions</code>，<code>v1</code> 整段被吃掉 → Azure 回 <strong>404 Resource not found</strong>。</li></ul>
+<p>同一個 <code>BaseUrl</code> 由轉錄（<code>OpenAITranscriptionClient</code>）、產生（<code>OpenAIChatCompletionClient</code>）、嵌入（<code>OpenAIEmbeddingClient</code>）三者共用（<code>Program.cs:307/314/321</code>），故三條路徑皆會踩到。</p>
+<h2 id="二做法baseaddress-一律正規化為以--結尾" class="t2">二、做法：BaseAddress 一律正規化為以 <code>/</code> 結尾</h2>
+<p>於 <code>Program.cs</code> 新增區域函式 <code>EnsureTrailingSlash(string url)</code>，將三處 <code>BaseAddress</code> 設定改為套用它，未以 <code>/</code> 結尾時自動補上。如此任何客戶端點（Azure 或自架、含或不含結尾斜線）都不再因此踩雷。</p>
+<p>不改動各 client 的相對路徑寫法，維持最小改動。</p>
+<h2 id="三範圍界線" class="t3">三、範圍界線</h2>
+<ul><li>僅修正端點組合，不改驗證方式：Azure v1 介面接受 <code>Authorization: Bearer &lt;API 金鑰&gt;</code>（現行程式即是此作法）。</li><li>Azure 以<strong>部署名稱(deployment name)</strong> 路由；若補斜線後仍 404，需與客戶核對 <code>GenerationModel</code>／<code>QueryRewriteModel</code>／<code>Model</code>／<code>EmbeddingModel</code> 是否對齊該資源實際部署名。此屬設定面，不在本次程式改動內。</li><li>客戶金鑰不寫入版控中的 <code>appsettings.json</code>，僅由部署環境設定。</li></ul>
+<h2 id="四驗證" class="t4">四、驗證</h2>
+<ul><li><code>dotnet build</code> 0 錯誤。</li><li>待實機驗證：部署環境將 <code>OpenAISettings:BaseUrl</code> 設為 Azure 端點（含或不含結尾斜線皆可）→ 重啟 → 重跑原本失敗的 PDF 檔案解讀；日誌不再出現 <code>StatusCode=404</code>，成功時出現 <code>OpenAI chat 用量。Operation=File ...</code>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一問題的本質v1-被-net-吃掉">一、問題的本質：/v1 被 .NET 吃掉</a><a class="l2" href="#二做法baseaddress-一律正規化為以--結尾">二、做法：BaseAddress 一律正規化為以 / 結尾</a><a class="l2" href="#三範圍界線">三、範圍界線</a><a class="l2" href="#四驗證">四、驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-21-Azure端點BaseUrl斜線修正.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

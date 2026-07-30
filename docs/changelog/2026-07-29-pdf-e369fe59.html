@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>續談還原出處與滿意度投票、PDF 補上提問／設定／出處、首頁圖示統一（1.0.98 → 1.0.99）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>續談還原出處與滿意度投票、PDF 補上提問／設定／出處、首頁圖示統一（1.0.98 → 1.0.99）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-29</li><li>版本：1.0.98 → 1.0.99</li><li>類型：功能修正（AI 知識問答續談還原）＋ PDF 匯出內容擴充 ＋ 選單圖示調整 ＋ 一處權控補強</li><li><strong>無新表、無 migration</strong>（出處與查詢模式都存在對話 JSON 全文檔，不是資料庫欄位）</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>使用者回報三件事：</p>
+<ol><li>從「我的對話」按「繼續對話」續談後，載入回來的歷史回答<strong>看不到「出處（N）」區塊</strong>，也<strong>沒有「滿意／不滿意」按鈕</strong>可以重新投票。</li><li>「下載 PDF」產出的 PDF <strong>只有 AI 回答</strong>，看不到當初問了什麼。</li><li>側邊選單「首頁」的圖示（<code>analytics</code>）與「知識庫 &gt; AI 知識問答」（<code>forum</code>）<strong>不一致</strong>——但自 1.0.81 起 <code>/App</code> 已改掛 <code>KnowledgeBaseChatView</code>，兩者其實是同一個問答頁的兩個入口。</li></ol>
+<h2 id="根因" class="t2">根因</h2>
+<h3 id="出處消失是資料從來沒存不只是-ui-沒接">出處消失是「資料從來沒存」，不只是 UI 沒接</h3>
+<p><code>ChatSessionTurn</code>（對話 JSON 全文檔的一輪）自 1.0.39 建立以來就<strong>沒有出處欄位</strong>，只有 <code>Index / Timestamp / Question / Answer / Confidence / TopScore / WasBlocked / Settings</code>。<code>ChatSessionService.AppendTurnAsync</code> 也只寫這幾個欄位。所以續談時<strong>根本沒有資料可還原</strong>——只修 UI 沒有用。</p>
+<h3 id="投票列消失是以訊息實例為鍵的字典沒有重建">投票列消失是「以訊息實例為鍵」的字典沒有重建</h3>
+<p><code>sourcesByMessage</code>／<code>logIdByMessage</code>／<code>feedbackByMessage</code> 三個字典都<strong>以 <code>ChatMessage</code> 物件實例為鍵</strong>（<code>ChatMessage</code> 是 class、未覆寫 <code>Equals</code>/<code>GetHashCode</code>，即 reference equality）。而 <code>ResumeSession</code> 會先 <code>Clear()</code> 這三個字典，再用<strong>全新的 <code>ChatMessage</code> 實例</strong>重建訊息串——即使不 Clear，新實例也對不上舊鍵。回饋列的渲染條件正是 <code>logIdByMessage.TryGetValue(msg, …)</code>，因此整列消失。</p>
+<p>⚠️ 這是三個症狀的<strong>同一個根因</strong>，知識來源「AI 對話」頁（<code>KnowledgeSourceChatView</code>）有完全相同的問題。</p>
+<h2 id="變更" class="t3">變更</h2>
+<h3 id="1-出處與查詢模式進得了對話-jsonchatsessionmodelscs">1. 出處與查詢模式進得了對話 JSON（<code>ChatSessionModels.cs</code>）</h3>
+<ul><li><code>ChatSessionTurn</code> 新增 <code>List&lt;KnowledgeBaseSourceAdapterModel&gt;? Sources</code>。<strong>直接重用既有的出處模型</strong>（同專案 <code>Models/AdapterModel/</code>），不另建一份 DTO——續談時讀出來可直接塞回 <code>sourcesByMessage</code>，零轉換、零漂移風險。</li><li><code>ChatSettingsSnapshot</code> 新增 <code>string? QueryMode</code>（<code>local</code>／<code>global</code>）。原本快照有「回答詳簡／提示詞／限定來源分類團隊」卻<strong>獨缺查詢模式</strong>，而查詢模式正是決定「這輪有沒有出處」的那個開關（全域模式走社群摘要，不產生出處）。</li></ul>
+<p>⚠️ <strong>兩者都是純 JSON 檔的模型、不是 Entity，因此不需要 migration</strong>——對話全文一律存磁碟是 1.0.39 訂下的既有慣例。新欄位對舊檔為 <code>null</code>，向後相容（已由測試釘住）。</p>
+<h3 id="2-寫入端接上出處">2. 寫入端接上出處</h3>
+<ul><li><code>ChatLogWriteRequest</code> 新增 <code>Sources</code>（知識來源對話／MCP／Web API 不傳＝null，行為不變）。</li><li><code>ChatSessionService.AppendTurnAsync</code> 寫入 <code>Sources = req.Sources?.ToList()</code>。</li><li><code>KnowledgeBaseChatView.LogTurnAsync</code> 傳 <code>Sources = retrieval?.Sources</code>、快照補 <code>QueryMode = queryMode</code>。</li></ul>
+<p>出處的 <code>Snippet</code> <strong>原樣存、不再截斷</strong>——它在檢索階段就已截好，再截一次會讓 PDF 與畫面上的出處內容不一致。</p>
+<h3 id="3-續談重建四個附加狀態">3. 續談重建四個附加狀態</h3>
+<p>新增 <code>ChatLogService.GetSessionTurnFeedbacksAsync(sessionId)</code>：以 <code>LlmChatLog</code> 既有的 <code>SessionId</code> ＋ <code>TurnIndex</code> 反查各輪的 <code>(TurnIndex, LogId, Feedback)</code>。<strong>服務端以登入者帳號精確過濾</strong>，帳號為空回空清單（fail-closed），比照 <code>ChatSessionService.ReadSessionAsync(requireOwnerAccount)</code> 的本人越權保護。同一輪若有重複列（重試寫入）取 <code>Id</code> 最大者。</p>
+<p>兩個檢視的 <code>ResumeSession</code> 由 <code>void</code> 改為 <code>async Task</code>（<code>OnResume</code> 是 <code>EventCallback&lt;ChatSessionFile&gt;</code>，直接接 Task-returning 方法即可），在建立每則 assistant 訊息的<strong>當下</strong>把四件事填回去：</p>
+<ul><li><code>sourcesByMessage</code> ← <code>turn.Sources</code>（→ 出處面板回來了）</li><li><code>settingsByMessage</code> ← <code>turn.Settings</code>（新字典，供 PDF 列出查詢設定）</li><li><code>logIdByMessage</code> / <code>feedbackByMessage</code> ← 反查結果（→ 投票列回來了，<strong>且已投的票會正確高亮</strong>，可改可取消）</li></ul>
+<p><code>expandedSourcePanels</code> 維持清空＝預設收合，與新對話一致。</p>
+<p><code>KnowledgeSourceChatView</code> 只做投票重建（該頁本來就沒有出處面板）。</p>
+<h3 id="4-pdf-補上提問查詢設定條件出處">4. PDF 補上提問、查詢設定條件、出處</h3>
+<ul><li><code>ChatPdfExporter.Generate</code> 改為<strong>可選參數多載</strong>：<code>Generate(markdown, title, question = null, settingLines = null, sources = null)</code>。現有兩個呼叫端（知識百科、知識來源對話）<strong>一行都不用改</strong>。</li><li>版面由「單一 Markdown 區塊」改為 <code>page.Content().Column(...)</code>（<code>page.Content()</code> 只能呼叫一次），依序輸出：<strong>使用者提問 → AI 回覆 → 查詢設定條件 → 出處（N）</strong>，各區塊皆為「有值才輸出」。</li><li>新增 <code>record ChatPdfSource(Layer, Title, Anchor, Score, Snippet)</code>：<strong>轉換在 View 端完成</strong>，讓共用元件 <code>MarkdownActionBar</code>／<code>ChatPdfExporter</code> 不需要相依知識庫專屬模型。</li><li><code>MarkdownActionBar</code> 新增三個<strong>可選</strong> <code>[Parameter]</code>：<code>Question</code> / <code>SettingLines</code> / <code>Sources</code>。</li><li><code>KnowledgeBaseChatView.razor</code> 的訊息迴圈由 <code>@foreach</code> 改為索引式 <code>@for</code>，才能取得 assistant 訊息對應的<strong>前一則使用者提問</strong>。⚠️ <code>msg</code> 與 <code>question</code> 必須宣告成<strong>迴圈內的區域變數</strong>——markup 內多處 lambda（<code>ToggleSourcePanel(msg)</code>、<code>OnFeedbackChangedAsync(msg, …)</code>）會捕捉它們，直接用共享的 <code>i</code> 會全部捕捉到同一個值。</li><li>設定條列由 <code>BuildPdfSettingLines</code> 產生：查詢模式／回答詳簡／套用提示詞／系統提示詞／限定知識來源／限定分類／限定團隊。<strong>限定來源以 <code>availableSources</code> 解析成名稱</strong>輸出，不列裸 Id。</li><li>PDF 頁首標題由 <code>"AI 回覆"</code> 改為 <code>"AI 知識問答"</code>（PDF 現在不只有回覆）。</li><li>中文字型無須任何處理：<code>Noto Sans TC</code> 已於 <code>Program.cs</code> 註冊，新增的中文標題自動套用。</li></ul>
+<h3 id="5-補上-setfeedbackasync-的本人守門既有缺口">5. 補上 <code>SetFeedbackAsync</code> 的本人守門（既有缺口）</h3>
+<p><code>SetFeedbackAsync(int id, …)</code> 原本<strong>沒有任何擁有者驗證</strong>。過去 <code>logId</code> 只可能來自「本人當輪」，實務上無法被利用；但本次改動讓 <code>logId</code> 改由查詢取得，屬於同一條路徑，必須補上——查詢條件改為 <code>x.Id == id &amp;&amp; x.UserAccount == account</code>，找不到就記 <code>LogWarning</code> 後靜默 return（沿用既有行為）。呼叫端只有兩個聊天檢視，<code>/chat-logs</code> 與統計報表只讀不寫，不受影響。</p>
+<h3 id="6-首頁圖示">6. 首頁圖示</h3>
+<p><code>Datas/Menu.json</code> 第一筆（id 1「首頁」）<code>analytics</code> → <strong><code>forum</code></strong>，與「知識庫 &gt; AI 知識問答」一致。</p>
+<ul><li><code>forum</code> <strong>已在</strong> <code>MenuIconTests.AllowedLeafIcons</code>（「首頁」有 <code>url</code>、無 <code>subMenu</code>＝葉節點），<strong>不需改白名單</strong>；<code>analytics</code> 仍被「統計報表」父群組使用，故保留在清單中。</li><li>名稱／順序／url 皆未動 → 不影響 <code>MenuPermissionAlignmentTests</code> 的位置索引，也不動 <code>MagicObjectHelper</code>／<code>RolePermissionService</code>。</li><li>⚠️ <code>SidebarMenuService</code> 對 <code>Menu.json</code> 有 <code>ICacheService</code> 快取（key <code>sidebar:menu:raw</code>），<strong>改完要重啟才看得到</strong>。</li></ul>
+<h3 id="7-其他">7. 其他</h3>
+<ul><li><code>appsettings.json</code>：SystemVersion 1.0.98 → 1.0.99。</li><li>新增 <code>Tests/ChatSessionSourceAndFeedbackTests.cs</code>（7 條）。</li></ul>
+<h2 id="刻意不變更" class="t4">刻意不變更</h2>
+<ul><li><strong>不重構「以訊息實例為鍵」的字典設計</strong>：改成穩定 turn id 會波及三個檢視的大量程式碼；本次只要求「重建時把新實例填進字典」即可正確運作。這個脆弱性已在此篇記錄，留待日後有更大範圍改動時一併處理。</li><li><strong>不回填舊對話的出處</strong>（與使用者確認）：既有 session JSON 沒存出處，續談舊對話時出處面板不出現（投票列<strong>會</strong>出現，因為 logId 是從 DB 反查）。<strong>不</strong>在續談時重跑檢索補出處——知識庫已變動時會產出「與當初不同的假出處」，且每次續談都要多跑 N 次檢索。</li><li><strong>不改 <code>ChatLogService.BuildFileContent</code></strong>（per-turn <code>.md</code> 稽核檔）：該檔以「送進 LLM 的提示詞」為主，本次需求不涉及。</li><li><strong>不改 <code>/chat-logs</code> 管理員頁與統計報表</strong>：只讀 <code>Feedback</code>，讀取語意未變。</li><li><strong><code>CancelExtractionAsync</code> 式的同輩一致性考量</strong>：<code>SetFeedbackAsync</code> 的守門補在服務層而非 UI 層，因為它已成為「可由查詢取得 id」的路徑。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ul><li><code>dotnet build</code> 成功（0 錯誤；43 個警告皆為既有）。</li><li><code>dotnet test</code> <strong>963 全綠</strong>（含新增 7 條，以及 <code>MenuIconTests</code>／<code>MenuPermissionAlignmentTests</code>／<code>ToastConventionTests</code>／<code>PermissionConstantCanaryTests</code>）。</li><li><strong>守門有效性實測</strong>：暫時把 <code>SetFeedbackAsync</code> 的 <code>&amp;&amp; x.UserAccount == account</code> 拿掉後重建，<code>SetFeedback_OtherUsersLog_IsRejected</code> 立刻紅燈（B 使用者成功把 A 的「滿意」改成「不滿意」），還原後恢復綠燈——確認這條測試真的抓得到越權，不是同義反覆。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 綠燈（UTF-8 含 BOM、無亂碼）。</li></ul>
+<h3 id="待人工驗收未執行瀏覽器實測">待人工驗收（未執行瀏覽器實測）</h3>
+<ol><li>選單「首頁」與「知識庫 &gt; AI 知識問答」圖示皆為對話框，收合態 flyout 亦然（<strong>需重啟</strong>）。</li><li><code>/knowledge-base-chat</code> 問一題 → 出處可展開、可鑽取；按「滿意」變高亮，再按一次取消。</li><li>「下載 PDF」→ 依序有「使用者提問／AI 回覆／查詢設定條件／出處（N）」，繁中不亂碼、限定來源顯示名稱而非 Id。</li><li>「我的對話」→「繼續對話」→ 歷史回答<strong>仍有出處可展開</strong>、<strong>投票列出現且顯示先前已投的票</strong>，改投／取消都能存進 DB。</li><li>續談一段 1.0.99 之前的舊對話：出處面板不出現（預期），投票列仍出現且可投票。</li><li><code>/knowledge-sources/{id}/chat</code> 續談 → 投票列出現且可投票。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#根因">根因</a><a class="l3" href="#出處消失是資料從來沒存不只是-ui-沒接">出處消失是「資料從來沒存」，不只是 UI 沒接</a><a class="l3" href="#投票列消失是以訊息實例為鍵的字典沒有重建">投票列消失是「以訊息實例為鍵」的字典沒有重建</a><a class="l2" href="#變更">變更</a><a class="l3" href="#1-出處與查詢模式進得了對話-jsonchatsessionmodelscs">1. 出處與查詢模式進得了對話 JSON（ChatSessionModels.cs）</a><a class="l3" href="#2-寫入端接上出處">2. 寫入端接上出處</a><a class="l3" href="#3-續談重建四個附加狀態">3. 續談重建四個附加狀態</a><a class="l3" href="#4-pdf-補上提問查詢設定條件出處">4. PDF 補上提問、查詢設定條件、出處</a><a class="l3" href="#5-補上-setfeedbackasync-的本人守門既有缺口">5. 補上 SetFeedbackAsync 的本人守門（既有缺口）</a><a class="l3" href="#6-首頁圖示">6. 首頁圖示</a><a class="l3" href="#7-其他">7. 其他</a><a class="l2" href="#刻意不變更">刻意不變更</a><a class="l2" href="#驗證">驗證</a><a class="l3" href="#待人工驗收未執行瀏覽器實測">待人工驗收（未執行瀏覽器實測）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-29-續談還原出處與投票-PDF問答內容-首頁圖示.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

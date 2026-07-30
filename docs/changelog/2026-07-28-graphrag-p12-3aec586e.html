@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph RAG P12：全域作業狀態表 ＋ 待抽取來源（1.0.94 → 1.0.95）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Graph RAG P12：全域作業狀態表 ＋ 待抽取來源（1.0.94 → 1.0.95）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-28</li><li>版本：1.0.94 → 1.0.95</li><li>類型：新增功能／維運補強（Graph RAG 第十二階段；<strong>雙庫 migration <code>AddGraphJobState</code></strong>）</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>兩個維運缺口，都是 P3／P6／P7 自陳但一直沒解的：</p>
+<p><strong>① 全域圖譜作業不可觀測。</strong> 社群摘要重建（P3）與 LLM 別名候選生成（P6）的狀態只活在記憶體單例（<code>GraphCommunityBuildState</code>／<code>GraphAliasBuildState</code>）。而 <code>PipelineJobQueryService</code> 的註解寫得很清楚——<strong>一律由 DB 狀態推導，刻意不讀佇列深度</strong>。沒有 DB 列，這兩個作業在 <code>/pipeline-jobs</code> 就<strong>結構上不可能顯示</strong>，自然也不能取消；服務重啟更會靜默丟失重建訊號（P7 記載：「服務重啟仍會靜默丟失重建訊號」）。</p>
+<p><strong>② 最需要重抽的來源反而看不到。</strong> P7 把「抽取／重抽三元組」接到知識來源頁，但自陳限制：知識圖譜審核頁是<strong>三元組導向</strong>的，抽取失敗或抽不出東西的來源因為一條三元組都沒有，<strong>完全不會出現在審核清單裡</strong>——而那正是最需要重抽的情況。</p>
+<h2 id="為什麼要建表而不是顯示記憶體狀態就好" class="t2">⚠️ 為什麼要建表（而不是「顯示記憶體狀態就好」）</h2>
+<p>因為 <code>/pipeline-jobs</code> 的資料來源就是 DB。要讓這兩個作業出現在那裡、能被取消、重啟後能撿回，<strong>沒有 DB 列就無解</strong>——顯示記憶體旗標只能做到「看得到現在有沒有在跑」，解不掉重啟遺失與無法取消這兩個真問題。</p>
+<h2 id="變更" class="t3">變更</h2>
+<h3 id="1-新增-graphjobstate雙庫-migration-addgraphjobstate">1. 新增 <code>GraphJobState</code>（雙庫 migration <code>AddGraphJobState</code>）</h3>
+<p>欄位：<code>JobType</code>／<code>Status</code>／<code>ResultCount</code>／<code>ErrorMessage</code>／<code>TriggeredBy</code>／<code>TriggeredByName</code>／<code>StartedAt</code>／<code>CompletedAt</code>／時間戳，加 <code>Status</code> 索引。</p>
+<p><strong>刻意無 <code>Teams</code></strong>：與 <code>GraphEntityAlias</code> 一致——全域治理作業、管理員專屬，由呼叫端把關。</p>
+<h3 id="2--刻意不進-pipelinenames">2. ⚠️ 刻意不進 <code>PipelineNames</code></h3>
+<p><code>PipelineNames</code> 是 <strong>per-record 管線</strong>的常數集，配套的是 <code>TryCancel(pipeline, recordId)</code>。硬塞進去會讓 <code>recordId</code> 在這兩個全域作業上失去意義，也會污染 <code>/pipeline-jobs</code> 既有的推導假設。</p>
+<p>改以 <code>JobType</code> 字串識別，但<strong>仍重用 <code>IPipelineCancellationRegistry</code></strong>——它的鍵本來就只是字串，並不限於 per-record。<code>PipelineJobQueryService.LabelOf</code>／<code>UrlOf</code> 與 <code>PipelineJobCancelService</code> 各加兩個 case。</p>
+<h3 id="3-觸發--執行--終態的完整鏈路">3. 觸發 → 執行 → 終態的完整鏈路</h3>
+<ul><li>觸發點（<code>GraphCommunityService.TriggerRebuildAsync</code>／<code>GraphEntityAliasService.TriggerSuggestionAsync</code>）<strong>先建 <code>GraphJobState</code> 列再入列</strong>，佇列的 <code>PipelineJob.Id</code> 由原本的 <code>0</code> 佔位改為帶真正的列 Id。</li><li><strong>在飛判定改以 DB 為準</strong>（<code>HasInFlightAsync</code>）——記憶體旗標在服務重啟後會歸零，DB 不會。記憶體旗標保留供審核頁即時輪詢，兩者並存但<strong>終態一律以 DB 為準</strong>。</li><li>背景服務出列後 <code>TryMarkProcessingAsync</code> → 執行 → <code>CompleteAsync</code> 寫終態（已完成／失敗）。</li></ul>
+<h3 id="4-取消的兩段語意比照各-per-record-管線">4. 取消的兩段語意（比照各 per-record 管線）</h3>
+<div class="tw"><table><thead><tr><th>情況</th><th>作法</th></tr></thead><tbody><tr><td>處理中</td><td><code>TryCancel</code> 發取消權杖，執行中的工作停下來</td></tr><tr><td>等待中（或重啟後的孤兒）</td><td>只改 DB 狀態為「已取消」；<strong>真正的略過發生在出列時</strong>——<code>TryMarkProcessingAsync</code> 回 false，背景服務直接 <code>continue</code></td></tr></tbody></table></div>
+<p>背景服務捕捉到「非關機」的 <code>OperationCanceledException</code> 時<strong>刻意不覆寫狀態</strong>，因為 <code>CancelAsync</code> 已經寫成「已取消」了。</p>
+<h3 id="5-重啟復原graphjobrecovery">5. 重啟復原（<code>GraphJobRecovery</code>）</h3>
+<p>兩個背景服務啟動時先跑 <code>RecoverAsync</code>：把殘留的「處理中」改回「等待中」，再把所有未結束的作業重新入列。<strong>這才是「重啟不再靜默丟失重建訊號」的實際修法</strong>（P3 原本刻意不做復原、P7 記載未動）。</p>
+<p>復原失敗只記 log 不拋——不得讓背景服務起不來，否則後續新觸發也跟著失效。</p>
+<h3 id="6-pipeline-jobs-顯示">6. <code>/pipeline-jobs</code> 顯示</h3>
+<p><code>GetPendingJobsAsync</code> 追加一次查詢。<code>RecordId</code> 放的是 <code>GraphJobState</code> 的列 Id、<code>Teams</code> 恆為 null（全域治理無團隊）、<code>Title</code> 帶觸發者以便判讀。<code>GetSummaryAsync</code> 因為<strong>重用同一條清單查詢</strong>，「卡片數字＝頁面列數」的既有不變量自動維持（已補測試釘住）。</p>
+<h3 id="7-待抽取來源分頁知識圖譜審核頁第四頁">7. 「待抽取來源」分頁（知識圖譜審核頁第四頁）</h3>
+<p><code>GraphTripleService.GetSourcesNeedingExtractionAsync</code>：列出<strong>已蒸餾</strong>、且滿足下列任一的來源——</p>
+<ul><li>該來源<strong>沒有任何三元組</strong>（抽取沒產出東西）</li><li>圖譜狀態為<strong>失敗</strong>（即使已有三元組，失敗代表這次沒抽完整）</li></ul>
+<p>進行中（等待中／處理中）者<strong>刻意排除</strong>——已經在跑了，不需要再按一次。</p>
+<p><strong>leak=0</strong>：非管理員只看得到「無團隊(公開)或與角色團隊交集」的來源。重抽按鈕直接呼叫 P7 已補好完整守門的 <code>TriggerExtractionAsync</code>（團隊權控 → 已蒸餾 → LLM 已設定 → 非 in-flight），<strong>不在 UI 重複一份守門</strong>。</p>
+<p>沿用既有 <code>角色_知識圖譜審核</code> 頁權，<strong>不新增權限常數</strong>（不需動 <code>MagicObjectHelper</code>／<code>RolePermissionService</code>／<code>Menu.json</code> 三處同步）。</p>
+<h2 id="驗證" class="t4">驗證</h2>
+<ul><li><code>dotnet build</code> 成功、<strong>警告數與位置完全相同</strong>（26 條 → 26 條，逐條比對零新增）。</li><li><code>dotnet test</code> <strong>938 全綠</strong>（既有 912 + 新增 26），<strong>連跑三次穩定</strong>：</li><li><code>GraphJobStateServiceTests</code>（新檔）：建列為等待中、<code>HasInFlightAsync</code> 只認等待中／處理中（Theory 5 列）且<strong>依作業別分開</strong>、<code>TryMarkProcessingAsync</code> 正常標記、<strong>已取消時回 false 且不啟動（取消得以生效的關鍵）</strong>、查無列回 false、<code>CompleteAsync</code> 寫終態與產出數、<strong>取消需管理員</strong>（非管理員被拒且狀態未被動到）、等待中可取消、已結束不可取消、<strong>復原把處理中改回等待中並重新入列</strong>、復原不碰其他作業別與已結束者。</li><li><code>PipelineJobQueryServiceTests</code> +3：全域圖譜作業出現在待處理清單（標籤／處理中旗標／觸發者／無團隊／路由）、已結束者不出現、<strong>摘要總數含全域作業</strong>。</li><li><code>GraphTripleServiceTests</code> +7：列出已蒸餾但零三元組者、排除已有三元組者、<strong>失敗者即使已有三元組也要列</strong>、排除未蒸餾、排除進行中（Theory 2 列）、<strong>他隊來源不得外洩（leak=0）</strong>。</li><li>雙庫 migration <code>AddGraphJobState</code> 各一份（Sqlite <code>20260728051605</code>／SqlServer <code>20260728051708</code>）。SqlServer 的 <code>Status</code> 因索引自動為 <code>nvarchar(450)</code>；新表故無 <code>AlterColumn</code>。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 0 失敗；版本 1.0.95。</li></ul>
+<p>⚠️ 測試過程中曾有一次 <code>SystemHealthReportTests</code> 的 3 條紅燈，堆疊顯示是<strong>測試 host 啟動時 NLog 設定載入</strong>的暫時性失敗（與本次變更無關的既有測試 host 行為）；後續三次完整回合皆全綠，未再重現。<strong>此處如實記載，不宣稱已根治。</strong></p>
+<h2 id="已知限制未來增量" class="t5">已知限制（未來增量）</h2>
+<ul><li>記憶體旗標（<code>IGraphCommunityBuildState</code>／<code>IGraphAliasBuildState</code>）與 DB <strong>並存</strong>：前者供審核頁即時輪詢、後者為權威。多執行個體部署下記憶體旗標只反映本行程，DB 才是全域真相。</li><li>復原是<strong>整批重新入列</strong>，不會續跑到一半的社群重建——社群重建本來就是整批取代、失敗不留半成品，所以重跑是安全的。</li><li>「待抽取來源」清單<strong>上限 50 筆</strong>（<code>take</code> 參數預設），未做分頁。</li><li>取消進行中的作業依賴 <code>GraphCommunityBuilder</code>／<code>GraphEntityAliasGenerator</code> 對 <code>CancellationToken</code> 的響應；兩者的 LLM 呼叫之間會檢查，但<strong>單次 LLM 呼叫進行中無法立即中斷</strong>。</li><li><strong>未執行</strong>：實際重啟服務驗證復原流程（需部署環境）。單元測試已直接測 <code>GraphJobRecovery.RecoverAsync</code>，但端到端的「重啟後真的續跑」留給部署後驗收。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#為什麼要建表而不是顯示記憶體狀態就好">⚠️ 為什麼要建表（而不是「顯示記憶體狀態就好」）</a><a class="l2" href="#變更">變更</a><a class="l3" href="#1-新增-graphjobstate雙庫-migration-addgraphjobstate">1. 新增 GraphJobState（雙庫 migration AddGraphJobState）</a><a class="l3" href="#2--刻意不進-pipelinenames">2. ⚠️ 刻意不進 PipelineNames</a><a class="l3" href="#3-觸發--執行--終態的完整鏈路">3. 觸發 → 執行 → 終態的完整鏈路</a><a class="l3" href="#4-取消的兩段語意比照各-per-record-管線">4. 取消的兩段語意（比照各 per-record 管線）</a><a class="l3" href="#5-重啟復原graphjobrecovery">5. 重啟復原（GraphJobRecovery）</a><a class="l3" href="#6-pipeline-jobs-顯示">6. /pipeline-jobs 顯示</a><a class="l3" href="#7-待抽取來源分頁知識圖譜審核頁第四頁">7. 「待抽取來源」分頁（知識圖譜審核頁第四頁）</a><a class="l2" href="#驗證">驗證</a><a class="l2" href="#已知限制未來增量">已知限制（未來增量）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-28-GraphRAG-P12.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

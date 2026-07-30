@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登入與帳號流程 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>登入與帳號流程 PRD</h1><p class="sub">定義登入、Google OAuth、待審核、登出、強制改密碼與 API 密碼設定的產品需求</p></header><div class="docwrap"><main><ul><li>文件用途：定義登入、Google OAuth、待審核、登出、強制改密碼與 API 密碼設定的產品需求</li><li>主要讀者：產品、開發、系統管理員、維運人員</li><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.63</li><li>首次實作版本：既有腳手架；Google OAuth／密碼流程後續補強</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026/06/28</li><li>對應版本：既有登入流程與 Google OAuth/密碼補強（已實作）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<h2 id="一目標與範圍" class="t1">一、目標與範圍</h2>
+<p>提供安全且可維運的帳號入口：本地帳號密碼登入、驗證碼、記住我、Google OAuth 登入、待審核頁、登出、強制改密碼，以及 Google 使用者設定 API 密碼以取得 JWT。</p>
+<p>本 PRD 範圍包含 <code>/Auths/Login</code>、<code>/Auths/Logout</code>、<code>/Auths/Pending</code>、<code>/Auths/Google/Login</code>、<code>/Auths/Google/Callback</code>、<code>/ChangePassword</code>、<code>/Profile</code>。非範圍包含自助註冊、忘記密碼信件、MFA、refresh token 撤銷。</p>
+<h2 id="二使用者與入口" class="t2">二、使用者與入口</h2>
+<div class="tw"><table><thead><tr><th>流程</th><th>路由</th><th>使用者</th></tr></thead><tbody><tr><td>本地登入</td><td><code>/Auths/Login</code></td><td>所有使用者</td></tr><tr><td>Google 登入</td><td><code>/Auths/Google/Login</code></td><td>Google OAuth 啟用時</td></tr><tr><td>待審核</td><td><code>/Auths/Pending</code></td><td>新建且未啟用 Google 使用者</td></tr><tr><td>登出</td><td><code>/Auths/Logout</code></td><td>已登入使用者</td></tr><tr><td>強制改密碼</td><td><code>/ChangePassword</code></td><td>使用預設密碼的本地使用者</td></tr><tr><td>設定 API 密碼</td><td><code>/Profile</code></td><td>已登入使用者，特別是 Google 帳號</td></tr></tbody></table></div>
+<h2 id="三畫面與操作" class="t3">三、畫面與操作</h2>
+<ul><li>登入頁：帳號、密碼、驗證碼、記住我、Google 登入按鈕（設定完整時顯示）。</li><li>Pending 頁：提示 Google 驗證已完成，但需管理員啟用帳號。</li><li>ChangePassword：輸入目前密碼、新密碼、確認新密碼。</li><li>Profile：設定本地 API 密碼；若已有本地密碼需輸入目前密碼，Google 帳號首次設定可免舊密碼。</li><li>Layout 使用者選單：變更密碼、設定 API 密碼、登出。</li></ul>
+<h2 id="四內部系統運作" class="t4">四、內部系統運作</h2>
+<p>本地登入流程：</p>
+<ol><li><code>Login.razor</code> 驗證帳號、密碼與驗證碼。</li><li><code>MyUserServiceLogin.LoginAsync</code> 查詢使用者並驗證 salt + SHA 密碼。</li><li>成功後建立 Cookie claims，使用 <code>MagicObjectHelper.CookieScheme</code>。</li><li><code>AuthenticationStateHelper.Check</code> 在後續頁面載入使用者、角色與預設團隊。</li><li>若密碼仍為 <code>MagicObjectHelper.NeedChangePassword</code>，導向 <code>/ChangePassword</code>。</li></ol>
+<p>Google OAuth 流程：</p>
+<ol><li>登入頁顯示 Google 按鈕的條件為 <code>GoogleOAuthSettings.IsConfigured</code>。</li><li><code>/Auths/Google/Login</code> 觸發 Google challenge。</li><li>Google 回 <code>/signin-google</code>，再進 <code>/Auths/Google/Callback</code>。</li><li><code>ExternalLoginService</code> 先以 GoogleId 比對，再以 email 連結，否則建立停用本地帳號。</li><li>停用帳號導向 <code>/Auths/Pending</code>；啟用帳號建立 Cookie 登入。</li></ol>
+<p>密碼流程：</p>
+<ol><li><code>/ChangePassword</code> 供已登入且需改密碼者更新本地密碼。</li><li><code>/Profile</code> 呼叫 <code>MyUserService.SetOwnApiPasswordAsync</code>，讓 Google 帳號可用 email + API 密碼呼叫 JWT login。</li></ol>
+<h2 id="五llm--rag-互動" class="t5">五、LLM / RAG 互動</h2>
+<p>帳號流程不呼叫 LLM、不使用 embedding。它會決定所有 AI 功能的身分、角色權限與團隊 scope，是後續清洗、問答、檢索品質評測權控的基礎。</p>
+<h2 id="六權限與安全" class="t6">六、權限與安全</h2>
+<ul><li>Cookie 登入、API JWT 與 MCP 專用 <code>X-API-Key</code>（<code>McpApiKey</code>，1.0.5 起）是三條不同 authentication scheme；MCP 端點 <code>/mcp</code> 以 <code>McpAccess</code> policy 接受三者任一。MCP 金鑰（<code>McpAccessKey</code>）由管理員於 <code>/mcp-api-keys</code> 管理，其 <code>UserId</code> 對映既有帳號決定團隊 scope。</li><li>密碼只存 hash 與 salt，不存明碼。</li><li>Google OAuth 用戶端密鑰必須透過安全設定來源提供。</li><li>Google 自動建帳預設停用，需管理員審核。</li><li><code>support</code> 預設開發帳號禁止透過 Profile/ChangePassword 一般流程任意變更。</li><li>日誌不得記錄密碼、token、OAuth secret。</li></ul>
+<h2 id="七錯誤與邊界" class="t7">七、錯誤與邊界</h2>
+<ul><li>驗證碼錯誤時不得嘗試登入。</li><li>Google 回呼缺 email 或 subject 時登入失敗並導回登入頁。</li><li>使用者停用、角色缺失、權限 JSON 壞掉時，應導出或拒絕。</li><li><code>/Profile</code> 新密碼與確認密碼不一致時拒絕儲存。</li></ul>
+<h2 id="八驗收與測試" class="t8">八、驗收與測試</h2>
+<ul><li>本地帳號可用正確帳密登入，錯誤帳密不可登入。</li><li>Google OAuth 未設定時登入頁不顯示 Google 按鈕。</li><li>Google 新帳號預設導向 Pending，管理員啟用後可登入。</li><li>預設密碼使用者登入後被導向 ChangePassword。</li><li>Profile 可設定 API 密碼，供 <code>/api/Auth/login</code> 使用。</li></ul>
+<h2 id="九相關程式與文件" class="t1">九、相關程式與文件</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Auths/Login.razor</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Controllers/ExternalAuthController.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Other/MyUserServiceLogin.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Other/ExternalLoginService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Pages/Profile.razor</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Pages/ChangePassword.razor</code></li><li><a href="../../docs/security/google-oauth2.html">Google OAuth2 第三方登入</a></li><li><a href="../../docs/security/password-storage.html">密碼種類與儲存機制</a></li></ul>
+<h2 id="十0334-現況校正" class="t2">十、0.3.34 現況校正</h2>
+<ul><li>本地登入包含驗證碼與「記住我」；Google 新帳號導向 <code>/Auths/Pending</code>，待管理員啟用。</li><li>強制改密碼、個人資料及 Google 使用者設定 API 密碼分屬 <code>/ChangePassword</code>、<code>/Profile</code> 與 API 認證流程。</li><li>Cookie／JWT／API 密碼用途不同；任何 PRD、畫面或日誌不得把明文密碼、存取 token 或 refresh token 當一般欄位顯示。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目標與範圍">一、目標與範圍</a><a class="l2" href="#二使用者與入口">二、使用者與入口</a><a class="l2" href="#三畫面與操作">三、畫面與操作</a><a class="l2" href="#四內部系統運作">四、內部系統運作</a><a class="l2" href="#五llm--rag-互動">五、LLM / RAG 互動</a><a class="l2" href="#六權限與安全">六、權限與安全</a><a class="l2" href="#七錯誤與邊界">七、錯誤與邊界</a><a class="l2" href="#八驗收與測試">八、驗收與測試</a><a class="l2" href="#九相關程式與文件">九、相關程式與文件</a><a class="l2" href="#十0334-現況校正">十、0.3.34 現況校正</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/登入與帳號流程-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

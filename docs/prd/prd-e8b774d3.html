@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>產品需求文件（PRD）：知識來源加工（KnowledgeSource）— 聚合匯入素材的 CRUD 頁面｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>產品需求文件（PRD）：知識來源加工（KnowledgeSource）— 聚合匯入素材的 CRUD 頁面</h1></header><div class="docwrap"><main><ul><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.62</li><li>首次實作版本：0.2.59</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026-06-11</li><li>狀態：已實作（系統版本 0.2.59）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="一背景與目的" class="t1">一、背景與目的</h2>
+<p>系統的「資料匯入」階段已成熟：影音轉逐字稿（<code>MediaTranscription</code>）、文件轉文字（<code>DocumentExtraction</code>）、 圖片解讀（<code>ImageRecognition</code>）三條管線各自把檔案轉成可用文字。但這些紀錄彼此<strong>無關聯、無歸屬容器</strong>， 資料零散，無法以「主題」為單位往後做清洗與蒸餾。</p>
+<p>本功能新增「知識來源加工」頁面：把多筆零散的匯入素材<strong>聚合</strong>成一個有主題、有歸屬、 可後續清洗的單位——<strong>知識來源（KnowledgeSource）</strong>。它是「資料清洗」階段的第一個入口， 也是後續清洗／蒸餾的處理單位（概念見 <a href="../../docs/strategy/cleaning-stage-design.html">strategy/08 資料清洗階段設計與分析</a>）。</p>
+<p>本功能為標準 CRUD 頁面，外加「成員聚合」管理；需具備側邊選單項目、<code>Menu.json</code> 設定與角色權限控制， 位於<strong>新增的父選單「知識庫」</strong>之下。</p>
+<h3 id="設計範本">設計範本</h3>
+<p>以「文件轉文字（DocumentExtraction）」頁面的設計方式為範本（清單表格、新增／編輯／刪除 Modal、 排序、分頁、團隊權控的 UI 模式），可重用 <code>TagStringHelper</code>（標籤字串⇄List 與權控述詞）、 <code>IRecordAccessScopeProvider</code>（團隊權控）、AntDesign 多選 Select、AutoMapper <code>ForMember</code>。</p>
+<p><strong>與文件轉文字的關鍵差異</strong>：知識來源<strong>不上傳檔案</strong>（它聚合既有素材，非產生新檔）， 改為以「成員聚合」管理跨三管線的素材紀錄；本階段<strong>不含清洗管線</strong>（留待後續）。</p>
+<hr>
+<h2 id="二需求決策" class="t2">二、需求決策</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>決策</th></tr></thead><tbody><tr><td>位置</td><td>新增父選單「知識庫」；其下子頁「知識來源加工」，路由 <code>/knowledge-sources</code></td></tr><tr><td>範圍</td><td>知識來源本體 CRUD ＋ 成員聚合（加入／移除／排序成員）；<strong>不含</strong>檔案上傳、清洗管線</td></tr><tr><td>成員型別</td><td>可跨型別聚合：<code>MediaTranscription</code>／<code>DocumentExtraction</code>／<code>ImageRecognition</code></td></tr><tr><td>成員可選範圍</td><td>僅可挑選<strong>狀態為「已完成」</strong>的匯入紀錄（確保有可用文字）</td></tr><tr><td>成員參照方式</td><td>以 <code>ItemType + ItemId</code> <strong>軟參照</strong>（不做硬 FK，沿用本專案務實風格）；一筆素材可被多個來源引用</td></tr><tr><td>成員唯一性</td><td>同一來源內 <code>(ItemType, ItemId)</code> 不可重複</td></tr><tr><td>成員排序</td><td>來源內以 <code>SortOrder</code> 排序，可上下移動</td></tr><tr><td>預設排序</td><td>列表預設依 <strong>UpdatedAt（更新時間）由新到舊</strong>；次序鍵 <code>Id</code> 遞減</td></tr><tr><td>UpdatedAt 更新時機</td><td>來源欄位編輯、或成員增／刪／重排時更新</td></tr><tr><td>團隊權控</td><td>套用（與文件轉文字一致）：非管理員僅見「無團隊（公開）或與自身團隊交集」的來源</td></tr><tr><td>刪除行為</td><td>刪除來源時<strong>級聯刪除成員關聯（KnowledgeSourceItem）</strong>；被引用的素材原紀錄<strong>保留不動</strong></td></tr><tr><td>API</td><td>本階段<strong>不需要 Controller</strong>（無下載產物）；CRUD 經 Blazor Service 直接操作</td></tr></tbody></table></div>
+<hr>
+<h2 id="三功能概述" class="t3">三、功能概述</h2>
+<p>新增「知識來源加工」頁面，提供知識來源的建立、查詢、編輯、刪除（CRUD）， 以及把既有匯入素材聚合為來源成員的管理。每筆知識來源包含標題、描述、分類、團隊、 成員（跨三管線）、建立／更新時間。列表預設依<strong>更新時間由新到舊</strong>呈現，支援關鍵字搜尋、 分類／團隊多選過濾與分頁，並全程套用團隊權控。</p>
+<p><strong>能力邊界</strong>：檔案上傳仍由三條匯入管線負責；知識來源頁已整合清洗／蒸餾／索引觸發、狀態進度、信心、人工審核及清洗結果檢視／編修，細節由各能力 PRD 規範。</p>
+<hr>
+<h2 id="四使用者流程" class="t4">四、使用者流程</h2>
+<ol><li>進入「知識庫 &gt; 知識來源加工」（路由 <code>/knowledge-sources</code>）；無權限者不顯示選單、不可進入。</li><li>列表預設依更新時間新到舊；支援關鍵字搜尋（標題／描述）與分類／團隊多選過濾、分頁。</li><li>點「新增」開 Modal，填標題（必填）、描述、分類（多選）、團隊（多選）後儲存；新來源可先無成員。</li><li>在某筆來源點「管理成員」開 Modal：</li><li>以型別頁籤（影音轉逐字稿／文件轉文字／圖片解讀／<strong>會議紀錄</strong>，1.0.25 起共四型）切換，輸入關鍵字搜尋；清單僅列<strong>已完成</strong>且</li></ol>
+<p><strong>使用者有權限</strong>的素材紀錄（會議紀錄只列「已產生」者，索引 AI 會議紀錄而非逐字稿），可多選「加入」。</p>
+<ul><li>已加入的成員顯示於成員清單，可<strong>上移／下移</strong>調整 <code>SortOrder</code>、可<strong>移除</strong>。</li><li>重複加入同一素材會被阻擋並提示。</li><li>點「編輯」修改來源標題／描述／分類／團隊。</li><li>點「刪除」確認後刪除來源；一併刪除其成員關聯，但被引用的素材原紀錄保留。</li><li>邊界情況：標題空白擋下並提示；非授權團隊之來源不顯示、不可編輯／刪除／管理成員；</li></ul>
+<p>成員素材若被原管線刪除，成員清單顯示為「（來源已不存在）」並可移除。</p>
+<hr>
+<h2 id="五資料模型" class="t5">五、資料模型</h2>
+<h3 id="51-knowledgesource知識來源本體">5.1 KnowledgeSource（知識來源本體）</h3>
+<p>新增實體 <code>KnowledgeSource</code>（<code>KnowledgeExtraction.AccessDatas/Models/KnowledgeSource.cs</code>）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>Id</td><td>int</td><td>主鍵</td></tr><tr><td>Title</td><td>string</td><td>標題（必填、供搜尋）</td></tr><tr><td>Description</td><td>string?</td><td>描述</td></tr><tr><td>Categories</td><td>string?</td><td>分類標籤（分隔字串，<code>TagStringHelper</code> 包夾格式）</td></tr><tr><td>Teams</td><td>string?</td><td>團隊標籤（分隔字串，團隊權控用）</td></tr><tr><td>CreatedAt</td><td>DateTime</td><td>建立時間</td></tr><tr><td>UpdatedAt</td><td>DateTime</td><td>更新時間（成員增刪／重排亦更新；清單預設排序鍵）</td></tr></tbody></table></div>
+<blockquote><p>本階段<strong>不含</strong>清洗相關欄位（Status／ProgressPercentage／ConfidenceScore／ CleanedContentRelativePath／ReviewedAt／ReviewedBy／ErrorMessage）；依 YAGNI 留待 清洗管線階段再以新 migration 加入。</p></blockquote>
+<h3 id="52-knowledgesourceitem成員關聯">5.2 KnowledgeSourceItem（成員關聯）</h3>
+<p>新增實體 <code>KnowledgeSourceItem</code>（<code>KnowledgeExtraction.AccessDatas/Models/KnowledgeSourceItem.cs</code>）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>Id</td><td>int</td><td>主鍵</td></tr><tr><td>KnowledgeSourceId</td><td>int</td><td>FK → <code>KnowledgeSource</code>，<strong>Cascade Delete</strong>（比照 <code>ProjectFile</code>）</td></tr><tr><td>ItemType</td><td>string</td><td>素材型別：<code>MediaTranscription</code>／<code>DocumentExtraction</code>／<code>ImageRecognition</code></td></tr><tr><td>ItemId</td><td>int</td><td>對應型別的紀錄 Id（軟參照，不做硬 FK）</td></tr><tr><td>SortOrder</td><td>int</td><td>來源內成員排序</td></tr><tr><td>CreatedAt</td><td>DateTime</td><td>加入時間</td></tr></tbody></table></div>
+<ul><li>唯一性：<code>(KnowledgeSourceId, ItemType, ItemId)</code> 不可重複（以索引或 Service 層檢查）。</li><li>DbSet <code>KnowledgeSource</code>、<code>KnowledgeSourceItem</code> 註冊於 <code>BackendDBContext</code>。</li><li><strong>雙 provider migration <code>AddKnowledgeSource</code></strong>：Sqlite（<code>KnowledgeExtraction.AccessDatas/Migrations</code>）</li></ul>
+<p>與 SQL Server（<code>KnowledgeExtraction.AccessDatas.SqlServerMigrations</code>）各一；表名與 DbSet 一致。</p>
+<h3 id="53-adaptermodel">5.3 AdapterModel</h3>
+<ul><li><code>KnowledgeSourceAdapterModel</code>（<code>KnowledgeExtraction.Models/AdapterModel/</code>）：</li></ul>
+<p><code>Categories</code>/<code>Teams</code> 以 <code>List&lt;string&gt;</code> 呈現，含 <code>CategoriesText</code>/<code>TeamsText</code>（<code>string.Join("、", ...)</code>）顯示用； 含 <code>ItemCount</code>（成員數）供列表欄位。</p>
+<ul><li><code>KnowledgeSourceItemAdapterModel</code>：含 <code>Id</code>、<code>ItemType</code>、<code>ItemId</code>、<code>SortOrder</code>，</li></ul>
+<p>以及<strong>即時解析</strong>的 <code>ItemTypeName</code>（型別中文名）與 <code>ItemTitle</code>（向對應 Service 依 ItemId 查現值， 反映素材改名；查不到時標示「（來源已不存在）」）。</p>
+<hr>
+<h2 id="六設定appsettingsjson與版本" class="t6">六、設定（appsettings.json）與版本</h2>
+<ul><li><strong>無新增</strong> <code>appsettings.json</code> 設定項（不上傳檔案、不產生檔案）。</li><li>實作建置時版本 +1（<code>SystemSettings.SystemInformation.SystemVersion</code>，→ 下一版號），</li></ul>
+<p>並於 commit message 說明。<strong>本 PRD 文件本身不更動版本號。</strong></p>
+<hr>
+<h2 id="七架構與元件實作時新增修改" class="t7">七、架構與元件（實作時新增／修改）</h2>
+<ul><li><strong>Entity</strong>：<code>AccessDatas/Models/KnowledgeSource.cs</code>、<code>KnowledgeSourceItem.cs</code>；</li></ul>
+<p><code>BackendDBContext</code> 加入兩個 <code>DbSet</code> 與 <code>KnowledgeSourceItem</code> 的 Cascade 設定。</p>
+<ul><li><strong>AdapterModel</strong>：<code>Models/AdapterModel/KnowledgeSourceAdapterModel.cs</code>、<code>KnowledgeSourceItemAdapterModel.cs</code>。</li><li><strong>CRUD 服務</strong> <code>KnowledgeSourceService</code>（<code>Business/Services/DataAccess/</code>，比照 <code>DocumentExtractionService</code>，含團隊權控）：</li><li><code>GetAsync(DataRequest)</code>：清單查詢，含關鍵字搜尋（Title／Description）、分類／團隊過濾</li></ul>
+<p>（<code>TagStringHelper.BuildContainsAnyPredicate</code>）、<strong>團隊權控</strong>（<code>IRecordAccessScopeProvider</code> ＋ <code>TagStringHelper.BuildTeamAccessPredicate</code>）、分頁；<strong>預設排序 <code>OrderByDescending(UpdatedAt).ThenByDescending(Id)</code></strong>。</p>
+<ul><li><code>GetAsync(int id)</code>：單筆查詢（含團隊權控），載入成員並解析 <code>ItemTitle</code>。</li><li><code>AddAsync</code>／<code>UpdateAsync</code>（白名單欄位）／<code>DeleteAsync</code>（級聯刪成員關聯）。</li><li><code>AddItemAsync(sourceId, itemType, itemId)</code>：檢查重複與權控後新增成員、設定 <code>SortOrder</code>、更新來源 <code>UpdatedAt</code>。</li><li><code>RemoveItemAsync(itemId)</code> / <code>ReorderItemAsync(itemId, direction)</code>：移除／上下移動，更新 <code>UpdatedAt</code>。</li><li><code>GetSelectableItemsAsync(itemType, search, dataRequest)</code>：查對應管線<strong>已完成</strong>且<strong>經團隊權控</strong>的紀錄供挑選。</li><li><strong>AutoMapper</strong>：<code>Business/Models/AutoMapping.cs</code> 新增 <code>KnowledgeSource ⇄ KnowledgeSourceAdapterModel</code></li></ul>
+<p>雙向映射，<code>Categories</code>/<code>Teams</code> 以 <code>ForMember</code> ＋ <code>TagStringHelper.ToList</code>／<code>ToStored</code> 轉換； <code>KnowledgeSourceItem ⇄ KnowledgeSourceItemAdapterModel</code>。</p>
+<ul><li><strong>DI</strong>：於 <code>Program.cs</code> / <code>Extensions/ServiceCollectionExtensions.cs</code> 註冊 <code>AddScoped&lt;KnowledgeSourceService&gt;()</code>。</li><li><strong>UI</strong>：<code>Components/Pages/KnowledgeSources/KnowledgeSourcePage.razor</code>（<code>@page "/knowledge-sources"</code>）</li></ul>
+<p>＋ <code>Components/Views/KnowledgeSources/KnowledgeSourceView.razor</code>（含 <code>.razor.cs</code>、<code>.razor.css</code>）。</p>
+<hr>
+<h2 id="八uiblazor-server--ant-design" class="t8">八、UI（Blazor Server + Ant Design）</h2>
+<ul><li><strong>工具列</strong>：關鍵字搜尋、分類多選過濾、團隊多選過濾、「新增」。</li><li><strong>表格欄位</strong>：標題、描述、分類（<code>CategoriesText</code>）、團隊（<code>TeamsText</code>）、成員數（<code>ItemCount</code>）、</li></ul>
+<p>更新時間（可排序、<strong>預設降序</strong>）。遠端資料源 <code>RemoteDataSource="true"</code> ＋ <code>OnChange</code> 觸發 <code>ReloadAsync</code>。</p>
+<ul><li><strong>操作區</strong>：編輯（✏️）、管理成員（🧩）、刪除（🗑️）。</li><li><strong>新增／編輯 Modal</strong>：標題（必填、<code>DataAnnotationsValidator</code>）、描述、分類（多選）、團隊（多選）。</li><li><strong>管理成員 Modal</strong>：型別頁籤（影音轉逐字稿／文件轉文字／圖片解讀／會議紀錄，1.0.25 起四型）＋搜尋＋多選「已完成」紀錄加入；</li></ul>
+<p>已加入成員清單支援上移／下移／移除；重複加入阻擋提示。</p>
+<ul><li><strong>慣例（必守）</strong>：</li><li>Service／AntDesign 服務用<strong>建構式注入</strong>；<code>AuthenticationStateHelper</code>／<code>NavigationManager</code> 用 <code>[Inject]</code>。</li><li>進頁 <code>OnInitializedAsync</code> 呼叫 <code>AuthenticationStateHelper.Check</code> ＋</li></ul>
+<p><code>CheckAccessPage(MagicObjectHelper.角色_知識來源管理清單)</code>。</p>
+<ul><li>開編輯前對列資料 <code>Clone()</code>；Update／Delete 前 <code>CleanTrackingHelper.Clean&lt;T&gt;()</code>。</li><li>多選用 <code>Mode="SelectMode.Multiple"</code>（列舉）＋ <code>Values</code>／<code>OnSelectedItemsChanged</code>，</li></ul>
+<p><strong>不要</strong>用 <code>@bind-Values:after</code>。</p>
+<hr>
+<h2 id="九api-端點" class="t1">九、API 端點</h2>
+<p>本階段<strong>無新增 Controller</strong>（無下載產物）。CRUD 與成員管理皆經 <code>KnowledgeSourceService</code> 於 Blazor 端完成。</p>
+<blockquote><p>清洗產物目前由服務層讀取並在 Blazor 對話窗檢視／編修；若新增獨立下載 API，仍須比照既有下載端點在服務端套團隊權控。</p></blockquote>
+<hr>
+<h2 id="十選單與權限三處同步位置索引對齊" class="t2">十、選單與權限（三處同步，位置索引對齊）</h2>
+<p>新增一個<strong>父選單</strong>與其下一個<strong>子頁面</strong>，需同步三處；本專案以<strong>位置索引</strong>對應 <code>Menu.json</code> 頂層順序與 <code>RolePermissionService</code> 外層 List，<strong>不靠名稱比對</strong>。</p>
+<ol><li><strong><code>MagicObjectHelper</code></strong>（<code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code>，<code>#region 角色</code>）新增：</li></ol>
+<pre><code>   public const string 角色_清洗與蒸餾 = "清洗與蒸餾";
+   public const string 角色_知識來源管理清單 = "知識來源管理清單";</code></pre>
+<ol><li><strong><code>RolePermissionService.GetRoleListPermissionAllName()</code></strong>：於「專案管理」群組之後、</li></ol>
+<p>「系統管理」之前<strong>插入新群組</strong>（成為外層第 3 個，index 2）：</p>
+<pre><code>   [
+       MagicObjectHelper.角色_清洗與蒸餾,
+       MagicObjectHelper.角色_知識來源管理清單,
+   ],</code></pre>
+<ol><li><strong><code>Menu.json</code></strong>（<code>KnowledgeExtraction.Web/Datas/Menu.json</code>）：於「專案管理」(id 2) 之後插入父選單，</li></ol>
+<p>其後「系統管理／基礎資料設定／登出」的 <code>id</code> 依序順移，使頂層順序對齊上述權限外層 List：</p>
+<pre><code>   {
+     "id": 3,
+     "name": "清洗與蒸餾",
+     "icon": "cleaning_services",
+     "subMenu": [
+       { "id": 31, "name": "知識來源管理清單", "icon": "database", "url": "/knowledge-sources" }
+     ]
+   }</code></pre>
+<p>（原「系統管理」→ id 4（子 41/42）、「基礎資料設定」→ id 5（子 51/52/53）、「登出」→ id 6。）</p>
+<blockquote><p>既有角色需於「角色管理」頁重新勾選「知識庫 / 知識來源加工」才看得到。</p></blockquote>
+<hr>
+<h2 id="十一編碼需求" class="t3">十一、編碼需求</h2>
+<ul><li>所有新增程式碼與本 PRD 採 UTF-8 繁體中文，不得有亂碼；<code>docs/*.md</code> 須 UTF-8 <strong>含 BOM</strong>，</li></ul>
+<p>提交前 <code>pwsh scripts/Test-DocsEncoding.ps1</code> 全綠。</p>
+<hr>
+<h2 id="十二驗收條件" class="t4">十二、驗收條件</h2>
+<ol><li>選單「知識庫 &gt; 知識來源加工」出現，無權限角色看不到、不可進入。</li><li>可建立／編輯／刪除知識來源；列表預設依<strong>更新時間由新到舊</strong>。</li><li>可加入／移除／上下移動跨型別成員；只可挑選<strong>已完成</strong>且有權限的素材；重複成員被阻擋。</li><li>來源欄位編輯或成員增刪／重排後，<code>UpdatedAt</code> 更新且該筆排到清單前面。</li><li>非管理員僅見「無團隊或與自身團隊交集」的來源；越權來源不可編輯／刪除／管理成員。</li><li>刪除來源會級聯刪除成員關聯，但被引用的素材原紀錄保留。</li><li>雙 provider migration（Sqlite ＋ SQL Server）皆產生；<code>dotnet build</code>／<code>dotnet test</code> 綠燈；版本號 +1。</li><li>文件同步：<code>docs/README.md</code> 索引新增本 PRD；資料模型文件（如需）同步。</li></ol>
+<hr>
+<h2 id="十三涉及檔案" class="t5">十三、涉及檔案</h2>
+<p><strong>新增</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/Models/KnowledgeSource.cs</code>、<code>KnowledgeSourceItem.cs</code></li><li><code>KnowledgeExtraction.AccessDatas/Migrations/*_AddKnowledgeSource.cs</code>（Sqlite）</li><li><code>KnowledgeExtraction.AccessDatas.SqlServerMigrations/*_AddKnowledgeSource.cs</code>（SQL Server）</li><li><code>KnowledgeExtraction.Models/AdapterModel/KnowledgeSourceAdapterModel.cs</code>、<code>KnowledgeSourceItemAdapterModel.cs</code></li><li><code>KnowledgeExtraction.Business/Services/DataAccess/KnowledgeSourceService.cs</code></li><li><code>KnowledgeExtraction.Web/Components/Pages/KnowledgeSources/KnowledgeSourcePage.razor</code></li><li><code>KnowledgeExtraction.Web/Components/Views/KnowledgeSources/KnowledgeSourceView.razor</code>（＋ <code>.razor.cs</code>、<code>.razor.css</code>）</li></ul>
+<p><strong>修改</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/BackendDBContext.cs</code>（兩個 DbSet ＋ Cascade 設定）</li><li><code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code>（雙向映射）</li><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code>（兩個權限常數）</li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code>（新增權限群組）</li><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code>（新增父選單與子頁、id 順移）</li><li><code>KnowledgeExtraction.Web/Program.cs</code> 或 <code>Extensions/ServiceCollectionExtensions.cs</code>（DI 註冊）</li><li><code>appsettings.json</code>（版本號 +1）</li><li><code>docs/README.md</code>（索引）</li></ul>
+<hr>
+<h2 id="十四歷史原始範圍已由下節-0334-現況校正取代" class="t6">十四、歷史原始範圍（已由下節 0.3.34 現況校正取代）</h2>
+<ul><li>清洗管線（<code>ICleaningQueue</code> ＋ <code>CleaningBackgroundService</code> ＋ <code>CleaningProcessor</code>，七步流程：</li></ul>
+<p>彙整→去重→正規化→敏感資訊遮罩→分類標籤→摘要→產出清洗後 Markdown），對應 <a href="../../docs/strategy/cleaning-stage-design.html">strategy/08</a>。</p>
+<ul><li>知識來源的清洗狀態／進度／信心分數／人工審核欄位與關卡（QA-2／QA-3／QA-4）。</li><li>清洗產物 Markdown 的下載／預覽。</li><li>LLM 輔助自動歸群（建議把哪些素材組成一個來源）。</li><li>知識頁審核（Wiki 實體頁）與知識庫建置。</li></ul>
+<h2 id="十五0334-現況與規劃中需求" class="t7">十五、0.3.34 現況與規劃中需求</h2>
+<ul><li>已實作：背景清洗、狀態／進度／信心、人工審核、清洗結果編修、蒸餾、Wiki、索引與單一來源對話。</li><li>成員只可加入已完成且使用者有團隊權限的素材；來源與下游繼承分類及團隊。</li><li>素材版本或內容更新會讓來源過時，後續依清洗 → 蒸餾 → 索引刷新。</li><li>規劃中：LLM 輔助自動歸群尚未實作。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景與目的">一、背景與目的</a><a class="l3" href="#設計範本">設計範本</a><a class="l2" href="#二需求決策">二、需求決策</a><a class="l2" href="#三功能概述">三、功能概述</a><a class="l2" href="#四使用者流程">四、使用者流程</a><a class="l2" href="#五資料模型">五、資料模型</a><a class="l3" href="#51-knowledgesource知識來源本體">5.1 KnowledgeSource（知識來源本體）</a><a class="l3" href="#52-knowledgesourceitem成員關聯">5.2 KnowledgeSourceItem（成員關聯）</a><a class="l3" href="#53-adaptermodel">5.3 AdapterModel</a><a class="l2" href="#六設定appsettingsjson與版本">六、設定（appsettings.json）與版本</a><a class="l2" href="#七架構與元件實作時新增修改">七、架構與元件（實作時新增／修改）</a><a class="l2" href="#八uiblazor-server--ant-design">八、UI（Blazor Server + Ant Design）</a><a class="l2" href="#九api-端點">九、API 端點</a><a class="l2" href="#十選單與權限三處同步位置索引對齊">十、選單與權限（三處同步，位置索引對齊）</a><a class="l2" href="#十一編碼需求">十一、編碼需求</a><a class="l2" href="#十二驗收條件">十二、驗收條件</a><a class="l2" href="#十三涉及檔案">十三、涉及檔案</a><a class="l2" href="#十四歷史原始範圍已由下節-0334-現況校正取代">十四、歷史原始範圍（已由下節 0.3.34 現況校正取代）</a><a class="l2" href="#十五0334-現況與規劃中需求">十五、0.3.34 現況與規劃中需求</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/知識來源管理-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

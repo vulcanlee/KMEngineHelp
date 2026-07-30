@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>頁面說明前言「一分鐘看懂這一頁」（1.0.103）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>頁面說明前言「一分鐘看懂這一頁」（1.0.103）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-29</li><li>版本：1.0.102 → <strong>1.0.103</strong></li><li>類型：內容補強（40 份 in-app 說明檔）＋ 2 條守門測試。<strong>無新表、無 migration、無渲染邏輯變更</strong></li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p>點開任一頁的「使用說明」，最上面只有一個 H1 標題加<strong>一行</strong>摘要，接著就直接進入「一、功能摘要」。例如影音轉逐字稿只有：</p>
+<blockquote><p>把錄音與影片<strong>自動轉成文字</strong>。這是把「只存在錄音裡的知識」搬進系統的第一步。</p></blockquote>
+<p>這一行太短，使用者無法在點開的前三秒判斷「這一頁跟我有沒有關係、我該不該花時間讀下去」，只能開始逐段讀六大章節。</p>
+<h2 id="改法" class="t2">改法</h2>
+<p>在那一行摘要下方插入一個固定結構的區塊：</p>
+<pre><code>### 一分鐘看懂這一頁
+
+- **解決什麼問題**：…
+- **誰會用到**：…
+- **在流程的哪一站**：…
+- **開始前要準備**：…
+- **做完會得到**：…
+- **它不做什麼**：…</code></pre>
+<p>40 份說明檔全部補齊，每份 6 條、逐頁真寫（依據該檔既有的「二、這個頁面在做什麼」「四、建議這樣操作」「六、相關頁面」，不是套模板換名詞）。</p>
+<h3 id="為什麼是這六個標籤">為什麼是這六個標籤</h3>
+<p>它們回答的是六大章節<strong>沒有集中回答</strong>的問題。「一、功能摘要」講的是「這頁能做哪些操作」；這一段講的是「為什麼要有這一頁、輪不輪得到我、做完得到什麼、它不會替我做什麼」——是決定「要不要繼續讀」的資訊，不是操作資訊。<strong>兩者刻意不重複。</strong></p>
+<p>管理維運類頁面（<code>/myusers</code>、<code>/log-download</code>、<code>/table-usage</code> 等）套不進「在流程的哪一站」，改寫成「<strong>它在系統的哪個位置</strong>」，其餘五個標籤一律照用。</p>
+<h2 id="為什麼小標必須是--而不是" class="t3">⚠️ 為什麼小標必須是 <code>###</code> 而不是 <code>##</code></h2>
+<p><code>PageHelpMarkdownParser.Parse()</code> 以<strong>行首 <code>## </code> 且緊接空白</strong>判定新章節，<code>###</code> 以下一律留在原區塊裡。所以：</p>
+<div class="tw"><table><thead><tr><th>寫法</th><th>結果</th></tr></thead><tbody><tr><td><code>### 一分鐘看懂這一頁</code></td><td>留在<strong>前言</strong>（<code>Preamble</code>），跟著 H1 與摘要一起渲染 ✅</td></tr><tr><td><code>## 一分鐘看懂這一頁</code></td><td>被切成<strong>第七個章節</strong>——左側章節導覽多一項，且 <code>EveryHelpDocument_HasNoUnknownTopLevelHeading</code> 紅燈 ❌</td></tr></tbody></table></div>
+<p>這一點靠 <code>QuickLookHeading_IsNeverWrittenAsATopLevelSection</code> 守著，錯誤訊息直接寫出成因，省去從「導覽怎麼多一項」回推的時間。</p>
+<h2 id="前言只在全部檢視顯示" class="t4">前言只在「全部」檢視顯示</h2>
+<p><code>PageHelpDialog.razor.cs</code> 的 <code>ShowPreamble</code> 是 <code>activeSection == AllSectionsKey</code>——選了某一個章節時前言（連同這個新區塊）會一起隱藏。<strong>這是既有行為，本次沒有改</strong>：單看某一段時，「一分鐘看懂」是雜訊。</p>
+<h2 id="新增的守門" class="t5">新增的守門</h2>
+<p><code>PageHelpCatalogTests</code> 新增 2 條，共 65 條（原 63）：</p>
+<div class="tw"><table><thead><tr><th>測試</th><th>守什麼</th></tr></thead><tbody><tr><td><code>EveryHelpDocument_HasSubstantiveQuickLookPreamble</code></td><td>每份說明的前言含 <code>### 一分鐘看懂這一頁</code>、其後<strong>至少 5 個清單項</strong>、每項<strong>至少 15 字</strong>、無未完成標記</td></tr><tr><td><code>QuickLookHeading_IsNeverWrittenAsATopLevelSection</code></td><td>該小標沒有被寫成 <code>##</code></td></tr></tbody></table></div>
+<p>小標字串以 <code>PageHelpMarkdownParser.QuickLookHeading</code> 常數統一（比照既有的 <code>RequiredHeadings</code> / <code>RelatedPagesHeading</code>），改標題不會漏改守門。</p>
+<p><strong>為什麼要守</strong>：前言是使用者點開說明後第一眼看到的東西，少寫這一段是典型的靜默失敗——建置成功、六大段測試全綠、畫面不報錯，只有使用者點開才發現前言又剩孤零零一行。日後新增頁面時忘了寫，這一條會立刻紅。</p>
+<p><strong>刻意只釘結構、不釘標籤字面</strong>：把六個標籤也釘死，會逼出一堆為了過測試而寫的假句子（維運類頁面尤其明顯）。字數下限則是擋「- <strong>誰會用到</strong>：所有人。」這種敷衍。</p>
+<h2 id="刻意不做" class="t6">刻意不做</h2>
+<ol><li><strong>不動渲染與 CSS</strong>。<code>.page-help-content h3</code> 早已有樣式，<code>PageHelpDialog.razor</code> 一行未改。</li><li><strong>不動六大章節與「七、常見問題」</strong>，也不動 H1 與原本那行摘要。</li><li><strong>不改 <code>PageHelpDocument.Placeholder</code> 的佔位前言</strong>。那是「說明尚未撰寫」的分支，40 份全部有內容，走不到。</li><li><strong>不在前言寫任何可調參數、門檻或公式</strong>，沿用 1.0.101 訂下的分工：權威完整版在 <code>docs/guides/</code>，in-app 說明是入門版——參數放進 in-app 必然過時，而過時的參數說明會害人調錯。</li></ol>
+<h2 id="驗證" class="t7">驗證</h2>
+<ul><li><code>dotnet test</code>：<code>PageHelpCatalogTests</code> ＋ <code>PageHelpParsingTests</code> 共 65 條全綠（含既有的 UTF-8 BOM 檢查與表格渲染檢查）。</li><li>40 份檔案逐一確認：全部含該小標、全部 6 條。</li><li>BOM 未被破壞（<code>EveryHelpDocument_IsUtf8WithBom_AndHasNoReplacementCharacter</code> 覆蓋）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#改法">改法</a><a class="l3" href="#為什麼是這六個標籤">為什麼是這六個標籤</a><a class="l2" href="#為什麼小標必須是--而不是">⚠️ 為什麼小標必須是 ### 而不是 ##</a><a class="l2" href="#前言只在全部檢視顯示">前言只在「全部」檢視顯示</a><a class="l2" href="#新增的守門">新增的守門</a><a class="l2" href="#刻意不做">刻意不做</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-29-頁面說明前言一分鐘看懂.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

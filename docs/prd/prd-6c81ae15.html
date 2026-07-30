@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗品質評測 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>清洗品質評測 PRD</h1><p class="sub">定義「清洗品質評測」畫面的產品需求、清洗品質評測流程與 LLM 互動細節</p></header><div class="docwrap"><main><ul><li>文件用途：定義「清洗品質評測」畫面的產品需求、清洗品質評測流程與 LLM 互動細節</li><li>主要讀者：產品、開發、QA、導入顧問</li><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.62</li><li>首次實作版本：0.2.66</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026/06/28</li><li>對應版本：0.2.66（已實作；本文件自整合 PRD 拆出畫面專屬規格）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>上游清洗整體設計見 <a href="../../docs/prd/prd-a1cd6b20.html">資料清洗與品質保證 PRD</a>；操作教學見 <a href="../../docs/guides/cleaning-eval.html">清洗品質評測使用指南</a>。</p></blockquote>
+<h2 id="一目標與範圍" class="t1">一、目標與範圍</h2>
+<p>清洗品質評測是資料清洗品質的回歸測試頁。使用者建立人工標註樣本，系統用目前清洗提示詞與 LLM 跑一次清洗增強，再以確定性指標比對標準答案，量化遮罩、保留詞、分類與摘要品質。</p>
+<p>本 PRD 範圍包含 <code>/golden-samples</code> 的樣本 CRUD、載入種子、評測此筆、評測全部、彙總儀表板與明細 JSON。非範圍包含直接修改系統清洗門檻、套用特定清洗規則設定、評測真實知識來源清單。</p>
+<h2 id="二使用者與入口" class="t2">二、使用者與入口</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>說明</th></tr></thead><tbody><tr><td>路由</td><td><code>/golden-samples</code></td></tr><tr><td>選單</td><td>知識庫 → 清洗品質評測</td></tr><tr><td>權限</td><td><code>MagicObjectHelper.角色_黃金評測</code></td></tr><tr><td>主要使用者</td><td>QA、知識管理者、導入顧問、開發者</td></tr></tbody></table></div>
+<p>清洗品質評測評的是「黃金樣本自己的 <code>InputText</code>」，完全不讀「知識來源加工」的紀錄，也不改任何真實清洗結果。</p>
+<h2 id="三畫面與欄位" class="t3">三、畫面與欄位</h2>
+<p>樣本欄位：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>說明</th></tr></thead><tbody><tr><td>Title</td><td>樣本標題</td></tr><tr><td>InputText</td><td>要餵入清洗增強器的原始文字</td></tr><tr><td>ExpectedMaskedTerms</td><td>應被遮罩的詞，每行一項</td></tr><tr><td>MustKeepTerms</td><td>應保留的詞，每行一項</td></tr><tr><td>ExpectedCategories</td><td>預期分類，每行一項</td></tr><tr><td>ExpectedSummaryEntities</td><td>摘要應涵蓋的關鍵實體，每行一項</td></tr><tr><td>HumanPass</td><td>人工認定該樣本清洗是否應通過</td></tr></tbody></table></div>
+<p>清單顯示最近評測時間、最近信心、遮罩 Recall、分類 F1、摘要涵蓋率與操作按鈕。儀表板顯示已評測數、平均指標、建議門檻與目前門檻。</p>
+<h2 id="四內部系統運作" class="t4">四、內部系統運作</h2>
+<p>核心流程為 <code>GoldenSampleView → GoldenSampleService → CleaningEnhancer → CleaningEvaluator</code>。</p>
+<ol><li>使用者新增或編輯樣本，清單欄位以 <code>TagStringHelper.ToStored</code> 儲存為分隔字串。</li><li>按「評測此筆」時，<code>GoldenSampleService.EvaluateOneAsync(id)</code> 讀取該樣本。</li><li>服務呼叫 <code>CleaningEnhancer.EnhanceAsync(adapter.InputText)</code>，使用目前全域清洗提示詞與 LLM 產生清洗結果。</li><li>若 LLM 未設定，<code>CleaningEnhancer</code> 回傳 <code>Skipped</code>，評測失敗並提示未設定 LLM。</li><li>若 LLM 執行成功，<code>CleaningEvaluator.Evaluate(adapter, enh)</code> 以純函式計算指標。</li><li>指標序列化到 <code>LastMetricsJson</code>，並更新 <code>LastConfidence</code>、<code>LastEvaluatedAt</code>、<code>UpdatedAt</code>。</li><li><code>GetAggregateAsync</code> 只彙整 <code>LastMetricsJson != null</code> 的已評測樣本。</li></ol>
+<h2 id="五llm-與提示詞" class="t5">五、LLM 與提示詞</h2>
+<ul><li>清洗品質評測重用清洗增強器，因此會依序使用清洗去重、遮罩、分類、摘要、信心五段提示詞。</li><li>提示詞來源為全域解析：DB <code>Prompt</code> 的 <code>清洗-*</code> 鍵、<code>appsettings</code>、程式 fallback。</li><li>目前不傳入 <code>CleaningProfile</code>，所以不會套用某一筆知識來源的清洗規則設定。</li><li>評測過程會真的呼叫 LLM，費用、延遲與模型行為皆等同一次清洗增強。</li></ul>
+<h2 id="六指標與校準" class="t6">六、指標與校準</h2>
+<div class="tw"><table><thead><tr><th>指標</th><th>說明</th></tr></thead><tbody><tr><td>MaskRecall</td><td>應遮詞是否被遮掉；合規關鍵</td></tr><tr><td>MustKeepOk</td><td>必留詞是否全數保留</td></tr><tr><td>ClassifyPrecision / Recall / F1</td><td>建議分類與人工分類集合比對</td></tr><tr><td>SummaryCoverage</td><td>摘要是否涵蓋人工標註實體</td></tr><tr><td>PrecisionVsHuman / RecallVsHuman</td><td>依 <code>HumanPass</code> 與信心門檻做校準參考</td></tr></tbody></table></div>
+<p>建議門檻只供參考。真正影響清洗流程的是 <code>SystemSettings.Cleaning.ConfidenceThreshold</code>，需由維運者修改設定並重啟後才生效。</p>
+<h2 id="七安全與資料影響" class="t7">七、安全與資料影響</h2>
+<ul><li>黃金樣本不套團隊權控，屬品質測試資料；應避免放入真實未遮罩個資。</li><li>評測只更新樣本的最近評測欄位，不修改知識來源、清洗結果、提示詞或 appsettings。</li><li>LLM 日誌不得記錄完整樣本文本或完整回應。</li></ul>
+<h2 id="八錯誤與邊界" class="t8">八、錯誤與邊界</h2>
+<ul><li>沒有任何已評測樣本時，彙總報表應顯示 0 或無建議門檻，不可因空集合崩潰。</li><li>已有樣本時「載入種子」不應覆蓋現有樣本。</li><li>LLM 失敗時只回報該筆評測失敗，不刪除既有最近評測結果。</li></ul>
+<h2 id="九驗收與測試" class="t1">九、驗收與測試</h2>
+<ul><li>可新增、編輯、刪除、搜尋與分頁黃金樣本。</li><li>種子只能在空清單載入。</li><li>評測此筆會更新 <code>LastMetricsJson</code>、<code>LastConfidence</code> 與 <code>LastEvaluatedAt</code>。</li><li>無已評測樣本時頁面不崩潰。</li><li>指標計算由 <code>CleaningEvaluatorTests</code> 覆蓋。</li></ul>
+<h2 id="十相關程式與文件" class="t2">十、相關程式與文件</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/GoldenSampleService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Cleanings/CleaningEvaluator.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/GoldenSamples/GoldenSampleView.razor.cs</code></li><li><a href="../../docs/guides/cleaning-eval.html">清洗品質評測使用指南</a></li></ul>
+<h2 id="十一0334-現況校正" class="t3">十一、0.3.34 現況校正</h2>
+<ul><li>清洗品質評測只讀每筆樣本自己的原始輸入與標準答案，不讀知識來源、不改正式清洗結果。</li><li>指標包含遮罩召回、分類 Precision／Recall／F1、摘要涵蓋率、最近信心與門檻掃描；無已評測樣本時建議門檻為空，不可對空序列取最大／最小值。</li><li>建議門檻只供校準；正式清洗門檻仍為 <code>SystemSettings.Cleaning.ConfidenceThreshold</code>，與 RAG Reject／LowConfidence 門檻不同。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目標與範圍">一、目標與範圍</a><a class="l2" href="#二使用者與入口">二、使用者與入口</a><a class="l2" href="#三畫面與欄位">三、畫面與欄位</a><a class="l2" href="#四內部系統運作">四、內部系統運作</a><a class="l2" href="#五llm-與提示詞">五、LLM 與提示詞</a><a class="l2" href="#六指標與校準">六、指標與校準</a><a class="l2" href="#七安全與資料影響">七、安全與資料影響</a><a class="l2" href="#八錯誤與邊界">八、錯誤與邊界</a><a class="l2" href="#九驗收與測試">九、驗收與測試</a><a class="l2" href="#十相關程式與文件">十、相關程式與文件</a><a class="l2" href="#十一0334-現況校正">十一、0.3.34 現況校正</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/黃金評測-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

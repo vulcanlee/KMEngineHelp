@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>會議欄位擴充與工作／專案進度彙總（1.0.19）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>會議欄位擴充與工作／專案進度彙總（1.0.19）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/20</li><li>版本：1.0.18 → <strong>1.0.19</strong></li><li>類型：資料模型擴充（雙 migration）＋唯讀計算功能</li><li>對應 PRD：<a href="../../docs/prd/prd-e9230a97.html">專案協作模組強化 PRD</a> 第三階段</li><li>代辦清單：<a href="../../docs/planning/todo-19efa315.html">專案協作模組強化開發代辦清單</a></li></ul>
+<hr>
+<h2 id="一會議新增-10-個可空欄位" class="t1">一、會議新增 10 個可空欄位</h2>
+<p><code>Meeting</code> 原本只有標題／描述／摘要／與會人員／起訖時間／分類／團隊，缺少實務上最常被問到的會議形式、地點、主持人等資訊。</p>
+<h3 id="11-五個人工填寫欄位本階段即可使用">1.1 五個人工填寫欄位（本階段即可使用）</h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td><code>MeetingMode</code></td><td>string?</td><td>會議形式：實體／線上／混合</td></tr><tr><td><code>Location</code></td><td>string?</td><td>地點，或線上會議連結</td></tr><tr><td><code>Host</code></td><td>string?</td><td>主持人</td></tr><tr><td><code>Recorder</code></td><td>string?</td><td>紀錄人</td></tr><tr><td><code>Decisions</code></td><td>string?</td><td>決議事項</td></tr></tbody></table></div>
+<p>選項常數 <code>MeetingAdapterModel.MeetingModeOptions</code>（比照 <code>MyTasAdapterModel.StatusOptions</code> 的既有慣例），並於 <code>MeetingService.ValidateBusinessRulesAsync</code> 驗證（<strong>允許空值</strong>，有填才檢查）。</p>
+<h3 id="12-五個階段四預留欄位本階段不上表單不上清單">1.2 五個階段四預留欄位（本階段不上表單、不上清單）</h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td><code>SourceTranscriptionId</code></td><td>int?</td><td>來源轉錄紀錄 Id</td></tr><tr><td><code>GeneratedContentRelativePath</code></td><td>string?</td><td>AI 產生的會議紀錄 Markdown 相對路徑</td></tr><tr><td><code>GeneratedAt</code></td><td>DateTime?</td><td>AI 產生時間</td></tr><tr><td><code>MinutesStatus</code></td><td>string?</td><td>未產生／轉錄中／轉錄完成／產生中／已產生／失敗</td></tr><tr><td><code>PendingActionItemsJson</code></td><td>string?</td><td>AI 待辦草稿 JSON 陣列</td></tr></tbody></table></div>
+<p><strong>一併在本階段建好，讓整個模組只需要一次雙 migration</strong>，階段四不必再動資料庫。</p>
+<p><strong>雙 provider migration <code>AddMeetingFields</code></strong>：SQLite <code>20260720035447</code>、SQL Server <code>20260720035519</code>，兩份皆為 10 個 <code>AddColumn</code>，無 rename／drop／create table。</p>
+<h3 id="13-清單新增三欄">1.3 清單新增三欄</h3>
+<p>會議形式、主持人、地點。<strong>三欄皆不設 <code>Sortable</code></strong> — <code>Sortable</code> 需在 <code>MeetingService.GetAsync</code> 的排序 if/else 鏈補對應分支，否則點欄位標題不會有反應（靜默失效）。決議事項與紀錄人只在編輯表單。</p>
+<hr>
+<h2 id="二updateasync-的兩個刻意設計含測試守護" class="t2">二、<code>UpdateAsync</code> 的兩個刻意設計（含測試守護）</h2>
+<p><code>MeetingService.UpdateAsync</code> 是<strong>逐欄複製</strong>，不是整包覆寫。這帶來兩個必須明確處理的點：</p>
+<p><strong>1. 五個人工欄位必須補進逐欄複製。</strong> 漏了就是<strong>靜默資料遺失</strong>——使用者填了、按存檔、重開就不見了，而且不會有任何錯誤訊息。實作時是先寫測試確認會失敗，才補上複製邏輯的。</p>
+<p><strong>2. 五個 AI 欄位刻意「不」複製。</strong> 那五個由階段四的背景管線獨立維護；若也放進逐欄複製，使用者只是改個標題存檔，就會把 AI 產出的結果整組清空（<code>paraObject</code> 來自表單，那五欄一律是 null）。</p>
+<p>兩點都有測試守護於 <code>KnowledgeExtraction.Tests/MeetingFieldPersistenceTests.cs</code>（5 筆），其中 <code>UpdateAsync_ShouldNotTouchStageFourAiFields</code> 就是把「不可複製 AI 欄位」這條約束固定下來，避免日後有人「順手補齊」而踩雷。</p>
+<hr>
+<h2 id="三sourcetranscriptionid-採軟參照不做硬-fk" class="t3">三、<code>SourceTranscriptionId</code> 採軟參照、不做硬 FK</h2>
+<p>PRD 原本寫「FK → <code>MediaTranscription</code>，<code>Restrict</code>」，實查後改為<strong>純 <code>int?</code> 欄位、不建立 FK</strong>，理由有三：</p>
+<ol><li><strong>本專案指向 <code>MediaTranscription</code> 的既有做法都是軟參照</strong> — <code>KnowledgeSourceItem</code> 明確註明「以 <code>ItemType</code>＋<code>ItemId</code> 指向，不做硬 FK」；<code>MediaTranscription</code> 自己的版本鏈（<code>PreviousVersionId</code>／<code>SupersededById</code>）也註明「軟參照無 FK」。</li><li><strong>全域刪除政策是 <code>Restrict</code></strong> — <code>BackendDBContext.OnModelCreating</code> 有一段迴圈把所有 FK 設成 <code>Restrict</code>。做成硬 FK 會導致「<strong>有會議掛著的轉錄紀錄就刪不掉</strong>」，使用者會看到不友善的錯誤。</li><li><code>MediaTranscription</code> 沒有 <code>ICollection&lt;Meeting&gt;</code> 導覽屬性，硬 FK 需額外的 <code>.WithMany()</code> 設定，徒增耦合。</li></ol>
+<p><strong>代價</strong>：可能出現孤兒 Id（轉錄被刪、會議仍指著）。階段四讀取端須容忍此情況。此外，因為 <code>MediaTranscription</code> 有版本鏈，這個 Id <strong>釘的是特定版本而非「最新版」</strong>，階段四若要跟隨最新版需另行解析版本鏈。</p>
+<hr>
+<h2 id="四工作專案進度彙總純計算零-migration" class="t4">四、工作／專案進度彙總（純計算、零 migration）</h2>
+<p><code>MyTask</code> 早就有父子關係與 <code>CompletionPercentage</code>，但<strong>從來沒有被彙總過</strong>（既有的 <code>RecomputeParentDatesAsync</code> 只同步日期）。</p>
+<h3 id="41-規則">4.1 規則</h3>
+<ul><li><strong>工作進度</strong>：有子工作 → 所有子工作 <code>CompletionPercentage</code> 的平均（<strong>含 0%</strong>，四捨五入取整）；無子工作 → 自身值</li><li><strong>專案進度</strong>：該專案<strong>頂層工作</strong>（<code>ParentTaskId == null</code>）的 <code>CompletionPercentage</code> 簡單平均；無工作 → 專案自身值</li><li><strong><code>CompletionPercentage</code> 欄位本身完全不動</strong> — 仍是使用者手動維護的值，<code>UpdateAsync</code> 照樣寫入它</li></ul>
+<p>0% 一律計入：<code>CompletionPercentage</code> 是非空 int、預設 0，<strong>無法區分「未填」與「真的 0%」</strong>；未動過的子工作就是 0% 完成，計入才反映真實進度（4 個子工作只完成 1 個 → 25%，而非 100%）。</p>
+<h3 id="42-實作">4.2 實作</h3>
+<p>新增由服務填入的 adapter 屬性 <code>RolledUpProgress</code>／<code>HasChildren</code>（工作）與 <code>RolledUpProgress</code>／<code>HasTasks</code>（專案），<strong>不落地資料庫</strong>、不需 migration，因此永遠不會出現「統計值與實際子項不同步」。</p>
+<p>效能上<strong>完全比照既有 <code>ChildCount</code> 的 N+1 迴避做法</strong>：<code>MyTasService</code> 直接把既有的 ChildCount group-by 擴充成同時取回筆數與平均（<strong>沒有多開一次查詢</strong>）；<code>ProjectService</code> 原本沒有任何 post-map 補值區塊，新增一次 group-by。兩者都是每頁一次查詢，不隨列數增長。</p>
+<h3 id="43-已知界線刻意不做">4.3 已知界線（刻意不做）</h3>
+<p>專案進度取的是頂層工作的<strong>自身</strong> <code>CompletionPercentage</code>，不是「頂層工作彙總後的進度」。要做到後者需要兩層 group-by，成本與複雜度不成比例。實務影響：若某頂層工作有子工作，專案會用它的手動值而非其子工作平均。</p>
+<h3 id="44-顯示方式">4.4 顯示方式</h3>
+<p><strong>未使用 AntDesign <code>&lt;Progress&gt;</code></strong>，沿用全站既有的文字慣例（<code>@context.X%</code>）——實查確認 <code>&lt;Progress&gt;</code> 在本專案<strong>從未被使用過</strong>，而顯示百分比的既有做法散見於 <code>KnowledgeSourceView</code>、<code>SkillView</code>、<code>ImageRecognitionView</code>、<code>MediaTranscriptionView</code>、<code>DocumentExtractionView</code> 五處，全是模板欄位渲染文字。引入新元件會造成不一致。</p>
+<p>進度欄另以小字標示來源（「依子工作自動彙總」／「依工作項目自動彙總」／「手動值」），讓使用者知道數字從哪來。<strong>兩個進度欄皆不設 <code>Sortable</code></strong> — 值是查詢後才在記憶體算出來的，資料庫端無從排序。</p>
+<hr>
+<h2 id="五異動檔案" class="t5">五、異動檔案</h2>
+<p><strong>新增</strong></p>
+<ul><li><code>AccessDatas/Migrations/20260720035447_AddMeetingFields.cs</code>（＋ Designer）</li><li><code>AccessDatas.SqlServerMigrations/Migrations/20260720035519_AddMeetingFields.cs</code>（＋ Designer）</li><li><code>Tests/MeetingFieldPersistenceTests.cs</code>（5 筆）、<code>Tests/ProgressRollupTests.cs</code>（5 筆）</li><li><code>docs/changelog/2026-07-20-會議欄位擴充與進度統計.md</code>（本檔）</li></ul>
+<p><strong>修改</strong></p>
+<ul><li><code>AccessDatas/Models/Meeting.cs</code>（10 欄）、兩份 <code>BackendDBContextModelSnapshot.cs</code></li><li><code>Models/AdapterModel/MeetingAdapterModel.cs</code>（10 欄 ＋ 兩組選項常數）</li><li><code>Models/AdapterModel/MyTasAdapterModel.cs</code>、<code>ProjectAdapterModel.cs</code>（彙總屬性）</li><li><code>Dtos/Models/MeetingCreateUpdateDto.cs</code>（5 個人工欄位；<strong>AI 欄位不進 API</strong>，它們是內部管線狀態）</li><li><code>Business/Services/DataAccess/MeetingService.cs</code>（逐欄複製 ＋ 驗證）</li><li><code>Business/Services/DataAccess/MyTasService.cs</code>、<code>ProjectService.cs</code>（group-by 彙總）</li><li><code>Web/Components/Views/Projects/MeetingEditModal.razor(.cs)</code>、<code>MeetingViewView.razor</code>、<code>MyTasViewView.razor(.css)</code>、<code>ProjectViewView.razor(.css)</code></li><li><code>Web/appsettings.json</code>（1.0.18 → 1.0.19）</li><li><code>docs/prd/會議記錄-prd.md</code>、<code>專案項目-prd.md</code>、<code>工作項目-prd.md</code>、<code>docs/architecture/資料模型與資料庫.md</code>、索引與代辦清單</li></ul>
+<p><strong><code>AutoMapping.cs</code> 不需異動</strong> — 新欄位同名，AutoMapper 隱式對應；只有 <code>Categories</code>／<code>Teams</code> 這種 <code>List</code>⇄字串才需 <code>ForMember</code>。</p>
+<hr>
+<h2 id="六驗證" class="t6">六、驗證</h2>
+<ul><li><code>dotnet build KnowledgeExtraction.slnx</code>：<strong>建置成功</strong></li><li><code>dotnet test KnowledgeExtraction.Tests</code>：<strong>595 通過 / 0 失敗</strong>（585 → 595，新增 10 筆）</li><li><code>scripts/Test-DocsEncoding.ps1</code>：全綠</li><li>兩份 migration 皆為 10 個 <code>AddColumn</code>，兩份 snapshot 皆已更新（<strong>本次刻意不用 <code>--no-build</code></strong>，避免重演 1.0.18 產出空 migration 的問題）</li></ul>
+<h3 id="待人工於瀏覽器驗收">待人工於瀏覽器驗收</h3>
+<ul class="check"><li><span class="box">☐</span>新增一筆會議填滿 5 個新欄位 → 存檔 → 重開編輯，五個值都還在（<strong><code>UpdateAsync</code> 漏欄的直接驗證</strong>）</li><li><span class="box">☐</span>開一筆改動前建立的會議，編輯存檔不報錯，新欄位為空</li><li><span class="box">☐</span>會議清單三個新欄正確顯示；點欄位標題<strong>不應該</strong>有排序行為</li><li><span class="box">☐</span>父工作＋4 個子工作（100/0/0/0）→ 父工作彙總進度顯示 <strong>25%（依子工作自動彙總）</strong></li><li><span class="box">☐</span>獨立工作顯示自身完成百分比並標「手動值」</li><li><span class="box">☐</span>專案下 2 個頂層工作（30%／70%）→ 專案顯示 <strong>50%</strong>；再加一個 100% 的子工作，專案仍是 50%</li><li><span class="box">☐</span>無工作的專案顯示自身值並標「手動值」</li><li><span class="box">☐</span>開 Debug 日誌確認工作／專案清單 SQL 查詢數不隨列數增長</li><li><span class="box">☐</span>SQLite 與 SQL Server 各跑一次 <code>dotnet ef database update</code></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一會議新增-10-個可空欄位">一、會議新增 10 個可空欄位</a><a class="l3" href="#11-五個人工填寫欄位本階段即可使用">1.1 五個人工填寫欄位（本階段即可使用）</a><a class="l3" href="#12-五個階段四預留欄位本階段不上表單不上清單">1.2 五個階段四預留欄位（本階段不上表單、不上清單）</a><a class="l3" href="#13-清單新增三欄">1.3 清單新增三欄</a><a class="l2" href="#二updateasync-的兩個刻意設計含測試守護">二、UpdateAsync 的兩個刻意設計（含測試守護）</a><a class="l2" href="#三sourcetranscriptionid-採軟參照不做硬-fk">三、SourceTranscriptionId 採軟參照、不做硬 FK</a><a class="l2" href="#四工作專案進度彙總純計算零-migration">四、工作／專案進度彙總（純計算、零 migration）</a><a class="l3" href="#41-規則">4.1 規則</a><a class="l3" href="#42-實作">4.2 實作</a><a class="l3" href="#43-已知界線刻意不做">4.3 已知界線（刻意不做）</a><a class="l3" href="#44-顯示方式">4.4 顯示方式</a><a class="l2" href="#五異動檔案">五、異動檔案</a><a class="l2" href="#六驗證">六、驗證</a><a class="l3" href="#待人工於瀏覽器驗收">待人工於瀏覽器驗收</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-20-會議欄位擴充與進度統計.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>實作「AI Agent 技能產生器」模組（0.2.95）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>實作「AI Agent 技能產生器」模組（0.2.95）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-20</li><li>版本：0.2.94 → 0.2.95</li><li>類型：功能新增</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>依 AI 技能產生器 PRD（原 <code>prd/AI技能產生器-prd.md</code>，已於 1.0.45 隨功能移除而刪除）實作：操作比照知識來源管理——指定三類已完成素材為成員、套用提示詞（自訂／<code>/prompts</code>／內建 meta-prompt），背景以 LLM 產生可重用 <strong>SKILL.md</strong>（Claude Code / Codex 技能），可線上預覽/編修並下載（單檔 SKILL.md ＋ zip <code>&lt;slug&gt;/SKILL.md</code>）。</p>
+<h2 id="變更新增模組鏡像-knowledgesource" class="t2">變更（新增模組，鏡像 KnowledgeSource）</h2>
+<ul><li><strong>資料層</strong>：實體 <code>SkillDefinition</code> + <code>SkillSourceItem</code>（軟參照三類素材、唯一索引、cascade）；<code>BackendDBContext</code> 註冊與 <code>OnModelCreating</code>；<strong>雙資料庫 migration</strong> <code>AddSkillGenerator</code>（Sqlite ＋ SqlServer）。</li><li><strong>設定</strong>：<code>ExternalFileSystem.SkillOutputPath</code>（<code>C:\temp\KnowledgeExtraction\Skill</code>）＋ <code>Program.cs</code> <code>EnsureDirectoryExists</code>。</li><li><strong>AdapterModel</strong>：<code>SkillDefinitionAdapterModel</code>（狀態常數）、<code>SkillSourceItemAdapterModel</code>；AutoMapper <code>ForMember</code>＋<code>TagStringHelper</code>；選取沿用既有 <code>SelectableSourceItemAdapterModel</code>。</li><li><strong>服務</strong> <code>SkillDefinitionService</code>：CRUD＋管理成員（加/移/排序/可選清單，限已完成＋團隊權控）＋<code>TriggerGenerateAsync</code>/<code>CancelGenerateAsync</code>/<code>RetryGenerateAsync</code>＋<code>GetSkillContentAsync</code>/<code>UpdateSkillContentAsync</code>/<code>GetSkillForDownloadAsync</code>。</li><li><strong>背景管線</strong>：<code>ISkillGenerationQueue</code>/<code>SkillGenerationQueue</code>（Singleton Channel）→ <code>SkillGenerationBackgroundService</code>（HostedService，重啟復原）→ <code>SkillGenerationProcessor</code>（彙整成員→繁體正規化→套提示詞→<code>IChatCompletionClient.CompleteAsync</code>→解析/補齊 frontmatter→落檔）。取消沿用 <code>IPipelineCancellationRegistry</code>（<code>PipelineNames.SkillGeneration</code>）。<strong>未設 LLM 金鑰直接失敗</strong>（不可降級）。</li><li><strong>輔助</strong>：<code>SkillContentHelper</code>（slug 轉換、frontmatter 解析/補齊，純函式有單元測試）、<code>SkillPromptDefaults.MetaPrompt</code>（內建技能產生提示詞）。</li><li><strong>下載控制器</strong> <code>SkillController</code>：<code>GET {id}/skill</code>（SKILL.md）、<code>GET {id}/zip</code>（<code>&lt;slug&gt;/SKILL.md</code>，<code>System.IO.Compression</code>）。</li><li><strong>UI</strong>：<code>/skills</code>（<code>SkillPage</code> + <code>SkillView</code>）：列表/工具列/過濾/搜尋；列動作 產生（選提示詞對話窗）、取消、重試、檢視/編修、下載 SKILL.md、下載 zip、管理成員、修改、刪除；5 秒輪詢。</li><li><strong>選單與權限三處同步</strong>：<code>MagicObjectHelper.角色_AI技能產生器</code>、<code>RolePermissionService</code>（清洗與蒸餾群組，插於清洗設定檔之後、知識審核之前以對齊側邊欄位置）、<code>Menu.json</code>（id 34「AI技能產生器」<code>/skills</code>，icon <code>auto_awesome</code>）。</li></ul>
+<h2 id="影響範圍" class="t3">影響範圍</h2>
+<ul><li>新增實體 → <strong>需 migration</strong>（已產生雙套，啟動時 Sqlite 自動套用）。</li><li>DI 註冊（<code>SkillDefinitionService</code>、Queue Singleton、Processor Scoped）＋ <code>AddHostedService&lt;SkillGenerationBackgroundService&gt;</code>。</li><li>測試：新增 <code>SkillContentHelperTests</code>；<code>MenuIconTests</code>/<code>CrudActionIconTests</code> 允許清單補 <code>auto_awesome</code>。</li><li><code>appsettings.json</code> SystemVersion 0.2.94 → 0.2.95。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ol><li><code>dotnet build</code> 通過；<code>dotnet test</code> 全綠（266 通過）。</li><li>兩套 migration 已產生（cascade＋唯一索引）。</li><li>端到端（需金鑰）：<code>/skills</code> 新增→管理成員加素材→「產生」→完成→預覽/編修→下載 SKILL.md 與 zip。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更新增模組鏡像-knowledgesource">變更（新增模組，鏡像 KnowledgeSource）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-20-AI技能產生器實作.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

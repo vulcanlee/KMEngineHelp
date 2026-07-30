@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>企業知識庫計畫｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 行銷與提案</p><header class="hero"><div class="kicker">行銷與提案</div><h1>企業知識庫計畫</h1></header><div class="docwrap"><main><hr>
+<p>marp: true title: 企業知識庫計畫 — 決策投資簡報 author: KnowledgeExtraction.AI paginate: true size: 16:9</p>
+<hr>
+<p>&lt;style&gt; section { font-family: "Microsoft JhengHei", "Noto Sans CJK TC", "PingFang TC", sans-serif; font-size: 26px; } h1 { color: #1f4e79; } h2 { color: #1f4e79; } table { font-size: 22px; } &lt;/style&gt;</p>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="企業知識庫計畫">企業知識庫計畫</h1>
+<h2 id="把分散資訊變成可運用的智慧資產" class="t1">把分散資訊，變成可運用的智慧資產</h2>
+<p>決策投資簡報　|　2026/07/18　|　對應系統版本 1.0.14 KnowledgeExtraction.AI（產品名：智庫引擎）</p>
+<hr>
+<h2 id="一句話" class="t2">一句話</h2>
+<blockquote><p>將分散的資訊轉換成可搜尋、可理解、可運用的企業智慧資產， 並透過 AI 與外部 Agent 持續創造更大的商業價值。</p></blockquote>
+<p>完整閉環：<strong>資料匯入 → 資料清洗 → 知識頁審核 → 建立知識庫 → 附加應用</strong></p>
+<hr>
+<h2 id="問題與機會" class="t3">問題與機會</h2>
+<ul><li>資訊分散：文件、會議、影音、信件、聊天、系統資料散落各處</li><li>會議很多，但結論與待辦沒人記得</li><li>人工整理成本高、品質不穩定</li><li>關鍵知識依附在「人」身上，人員一走就斷層</li></ul>
+<p><strong>機會</strong>：AI 讓這些資訊第一次能被自動收斂為<strong>可用、可信、可稽核</strong>的知識。</p>
+<hr>
+<h2 id="願景" class="t4">願景</h2>
+<ul><li>員工以自然語言提問，30 秒得到<strong>帶出處、帶權限、可稽核</strong>的答案</li><li>知識留在系統、不在個人腦中，並隨版本演進保留時效</li><li>從問答助理，延伸到讓<strong>外部 AI Agent 安全查庫</strong>、再到自動化工作流</li></ul>
+<p><strong>效益</strong>：提升效率、降低人力成本、加速知識傳承與決策品質。</p>
+<hr>
+<h2 id="我們的起點不是願景是已上線的系統" class="t5">我們的起點：不是願景，是已上線的系統</h2>
+<div class="tw"><table><thead><tr><th>階段</th><th>現況（1.0.14）</th></tr></thead><tbody><tr><td>資料匯入</td><td>✅ 音訊/影片（含 YouTube/抖音）、文件（PDF/Word/PPT/Excel/批次 ZIP）、圖片辨識</td></tr><tr><td>資料清洗</td><td>✅ 去重、<strong>個資遮罩</strong>、分類/標籤、摘要、信心自評（5 步）、知識頁審核</td></tr><tr><td>知識頁審核</td><td>✅ 互連 Wiki 實體頁、<strong>版本化與 as-of 時效</strong>、事件觸發自動重索引</td></tr><tr><td>建立知識庫</td><td>✅ 切塊、Embedding、混合檢索、兩段式信心門檻、附出處問答、<strong>團隊權控（越權=0）</strong></td></tr><tr><td>附加應用</td><td>✅ AI 知識問答、單一來源 AI 對話、知識百科、<strong>MCP 對外 AI Agent 整合</strong></td></tr></tbody></table></div>
+<blockquote><p>成熟平台（.NET 10 / Blazor Server，600+ 個 C# 檔、約 40 個功能頁），不是從零開始。</p></blockquote>
+<hr>
+<h2 id="平台成熟度可觀測可治理可維運" class="t6">平台成熟度：可觀測、可治理、可維運</h2>
+<ul><li><strong>合規稽核</strong>：問答稽核明細、Token 用量歸屬、問答稽核（僅指標、不落內容本文）</li><li><strong>經營儀表板</strong>：5 支統計報表（用量/滿意度/問答行為/檢索品質/內容清點）＋首頁管理者專區</li><li><strong>系統可觀測性</strong>：24 項健康檢查，含<strong>實呼叫探針</strong>驗證大語言模型與嵌入端點是否真的可用</li><li><strong>維運工具</strong>：資料一致性巡檢、檢索診斷與調校與門檻熱套用、依時間區間打包下載日誌</li><li><strong>品質量化</strong>：清洗品質評測（上游清洗）＋ 檢索品質評測（下游檢索、含越權洩漏測試）＋ 評測基線</li></ul>
+<hr>
+<h2 id="雙路線定位" class="t7">雙路線定位</h2>
+<div class="tw"><table><thead><tr><th>路線</th><th>對象</th><th>價值</th></tr></thead><tbody><tr><td>內部自用</td><td>開發團隊自身</td><td>自己使用、dogfooding 驗證產品</td></tr><tr><td>對外商品化</td><td>其他企業／通路</td><td>可私有部署、企業級權控與稽核的方案</td></tr></tbody></table></div>
+<p>地端與雲端<strong>皆支援</strong>（生成與嵌入模型都可地端）：地端是面對「資料不可外流」企業的關鍵賣點與差異化。</p>
+<hr>
+<h2 id="旗艦應用聚焦兩個" class="t8">旗艦應用（聚焦兩個）</h2>
+<ol><li><strong>AI 智慧問答／企業知識助理</strong></li></ol>
+<p>最通用、最容易展示價值、ROI 易量化；已上線</p>
+<ol><li><strong>MCP 對外 AI Agent 整合 → 自動化工作流</strong></li></ol>
+<p>讓 Claude／Codex 等 AI Agent 沿用同一套權控與稽核安全查庫；已上線基礎（5 工具），自動化工作流為長期願景</p>
+<hr>
+<h2 id="投資報酬衡量框架" class="t1">投資報酬（衡量框架）</h2>
+<ul><li><strong>效率</strong>：查找/整理時間 × 人力成本 × 頻次</li><li><strong>降本</strong>：逐字稿/摘要/分類的人工工時自動化</li><li><strong>傳承</strong>：降低人員異動造成的重工與斷層</li><li><strong>決策</strong>：帶出處知識讓決策有據</li></ul>
+<blockquote><p>導入時先選 1–2 高頻情境量測基準值，作為 ROI 證據與對外燈塔案例。</p></blockquote>
+<hr>
+<h2 id="已交付里程碑節錄-10x" class="t2">已交付里程碑（節錄 1.0.x）</h2>
+<div class="tw"><table><thead><tr><th>里程碑</th><th>內容</th></tr></thead><tbody><tr><td>MCP Server（1.0.1→1.0.9）</td><td>5 知識工具＋JWT/API Key 雙認證＋金鑰資料庫化可即時啟停＋呼叫併入稽核與 Token 歸屬</td></tr><tr><td>資安與稽核（0.3.x）</td><td>P0 注入防護＋遮罩不變量、問答稽核持久化、滿意度回饋、PDF 匯出</td></tr><tr><td>版本化與時效（0.3.14）</td><td>版本鏈、as-of 時點查詢、事件觸發自動重索引、一鍵全量重建</td></tr><tr><td>統計報表與健康監控（1.0.13）</td><td>5 支報表＋24 項健康檢查（含 LLM/嵌入實呼叫探針）＋管理者專區</td></tr><tr><td>維運工具（1.0.12/1.0.14）</td><td>日誌下載打包、儀表板管理者視角</td></tr></tbody></table></div>
+<hr>
+<h2 id="近期路線圖36-個月" class="t3">近期路線圖（3–6 個月）</h2>
+<blockquote><p>核心閉環與商品化基礎皆已上線；近期聚焦商品化包裝與 Agent 自動化。</p></blockquote>
+<div class="tw"><table><thead><tr><th>方向</th><th>重點</th><th>狀態</th></tr></thead><tbody><tr><td>商品化包裝</td><td>私有部署 SOP、授權/計費機制（規劃中）、導入服務化</td><td>規劃中</td></tr><tr><td>Agent 自動化</td><td>以 MCP 為基礎，發展跨步驟自動化工作流</td><td>規劃中</td></tr><tr><td>檢索品質</td><td>rerank（二階重排，評測驅動之 P2）、知識缺口分析</td><td>評估中</td></tr></tbody></table></div>
+<blockquote><p>授權/計費保護機制目前為<strong>設計規劃</strong>（見 <code>docs/strategy/軟體授權保護機制設計.md</code>），尚未實作。</p></blockquote>
+<hr>
+<h2 id="架構方向" class="t4">架構方向</h2>
+<ul><li><strong>知識頁審核 ＋ LLM 知識 Wiki</strong>（Karpathy 概念）：萃取真實可用知識，知識複利累積</li><li><strong>混合檢索（向量 0.7＋關鍵字 0.3）</strong>＋查詢改寫＋兩段式信心門檻（rerank 為評測驅動之 P2，尚未導入）</li><li>雙資料庫平台：<strong>SQLite／SQL Server</strong> 可切換；向量以 Embedding 存取層抽象</li><li>Embedding/LLM <strong>供應商可切換</strong>（雲端/地端，維度鎖定 1024 對稱檢索）</li><li>企業必備：<strong>檢索層權控、個資遮罩、存取稽核、分散式快取（Memory/Redis）</strong> 內建</li></ul>
+<hr>
+<h2 id="資源需求與風險" class="t5">資源需求與風險</h2>
+<p><strong>資源</strong>：開發人力、雲端用量/算力、（地端）模型與硬體</p>
+<p><strong>主要風險</strong>：</p>
+<ul><li>地端模型品質/算力不確定 → 先雲端驗證</li><li>越權外洩 → 檢索層即過濾＋檢索品質評測越權測試（目標 0）</li><li>範圍蔓延 → 嚴守近期範圍，願景分期</li></ul>
+<hr>
+<h2 id="決議請求" class="t6">決議請求</h2>
+<ul><li>核准近期 3–6 個月路線圖與資源（商品化包裝＋Agent 自動化）</li><li>確認供應商策略（雲端先行）、預算上限與合規範圍</li><li>選定 1–2 個內部燈塔情境，並拍板授權/計費模式方向</li></ul>
+<blockquote><p>詳見 <code>docs/strategy/</code> 策略文件集與 <code>軟體授權保護機制設計.md</code>。</p></blockquote>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="謝謝">謝謝</h1>
+<h2 id="讓知識成為可運用的資產" class="t7">讓知識成為可運用的資產</h2><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫系統銷售人員：我要準備一場客戶簡報</li></ul></div><div class="card"><h3>同類文件（行銷與提案）</h3><ul><li><a href="../../docs/marketing/5w-ad-copy.html">讓公司知識不再只存在某個人的腦袋裡</a></li><li><a href="../../docs/marketing/ai-drawing-review-poc.html">AI 審圖 付費 PoC 提案 / SOW</a></li><li><a href="../../docs/marketing/partner-proposal.html">KnowledgeExtraction.AI 合作夥伴銷售提案</a></li><li><a href="../../docs/marketing/deck-sales.html">你的公司，每天都在「重複付錢」找同一份資料</a></li><li><a href="../../docs/marketing/blog-handover.html">他交接了十五頁文件，卻帶走了三年的答案</a></li><li><a href="../../docs/marketing/blog-archaeology.html">你接的是專案，不是考古</a></li><li><a href="../../docs/marketing/blog-let-me-check.html">別再說「我幫您查一下，稍後回覆」</a></li><li><a href="../../docs/marketing/blog-asking-thrice.html">同一個問題問到第三次，你就不敢問了</a></li><li><a href="../../docs/marketing/blog-lost-deal.html">當場答不出來的那一句，就是丟單的那一句</a></li><li><a href="../../docs/marketing/blog-day-one.html">當新人第一天，就能答出只有資深工程師才知道的答案</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#把分散資訊變成可運用的智慧資產">把分散資訊，變成可運用的智慧資產</a><a class="l2" href="#一句話">一句話</a><a class="l2" href="#問題與機會">問題與機會</a><a class="l2" href="#願景">願景</a><a class="l2" href="#我們的起點不是願景是已上線的系統">我們的起點：不是願景，是已上線的系統</a><a class="l2" href="#平台成熟度可觀測可治理可維運">平台成熟度：可觀測、可治理、可維運</a><a class="l2" href="#雙路線定位">雙路線定位</a><a class="l2" href="#旗艦應用聚焦兩個">旗艦應用（聚焦兩個）</a><a class="l2" href="#投資報酬衡量框架">投資報酬（衡量框架）</a><a class="l2" href="#已交付里程碑節錄-10x">已交付里程碑（節錄 1.0.x）</a><a class="l2" href="#近期路線圖36-個月">近期路線圖（3–6 個月）</a><a class="l2" href="#架構方向">架構方向</a><a class="l2" href="#資源需求與風險">資源需求與風險</a><a class="l2" href="#決議請求">決議請求</a><a class="l2" href="#讓知識成為可運用的資產">讓知識成為可運用的資產</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/marketing/商業簡報-決策投資版.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

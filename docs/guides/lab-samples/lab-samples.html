@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lab-samples — Hands-on Lab 練習素材包｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../../index.html">角色首頁</a>
+    <a href="../../../all-docs.html">全部文件</a>
+    <a href="../../../search.html">搜尋</a>
+    <a href="../../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../../all-docs.html">全部文件</a> ／ 練習素材包</p><header class="hero"><div class="kicker">練習素材包</div><h1>lab-samples — Hands-on Lab 練習素材包</h1></header><div class="docwrap"><main><p>本資料夾提供《<a href="../../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab）</a>》（v2.4 起）的<strong>現成練習檔案</strong>：依手冊「鼎峰系統整合／客戶A」虛構情境製作，學員不必再手動把附錄 B 文字另存成檔案，直接上傳即可練習三條匯入管線與後續清洗、蒸餾、問答。<strong>全部內容純屬虛構</strong>，附錄 B 的關鍵事實（IP、帳密、序號、電話、合約金額…）逐字保留，清洗品質評測與 檢索品質評測步驟可照常對答案。</p>
+<blockquote><p>重新產生方式：<code>python scripts/Build-LabSamples.py</code>（相依：python-docx、openpyxl、python-pptx、Pillow、edge-tts、Microsoft Edge、ffmpeg；<code>--skip-audio</code> 可略過音檔、<code>--tts sapi</code> 離線合成）。</p></blockquote>
+<h2 id="一核心素材手冊主線用檔名紀錄標題" class="t1">一、核心素材（手冊主線用，檔名＝紀錄標題）</h2>
+<div class="tw"><table><thead><tr><th>檔案</th><th>紀錄</th><th>知識來源</th><th>管線</th><th>由誰匯入</th><th>分類</th><th>團隊</th></tr></thead><tbody><tr><td>documents\客戶A-ERP系統部署安裝SOP.docx</td><td>A1</td><td>客戶A-運維知識</td><td>文件轉文字</td><td>王小明</td><td>部署安裝、操作手冊</td><td>運維組</td></tr><tr><td>documents\WindowsServer記憶體不足故障排除筆記.pdf</td><td>A2</td><td>客戶A-運維知識</td><td>文件轉文字</td><td>王小明</td><td>故障排除、作業系統與硬體</td><td>運維組</td></tr><tr><td>images\機房接線與錯誤訊息截圖.png</td><td>A3</td><td>客戶A-運維知識</td><td>圖片解讀</td><td>王小明</td><td>作業系統與硬體</td><td>運維組</td></tr><tr><td>audio\客戶現場維運交接錄音.mp3</td><td>A4</td><td>客戶A-運維知識</td><td>影音轉逐字稿</td><td>王小明</td><td>系統維運</td><td>運維組</td></tr><tr><td>documents\每月例行維護檢查清單.xlsx</td><td>A5</td><td>客戶A-運維知識</td><td>文件轉文字</td><td>王小明</td><td>系統維運、操作手冊</td><td>運維組</td></tr><tr><td>audio\客戶A需求訪談會議錄音.mp3</td><td>B1</td><td>客戶A-需求與架構</td><td>影音轉逐字稿</td><td>李四</td><td>會議紀錄、需求討論</td><td>開發組</td></tr><tr><td>documents\客戶A系統架構設計說明.pptx</td><td>B2</td><td>客戶A-需求與架構</td><td>文件轉文字</td><td>李四</td><td>系統架構</td><td>開發組</td></tr><tr><td>documents\客戶A維護合約與SLA.pdf</td><td>B3</td><td>客戶A-合約與SLA知識</td><td>文件轉文字</td><td>李四（輸入）</td><td>合約與維護計畫</td><td><strong>業務合約組</strong></td></tr><tr><td>documents\公司內部開發環境建置指南.docx</td><td>P1</td><td>（不加入來源）</td><td>文件轉文字</td><td>張經理</td><td>教育訓練、操作手冊</td><td><strong>留空（公開）</strong></td></tr></tbody></table></div>
+<p>兩支 mp3 為 TTS 合成語音，台詞即附錄 B 逐字稿（A4 單人口述約 25 秒、B1 雙人對話約 44 秒），轉錄結果可與附錄 B 對照。</p>
+<h3 id="模式-b無金鑰替代檔text-fallback">模式 B（無金鑰）替代檔（text-fallback\）</h3>
+<p>沒有 OpenAI 金鑰時，A3／A4／B1 改用同名 <code>.txt</code> 走<strong>文件轉文字</strong>（內容＝附錄 B 原文）：<code>機房接線與錯誤訊息截圖.txt</code>、<code>客戶現場維運交接錄音.txt</code>、<code>客戶A需求訪談會議錄音.txt</code>。</p>
+<h3 id="會議模組練習素材m1選練供手冊第-7-章">會議模組練習素材（M1）【選練，供手冊第 7 章】</h3>
+<p>專供<strong>會議 AI 自動化</strong>（<code>/meeting</code>）整條練習的錄音樣本：上傳錄音 → 自動產生 AI 會議紀錄 → 待辦轉工作任務（含「來源會議」追溯，1.0.24）→ 會議紀錄納入知識來源第四型素材（1.0.25）。台詞刻意含<strong>明確決議</strong>與<strong>3 個帶負責人、期限的行動項目</strong>，方便對照 AI 抽出的待辦。</p>
+<div class="tw"><table><thead><tr><th>檔案</th><th>紀錄</th><th>用途（管線）</th><th>由誰匯入</th><th>分類</th><th>團隊</th></tr></thead><tbody><tr><td>audio\客戶A上線前專案週會錄音.mp3</td><td>M1</td><td>會議 AI 自動化（<code>/meeting</code> 上傳錄音）</td><td>張經理（主持）</td><td>會議紀錄</td><td>開發組</td></tr></tbody></table></div>
+<ul><li>無金鑰替代：同名 <code>text-fallback\客戶A上線前專案週會錄音.txt</code>（可改走文件轉文字，或直接貼進會議「摘要」練習後續步驟）。</li><li><strong>不計入</strong> 5／2／1 核心來源成員矩陣（手冊 17.9 完訓護欄）；此為會議模組獨立練習素材，加入知識來源時請另建練習用來源，勿併入三個核心知識來源。</li></ul>
+<h2 id="二擴充素材選練documents擴充-" class="t2">二、擴充素材【選練】（documents\擴充-＊\）</h2>
+<p>情境與核心素材一致（客戶A、2026 年、同批人物），供完訓後加料練習：批次匯入、更多檔案型態、跨團隊權控。</p>
+<div class="tw"><table><thead><tr><th>檔案</th><th>建議匯入者</th><th>分類</th><th>團隊</th></tr></thead><tbody><tr><td>擴充-運維\客戶A-ERP系統2026年05月例行維護報告.pdf</td><td>王小明</td><td>系統維運</td><td>運維組</td></tr><tr><td>擴充-運維\客戶A-機房設備巡檢紀錄表2026年Q2.xlsx</td><td>王小明</td><td>作業系統與硬體</td><td>運維組</td></tr><tr><td>擴充-運維\客戶A-ERP系統變更申請單-記憶體擴充.docx</td><td>王小明</td><td>系統維運、故障排除</td><td>運維組</td></tr><tr><td>擴充-運維\客戶A-備份還原演練報告2026年06月.pdf</td><td>王小明</td><td>系統維運</td><td>運維組</td></tr><tr><td>擴充-運維\客戶A-ERP系統服務中斷事件報告-2026年06月03日.docx</td><td>王小明</td><td>故障排除</td><td>運維組</td></tr><tr><td>擴充-開發\客戶A-報表匯出與權限分級需求規格書v1.0.docx</td><td>李四</td><td>需求討論</td><td>開發組</td></tr><tr><td>擴充-開發\客戶A-系統架構審查會議簡報2026年03月.pptx</td><td>李四</td><td>系統架構、會議紀錄</td><td>開發組</td></tr><tr><td>擴充-開發\客戶A-ERP系統API介接說明.docx</td><td>李四</td><td>系統架構</td><td>開發組</td></tr><tr><td>擴充-開發\客戶A-報表匯出功能測試案例清單.xlsx</td><td>李四</td><td>需求討論</td><td>開發組</td></tr><tr><td>擴充-業務\客戶A-2026年度維護服務報價單.xlsx</td><td>陳美玲</td><td>合約與維護計畫</td><td>業務合約組</td></tr><tr><td>擴充-業務\客戶A-SLA季度檢討報告2026年Q1.pdf</td><td>陳美玲</td><td>合約與維護計畫</td><td>業務合約組</td></tr><tr><td>擴充-業務\客戶A-維護合約續約評估備忘錄.docx</td><td>陳美玲</td><td>合約與維護計畫</td><td>業務合約組</td></tr><tr><td>擴充-跨團隊\客戶A-ERP系統維運外包服務合約.pdf</td><td>張經理</td><td><strong>多選：合約與維護計畫＋系統維運＋操作手冊</strong></td><td><strong>多選：運維組＋業務合約組</strong></td></tr><tr><td>擴充-純文字\運維值班日誌2026年06月.txt</td><td>王小明</td><td>系統維運</td><td>運維組</td></tr><tr><td>擴充-純文字\客戶A-ERP系統告警紀錄2026年06月.csv</td><td>王小明</td><td>故障排除</td><td>運維組</td></tr><tr><td>擴充-純文字\客戶A-ERP系統常見問題FAQ.md</td><td>張經理</td><td>操作手冊、教育訓練</td><td>留空（公開）</td></tr><tr><td>擴充-純文字\ERP系統v2.3版本發行說明.md</td><td>李四</td><td>系統架構</td><td>開發組</td></tr><tr><td>擴充批次上傳.zip</td><td>任一管理素材者</td><td>—（上傳後逐筆補標籤）</td><td>—</td></tr></tbody></table></div>
+<p><code>擴充批次上傳.zip</code> 內含上述 17 個擴充文件，可在文件轉文字頁用「<strong>批次上傳壓縮檔</strong>」一次建立全部紀錄，再逐筆補分類／團隊。</p>
+<h3 id="跨團隊多分類權控示範重點">跨團隊×多分類權控示範（重點）</h3>
+<p>「<strong>客戶A-ERP系統維運外包服務合約.pdf</strong>」匯入時<strong>團隊多選＝運維組＋業務合約組</strong>、<strong>分類多選＝合約與維護計畫＋系統維運＋操作手冊</strong>。預期可見性（配合手冊第 14 章驗證）：</p>
+<div class="tw"><table><thead><tr><th>帳號</th><th>角色（預設團隊）</th><th>看得到？</th><th>原因</th></tr></thead><tbody><tr><td>wang</td><td>運維工程師（運維組）</td><td>✅</td><td>紀錄團隊含運維組，有交集</td></tr><tr><td>chen</td><td>業務專員（業務合約組）</td><td>✅</td><td>紀錄團隊含業務合約組，有交集</td></tr><tr><td>lisi</td><td>開發工程師（開發組）</td><td>❌</td><td>兩個團隊皆無交集</td></tr><tr><td>zhang / support</td><td>知識管理員／管理員</td><td>✅</td><td>全團隊／不受權控</td></tr></tbody></table></div>
+<h2 id="三影片連結轉錄練習選練" class="t3">三、影片連結轉錄練習【選練】</h2>
+<p>影音轉逐字稿頁的「<strong>影片連結</strong>」來源可貼網址練習（需伺服器端已設 yt-dlp）。以下為驗證過可用的公開機構影片（繁中、短片、主題與資訊管理相關；連結若失效，依準則自行替換：機構頻道、繁中發音、片長 5 分鐘內、無版權疑慮）：</p>
+<ol><li>資訊安全與資安政策宣導短片（臺中市政府社會局）：<code>https://www.youtube.com/watch?v=mGvScDyPkmg</code>　→ 建議標題「資安政策宣導短片轉錄」、分類 教育訓練、團隊留空。</li><li>個人資料保護：為你的個資嚴格把關（臺灣學術倫理教育資源中心）：<code>https://www.youtube.com/watch?v=bLZA0J2moR4</code>　→ 建議標題「個資保護教育影片轉錄」、分類 教育訓練、團隊留空。</li></ol>
+<h2 id="四注意事項" class="t4">四、注意事項</h2>
+<ul><li><strong>完訓驗收護欄</strong>：手冊 17.9 完訓成果矩陣以核心來源成員數 <strong>5／2／1</strong>（運維／需求與架構／合約）驗收。擴充素材請在完訓後再匯入，且<strong>先不要</strong>加進三個核心知識來源；要練「管理成員」加料，建議另建選練來源（如「客戶A-運維知識-進階」）。</li><li>檔案大小均遠低於系統上限（<strong>音訊／影片 2GB、文件 1GB</strong>、圖片 50MB）；<code>.txt/.csv/.md</code> 為 UTF-8（含 BOM）。</li><li>素材中的帳密、IP、電話、統編、金額皆為<strong>虛構練習資料</strong>，同時也是清洗「遮罩」步驟的靶子——匯入後請照手冊執行清洗，觀察敏感資訊被遮罩的效果。</li></ul></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一核心素材手冊主線用檔名紀錄標題">一、核心素材（手冊主線用，檔名＝紀錄標題）</a><a class="l3" href="#模式-b無金鑰替代檔text-fallback">模式 B（無金鑰）替代檔（text-fallback\）</a><a class="l3" href="#會議模組練習素材m1選練供手冊第-7-章">會議模組練習素材（M1）【選練，供手冊第 7 章】</a><a class="l2" href="#二擴充素材選練documents擴充-">二、擴充素材【選練】（documents\擴充-＊\）</a><a class="l3" href="#跨團隊多分類權控示範重點">跨團隊×多分類權控示範（重點）</a><a class="l2" href="#三影片連結轉錄練習選練">三、影片連結轉錄練習【選練】</a><a class="l2" href="#四注意事項">四、注意事項</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/lab-samples/README.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

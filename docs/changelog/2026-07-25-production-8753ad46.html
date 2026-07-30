@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>移除 Production 啟動安全檢查（1.0.68）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>移除 Production 啟動安全檢查（1.0.68）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/25</li><li>版本：1.0.67 → <strong>1.0.68</strong></li><li>類型：<strong>功能移除</strong>（依使用者決定）</li><li>影響範圍：Production 啟動流程</li></ul>
+<h2 id="一移除原因" class="t1">一、移除原因</h2>
+<p><code>StartupSafetyValidator</code> 連續兩次擋住正式環境部署，IIS 回 <strong>HTTP 500.30</strong>：</p>
+<pre><code>Production 啟動安全檢查失敗：
+JwtSettings:SigningKey 不可在 Production 使用開發預設值。
+BootstrapSettings:SupportPassword 不可在 Production 使用預設密碼。</code></pre>
+<p>23:48 重新部署後 <code>appsettings.Production.json</code> 仍未補上這兩項，23:49 再次啟動失敗。使用者決定移除整支驗證器，不再讓啟動期檢查阻斷部署。</p>
+<h2 id="二移除範圍" class="t2">二、移除範圍</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>處置</th></tr></thead><tbody><tr><td><code>Web/Configuration/StartupSafetyValidator.cs</code></td><td>刪除（四項檢查全部：JWT 金鑰、support 密碼、Swagger 須明確設定、Redis 連線字串）</td></tr><tr><td><code>Program.cs</code> 的呼叫點</td><td>刪除；連同因此失效的 <code>using KnowledgeExtraction.Web.Configuration;</code></td></tr><tr><td><code>Tests/StartupSafetyValidatorTests.cs</code></td><td>刪除（26 個測試）</td></tr><tr><td><code>Tests/ApiIntegrationTests.ProductionSafetyValidation_WithDevelopmentDefaults_ShouldFailFast</code></td><td>刪除</td></tr><tr><td><code>Web/Configuration/UnsafeDefaults.cs</code></td><td><strong>保留</strong>——<code>/system-health</code> 的「身分驗證」項仍用它判定「Production 是否沿用開發金鑰」</td></tr></tbody></table></div>
+<p><code>UnsafeDefaults</code> 的邊界測試原本寄生在 <code>StartupSafetyValidatorTests</code> 裡，已搬到新的 <code>UnsafeDefaultsTests.cs</code>（15 個測試），避免健康檢查依賴的判定式變成零涵蓋。其 XML 註解也改寫過——原本寫著「由 <code>StartupSafetyValidator</code> 共用」「<code>StartupSafetyValidatorTests</code> 會驗證」，都已指向不存在的東西。</p>
+<h2 id="三移除後的實際狀態請務必知悉" class="t3">三、移除後的實際狀態（請務必知悉）</h2>
+<p><strong><code>JwtSettings:SigningKey</code> 與 <code>BootstrapSettings:SupportPassword</code> 現在沒有任何程式檢查。</strong> 沿用倉庫內公開的開發金鑰與 <code>1qaz@WSX</code> 不會被擋、也不會有啟動提示。</p>
+<ul><li><strong>風險</strong>：任何看得到原始碼的人都能用開發金鑰偽造 JWT；support 密碼是文件裡寫死的那組，且<strong>每次啟動都會依設定值重設</strong>。</li><li><strong>唯一的提示</strong>：<code>/system-health</code> 的「身分驗證」項在 Production 沿用開發金鑰時會顯示異常——唯讀燈號，不擋任何事。</li><li><strong>補償</strong>：這兩項已列入 <code>planning/08</code> backlog，並建議納入部署檢查清單、每次部署後開 <code>/system-health</code> 確認。</li></ul>
+<p>Swagger 與 Redis 兩項設定正確性檢查也隨之移除（見 backlog）。</p>
+<h3 id="仍然會擋啟動的關卡不在移除範圍">仍然會擋啟動的關卡（不在移除範圍）</h3>
+<p><code>Program.cs</code> 對 <code>JwtSettings</code> 有 <code>.ValidateDataAnnotations().ValidateOnStart()</code>，而 <code>SigningKey</code> 標了 <code>[Required]</code>＋<code>[MinLength(32)]</code>。<strong>金鑰留空或短於 32 字元仍會 500.30</strong>，但訊息不同——實測輸出：</p>
+<pre><code>OptionsValidationException: DataAnnotation validation failed for 'JwtSettings' members:
+'SigningKey' with the error: 'The SigningKey field is required.'</code></pre>
+<p>這是 ASP.NET Core 標準的選項驗證，與已移除的驗證器無關。下次遇到 500.30 時可用訊息型別分辨來源。</p>
+<h2 id="四驗證" class="t4">四、驗證</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>結果</th></tr></thead><tbody><tr><td><strong>倉庫現狀 ＋ Production 啟動</strong></td><td><strong>成功啟動</strong>、首頁回 200、日誌 0 條「啟動安全檢查失敗」——<strong>這正是移除的目的</strong></td></tr><tr><td>金鑰留空 ＋ Production 啟動</td><td>仍失敗，但訊息為 <code>OptionsValidationException</code>（見上），確認來源是選項驗證而非已移除的驗證器</td></tr><tr><td><code>dotnet test</code></td><td><strong>668 通過 / 0 失敗</strong>（680 − 27 移除 ＋ 15 搬移）</td></tr><tr><td>殘留參照</td><td><code>src/</code> 與 <code>docs/</code>（排除 changelog／archive）僅剩刻意的「已移除」註記</td></tr></tbody></table></div>
+<h2 id="五文件同步" class="t5">五、文件同步</h2>
+<div class="tw"><table><thead><tr><th>檔案</th><th>處理</th></tr></thead><tbody><tr><td><code>operations/全新機器部署SOP.md</code></td><td>§6.4「500.30 怎麼查」整節改寫——改為列出<strong>現在</strong>的可能原因（<code>JwtSettings</code> 選項驗證、資料庫、目錄權限、設定繫結）與對應處置；§6.1 的四列必改參數改註「沒有程式會擋，須自行確認」；§8 的守門說明改寫</td></tr><tr><td><code>operations/IIS佈署與可攜工具設定.md</code></td><td>§9 的 500.30 那列改寫（不再指向啟動安全檢查）。<strong>§5.1「在 IIS 設定環境變數」整節保留</strong>——設定機密仍是正確做法，只是不再有程式強制</td></tr><tr><td><code>security/認證授權與權限機制.md</code></td><td>改為「⚠️ 沒有任何程式會強制」，並說明風險與唯一提示</td></tr><tr><td><code>security/密碼種類與儲存機制.md</code></td><td>同上</td></tr><tr><td><code>features/分散式快取機制.md</code></td><td>移除 Redis 連線缺漏會阻擋啟動的敘述，改指向 <code>/system-health</code></td></tr><tr><td><code>features/系統健康監控.md</code></td><td>「身分驗證」項改註明它是<strong>唯一</strong>會提示開發金鑰的地方</td></tr><tr><td><code>strategy/系統功能與特色清單-20項.md</code>／<code>.html</code></td><td>移除 Redis 防呆的技術對應</td></tr><tr><td><code>strategy/軟體授權保護機制設計.md</code></td><td>三處落點加註：原規劃沿用的 <code>StartupSafetyValidator</code> 已移除，實作授權保護時需另建啟動閘</td></tr><tr><td><code>planning/08</code></td><td>已完成項加註「該驗證器已於 1.0.68 整支移除」；新增兩項風險追蹤</td></tr></tbody></table></div>
+<p>歷史 changelog（如 <code>2026-07-25-啟動安全檢查守門修正.md</code>）<strong>維持原樣</strong>——它們記錄的是當時的事實。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一移除原因">一、移除原因</a><a class="l2" href="#二移除範圍">二、移除範圍</a><a class="l2" href="#三移除後的實際狀態請務必知悉">三、移除後的實際狀態（請務必知悉）</a><a class="l3" href="#仍然會擋啟動的關卡不在移除範圍">仍然會擋啟動的關卡（不在移除範圍）</a><a class="l2" href="#四驗證">四、驗證</a><a class="l2" href="#五文件同步">五、文件同步</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-移除Production啟動安全檢查.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>專案管理 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>專案管理 PRD</h1><p class="sub">定義「專案管理」管理頁的需求、資料欄位、檔案附件與團隊權控</p></header><div class="docwrap"><main><ul><li>文件用途：定義「專案管理」管理頁的需求、資料欄位、檔案附件與團隊權控</li><li>主要讀者：產品、開發、導入顧問</li><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.61</li><li>首次實作版本：既有腳手架核心功能</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026/06/28</li><li>對應版本：既有腳手架核心功能（已實作）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<h2 id="一目標與範圍" class="t1">一、目標與範圍</h2>
+<p>提供專案資料的 CRUD 管理，讓使用者記錄專案名稱、狀態、優先度、分類、團隊與附件，並作為工作任務與會議管理以外的專案管理基礎資料。</p>
+<p>本 PRD 範圍包含 <code>/projects</code> 頁面、搜尋、排序、分頁、附件上傳/移除、分類/團隊標籤與團隊資料權控。非範圍包含甘特圖、任務相依性、專案儀表板。</p>
+<h2 id="二使用者與入口" class="t2">二、使用者與入口</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>說明</th></tr></thead><tbody><tr><td>路由</td><td><code>/projects</code></td></tr><tr><td>選單</td><td>專案協作 → 專案管理（1.0.17 起；原為「專案管理 → 專案管理」）</td></tr><tr><td>權限</td><td><code>MagicObjectHelper.角色_專案項目</code>（1.0.17 起；原為 <code>角色_專案管理</code>，該常數已移除）</td></tr><tr><td>主要使用者</td><td>專案管理者、一般成員、管理員</td></tr></tbody></table></div>
+<h2 id="三畫面與欄位" class="t3">三、畫面與欄位</h2>
+<p>頁面提供列表、搜尋、分類/團隊篩選、排序、分頁、新增、編輯、刪除與附件管理。表單欄位以現行 <code>ProjectAdapterModel</code> 為準，包含標題/名稱、描述、狀態、優先度、分類、團隊、時間欄位與附件。</p>
+<p>分類與團隊皆為多值標籤，UI 使用 AntDesign 多選 Select，資料層以分隔字串儲存。</p>
+<h3 id="三之一彙總進度1019">三之一、彙總進度（1.0.19）</h3>
+<p>清單新增「彙總進度」欄，<strong>純計算、不落地資料庫</strong>：</p>
+<ul><li>有工作任務 → 該專案<strong>頂層工作</strong>（<code>ParentTaskId == null</code>）的 <code>CompletionPercentage</code> 簡單平均（每個頂層工作權重相同），標示「依工作任務自動彙總」</li><li>無工作任務 → 專案自身 <code>CompletionPercentage</code>，標示「手動值」</li></ul>
+<p><strong>已知界線</strong>：取的是頂層工作的<strong>自身</strong> <code>CompletionPercentage</code>，不是「頂層工作彙總後的進度」。若某頂層工作有子工作，專案會用它的手動值而非其子工作平均。要做到後者需兩層 group-by，成本與複雜度不成比例，故本階段不做。</p>
+<p>實作以 <code>ProjectAdapterModel.RolledUpProgress</code>／<code>HasTasks</code>（由服務填入）承載，<code>ProjectService.GetAsync</code> 新增一次 group-by（每頁一次，不隨列數增長）。此欄<strong>不可排序</strong>，顯示沿用全站文字慣例。</p>
+<h2 id="四內部系統運作" class="t4">四、內部系統運作</h2>
+<p>核心流程為 <code>ProjectViewView → ProjectService → BackendDBContext</code>；API 路徑則透過 <code>ProjectController → ProjectRepository</code>。</p>
+<ol><li>進頁檢查登入與頁面權限。</li><li>讀取啟用中的分類與團隊管理作為多選選項。</li><li><code>ProjectService.GetAsync(DataRequest)</code> 依搜尋、排序、分類/團隊篩選與分頁查詢。</li><li>查詢時透過 <code>IRecordAccessScopeProvider</code> 與 <code>TagStringHelper.BuildTeamAccessPredicate</code> 套團隊權控。</li><li>新增/編輯前端使用 clone 與 <code>EditContext</code>，避免雙向綁定污染來源清單。</li><li>Update/Delete 前需清理追蹤，避免 Blazor circuit 範圍 DbContext 追蹤衝突。</li><li>附件由服務層寫入設定的專案檔案目錄，DB 保留附件資料列與相對資訊。</li></ol>
+<h2 id="五llm--rag-互動" class="t5">五、LLM / RAG 互動</h2>
+<p>本功能本身不呼叫 LLM、不產生 embedding、不參與 RAG 索引。若專案附件或內容後續被其他匯入流程引用，應由對應匯入/知識來源流程處理。</p>
+<h2 id="六權控與安全" class="t6">六、權控與安全</h2>
+<ul><li>非管理員只可看見公開或團隊交集專案。</li><li>單筆讀取、更新、刪除與下載附件皆須套同一團隊權控。</li><li>團隊標籤須用 <code>TagStringHelper</code> 精確比對，不可用模糊字串包含。</li><li>附件下載不得直接暴露實體路徑。</li></ul>
+<h2 id="七錯誤與邊界" class="t7">七、錯誤與邊界</h2>
+<ul><li>無權限存取單筆資料時應視為找不到或拒絕，不可回傳內容。</li><li>附件檔案不存在時應顯示友善錯誤。</li><li>使用者把資料指定到自己無權團隊後，可能看不到該筆；伺服器端仍以權控為準。</li></ul>
+<h2 id="八驗收與測試" class="t8">八、驗收與測試</h2>
+<ul><li>有權限者可完成專案新增、編輯、刪除、搜尋與分頁。</li><li>分類/團隊篩選為精確成員比對。</li><li>非管理員不可讀取無團隊交集專案。</li><li>附件新增與移除後，DB 與實體檔案狀態一致。</li></ul>
+<h2 id="九相關程式與文件" class="t1">九、相關程式與文件</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/Projects/ProjectViewView.razor.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/ProjectService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Repositories/ProjectRepository.cs</code></li><li><a href="../../docs/prd/prd-c711f637.html">紀錄分類與團隊權控 PRD</a></li></ul>
+<h2 id="十0334-現況校正" class="t2">十、0.3.34 現況校正</h2>
+<ul><li>專案清單支援分類／團隊精確篩選、關鍵字、附件上傳／下載及團隊權控；新增／更新／刪除與下載均不可只靠 UI 隱藏。</li><li>專案列可開啟共用「工作與會議」對話窗管理關聯紀錄；Project 刪除可 Cascade 附件資料列，實體檔案仍由服務層刪除。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目標與範圍">一、目標與範圍</a><a class="l2" href="#二使用者與入口">二、使用者與入口</a><a class="l2" href="#三畫面與欄位">三、畫面與欄位</a><a class="l3" href="#三之一彙總進度1019">三之一、彙總進度（1.0.19）</a><a class="l2" href="#四內部系統運作">四、內部系統運作</a><a class="l2" href="#五llm--rag-互動">五、LLM / RAG 互動</a><a class="l2" href="#六權控與安全">六、權控與安全</a><a class="l2" href="#七錯誤與邊界">七、錯誤與邊界</a><a class="l2" href="#八驗收與測試">八、驗收與測試</a><a class="l2" href="#九相關程式與文件">九、相關程式與文件</a><a class="l2" href="#十0334-現況校正">十、0.3.34 現況校正</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/專案項目-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

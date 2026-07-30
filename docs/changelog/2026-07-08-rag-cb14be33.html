@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>/rag-diagnostics 補完 EVAL-4：索引健康 + 症狀自檢 + 試檢索（成為 RAG 維運中心）（0.3.5→0.3.6）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>/rag-diagnostics 補完 EVAL-4：索引健康 + 症狀自檢 + 試檢索（成為 RAG 維運中心）（0.3.5→0.3.6）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-08</li><li>版本：0.3.5 → 0.3.6</li><li>類型：新增功能（EVAL-4 完成）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p><code>/rag-diagnostics</code> 已有分佈/門檻/近期稽核紀錄。診斷手冊 §四 另規劃三塊未做：索引健康、症狀自檢、試檢索。補完後 <code>/rag-diagnostics</code> 成為完整「RAG 維運中心」。</p>
+<h2 id="變更服務集中view-薄" class="t2">變更（服務集中、View 薄）</h2>
+<h3 id="商業層ragdiagnosticsservice-擴充注入-iretrievalserviceirecordaccessscopeproviderioptions">商業層（<code>RagDiagnosticsService</code> 擴充，注入 <code>IRetrievalService</code>／<code>IRecordAccessScopeProvider</code>／<code>IOptions&lt;OpenAISettings&gt;</code>）</h3>
+<ul><li><code>GetIndexHealthAsync()</code>：每知識來源一列——清洗/蒸餾/索引狀態、已核准 Wiki 數、Cleaned/Wiki chunk 數（<code>VectorEmbedding.GroupBy</code>）、最後索引時間（<code>Max(UpdatedAt)</code>）、紅黃綠燈（已清洗但無 chunk→red；已清洗未索引或內容過期→yellow；否則 green）+ 是否已設定嵌入（<code>OpenAISettings.IsEmbeddingConfigured()</code>）。</li><li><code>RunSelfCheckAsync()</code>：自動列出當前問題與建議（未設嵌入、已清洗但索引為空、部分未索引、內容過期、樣本不足）。</li><li><code>TryRetrieveAsync(query)</code>：跑混合檢索 + 兩段式信心判定，回候選 chunk 的向量/關鍵字/融合分、層別、AnchorRef、片段。<strong>不呼叫 LLM、不寫稽核</strong>；以目前使用者 scope（管理員→看全部）執行。</li><li>新 POCO：<code>IndexHealthReport/Row</code>、<code>SelfCheckFinding</code>、<code>TrialRetrievalResult/Hit</code>。</li></ul>
+<h3 id="ui-層">UI 層</h3>
+<ul><li><code>RagDiagnosticsView</code> 新增三區：索引健康（燈號表 + 未設嵌入提示）、症狀自檢（findings 清單 + 重新自檢）、試檢索（問句輸入 + 候選 chunk 分數表 + 信心徽章 + 退化提示）。沿用頁面 <code>CheckIsAdmin</code> 守門與選單 adminOnly。</li></ul>
+<h3 id="測試">測試</h3>
+<ul><li><code>RagDiagnosticsTests</code> 新增 4：索引健康紅/綠燈與計數、症狀自檢回報、試檢索命中映射與信心、空問句→Insufficient（用 fake <code>IRetrievalService</code>）。相關 12 個測試全綠。</li></ul>
+<h2 id="影響範圍" class="t3">影響範圍</h2>
+<ul><li>進度：<strong>EVAL-4 ✅ 完成</strong>（/rag-diagnostics 成維運中心）。</li><li>無資料表／欄位／migration（複用既有表）；無新權限（沿用 adminOnly + CheckIsAdmin）。</li><li><code>appsettings.json</code> SystemVersion 0.3.5 → 0.3.6。</li><li>同步更新 <code>docs/operations/RAG問題診斷手冊.md</code>（§四五區完整落地）、<code>docs/planning/12-...</code>（EVAL-4→✅）、<code>docs/guides/RAG補強修正測試指南.md</code>。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ol><li><code>dotnet test --filter RagDiagnosticsTests</code> 綠燈（12 通過）；<code>dotnet build</code> 成功。</li><li>手動（管理員）：<code>/rag-diagnostics</code> 索引健康燈號正確、症狀自檢列問題、試檢索顯示各路分數與信心且<strong>不新增稽核列</strong>；非管理員被擋。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更服務集中view-薄">變更（服務集中、View 薄）</a><a class="l3" href="#商業層ragdiagnosticsservice-擴充注入-iretrievalserviceirecordaccessscopeproviderioptions">商業層（RagDiagnosticsService 擴充，注入 IRetrievalService／IRecordAccessScopeProvider／IOptions）</a><a class="l3" href="#ui-層">UI 層</a><a class="l3" href="#測試">測試</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-08-RAG診斷維運中心補完.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

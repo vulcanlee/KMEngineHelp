@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>權限常數金絲雀測試，並補回兩筆「宣稱已記入 backlog 但查無此項」的待辦（1.0.74→1.0.75）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>權限常數金絲雀測試，並補回兩筆「宣稱已記入 backlog 但查無此項」的待辦（1.0.74→1.0.75）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-26</li><li>版本：1.0.74 → 1.0.75</li><li>類型：測試補強（資安守門）＋流程風險修正</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<h3 id="一現有測試攔不住改權限常數值這條靜默災難路徑">一、現有測試攔不住「改權限常數值」這條靜默災難路徑</h3>
+<p><code>MagicObjectHelper</code> 的 29 個 <code>角色_*</code> 常數，它們的<strong>值</strong>會寫進每個角色的 <code>RoleView.TabViewJson</code>。改值以後，既有角色資料列裡存的還是舊字串，<code>SetPermissionInput</code> 的比對全部 miss → <strong>除 admin 外所有角色的選單全部消失</strong>。</p>
+<p>問題在於<strong>沒有任何機制攔得住</strong>。<code>MenuPermissionAlignmentTests</code> 看起來像在守護這件事，但：</p>
+<ul><li><code>expected</code> 來自它自己的對照表（值取自 <code>MagicObjectHelper</code> 常數）</li><li><code>actual</code> 來自 <code>RolePermissionService.GetRoleListPermissionAllName()</code>（<strong>也是同一批常數</strong>）</li></ul>
+<p><strong>兩邊同源。</strong> 改常數值時兩邊會一起變 → 測試全綠、<code>dotnet build</code> 成功、<code>/system-health</code> 全綠，然後部署炸權限。該測試檔的註解只是「口頭」寫著不要改常數值，沒有任何可執行的守護。</p>
+<p>這件事現在特別要緊：<strong>下一批（1.0.76）要動 55 處實體名詞字串</strong>，而 7 個 <code>角色_XXX</code> 識別字在<strong>文字上包含</strong>要被取代的舊名（<code>角色_工作項目</code>、<code>角色_圖片清單</code>、<code>角色_分類清單</code>、<code>角色_團隊清單</code>、<code>角色_提示詞清單</code>、<code>角色_清洗設定檔</code>、<code>角色_知識來源管理清單</code>）。跨檔全域取代會波及它們——那會編譯失敗（好結果），但若有人「順手改識別字讓它編過」，常數值就會一起被改掉。</p>
+<h3 id="二兩筆-changelog-宣稱已記入-backlog實際查無此項">二、兩筆 changelog 宣稱「已記入 backlog」，實際查無此項</h3>
+<div class="tw"><table><thead><tr><th>出處</th><th>宣稱</th><th>實情</th></tr></thead><tbody><tr><td>1.0.70 changelog 第 45 行</td><td>實體名詞約 30 處「已記入 backlog 另批處理，理由見優化建議清單」</td><td><code>grep -rc "實體名詞" docs/planning/</code> → <strong>0 命中</strong></td></tr><tr><td>1.0.56 changelog 第 57 行</td><td>「已知缺口：5 支 Service 仍無預設排序分支」</td><td><code>planning/08</code> 內查無此項</td></tr></tbody></table></div>
+<p><strong>這是流程風險，不只是文件缺漏</strong>：兩份 changelog 都寫了「已記入 backlog」，讀者（含後續盤點者）會信任那句話而不去核對，於是這兩項實際上從未進入任何待辦清單。若不修，下一次盤點會再漏掉同樣的東西。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="新增-testspermissionconstantcanarytestscs">新增 <code>Tests/PermissionConstantCanaryTests.cs</code></h3>
+<p>把 29 個常數的<strong>值硬編</strong>在測試檔裡，作為<strong>唯一不依賴 <code>MagicObjectHelper</code> 的外部參考點</strong>。三條測試：</p>
+<ol><li><code>EveryPermissionConstant_KeepsItsPersistedValue</code> —— 每個常數值必須等於硬編值。</li><li><code>PermissionConstantSet_MatchesCanaryTable</code> —— 常數集合不得增減而本表未同步（新增權限時必須來補一筆）。</li><li><code>PermissionTree_UsesOnlyCanaryValues</code> —— 權限樹用到的每個字串都必須落在本表值域內，防止有人在 <code>RolePermissionService</code> 直接打裸字串繞過常數。</li></ol>
+<p>⚠️ 硬編表包含<strong>兩個歷史遺留的尾隨空白</strong>，必須照抄不可清掉：<code>["角色_角色管理"] = "角色管理 "</code>、<code>["角色_登出"] = "登出 "</code>。這兩個值也在 DB 裡，「順手把多餘空白清掉」同樣會掉權限。表格是用腳本從原始碼萃取後寫入的（29 筆逐字，避免手動轉錄出錯），寫入後即為靜態文字、不再讀取原始碼。</p>
+<p>測試註解明寫「<strong>這條紅了不要改測試</strong>，先確認是不是誤改了常數值；只有在確實要<strong>新增</strong>權限時才來本表補一筆」。</p>
+<h3 id="補回-planning08-的兩筆待辦">補回 <code>planning/08</code> 的兩筆待辦</h3>
+<p>新增一節「由 changelog 追蹤鏈補漏（2026-07-26，1.0.75）」，比照該檔既有的分節寫法，逐條標明出處 changelog 與行號，並記下這件事本身的流程教訓：<strong>日後 changelog 若要寫「已記入 backlog」，請同時在該檔補上條目再 commit。</strong></p>
+<p>其中「實體名詞」那項一併寫進下一批要用的三個陷阱（<code>角色_XXX</code> 前綴包含、<code>會議紀錄</code>（紀）99 處不可動、<code>MeetingService.cs:626</code> 會落地到資料列、<code>LlmPromptDefaults.cs:59</code> 是 LLM 提示詞），讓下一批不必重新查證。「5 支預設排序」那項標為已於 1.0.73 修正，並更正原記錄的錯誤歸因（真正的洞在內層 <code>SortDescending == null</code>，不是外層缺 <code>else</code>）。</p>
+<h2 id="測試" class="t3">測試</h2>
+<p>709 → <strong>712</strong>（+3，全綠）。</p>
+<h3 id="已實證守門有效這是本批的關鍵驗證">已實證守門有效（這是本批的關鍵驗證）</h3>
+<p>刻意注入「<strong>只改值、不改識別字</strong>」的變更（<code>角色_工作項目 = "工作項目"</code> → <code>= "工作任務"</code>，這種改法會編譯成功），然後分別跑兩組測試：</p>
+<div class="tw"><table><thead><tr><th>測試</th><th>結果</th></tr></thead><tbody><tr><td><code>MenuPermissionAlignmentTests</code></td><td><strong>4 條全部通過</strong> ← 完全偵測不到</td></tr><tr><td><code>PermissionConstantCanaryTests</code></td><td><strong>2 條紅燈</strong>，訊息精準指出「<code>角色_工作項目</code>：期望 "工作項目"，實際 "工作任務"」</td></tr></tbody></table></div>
+<p>這具體證明了金絲雀補上的是一個<strong>真實存在、且先前完全沒有覆蓋</strong>的缺口，而不是重複既有測試。</p>
+<p>（另也驗證過「連識別字一起改」的情形：那會讓 7 個引用點編譯失敗，屬於能被察覺的失敗模式。）</p>
+<h2 id="影響與相容性" class="t4">影響與相容性</h2>
+<ul><li><strong>程式行為完全未變</strong>：本批只新增測試檔與文件，<code>MagicObjectHelper</code> 與 <code>RolePermissionService</code> 的 diff 為 0 行。</li><li>無資料庫 migration、無 API 合約變更、無使用者可見變化。</li></ul>
+<h2 id="版本" class="t5">版本</h2>
+<ul><li><code>appsettings.json</code> <code>SystemVersion</code>：<code>1.0.74</code> → <code>1.0.75</code>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l3" href="#一現有測試攔不住改權限常數值這條靜默災難路徑">一、現有測試攔不住「改權限常數值」這條靜默災難路徑</a><a class="l3" href="#二兩筆-changelog-宣稱已記入-backlog實際查無此項">二、兩筆 changelog 宣稱「已記入 backlog」，實際查無此項</a><a class="l2" href="#變更">變更</a><a class="l3" href="#新增-testspermissionconstantcanarytestscs">新增 Tests/PermissionConstantCanaryTests.cs</a><a class="l3" href="#補回-planning08-的兩筆待辦">補回 planning/08 的兩筆待辦</a><a class="l2" href="#測試">測試</a><a class="l3" href="#已實證守門有效這是本批的關鍵驗證">已實證守門有效（這是本批的關鍵驗證）</a><a class="l2" href="#影響與相容性">影響與相容性</a><a class="l2" href="#版本">版本</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-26-權限常數金絲雀測試與backlog補漏.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

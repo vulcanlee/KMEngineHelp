@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>管理成員對話窗：放大至接近滿版＋縮小留白＋排序與分類/團隊篩選＋單一關閉按鈕＋固定關閉鈕與加入素材分頁（0.2.96–0.2.99）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>管理成員對話窗：放大至接近滿版＋縮小留白＋排序與分類/團隊篩選＋單一關閉按鈕＋固定關閉鈕與加入素材分頁（0.2.96–0.2.99）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-20</li><li>版本：0.2.95 → 0.2.99</li><li>類型：使用體驗調整</li></ul>
+<h2 id="0299-關閉鈕固定可見加入素材分頁" class="t1">0.2.99 關閉鈕固定可見＋加入素材分頁</h2>
+<p>對話窗放大後，內容過長導致：關閉鈕需捲動才看得到；右側「加入素材」清單一次顯示多筆且無分頁。本次：</p>
+<ul><li><strong>關閉鈕固定可見</strong>：<code>.member-manage-modal .ant-modal-body</code> 改為固定高度 <code>calc(100vh - 150px)</code>、<code>overflow:hidden</code> 的 flex 直向容器；<code>.ks-member-layout</code> 填滿剩餘高度、左右兩欄各自 <code>flex</code> 直向，<code>.ks-member-list</code> 改 <code>flex:1; overflow:auto</code>（只有清單內部捲動），<code>.ks-member-footer</code> 固定於 body 底部恆可見。</li><li><strong>加入素材分頁</strong>：右側清單改為每頁 <code>MemberPageSize=20</code> 筆，新增「上一頁／下一頁」與「第 X / Y 頁（共 N 筆）」；切換型別/搜尋/分類/團隊/排序或開窗時回到第 1 頁。查詢本就 <code>Skip/Take</code> 分頁（非全載），此為明確化分頁操作。</li><li><code>appsettings.json</code> 0.2.98 → 0.2.99。</li></ul>
+<h2 id="0298-移除重複的關閉按鈕" class="t2">0.2.98 移除重複的關閉按鈕</h2>
+<p>對話窗底部原有兩個都叫「關閉」、且都呼叫 <code>OnMemberModalCloseAsync</code> 的按鈕（AntDesign 預設 Ok/Cancel，<code>OkText</code>/<code>CancelText</code> 皆設為「關閉」），重複且易混淆。改為：</p>
+<ul><li>兩頁管理成員 <code>&lt;Modal&gt;</code> 設 <code>Footer="null"</code> 移除預設兩顆按鈕；<code>OnCancel</code> 仍處理右上角 X 與 Esc 關閉。</li><li>於對話窗內容底部新增單一「關閉」主要按鈕（<code>.ks-member-footer</code> 右對齊），其餘行為不變。</li><li><code>appsettings.json</code> 0.2.97 → 0.2.98。</li></ul>
+<h2 id="0297-放大對話窗" class="t3">0.2.97 放大對話窗</h2>
+<p>承 0.2.96，原僅縮小內距但對話窗仍固定約 900px、置中，寬螢幕四周留白過大。本次將兩頁「管理成員」對話窗放大至接近滿版：</p>
+<ul><li><code>wwwroot/app.css</code> <code>.member-manage-modal</code>：寬度 <code>92vw</code>（上限 1400px）、<code>top: 24px</code> 貼近上緣；<code>.ant-modal-body</code> <code>max-height: calc(100vh - 140px)</code> 可捲動。</li><li>兩個 scoped CSS <code>.ks-member-list</code> <code>max-height</code> 由 <code>50vh</code> 改為 <code>calc(100vh - 230px)</code>，兩欄清單隨對話窗加高並各自捲動。</li><li>不改對話窗結構與邏輯；<code>appsettings.json</code> 0.2.96 → 0.2.97。</li></ul>
+<h2 id="需求" class="t4">需求</h2>
+<p>知識來源管理清單與 AI技能產生器兩頁的「管理成員」對話窗：</p>
+<ol><li>上下左右留白太多，需縮小。</li><li>右半部「加入素材」區塊除標題關鍵字外，再加入「依最近更新日期排序（預設最近優先、可切最舊優先）」與「分類、團隊」篩選。</li></ol>
+<h2 id="變更兩頁對稱" class="t5">變更（兩頁對稱）</h2>
+<ul><li><strong>留白</strong>：管理成員 <code>&lt;Modal&gt;</code> 的 <code>Class</code> 加 <code>member-manage-modal</code>；<code>wwwroot/app.css</code> 全域縮小 <code>.member-manage-modal .ant-modal-body</code>／<code>.ant-modal-header</code> padding（24px → 12/16px）；scoped CSS 兩欄間距 24px → 16px、工具列下距與標題邊距收斂、工具列換行。</li><li><strong>服務</strong> <code>KnowledgeSourceService</code> / <code>SkillDefinitionService</code> 的 <code>GetSelectableItemsAsync</code>：<code>Selectable*</code> 三個 helper 新增分類/團隊篩選參數（<code>TagStringHelper.BuildContainsAnyPredicate</code>，疊加於既有狀態=已完成、關鍵字、團隊存取範圍之上）；排序改依 <code>DataRequest.SortDescending</code>（預設 desc＝最近更新優先，可切 asc）。</li><li><strong>UI</strong> <code>KnowledgeSourceView</code> / <code>SkillView</code>：右欄新增分類多選、團隊多選、排序下拉（最近更新優先／最舊更新優先）；新增 <code>memberCategoryFilters</code>/<code>memberTeamFilters</code>/<code>memberSortDescending</code> 欄位，開啟對話窗時重置；<code>ReloadSelectableAsync</code> 帶入這些條件。</li></ul>
+<h2 id="影響範圍" class="t6">影響範圍</h2>
+<ul><li>僅 UI 與可選素材查詢；不改成員加入/移除/排序邏輯、不改 <code>SelectableSourceItemAdapterModel</code>、不動主清單頁。</li><li>團隊權控未變：使用者選的團隊篩選只在「可存取範圍」內再縮小。</li><li><code>appsettings.json</code> SystemVersion 0.2.95 → 0.2.96。</li></ul>
+<h2 id="驗證" class="t7">驗證</h2>
+<ol><li><code>dotnet build</code> 通過；<code>dotnet test</code> 全綠。</li><li>兩頁「管理成員」對話窗留白變小；右側可用分類/團隊/關鍵字篩選與最近更新排序（預設最近在前）。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#0299-關閉鈕固定可見加入素材分頁">0.2.99 關閉鈕固定可見＋加入素材分頁</a><a class="l2" href="#0298-移除重複的關閉按鈕">0.2.98 移除重複的關閉按鈕</a><a class="l2" href="#0297-放大對話窗">0.2.97 放大對話窗</a><a class="l2" href="#需求">需求</a><a class="l2" href="#變更兩頁對稱">變更（兩頁對稱）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-20-管理成員對話窗篩選與留白.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

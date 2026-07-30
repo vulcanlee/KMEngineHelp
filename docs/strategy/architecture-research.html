@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識庫架構研究與建議｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 策略與規劃</p><header class="hero"><div class="kicker">策略與規劃</div><h1>知識庫架構研究與建議</h1><p class="sub">知識庫「單一 vs 混合架構」與「地端 vs 雲端」的研究與選型建議</p></header><div class="docwrap"><main><ul><li>文件用途：知識庫「單一 vs 混合架構」與「地端 vs 雲端」的研究與選型建議</li><li>主要讀者：架構師、開發團隊、決策層</li><li>文件版本：1.0</li><li>建立日期：2026/06/08</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>範圍假設：<strong>中型規模</strong>（數萬文件、數百使用者）、<strong>地端與雲端皆須支援</strong>、企業環境須具備<strong>權控、遮罩、存取日誌</strong>。本文給出單一明確的推薦架構與理由，並標示與現有系統的整合點。</p></blockquote>
+<hr>
+<h2 id="一檢索架構選項比較單一-vs-混合" class="t1">一、檢索架構選項比較（單一 vs 混合）</h2>
+<div class="tw"><table><thead><tr><th>方案</th><th>原理</th><th>優點</th><th>缺點</th><th>適用</th></tr></thead><tbody><tr><td><strong>純向量檢索</strong></td><td>文本切塊→Embedding→向量相似度</td><td>語意理解佳、實作直觀</td><td>對精確詞、代碼、料號、專有名詞命中差；可能漏關鍵字</td><td>語意問答為主</td></tr><tr><td><strong>關鍵字／BM25</strong></td><td>倒排索引、詞頻</td><td>精確詞命中強、可解釋、便宜</td><td>不懂語意、同義/換句話差</td><td>精確查找、法規/料號</td></tr><tr><td><strong>混合檢索（Hybrid）</strong></td><td>向量 ＋ 關鍵字並行，分數融合後重排（rerank）</td><td>兼顧語意與精確、召回最穩</td><td>多一層融合/重排，工程稍複雜</td><td>多數企業情境（推薦）</td></tr><tr><td><strong>GraphRAG／知識圖譜</strong></td><td>抽取實體關係建圖，沿關係推理</td><td>跨文件關聯、多跳推理強</td><td>建圖成本高、維運複雜、過度設計風險</td><td>高關聯推理需求才需要</td></tr><tr><td><strong>LLM 知識 Wiki（蒸餾預編譯）</strong></td><td>LLM 將來源<strong>蒸餾</strong>為一個概念一頁的 Markdown 實體頁，以 <code>[[wiki-links]]</code> 互連；查詢讀「已合成」的精煉知識</td><td>知識<strong>複利累積</strong>、答案品質高、可解釋、與既有 Markdown 產物天然契合</td><td>需 ingest/maintain 流程、頁面一致性需 lint、即時性較弱</td><td>追求「真實可用知識」而非原文搬運（本計畫採用）</td></tr></tbody></table></div>
+<p><strong>結論</strong>：中型知識庫單靠純向量會在「精確詞、專有名詞、料號/條號」上吃虧；建議採<strong>混合檢索 ＋ rerank</strong>為檢索骨幹，並<strong>疊加一層「LLM 知識 Wiki（蒸餾預編譯）」</strong>作為精煉知識來源。GraphRAG 列為未來選配（非近期範圍）。</p>
+<blockquote><p>📌 <strong>後續進展（追記）</strong>：GraphRAG 已於 1.0.83～1.0.88 分六階段實作完成，並以第三路「圖檢索」併入既有混合檢索（融合式 <code>Vw*向量 + Kw*關鍵字 + Gw*圖</code>，<code>GraphWeight</code> 預設 0.2、可設 0 關閉）。採關聯式邊表、未導入專用圖庫。詳見 <a href="../../docs/strategy/graph-rag-blueprint.html">Graph RAG 導入分析與實作藍圖</a> §9。rerank 至今仍只有<a href="../../docs/architecture/rag-rerank-analysis.html">分析文件</a>、未實作。</p></blockquote>
+<h3 id="llm-知識-wikikarpathy-概念與蒸餾">LLM 知識 Wiki（Karpathy 概念）與蒸餾</h3>
+<p>Karpathy 提出的「LLM Wiki」是一個由 LLM 主動維護的 Markdown 知識庫：每個檔案是一個概念的維基式條目、以 <code>[[wiki-links]]</code> 互連，並以三類流程運作——</p>
+<ul><li><strong>Ingest（蒸餾匯入）</strong>：LLM 讀新內容，<strong>蒸餾</strong>出精煉條目、更新相關頁、建立交叉連結、標記矛盾。</li><li><strong>Query（查詢）</strong>：直接讀「已蒸餾合成」的條目作答（預編譯），而非每次重查原文。</li><li><strong>Lint/Maintain（健檢維護）</strong>：定期掃描一致性、補缺、發掘新連結，知識自我修復。</li></ul>
+<p>對本計畫的意義：</p>
+<ul><li>正好實踐使用者要的<strong>蒸餾——萃取出真實可用的知識</strong>，而非原文搬運。</li><li>與現有系統<strong>高度契合</strong>：文件轉文字已產出 Markdown、轉錄已產出逐字稿，正是蒸餾 Wiki 的輸入；產物也是 Markdown，落地容易。</li><li>與混合檢索<strong>互補</strong>：Wiki 條目（精煉、可解釋）作答品質高；原始 chunk 檢索補足長尾與出處追溯。建議<strong>兩層並用</strong>：先讀 Wiki 條目，必要時回退到 chunk 檢索取證據。</li></ul>
+<hr>
+<h2 id="二地端-vs-雲端取捨" class="t2">二、地端 vs 雲端取捨</h2>
+<p>兩種都要支援，差異主要在「Embedding／LLM 來源」與「向量庫部署位置」。建議採<strong>可切換的供應商抽象層</strong>，讓同一套程式以設定切換。</p>
+<div class="tw"><table><thead><tr><th>構件</th><th>雲端優先模式</th><th>地端／私有模式</th></tr></thead><tbody><tr><td>Embedding</td><td>雲端 Embedding API</td><td>地端 Embedding 模型（經內部閘道）</td></tr><tr><td>LLM（問答生成）</td><td>雲端 LLM API</td><td>地端 LLM 或私有閘道管控</td></tr><tr><td>向量索引</td><td>託管向量服務或自管</td><td>自管（與資料同處企業環境）</td></tr><tr><td>資料落地</td><td>可上雲</td><td><strong>不出企業環境</strong></td></tr><tr><td>取捨</td><td>速度快、功能新、維運省</td><td>合規、資料自主、需自備算力與維運</td></tr></tbody></table></div>
+<blockquote><p>既有系統已有「OpenAI 設定可由環境變數注入、快取 Memory↔Redis 可切換」的慣例，與本處「供應商可切換」的設計一致，延用同樣的設定驅動模式即可。</p></blockquote>
+<hr>
+<h2 id="三向量庫選型中型規模" class="t3">三、向量庫選型（中型規模）</h2>
+<div class="tw"><table><thead><tr><th>選項</th><th>部署</th><th>優點</th><th>缺點</th><th>建議定位</th></tr></thead><tbody><tr><td><strong>PostgreSQL ＋ pgvector</strong></td><td>地端/雲端皆可</td><td>與關聯資料同庫、權控/交易/備援成熟、維運單純、支援 hybrid（向量＋全文）</td><td>超大規模需調校</td><td><strong>推薦預設</strong>（中型規模綽綽有餘，地端友善）</td></tr><tr><td><strong>Qdrant</strong></td><td>地端/雲端皆可</td><td>向量檢索效能佳、過濾條件強、可自管</td><td>多一個服務要維運</td><td>向量量體更大或需專用向量引擎時</td></tr><tr><td><strong>雲端託管向量服務（如 Azure AI Search / 各家服務）</strong></td><td>雲端</td><td>免維運、整合快</td><td>資料須上雲、不適合地端模式</td><td>純雲端客戶選配</td></tr></tbody></table></div>
+<p><strong>結論</strong>：以 <strong>PostgreSQL ＋ pgvector</strong> 作為預設向量庫——同時滿足地端與雲端、與現有 EF Core/權控自然整合、維運成本低；向量量體成長後再評估 Qdrant。</p>
+<blockquote><p>註：現有系統開發用 SQLite、正式用 SQL Server。知識庫索引建議獨立採 PostgreSQL＋pgvector（業務資料與向量索引可分庫），避免綁死 SQL Server 的向量支援差異；最終資料庫拓樸列入 <a href="../../docs/strategy/open-questions-risks.html">05 待釐清</a>。</p></blockquote>
+<hr>
+<h2 id="四embedding-與-llm-選型原則" class="t4">四、Embedding 與 LLM 選型原則</h2>
+<ul><li><strong>抽象優先</strong>：定義 <code>IEmbeddingProvider</code> / <code>IChatCompletionProvider</code> 介面，雲端與地端各一實作，由設定切換（呼應現有快取/OpenAI 設定模式）。</li><li><strong>雲端模式</strong>：用成熟雲端 Embedding／LLM，先求功能與品質。</li><li><strong>地端模式</strong>：經內部 LLM 閘道管控，可換地端開源模型；品質/算力為已知風險（見 <a href="../../docs/strategy/open-questions-risks.html">05</a>）。</li><li><strong>繁體中文</strong>：延用現有 OpenCC 繁體化慣例，確保知識庫與答案皆為台灣繁體。</li></ul>
+<hr>
+<h2 id="五企業環境必備能力" class="t5">五、企業環境必備能力</h2>
+<p>這三項是「能不能在企業落地」的關鍵，必須內建而非事後補。</p>
+<h3 id="1-權控延伸現有團隊權控">1. 權控（延伸現有團隊權控）</h3>
+<ul><li>現況：紀錄層級的團隊權控（<code>IRecordAccessScopeProvider</code> ＋ <code>TagStringHelper</code>），非管理員只看「無團隊(公開)或與角色團隊交集」的紀錄。</li><li>延伸：知識單元（chunk）繼承來源文件的 Teams 標籤；<strong>檢索時即過濾</strong>（在向量查詢條件帶入團隊範圍，而非取回後再濾），避免越權內容進入 LLM 上下文。</li></ul>
+<h3 id="2-敏感資訊遮罩">2. 敏感資訊遮罩</h3>
+<ul><li>在清洗階段做 PII/機密遮罩，索引「遮罩後」內容；原文另存受控。</li><li>問答回覆同樣套遮罩，避免從上下文洩漏。</li></ul>
+<h3 id="3-存取日誌與稽核">3. 存取日誌與稽核</h3>
+<ul><li>記錄「誰、何時、問了什麼、命中哪些來源、回了什麼」。</li><li>延用現有 NLog 與請求計時/例外記錄基礎，擴充查詢稽核軌跡。</li></ul>
+<hr>
+<h2 id="六推薦架構單一明確建議" class="t6">六、推薦架構（單一明確建議）</h2>
+<blockquote><p><strong>「蒸餾預編譯的 LLM 知識 Wiki」＋「混合檢索（向量 pgvector ＋ 關鍵字）＋ rerank」雙層，加上權控過濾 ＋ 遮罩 ＋ 稽核；供應商（Embedding/LLM）可由設定在雲端/地端切換。</strong></p></blockquote>
+<p>資料流：</p>
+<pre><code>來源內容(已匯入)
+   │
+   ▼ 清洗：去重/品質過濾 → 遮罩 → 分類標籤 → 摘要/重點擷取
+   ├─▶ 知識蒸餾：LLM 萃取為 Wiki 實體頁(Markdown, [[wiki-links]])
+   │      （繼承來源 Teams 標籤；定期 lint/maintain 維護一致性）
+   ▼ 切塊(chunk)（繼承來源 Teams 權控標籤）
+   ▼ Embedding（雲端或地端，介面可切換）
+   ▼ 寫入索引：PostgreSQL + pgvector（向量）＋ 全文/關鍵字（Wiki 頁與 chunk 皆索引）
+─────────────────────────────────────────────
+查詢：使用者提問
+   ▼ 套團隊權控過濾（檢索層即過濾）
+   ▼ 先讀 Wiki 精煉條目；必要時回退混合檢索(向量+關鍵字)→ rerank 取證據
+   ▼ 組裝上下文（遮罩後內容＋出處）
+   ▼ LLM 生成帶出處答案（雲端或地端）
+   ▼ 記錄稽核軌跡（好答案可回填為新 Wiki 頁）</code></pre>
+<h3 id="與現有系統的整合點">與現有系統的整合點</h3>
+<ul><li><strong>匯入/處理管線</strong>：沿用既有非同步佇列 ＋ 背景服務模式（<code>TranscriptionBackgroundService</code> / <code>DocumentExtractionBackgroundService</code>），新增「清洗」與「索引」管線。</li><li><strong>清洗輸入</strong>：<code>DocumentExtractionProcessor</code>（MarkItDown 產出 Markdown）與轉錄逐字稿，是清洗階段的天然輸入。</li><li><strong>權控</strong>：<code>TagStringHelper</code> 的團隊權控述詞延伸到 chunk 級檢索過濾。</li><li><strong>設定驅動</strong>：延用 appsettings＋環境變數注入（如現有 OpenAI/Redis 模式）切換供應商與部署模式。</li><li><strong>資料層</strong>：沿用 EF Core 與「雙資料庫 migration」慣例；向量索引獨立於 PostgreSQL＋pgvector。</li></ul>
+<blockquote><p>具體改造切入點與檔案路徑見 <a href="../../docs/strategy/dev-roadmap.html">04 開發建議與路線圖</a>的「初步技術驗證」。</p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（策略與規劃）</h3><ul><li><a href="../../docs/strategy/scope-and-vision.html">計畫範圍與遠景</a></li><li><a href="../../docs/strategy/business-value.html">商業價值與行銷策略</a></li><li><a href="../../docs/strategy/dev-roadmap.html">開發建議與路線圖</a></li><li><a href="../../docs/strategy/open-questions-risks.html">待釐清問題與技術風險清單</a></li><li><a href="../../docs/strategy/expected-deliverables.html">期望產出清單</a></li><li><a href="../../docs/strategy/gstack-playbook.html">以 gstack 技能精煉計畫的執行流程（Playbook）</a></li><li><a href="../../docs/strategy/cleaning-stage-design.html">資料清洗階段設計與分析</a></li><li><a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a></li><li><a href="../../docs/strategy/source-cleaning-value.html">知識來源管理與資料清洗：功能、價值與行銷</a></li><li><a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：功能、欄位、價值與行銷</a></li><li><a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格</a></li><li><a href="../../docs/strategy/market-analysis.html">知識庫產品市場分析與擴展方向</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一檢索架構選項比較單一-vs-混合">一、檢索架構選項比較（單一 vs 混合）</a><a class="l3" href="#llm-知識-wikikarpathy-概念與蒸餾">LLM 知識 Wiki（Karpathy 概念）與蒸餾</a><a class="l2" href="#二地端-vs-雲端取捨">二、地端 vs 雲端取捨</a><a class="l2" href="#三向量庫選型中型規模">三、向量庫選型（中型規模）</a><a class="l2" href="#四embedding-與-llm-選型原則">四、Embedding 與 LLM 選型原則</a><a class="l2" href="#五企業環境必備能力">五、企業環境必備能力</a><a class="l3" href="#1-權控延伸現有團隊權控">1. 權控（延伸現有團隊權控）</a><a class="l3" href="#2-敏感資訊遮罩">2. 敏感資訊遮罩</a><a class="l3" href="#3-存取日誌與稽核">3. 存取日誌與稽核</a><a class="l2" href="#六推薦架構單一明確建議">六、推薦架構（單一明確建議）</a><a class="l3" href="#與現有系統的整合點">與現有系統的整合點</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/strategy/03-知識庫架構研究與建議.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>五支清單修正分頁順序未定義，兩個產生流程補上防重入（1.0.72→1.0.73）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>五支清單修正分頁順序未定義，兩個產生流程補上防重入（1.0.72→1.0.73）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-26</li><li>版本：1.0.72 → 1.0.73</li><li>類型：資料正確性修正（兩項獨立）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>兩件都屬於「使用者已經受影響、但不會有任何錯誤訊息」的類型。</p>
+<h3 id="一五個清單頁的分頁順序未定義">一、五個清單頁的分頁順序未定義</h3>
+<p><code>RoleViewService</code>／<code>MyUserService</code>／<code>MeetingService</code>／<code>MyTasService</code>／<code>ProjectService</code> 的排序邏輯包在 <code>if (!string.IsNullOrWhiteSpace(dataRequest.SortField))</code> 內，之後直接 <code>Skip/Take</code>。<strong>沒有 <code>ORDER BY</code> 的 <code>Skip/Take</code> 結果順序未定義</strong> → 翻頁可能重複顯示或漏掉資料，而且不會報錯。</p>
+<p>⚠️ <strong>這裡有一個關鍵的誤判要記下來</strong>：這個問題被記錄成「外層 <code>if</code> 少了 <code>else</code>」，但<strong>只補 <code>else</code> 修不掉使用者回報的症狀</strong>。</p>
+<p>追查 <code>Web/Components/Views/Admins/RoleViewView.razor.cs</code> 的 <code>OnTableChange</code> 後確認：<code>DataRequest.SortDescending</code> 是 <code>bool?</code>，而每個具名分支的內層是</p>
+<pre><code>dataSource = dataRequest.SortDescending == true
+    ? …OrderByDescending(…)
+    : dataRequest.SortDescending == false
+        ? …OrderBy(…)
+        : dataSource;          // ← 方向為 null 時直接不排序</code></pre>
+<p>而 AntDesign 表頭排序循環到「取消」時，<strong><code>SortField</code> 仍然是欄位名、只有方向變成 <code>null</code></strong>（<code>GetCurrentSortModel</code> 的 <code>?? sortModels.Last()</code> fallback 就是為此存在）。所以使用者回報的「取消排序後翻頁重複」走的是<strong>內層那個洞</strong>，外層 <code>else</code> 根本碰不到。</p>
+<p>全庫 <code>… : dataSource;</code> 共 <strong>37 處</strong>，正好全部落在這五支（Meeting 6／MyTas 11／MyUser 8／Project 9／RoleView 3）。1.0.56 修好 <code>Take</code> 之後，這個洞一直留到現在。</p>
+<h3 id="二依提示詞產生沒有任何防重入">二、「依提示詞產生」沒有任何防重入</h3>
+<p><code>generatingIds</code> 在兩個檢視裡<strong>只寫不讀</strong>（<code>DocumentExtractionView</code> 內連一個讀取點都沒有，等於死狀態）。重複點擊會<strong>同時送兩次 LLM 並寫同一個生成檔</strong>——付兩次 token，且使用者拿到哪一份不確定。</p>
+<p>查證後發現是<strong>兩個</strong>窗口，不是一個：</p>
+<ol><li><code>OnGenerateConfirmAsync</code> 在 <code>generateModalVisible = false</code> <strong>之前</strong>有 <code>await</code>（取萃取文字／原始檔案／逐字稿），那段期間 Modal 的「確定」仍可再按 → 進入本方法兩次。</li><li>第一次的 <code>Task.Run</code> 還在跑時，使用者可再開同一列的「依提示詞產生」再送一次。</li></ol>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="五支改寫為-switch-expression">五支改寫為 switch expression</h3>
+<p>照既有範本（<code>KnowledgeSourceService.cs:99-107</code>、<code>WikiPageService</code>）改為</p>
+<pre><code>dataSource = (dataRequest.SortField, dataRequest.SortDescending) switch
+{
+    (nameof(XxxAdapterModel.Title), true) =&gt; …,
+    (nameof(XxxAdapterModel.Title), false) =&gt; …,
+    …
+    _ =&gt; dataSource.OrderByDescending(x =&gt; x.UpdatedAt).ThenByDescending(x =&gt; x.Id)
+};</code></pre>
+<p>一個 <code>_ =&gt;</code> 同時堵住三個洞（<code>SortField</code> 空、方向 <code>null</code>、欄位名不認得），而且<strong>淨減行數</strong>（<code>MyTasService</code> 那段 90 行 → 26 行）。全庫至此只剩一種排序寫法。</p>
+<p>預設一律「最近更新新到舊 ＋ <code>Id</code> 決定性 tie-break」，與 <code>CategoryService</code>／<code>WorkCategoryService</code>／<code>KnowledgeSourceService</code>／<code>WikiPageService</code> 既有語意完全一致。欄位名已逐支確認：<strong><code>RoleView</code>／<code>MyUser</code> 是 <code>UpdateAt</code>（無 d）</strong>，<code>Meeting</code>／<code>MyTask</code>／<code>Project</code> 是 <code>UpdatedAt</code>。</p>
+<h3 id="產生流程三道守門兩支對稱">產生流程三道守門（兩支對稱）</h3>
+<div class="tw"><table><thead><tr><th>守門</th><th>擋什麼</th></tr></thead><tbody><tr><td><code>generatingIds.Contains(id)</code> 於 <code>OnOpenGenerateAsync</code>／<code>OnGenerateConfirmAsync</code> 開頭</td><td>窗口 ②：背景還在產生時又送一次（開窗前就擋掉）</td></tr><tr><td>新增 <code>generateSubmitting</code> 旗標（<code>try</code>/<code>finally</code> 復位）＋ Modal 的 <code>ConfirmLoading="@generateSubmitting"</code></td><td>窗口 ①：關窗前那段 <code>await</code> 期間重複按確定</td></tr><tr><td>列內產生鈕 <code>Disabled="@generatingIds.Contains(context.Id)"</code></td><td>讓使用者<strong>看得見</strong>「這筆正在跑」，而不是靜默忽略</td></tr></tbody></table></div>
+<p><code>DocumentExtractionView</code> 因為要把守門包進 <code>try</code>/<code>finally</code>，把實際送出的部分抽為 <code>StartGenerateAsync</code>。順便補上 <code>MediaTranscriptionView</code> 缺的 <code>MaskClosable="false"</code>（<code>DocumentExtractionView</code> 原本就有）。</p>
+<p>兩支的 <code>generatingIds</code> 宣告都補了 XML 註解，說明它<strong>只在 renderer 同步情境存取</strong>（背景 <code>Task.Run</code> 內一律經 <code>InvokeAsync</code>），不得從背景執行緒直接讀寫——順帶結掉 backlog 裡「<code>generatingIds</code> 單執行緒不變式註記」那項。</p>
+<h2 id="測試" class="t3">測試</h2>
+<p>686 → <strong>708</strong>（+22，全綠）。</p>
+<h3 id="listdefaultsortpagingtests20-條-附一個誠實的覆蓋率說明"><code>ListDefaultSortPagingTests</code>（20 條）—— 附一個誠實的覆蓋率說明</h3>
+<p>每支 4 條：三種落到 <code>_ =&gt;</code> 的情形（<code>SortField</code> 空／<strong>欄位名還在但方向被取消</strong>／欄位名不認得）＋ 預設方向本身。</p>
+<p>⚠️ <strong>哪一組真正抓得到這個 bug，值得寫清楚以免日後誤判覆蓋率</strong>：</p>
+<ul><li><strong><code>*_DefaultSort_IsUpdate*AtDescending</code> 這 5 條才是。</strong> 它們讓資料<strong>時間遞增</strong>插入，所以正確結果（更新時間遞減）是插入順序的反序；缺少兜底排序時 SQLite 按 rowid ＝插入順序回傳，方向剛好相反 → 紅燈。<strong>修正前已實測這 5 條全紅、修正後全綠。</strong></li><li><strong><code>*_FallbackSort_PagesDoNotOverlap</code> 那 15 條在 SQLite 下修正前也是綠的</strong>——沒有 <code>ORDER BY</code> 時 SQLite 對單表掃描會穩定回傳 rowid 順序，「未定義」在此並未實際發生。保留是為了守住頁數／筆數契約，以及換到 SQL Server 時的回歸，但<strong>不是本 bug 的證明</strong>。</li></ul>
+<blockquote><p>初版測試我把插入順序寫成與預期降冪一致，結果 20 條在錯誤程式碼下全綠。改成時間遞增插入後才真正 RED。這件事本身就說明「先證明測試會紅」不能省。</p></blockquote>
+<p>另外用一支腳本逐支比對改寫前後的 <code>(SortField → 實體欄位)</code> 映射：<strong>RoleView 3／MyUser 8／Meeting 6／MyTas 11／Project 9 全部逐一相符</strong>，確認 37 個三元式攤平時沒有任何欄位被接錯（這是本批最容易靜默出錯的地方——欄位接錯會編譯通過、分頁測試也通過，只是「按標題排序」實際按了別的欄位）。</p>
+<h3 id="generatereentrancyguardtests2-條"><code>GenerateReentrancyGuardTests</code>（2 條）</h3>
+<p>原始碼掃描式守門（範本：<code>LoggingConventionTests</code>／<code>MenuIconTests</code>／<code>CrudActionIconTests</code>）。<strong>刻意不引入 bUnit</strong>：測試專案目前沒有，為一個 <code>HashSet.Contains</code> 守門引入元件渲染框架不成比例（違反 CLAUDE.md §2）。測試註解已明確標示這是<strong>文字層守門、不是行為驗證</strong>——移除守門會紅燈，但不保證守門邏輯正確。</p>
+<h2 id="影響與相容性" class="t4">影響與相容性</h2>
+<ul><li>⚠️ <strong>五個清單頁的首屏順序會變動</strong>：改為一律「最近更新新到舊」。先前在未指定排序時實際上是資料庫回傳順序（多半接近插入順序），所以使用者可能感覺到差異。這是修正而非退化——先前那個順序本來就不保證。</li><li>取消表頭排序後翻頁不再重複或漏列。</li><li>產生流程：重複點擊現在會顯示「此筆正在產生中，請等待完成後再送出。」並停用列內按鈕；正常單次操作行為不變。</li><li>無資料庫 migration、無 API 合約變更、<code>DataRequest</code> 契約不變。</li></ul>
+<h2 id="文件同步" class="t5">文件同步</h2>
+<ul><li><code>architecture/開發慣例與限制速查.md</code> §1.2 新增不變量「清單查詢的排序必須無條件收斂到預設值」，明寫<strong>第二個洞（方向為 <code>null</code>）才是實際症狀來源、只補外層 <code>else</code> 修不掉</strong>，並註明 <code>RoleView</code>／<code>MyUser</code> 的欄位名沒有 d。</li><li>同檔 §1.7「依提示詞產生」補上三道防重入守門與 <code>generatingIds</code> 的執行緒不變式。</li><li><code>planning/08-優化建議清單-TODO.md</code>：「產生重入防護」與「<code>generatingIds</code> 單執行緒不變式註記」兩項打勾。</li></ul>
+<h2 id="版本" class="t6">版本</h2>
+<ul><li><code>appsettings.json</code> <code>SystemVersion</code>：<code>1.0.72</code> → <code>1.0.73</code>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l3" href="#一五個清單頁的分頁順序未定義">一、五個清單頁的分頁順序未定義</a><a class="l3" href="#二依提示詞產生沒有任何防重入">二、「依提示詞產生」沒有任何防重入</a><a class="l2" href="#變更">變更</a><a class="l3" href="#五支改寫為-switch-expression">五支改寫為 switch expression</a><a class="l3" href="#產生流程三道守門兩支對稱">產生流程三道守門（兩支對稱）</a><a class="l2" href="#測試">測試</a><a class="l3" href="#listdefaultsortpagingtests20-條-附一個誠實的覆蓋率說明">ListDefaultSortPagingTests（20 條）—— 附一個誠實的覆蓋率說明</a><a class="l3" href="#generatereentrancyguardtests2-條">GenerateReentrancyGuardTests（2 條）</a><a class="l2" href="#影響與相容性">影響與相容性</a><a class="l2" href="#文件同步">文件同步</a><a class="l2" href="#版本">版本</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-26-清單預設排序與產生防重入.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

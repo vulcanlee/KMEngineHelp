@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>階段三：知識庫與 RAG 設計規格｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 策略與規劃</p><header class="hero"><div class="kicker">策略與規劃</div><h1>階段三：知識庫與 RAG 設計規格</h1></header><div class="docwrap"><main><blockquote><p>本文件是知識庫計畫<strong>階段三（檢索 / RAG / 知識查詢）</strong>的設計規格，承接階段一（資料清洗）與階段二（知識頁審核）的產出，作為後續實作的藍圖。 規格沿用既有研究與工程慣例，與 <a href="../../docs/strategy/architecture-research.html"><code>03-知識庫架構研究與建議</code></a>、<a href="../../docs/strategy/dev-roadmap.html"><code>04-開發建議與路線圖</code></a>、<a href="../../docs/strategy/open-questions-risks.html"><code>05-待釐清問題與技術風險清單</code></a>、<a href="../../docs/prd/pdf-rag-prd-86d843f1.html"><code>prd/PDF型RAG處理-prd</code></a> 對齊。 疑問緣起見 <a href="../../docs/archive/10-todo-2aadf980.html"><code>planning/10-知識蒸餾與問答疑問釐清及需求</code></a> 第 6 節。</p>
+<p><strong>本文件為設計規格（藍圖）。</strong> 文中的資料模型、介面、管線為撰寫當時（版本 0.2.120，2026-06-26）的設計；<strong>對應實作已於 0.2.123–0.2.128 完成</strong>（嵌入索引、混合檢索、跨來源問答、檢索品質評測），落地細節以程式、changelog 與 <a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a> 為準。</p>
+<p><strong>落地差異提醒（0.2.141）</strong>：早期藍圖曾規劃 sqlite-vec / SQL Server VECTOR；目前實作採 <code>VectorEmbedding.Embedding</code> 的可攜 <code>byte[]</code>（float32 打包）與應用層 cosine 搜尋。切塊參數已由 <code>Chunker</code> 常數移至 <code>SystemSettings.Retrieval</code>，詳見 <a href="../../docs/architecture/rag-design.html#%E4%BA%8C%E5%88%87%E5%A1%8A%E8%88%87%E7%B4%A2%E5%BC%95">知識庫 RAG 設計與執行 §二</a>。</p></blockquote>
+<hr>
+<h2 id="1-背景與目標" class="t1">1. 背景與目標</h2>
+<h3 id="11-承接前兩階段">1.1 承接前兩階段</h3>
+<ul><li><strong>階段一（清洗）</strong>：把匯入素材（音訊/影音/文件/圖片）聚合為知識來源，經五步清洗（去重/遮罩/分類/摘要/信心）產出 <code>CleanedContentRelativePath</code> 乾淨內容。</li><li><strong>階段二（蒸餾）</strong>：把已清洗來源蒸餾為多筆互連 <code>WikiPage</code>（一概念一頁、<code>[[link]]</code> 互連、繼承 Teams、含信心與人工核准）。</li><li><strong>階段三（本規格）</strong>：把「已清洗、已蒸餾、已審核」的知識接上<strong>向量索引 + 權控檢索 + 跨來源問答</strong>，讓使用者用自然語言跨整個知識庫提問，並得到<strong>附出處、受權控</strong>的答案。</li></ul>
+<h3 id="12-目標場景">1.2 目標場景</h3>
+<p>以「員工手冊：入職滿 3 年可享什麼健康檢查福利」為代表——問題本質上要<strong>跨多筆來源</strong>、做<strong>語意檢索</strong>、答案要能<strong>回溯到原始條款/檔案</strong>，且<strong>依使用者身份</strong>只看得到有權的內容。這正是現有單一來源問答（<code>KnowledgeSourceChatService</code>，無向量、無跨來源）做不到、本階段要補齊的能力。</p>
+<h3 id="13-本規格鎖定的決策">1.3 本規格鎖定的決策</h3>
+<div class="tw"><table><thead><tr><th>#</th><th>決策</th><th>內容</th></tr></thead><tbody><tr><td>1</td><td>本輪產出</td><td>設計規格文件（不寫程式）</td></tr><tr><td>2</td><td>檢索範圍</td><td><strong>跨來源知識庫</strong>（一次檢索整庫）</td></tr><tr><td>3</td><td>檢索層策略</td><td><strong>雙層混合</strong>：蒸餾 Wiki 頁做概念導引/命中，清洗內容做事實佐證與出處</td></tr><tr><td>4</td><td>向量庫拓樸</td><td><strong>地端優先、緊貼現有雙庫</strong>：向量存於 <code>VectorEmbedding</code> 表，SQLite 用 sqlite-vec、SQL Server 用 2025 原生 VECTOR，走既有雙 migration；不引入第三種 DB 引擎</td></tr><tr><td>5</td><td>答案出處</td><td><strong>必附出處</strong>，可鑽取回清洗內容/原始素材/原始檔，沿用 PDF RAG PRD §九 引用慣例</td></tr></tbody></table></div>
+<h3 id="14-非目標本階段不做">1.4 非目標（本階段不做）</h3>
+<ul><li>PDF 結構化解析（原生/掃描/表格/圖表）——屬 <a href="../../docs/prd/pdf-rag-prd-86d843f1.html"><code>prd/PDF型RAG處理</code></a> 範疇，本階段先以現有清洗/蒸餾文字為索引來源。</li><li>rerank 模型（列為 v2 選配，見 §7.4）。</li><li>多實例水平擴展競態防護（見 <code>planning/09</code>）。</li></ul>
+<hr>
+<h2 id="2-架構總覽" class="t2">2. 架構總覽</h2>
+<h3 id="21-雙層混合檢索流程">2.1 雙層混合檢索流程</h3>
+<pre><code>使用者提問（多輪）
+   │  取得 RecordAccessScope（IsAdmin, Teams）
+   ▼
+查詢嵌入（IEmbeddingClient.EmbedAsync）
+   ▼
+混合檢索（檢索層即套團隊權控過濾）
+   ├─ 第一層：蒸餾 Wiki 頁（概念導引、命中定位）  ← 向量 + 全文
+   └─ 第二層：清洗內容 chunk（事實佐證、出處）    ← 向量 + 全文
+   ▼
+分數融合 + 取 topK（依門檻過濾）
+   ▼
+組裝 context（精煉 Wiki 條目 + 佐證 chunk，附 metadata/出處）
+   ▼
+組 prompt（四層提示詞解析；「無依據時明說」）
+   ▼
+LLM 串流回答（IChatConversationClient.StreamAsync）
+   ▼
+答案 + 出處清單（可鑽取至來源→成員→原始檔，受同一權控）
+   ▼
+寫稽核軌跡（誰/何時/問什麼/命中哪些 chunk/答什麼）</code></pre>
+<h3 id="22-為什麼是雙層">2.2 為什麼是雙層</h3>
+<ul><li><strong>蒸餾 Wiki 頁</strong>精煉、概念化、可解釋，適合做「概念命中與導引」，作答品質高、token 省。</li><li><strong>清洗內容 chunk</strong>保留事實細節（如具體數字/條款），適合做「佐證與出處」，補足蒸餾可能遺失的細節並提供可追溯來源。</li><li>兩者皆已<strong>去敏（遮罩）</strong>，皆<strong>繼承 Teams</strong>，可在同一檢索與權控框架下處理。</li></ul>
+<hr>
+<h2 id="3-向量庫設計緊貼現有雙庫" class="t3">3. 向量庫設計（緊貼現有雙庫）</h2>
+<h3 id="31-設計取向與對-pgvector-的偏離說明">3.1 設計取向與對 pgvector 的偏離說明</h3>
+<p><a href="../../docs/strategy/architecture-research.html"><code>strategy/03 §三</code></a> 原推薦 <strong>PostgreSQL + pgvector</strong> 為向量庫預設。本規格<strong>刻意改採「緊貼現有 SQLite／SQL Server 雙庫」</strong>，理由與取捨如下：</p>
+<p><strong>改變理由</strong></p>
+<ul><li><strong>避免第三種 DB 引擎</strong>：現有系統嚴格維持 SQLite（開發/單機）與 SQL Server（正式）雙庫＋雙 migration 不變量；導入 PostgreSQL 會新增部署、備援、維運面，違背「可立即啟動、單機可跑」的產品取向。</li><li><strong>資料不外流 / 地端優先</strong>：向量與內容留在既有業務庫，與「地端優先」一致。</li><li><strong>沿用既有慣例</strong>：向量表走既有雙 migration、EF Core、團隊權控述詞，學習與維護成本最低。</li></ul>
+<p><strong>取捨（須知曉的限制）</strong></p>
+<ul><li><strong>SQL Server 需 2025+</strong>（原生 <code>VECTOR</code> 型別與向量函式）；若客戶環境較舊，退而求其次以「應用層暴力比對」或延後升級。</li><li><strong>sqlite-vec 規模上限較低</strong>：適合單機/中小知識庫；資料量大時檢索延遲上升。</li><li><strong>保留升級路徑</strong>：以 <code>IVectorStore</code> 介面抽象向量寫入/查詢（見 §3.4），日後若規模成長，可在不動上層的情況下換成 pgvector 或地端 Qdrant。</li></ul>
+<blockquote><p>本偏離須回填 <code>strategy/05</code> 的 T1（向量庫拓樸）決策欄。</p></blockquote>
+<h3 id="32-vectorembedding-資料模型設計">3.2 <code>VectorEmbedding</code> 資料模型（設計）</h3>
+<p>新增實體 <code>VectorEmbedding</code>（仿 <code>WikiPage.cs</code> 寫法，置於 <code>KnowledgeExtraction.AccessDatas/Models/</code>）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td><code>Id</code></td><td>int</td><td>主鍵</td></tr><tr><td><code>KnowledgeSourceId</code></td><td>int</td><td>所屬知識來源（FK，Cascade）——跨來源檢索與權控的根</td></tr><tr><td><code>SourceLayer</code></td><td>string</td><td>來源層：<code>Wiki</code>（蒸餾頁）/ <code>Cleaned</code>（清洗內容 chunk）</td></tr><tr><td><code>WikiPageId</code></td><td>int?</td><td>當 <code>SourceLayer=Wiki</code> 時指向 <code>WikiPage</code>（FK，Cascade）</td></tr><tr><td><code>ChunkText</code></td><td>string</td><td>該 chunk 的文字內容（嵌入與作答佐證用）</td></tr><tr><td><code>Embedding</code></td><td>向量</td><td>向量值：<strong>固定 1024 維</strong>（SQLite sqlite-vec 為 1024 長度 float 陣列、SQL Server <code>VECTOR(1024)</code>）。維度定案理由與模型見 §4.4</td></tr><tr><td><code>Teams</code></td><td>string?</td><td><strong>繼承來源/頁的 Teams</strong>（分隔字串，權控用）</td></tr><tr><td><code>Categories</code></td><td>string?</td><td>繼承的分類標籤</td></tr><tr><td><code>Ordinal</code></td><td>int</td><td>chunk 在來源內的序號</td></tr><tr><td><code>AnchorRef</code></td><td>string?</td><td>位置錨點（章節/段落/條款編號，供出處定位）</td></tr><tr><td><code>ContentHash</code></td><td>string</td><td>chunk 內容雜湊（增量重建/去重用）</td></tr><tr><td><code>EmbeddingModel</code></td><td>string</td><td>產生此向量的模型名（換模型時可辨識重建）</td></tr><tr><td><code>CreatedAt</code> / <code>UpdatedAt</code></td><td>DateTime</td><td>時間戳</td></tr></tbody></table></div>
+<p><strong>索引/關聯</strong></p>
+<ul><li><code>OnModelCreating</code>：<code>VectorEmbedding → KnowledgeSource</code>、<code>VectorEmbedding → WikiPage</code> 皆 <code>OnDelete(Cascade)</code>（仿既有 <code>WikiPage → KnowledgeSource</code>）。</li><li>一般查詢索引：<code>(KnowledgeSourceId, SourceLayer)</code>；向量索引依各 provider 機制建立（sqlite-vec 虛擬表 / SQL Server 向量索引）。</li></ul>
+<h3 id="33-雙-migration-策略">3.3 雙 migration 策略</h3>
+<ul><li>同一模型變更，於 <code>KnowledgeExtraction.AccessDatas</code>（SQLite）與 <code>KnowledgeExtraction.AccessDatas.SqlServerMigrations</code>（SQL Server）<strong>各產一套 migration</strong>（沿用既有不變量）。</li><li>向量欄在兩 provider 的落地不同：SQLite 經 sqlite-vec（可能需虛擬表 + 對應主表），SQL Server 用原生 <code>VECTOR(1024)</code>。此差異以 provider 條件化的 migration 處理；<code>IVectorStore</code> 抽象隔離上層。</li><li><strong>維度固定 1024</strong>（見 §4.4）：維度即 schema 承諾；日後若改維度，需改 <code>VECTOR(n)</code> 的雙 migration 並全量重建索引。</li></ul>
+<h3 id="34-向量存取抽象">3.4 向量存取抽象</h3>
+<p>定義 <code>IVectorStore</code>（隔離 provider 差異與未來升級）：</p>
+<ul><li><code>UpsertAsync(IEnumerable&lt;VectorEmbedding&gt;, ct)</code>：寫入/更新向量。</li><li><code>SearchAsync(float[] queryVector, VectorQuery query, ct)</code>：向量近鄰查詢，<code>VectorQuery</code> 帶 <code>TopK</code>、<code>SourceLayer</code> 篩選、<code>Teams</code> 權控述詞、相似度門檻。</li><li>預設實作 <code>DualDbVectorStore</code>（依 <code>DatabaseProvider</code> 走 sqlite-vec 或 SQL Server VECTOR）。</li></ul>
+<hr>
+<h2 id="4-嵌入與供應商" class="t4">4. 嵌入與供應商</h2>
+<h3 id="41-iembeddingclient-介面仿-ichatcompletionclient">4.1 <code>IEmbeddingClient</code> 介面（仿 <code>IChatCompletionClient</code>）</h3>
+<pre><code>public interface IEmbeddingClient
+{
+    Task&lt;IReadOnlyList&lt;float[]&gt;&gt; EmbedAsync(IReadOnlyList&lt;string&gt; texts, CancellationToken ct);
+}</code></pre>
+<ul><li>實作 <code>OpenAIEmbeddingClient</code>：仿 <code>OpenAIChatCompletionClient.cs</code> 結構（<code>AddHttpClient</code>、<code>IOptions&lt;OpenAISettings&gt;</code>、token 用量記錄），呼叫 <code>/embeddings</code> 端點。</li><li>批次嵌入（一次多筆 text）以降低往返成本。</li></ul>
+<h3 id="42-雲端地端切換沿用既有模式">4.2 雲端/地端切換（沿用既有模式）</h3>
+<ul><li>在 <code>OpenAISettings</code>（<code>Models/Systems/OpenAISettings.cs</code>）新增嵌入相關欄位，並仿 <code>ResolveChatLlm()</code>/<code>ChatLlmConfig</code> 新增 <code>ResolveEmbeddingLlm()</code>/<code>EmbeddingLlmConfig</code>：</li><li>雲端：<code>EmbeddingModel</code>（預設 <code>text-embedding-3-large</code>）、<code>EmbeddingDimensions</code>（預設 <code>1024</code>，對應請求的 <code>dimensions</code> 參數）、沿用 <code>BaseUrl</code>/<code>ApiKey</code>。</li><li>地端：<code>LocalEmbeddingModel</code>（預設 <code>bge-m3</code>）、沿用 <code>LocalBaseUrl</code>/<code>LocalApiKey</code>。</li><li><code>EmbeddingProvider</code>（<code>Cloud</code>/<code>Local</code>）切換旗標，預設沿用 <code>GenerationProvider</code> 取向。</li><li><code>appsettings.json</code> 的 <code>OpenAISettings</code> 區段新增上述欄位；<code>IsEmbeddingConfigured()</code> 驗證。</li></ul>
+<div class="tw"><table><thead><tr><th>供應方</th><th>預設模型</th><th>維度</th><th>備註</th></tr></thead><tbody><tr><td>雲端</td><td><code>text-embedding-3-large</code></td><td>1024</td><td>帶 <code>dimensions=1024</code>（Matryoshka 截短，品質損失極小）</td></tr><tr><td>地端</td><td><code>bge-m3</code></td><td>1024</td><td>原生 1024、繁中多語表現佳，經 OpenAI 相容地端端點</td></tr></tbody></table></div>
+<blockquote><p>兩者皆 1024，故 <code>VECTOR(1024)</code> 在雲端/地端間<strong>可互換、不改 schema</strong>（換模型族仍建議重建索引以維品質，但欄位維度不變）。</p></blockquote>
+<h3 id="43-無金鑰降級">4.3 無金鑰降級</h3>
+<ul><li><strong>無金鑰降級</strong>：未設定嵌入金鑰/端點時，索引管線標記「未設定嵌入，略過」，問答退回現有單一來源清洗/原始內容模式（不致整站不可用）——沿用清洗/蒸餾既有降級精神。</li></ul>
+<h3 id="44-embedding-產生策略與維度已定案">4.4 Embedding 產生策略與維度（已定案）</h3>
+<p><strong>維度 = 1024</strong>（schema 硬承諾，<code>VECTOR(1024)</code>）。產生方式與策略如下：</p>
+<ol><li><strong>產生對象</strong>：對每個 chunk 的 <code>ChunkText</code>（Wiki 層 + Cleaned 層）產生向量；查詢字串在檢索時<strong>即時嵌入</strong>。</li><li><strong>流程</strong>：切塊（§5）→ <strong>批次</strong>送多筆 text（降低往返成本）→ <code>IEmbeddingClient.EmbedAsync</code> → <strong>L2 正規化</strong> → 存固定長度 <code>float[1024]</code>。</li><li><strong>相似度</strong>：<strong>餘弦相似度</strong>（向量已 L2 正規化，等同內積）。</li><li><strong>對稱密集檢索</strong>：文件與查詢使用<strong>同一模型、同一維度</strong>嵌入（非 query/document 雙塔）。</li><li><strong>維度互換</strong>：1024 為雲端（<code>text-embedding-3-large</code> + <code>dimensions=1024</code>）與地端（<code>bge-m3</code> 原生 1024）的共同維度，使供應方可切換而不動 schema。</li><li><strong>模型追蹤與重建</strong>：<code>VectorEmbedding.EmbeddingModel</code> 記錄來源模型——</li><li><strong>換模型（同 1024 維）</strong> → 建議<strong>全量重建索引</strong>以維持向量空間一致（不可混用不同模型的向量比相似度）。</li><li><strong>改維度</strong> → 需改 <code>VECTOR(n)</code> 的<strong>雙 migration</strong> + 全量重建。</li><li><strong>繁體中文</strong>：內容在清洗階段已 OpenCC 繁化，直接以繁中嵌入；選用多語模型確保召回品質。</li><li><strong>降級</strong>：未設定嵌入端點時略過索引、問答退回單一來源模式（見 §4.3）。</li></ol>
+<blockquote><p>殘留待辦：地端 <code>bge-m3</code> 對本資料的實際召回品質，需於 PoC 以評測集實測並微調（見 §11、§12.3 Q1）。</p></blockquote>
+<hr>
+<h2 id="5-切塊chunking與-metadata" class="t5">5. 切塊（Chunking）與 Metadata</h2>
+<h3 id="51-切塊原則沿用-04--pdf-rag-prd-六">5.1 切塊原則（沿用 04 + PDF RAG PRD §六）</h3>
+<ul><li><strong>段落/語意感知切片</strong>，非機械固定字數；盡量不拆斷標題與其正文、不拆斷完整條款。</li><li>重疊（overlap）保留少量上下文以利語意連續。</li><li><strong>chunk 繼承來源/頁的 Teams 與 Categories</strong>（權控與篩選用）。</li></ul>
+<h3 id="52-兩層的切塊輸入">5.2 兩層的切塊輸入</h3>
+<ul><li><strong>Wiki 層</strong>：每個 <code>WikiPage</code> 內容（通常已是一概念一頁，多數情況一頁一 chunk 或依小節切）。</li><li><strong>Cleaned 層</strong>：<code>CleanedContentRelativePath</code> 的清洗 Markdown，依段落/小節切為多 chunk。</li></ul>
+<h3 id="53-metadata-欄位出處定位">5.3 Metadata 欄位（出處定位）</h3>
+<p>每 chunk 帶：<code>KnowledgeSourceId</code>、<code>SourceLayer</code>、<code>WikiPageId?</code>、<code>Ordinal</code>、<code>AnchorRef</code>（章節/段落/條款）、<code>Teams</code>、<code>Categories</code>、<code>ContentHash</code>。沿用 PDF RAG PRD §六 的 metadata 精神（頁碼/表格編號等待 PDF 階段補）。</p>
+<h3 id="54-待調參數標示待-poc-實測">5.4 待調參數（標示，待 PoC 實測）</h3>
+<ul><li>chunk 目標長度、重疊大小、邊界判定法（標點/小節/語意）。</li><li>依 PoC 召回率與成本迭代（見 §11、<code>strategy/05 T2</code>）。</li></ul>
+<hr>
+<h2 id="6-嵌入索引建立管線仿蒸餾三層" class="t6">6. 嵌入索引建立管線（仿蒸餾三層）</h2>
+<h3 id="61-三件套仿-distillations">6.1 三件套（仿 <code>Distillations/</code>）</h3>
+<ul><li><code>IEmbeddingIndexQueue</code> / <code>EmbeddingIndexQueue</code>：<code>Channel.CreateUnbounded&lt;int&gt;(SingleReader)</code>，Singleton 註冊（仿 <code>IDistillationQueue</code>/<code>DistillationQueue</code>）。</li><li><code>EmbeddingIndexBackgroundService</code>：<code>ExecuteAsync</code> 迴圈消費、<code>RecoverPendingAsync</code> 重啟回復、取消註冊（仿 <code>DistillationBackgroundService</code>）。</li><li><code>EmbeddingIndexProcessor</code>：狀態機 + 重試（<code>PipelineRetryHelper</code>）+ 進度（<code>UpdateStatusAsync</code>）+ 取消（<code>PipelineCancellationRegistry</code>，新增 <code>PipelineNames.EmbeddingIndex</code>）。</li></ul>
+<h3 id="62-處理核心processcoreasync-設計">6.2 處理核心（<code>ProcessCoreAsync</code> 設計）</h3>
+<ol><li>讀取來源的清洗內容（<code>CleanedContentRelativePath</code> → 根 <code>ExternalFileSystem.CleanedSourcePath</code>）與其蒸餾頁（<code>WikiPage.ContentRelativePath</code> → 根 <code>ExternalFileSystem.WikiOutputPath</code>），<code>NormalizePath</code> + <code>File.ReadAllTextAsync(UTF8)</code>。</li><li>切塊（§5），繼承 Teams/Categories，算 <code>ContentHash</code>。</li><li>比對既有 <code>VectorEmbedding</code>（依 <code>ContentHash</code>）做<strong>增量重建</strong>：新增/變更才呼叫 <code>IEmbeddingClient.EmbedAsync</code>，刪除孤兒 chunk。</li><li><code>IVectorStore.UpsertAsync</code> 寫入向量。</li><li>進度與狀態回寫。</li></ol>
+<h3 id="63-狀態欄位">6.3 狀態欄位</h3>
+<p>在 <code>KnowledgeSource</code>（必要時 <code>WikiPage</code>）新增 <code>EmbeddingIndexStatus</code>（待索引/等待中/處理中/已索引/失敗/已取消）、<code>EmbeddingIndexProgressPercentage</code>、<code>EmbeddingIndexErrorMessage</code>、<code>IndexedAt</code>（仿既有 <code>DistillationStatus</code> 等欄位）。模型變更須再產雙 migration。</p>
+<h3 id="64-觸發時機">6.4 觸發時機</h3>
+<ul><li>蒸餾完成（<code>DistillationStatus=已蒸餾</code>）後自動入列；</li><li>清洗內容更新或 Wiki 頁編修/核准後標記需重建；</li><li>提供手動「重建索引」入口（仿既有重蒸餾）。</li></ul>
+<hr>
+<h2 id="7-混合檢索與雙層策略" class="t7">7. 混合檢索與雙層策略</h2>
+<h3 id="71-混合檢索沿用-03-一推薦">7.1 混合檢索（沿用 03 §一推薦）</h3>
+<ul><li><strong>向量檢索</strong>（語意）＋<strong>全文檢索</strong>（精確關鍵字：SQLite FTS5 / SQL Server 全文索引或 <code>LIKE</code> 後備）並行，<strong>分數融合</strong>後取 topK。</li><li>兩路皆在<strong>檢索層即套團隊權控過濾</strong>（§8）。</li></ul>
+<h3 id="72-雙層取用規則">7.2 雙層取用規則</h3>
+<ol><li>先檢索 <strong>Wiki 層</strong> 取概念命中（導引、定義、跨主題歸納）。</li><li>再檢索 <strong>Cleaned 層</strong> 取事實佐證 chunk（細節、數字、條款，供出處）。</li><li>context 組裝：精煉 Wiki 條目在前（導引），佐證 chunk 在後（事實 + 出處 metadata）。</li></ol>
+<h3 id="73-分數融合設計">7.3 分數融合（設計）</h3>
+<ul><li>初版採加權分數融合（向量分數 vs 全文分數權重），權重與相似度門檻為<strong>待調參數</strong>（§11、<code>strategy/05 T3</code>）。</li><li>對同一概念的 Wiki/Cleaned 命中做去重與互補（避免重複塞入相同事實）。</li></ul>
+<h3 id="74-rerankv2-選配">7.4 rerank（v2 選配）</h3>
+<ul><li>初版不導入 rerank 模型；待評測顯示融合不足時，再評估 cross-encoder/BGE-rerank 的準確度/延遲取捨（<code>strategy/05 T3</code>）。</li></ul>
+<hr>
+<h2 id="8-權控檢索資安關鍵" class="t8">8. 權控檢索（資安關鍵）</h2>
+<h3 id="81-核心不變量">8.1 核心不變量</h3>
+<ul><li><strong>chunk 繼承來源/頁 Teams</strong>（寫入 <code>VectorEmbedding.Teams</code>）。</li><li><strong>檢索查詢即套權控過濾</strong>（非取回後再濾）：非管理員只看「無團隊（公開）或與其角色團隊交集」的 chunk。</li><li>取得範圍：<code>IRecordAccessScopeProvider.GetAsync()</code> → <code>RecordAccessScope(IsAdmin, Teams)</code>。</li><li>SQL 路徑沿用 <code>TagStringHelper.BuildTeamAccessPredicate&lt;VectorEmbedding&gt;(x =&gt; x.Teams, scope.Teams)</code>；向量近鄰結果若無法直接帶述詞，於同一查詢以 <code>Teams</code> 條件預過濾候選集，<strong>確保越權內容永不進入候選與 LLM context</strong>。</li><li>記憶體端二次校驗用 <code>TagStringHelper.IsTeamAccessible</code>。</li></ul>
+<h3 id="82-跨來源逐筆過濾">8.2 跨來源逐筆過濾</h3>
+<ul><li>跨來源檢索時，<strong>每一筆命中</strong>都要過權控；管理員不受限。</li><li>答案的<strong>出處顯示與原始檔下載</strong>也受同一權控（下載沿用既有 Controller 權控，如 <code>DocumentExtractionService.GetMarkdownAsync</code> 內的 <code>IsTeamAccessible</code>）。</li></ul>
+<h3 id="83-測試用例驗收必含">8.3 測試用例（驗收必含）</h3>
+<ul><li>非授權團隊內容<strong>不得</strong>出現在檢索結果、context、答案、出處或下載。</li><li>公開（無團隊）內容對所有人可見；管理員可見全部。</li><li>多輪對話每輪檢索都重新套 scope（避免身份切換後沿用舊 context）。</li></ul>
+<hr>
+<h2 id="9-問答編排與提示詞" class="t1">9. 問答編排與提示詞</h2>
+<h3 id="91-跨來源問答服務">9.1 跨來源問答服務</h3>
+<ul><li>新增 <code>KnowledgeBaseChatService</code>（或擴充 <code>KnowledgeSourceChatService</code>）支援<strong>跨來源</strong>問答：</li><li><code>PrepareAsync</code>：不再綁單一 <code>id</code>，改為對整庫檢索。</li><li>流程：取 scope → 嵌入 query → 混合檢索（權控）→ 組 context → <code>BuildMessagesAsync</code>（沿用現有四層提示詞 + 詳簡切換）→ <code>IChatConversationClient.StreamAsync</code> 串流。</li><li>沿用現有 <code>ChatMessage</code>、多輪 history、串流 token 日誌。</li></ul>
+<h3 id="92-rag-提示詞槽位沿用四層解析">9.2 RAG 提示詞槽位（沿用四層解析）</h3>
+<ul><li>在 <code>LlmPromptKeys</code> 新增鍵，如 <code>知識庫-系統</code>、<code>知識庫-無依據</code>；於 <code>LlmPromptDefaults</code> 給 fallback；<code>appsettings.json</code> 的 <code>LlmPrompts</code> 加對應欄位。</li><li>預設系統提示精神：「依據下方<strong>附出處的參考資料</strong>作答；<strong>找不到依據時明確說明，不得臆造</strong>；以台灣繁體中文回答。」</li></ul>
+<h3 id="93-context-組裝格式">9.3 context 組裝格式</h3>
+<ul><li>每段參考資料前置出處標頭（來源標題、層別、章節/錨點），讓 LLM 能在答案中引用，並利後處理產生出處清單。</li></ul>
+<hr>
+<h2 id="10-引用與稽核" class="t2">10. 引用與稽核</h2>
+<h3 id="101-答案必附出處">10.1 答案必附出處</h3>
+<ul><li>每個答案附<strong>出處清單</strong>：命中 chunk → 所屬 Wiki 頁/清洗來源 → 知識來源 → 成員（<code>KnowledgeSourceItem</code>）→ 原始素材檔（音訊/影音/文件/圖片），可一路鑽取與下載。</li><li>鑽取鏈沿用既有溯源資料關聯（見 <code>planning/10 §3</code>）；下載受既有權控。</li><li>沿用 <code>prd/PDF型RAG處理-prd.md §九</code> 的引用錨點精神（章節/條款；頁碼/表格待 PDF 階段補）。</li></ul>
+<h3 id="102-稽核軌跡">10.2 稽核軌跡</h3>
+<ul><li>新增查詢稽核（誰、何時、問句、命中的 chunk Id 與分數、回答摘要、套用的 Teams 範圍），供資安稽核與品質回溯。落地形式（資料表 vs 結構化日誌）於實作時定，預設先走結構化 NLog（沿用現有 token/權控日誌慣例）。</li></ul>
+<hr>
+<h2 id="11-評測與品質" class="t3">11. 評測與品質</h2>
+<h3 id="111-新增-rag-檢索評測指標">11.1 新增 RAG 檢索評測指標</h3>
+<ul><li>檢索：Precision / Recall / NDCG@k、命中正確率。</li><li>出處：出處正確率（答案引用是否對應真實 chunk/章節）。</li><li>權控：<strong>越權洩漏測試</strong>（非授權必為 0 命中）。</li><li>效能/成本：檢索延遲、嵌入與 LLM token 用量。</li></ul>
+<h3 id="112-與既有清洗品質評測銜接">11.2 與既有清洗品質評測銜接</h3>
+<ul><li>既有清洗品質評測聚焦<strong>上游清洗品質</strong>（信心門檻 0.70、遮罩召回 ≥0.98、分類 F1 ≥0.70、摘要覆蓋 ≥0.60，已鎖定 2026-06-12）。</li><li>本階段新增<strong>下游檢索/生成品質</strong>評測集（query + 期望命中 chunk + 期望答案 + 期望出處），與既有清洗品質評測頁併行呈現。</li></ul>
+<h3 id="113-poc-驗證與-planning07-第-5-階段合流">11.3 PoC 驗證（與 planning/07 第 5 階段合流）</h3>
+<ul><li>用 1–2 份真實手冊/SOP 走完整「匯入 → 清洗 → 蒸餾 → 索引 → 跨來源問答」，人工檢視答案正確性、出處可追溯、權控正確、遮罩無漏。</li></ul>
+<hr>
+<h2 id="12-實作路線與待決參數" class="t4">12. 實作路線與待決參數</h2>
+<h3 id="121-新增變更清單設計">12.1 新增/變更清單（設計）</h3>
+<div class="tw"><table><thead><tr><th>類別</th><th>項目</th></tr></thead><tbody><tr><td>實體</td><td><code>VectorEmbedding</code>；<code>KnowledgeSource</code>(/<code>WikiPage</code>) 新增 <code>EmbeddingIndexStatus/Progress/Error/IndexedAt</code></td></tr><tr><td>Migration</td><td>SQLite（sqlite-vec）與 SQL Server（2025 VECTOR）各一套</td></tr><tr><td>嵌入</td><td><code>IEmbeddingClient</code> + <code>OpenAIEmbeddingClient</code>；<code>OpenAISettings</code> 新增嵌入欄位與 <code>ResolveEmbeddingLlm()</code></td></tr><tr><td>向量存取</td><td><code>IVectorStore</code> + <code>DualDbVectorStore</code></td></tr><tr><td>管線</td><td><code>IEmbeddingIndexQueue</code>/<code>EmbeddingIndexQueue</code>、<code>EmbeddingIndexBackgroundService</code>、<code>EmbeddingIndexProcessor</code>、<code>PipelineNames.EmbeddingIndex</code></td></tr><tr><td>切塊</td><td><code>Chunker</code>（段落/語意感知）</td></tr><tr><td>檢索</td><td><code>IRetrievalService</code> + 混合檢索/分數融合（權控過濾）</td></tr><tr><td>問答</td><td><code>KnowledgeBaseChatService</code>（跨來源）；RAG 提示詞槽位（<code>LlmPromptKeys</code>/<code>Defaults</code>/<code>appsettings</code>）</td></tr><tr><td>UI</td><td>AI 知識問答頁（跨來源、串流、出處面板與鑽取下載）</td></tr><tr><td>設定</td><td><code>appsettings.json</code> 新增嵌入與檢索參數（模型、維度、topK、權重、門檻、雲端/地端）</td></tr><tr><td>權限三處同步</td><td>新頁面權限需同步 <code>MagicObjectHelper</code>、<code>RolePermissionService</code>、<code>Menu.json</code>（依既有慣例）</td></tr><tr><td>評測</td><td>檢索品質評測集與指標，與清洗品質評測頁銜接</td></tr></tbody></table></div>
+<h3 id="122-建議實作步驟小步驗收">12.2 建議實作步驟（小步驗收）</h3>
+<ol><li>嵌入用戶端 + 設定切換（單測：嵌入回傳維度正確）。</li><li><code>VectorEmbedding</code> 實體 + 雙 migration + <code>IVectorStore</code>（單測：upsert/search round-trip）。</li><li>切塊器 + 嵌入索引管線（驗收：蒸餾完成後自動建索引、可重啟回復、可取消）。</li><li>混合檢索 + 權控過濾（驗收：越權洩漏測試 0 命中）。</li><li>跨來源問答服務 + UI + 出處鑽取（驗收：員工手冊情境端到端）。</li><li>檢索品質評測集與指標（驗收：與清洗品質評測併呈）。✅ 已實作（v0.2.128，獨立「檢索品質評測」頁 <code>/rag-evaluation</code>，檢索 P/R/NDCG/MRR＋出處正確率＋越權洩漏＋延遲；見 <a href="../../docs/changelog/2026-06-26-6-rag-9987f7a3.html">changelog</a>）。</li></ol>
+<h3 id="123-待決待調參數彙整">12.3 待決/待調參數彙整</h3>
+<div class="tw"><table><thead><tr><th>代號</th><th>項目</th><th>現況</th><th>待定</th></tr></thead><tbody><tr><td>T1</td><td>向量庫拓樸</td><td><strong>本規格定為緊貼雙庫（sqlite-vec / SQL Server VECTOR）</strong></td><td>回填 <code>strategy/05</code>；確認 SQL Server 版本</td></tr><tr><td>T2</td><td>切塊參數</td><td>段落/語意感知</td><td>chunk 長度、重疊、邊界判定（PoC 實測）</td></tr><tr><td>T3</td><td>融合與 rerank</td><td>加權分數融合、rerank 列 v2</td><td>權重、門檻、是否導入 rerank</td></tr><tr><td>T4</td><td>chunk 權控落地</td><td>沿用 <code>BuildTeamAccessPredicate</code></td><td>向量查詢與述詞結合的具體寫法</td></tr><tr><td>Q1</td><td>嵌入模型與維度</td><td><strong>已定</strong>：維度 1024；雲端 <code>text-embedding-3-large</code>@1024、地端 <code>bge-m3</code>（見 §4.4）</td><td>地端模型品質的 PoC 實測與微調</td></tr></tbody></table></div>
+<hr>
+<h2 id="13-相依風險與相關文件" class="t5">13. 相依、風險與相關文件</h2>
+<h3 id="131-主要風險沿用-strategy05-風險清單精神">13.1 主要風險（沿用 strategy/05 風險清單精神）</h3>
+<ul><li><strong>越權外洩</strong>（重大）：緩解＝檢索層即過濾、逐筆權控、越權測試、出處/下載受權控。</li><li><strong>地端嵌入品質/算力</strong>（中高）：緩解＝先雲端驗證品質、介面可切換、地端小範圍評估。</li><li><strong>規模上限</strong>（中）：sqlite-vec/SQL Server VECTOR 在大規模下延遲上升；緩解＝<code>IVectorStore</code> 抽象保留升級 pgvector/Qdrant 路徑。</li><li><strong>換嵌入模型需全量重建</strong>（中）：以 <code>EmbeddingModel</code> 欄位辨識；提供重建入口。</li><li><strong>檢索調參複雜度</strong>（中）：以評測集驅動迭代，避免憑感覺調。</li></ul>
+<h3 id="132-相關文件">13.2 相關文件</h3>
+<ul><li><a href="../../docs/strategy/architecture-research.html"><code>strategy/03-知識庫架構研究與建議</code></a>（混合檢索、雙層、供應商抽象；本規格偏離其 pgvector 推薦，理由見 §3.1）</li><li><a href="../../docs/strategy/dev-roadmap.html"><code>strategy/04-開發建議與路線圖</code></a>（階段三範圍與驗收）</li><li><a href="../../docs/strategy/open-questions-risks.html"><code>strategy/05-待釐清問題與技術風險清單</code></a>（T1~T4、Q1、品質門檻）</li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html"><code>prd/PDF型RAG處理-prd</code></a>（切塊 metadata 與引用慣例；PDF 結構化解析為後續）</li><li><a href="../../docs/archive/10-todo-2aadf980.html"><code>planning/10-知識蒸餾與問答疑問釐清及需求</code></a>（疑問緣起、溯源鏈、三層比較）</li><li><a href="../../docs/guides/import-to-knowledge-flow.html"><code>guides/從匯入到知識的操作流程</code></a>（端到端流程現況）</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（策略與規劃）</h3><ul><li><a href="../../docs/strategy/scope-and-vision.html">計畫範圍與遠景</a></li><li><a href="../../docs/strategy/business-value.html">商業價值與行銷策略</a></li><li><a href="../../docs/strategy/architecture-research.html">知識庫架構研究與建議</a></li><li><a href="../../docs/strategy/dev-roadmap.html">開發建議與路線圖</a></li><li><a href="../../docs/strategy/open-questions-risks.html">待釐清問題與技術風險清單</a></li><li><a href="../../docs/strategy/expected-deliverables.html">期望產出清單</a></li><li><a href="../../docs/strategy/gstack-playbook.html">以 gstack 技能精煉計畫的執行流程（Playbook）</a></li><li><a href="../../docs/strategy/cleaning-stage-design.html">資料清洗階段設計與分析</a></li><li><a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a></li><li><a href="../../docs/strategy/source-cleaning-value.html">知識來源管理與資料清洗：功能、價值與行銷</a></li><li><a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：功能、欄位、價值與行銷</a></li><li><a href="../../docs/strategy/market-analysis.html">知識庫產品市場分析與擴展方向</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#1-背景與目標">1. 背景與目標</a><a class="l3" href="#11-承接前兩階段">1.1 承接前兩階段</a><a class="l3" href="#12-目標場景">1.2 目標場景</a><a class="l3" href="#13-本規格鎖定的決策">1.3 本規格鎖定的決策</a><a class="l3" href="#14-非目標本階段不做">1.4 非目標（本階段不做）</a><a class="l2" href="#2-架構總覽">2. 架構總覽</a><a class="l3" href="#21-雙層混合檢索流程">2.1 雙層混合檢索流程</a><a class="l3" href="#22-為什麼是雙層">2.2 為什麼是雙層</a><a class="l2" href="#3-向量庫設計緊貼現有雙庫">3. 向量庫設計（緊貼現有雙庫）</a><a class="l3" href="#31-設計取向與對-pgvector-的偏離說明">3.1 設計取向與對 pgvector 的偏離說明</a><a class="l3" href="#32-vectorembedding-資料模型設計">3.2 VectorEmbedding 資料模型（設計）</a><a class="l3" href="#33-雙-migration-策略">3.3 雙 migration 策略</a><a class="l3" href="#34-向量存取抽象">3.4 向量存取抽象</a><a class="l2" href="#4-嵌入與供應商">4. 嵌入與供應商</a><a class="l3" href="#41-iembeddingclient-介面仿-ichatcompletionclient">4.1 IEmbeddingClient 介面（仿 IChatCompletionClient）</a><a class="l3" href="#42-雲端地端切換沿用既有模式">4.2 雲端/地端切換（沿用既有模式）</a><a class="l3" href="#43-無金鑰降級">4.3 無金鑰降級</a><a class="l3" href="#44-embedding-產生策略與維度已定案">4.4 Embedding 產生策略與維度（已定案）</a><a class="l2" href="#5-切塊chunking與-metadata">5. 切塊（Chunking）與 Metadata</a><a class="l3" href="#51-切塊原則沿用-04--pdf-rag-prd-六">5.1 切塊原則（沿用 04 + PDF RAG PRD §六）</a><a class="l3" href="#52-兩層的切塊輸入">5.2 兩層的切塊輸入</a><a class="l3" href="#53-metadata-欄位出處定位">5.3 Metadata 欄位（出處定位）</a><a class="l3" href="#54-待調參數標示待-poc-實測">5.4 待調參數（標示，待 PoC 實測）</a><a class="l2" href="#6-嵌入索引建立管線仿蒸餾三層">6. 嵌入索引建立管線（仿蒸餾三層）</a><a class="l3" href="#61-三件套仿-distillations">6.1 三件套（仿 Distillations/）</a><a class="l3" href="#62-處理核心processcoreasync-設計">6.2 處理核心（ProcessCoreAsync 設計）</a><a class="l3" href="#63-狀態欄位">6.3 狀態欄位</a><a class="l3" href="#64-觸發時機">6.4 觸發時機</a><a class="l2" href="#7-混合檢索與雙層策略">7. 混合檢索與雙層策略</a><a class="l3" href="#71-混合檢索沿用-03-一推薦">7.1 混合檢索（沿用 03 §一推薦）</a><a class="l3" href="#72-雙層取用規則">7.2 雙層取用規則</a><a class="l3" href="#73-分數融合設計">7.3 分數融合（設計）</a><a class="l3" href="#74-rerankv2-選配">7.4 rerank（v2 選配）</a><a class="l2" href="#8-權控檢索資安關鍵">8. 權控檢索（資安關鍵）</a><a class="l3" href="#81-核心不變量">8.1 核心不變量</a><a class="l3" href="#82-跨來源逐筆過濾">8.2 跨來源逐筆過濾</a><a class="l3" href="#83-測試用例驗收必含">8.3 測試用例（驗收必含）</a><a class="l2" href="#9-問答編排與提示詞">9. 問答編排與提示詞</a><a class="l3" href="#91-跨來源問答服務">9.1 跨來源問答服務</a><a class="l3" href="#92-rag-提示詞槽位沿用四層解析">9.2 RAG 提示詞槽位（沿用四層解析）</a><a class="l3" href="#93-context-組裝格式">9.3 context 組裝格式</a><a class="l2" href="#10-引用與稽核">10. 引用與稽核</a><a class="l3" href="#101-答案必附出處">10.1 答案必附出處</a><a class="l3" href="#102-稽核軌跡">10.2 稽核軌跡</a><a class="l2" href="#11-評測與品質">11. 評測與品質</a><a class="l3" href="#111-新增-rag-檢索評測指標">11.1 新增 RAG 檢索評測指標</a><a class="l3" href="#112-與既有清洗品質評測銜接">11.2 與既有清洗品質評測銜接</a><a class="l3" href="#113-poc-驗證與-planning07-第-5-階段合流">11.3 PoC 驗證（與 planning/07 第 5 階段合流）</a><a class="l2" href="#12-實作路線與待決參數">12. 實作路線與待決參數</a><a class="l3" href="#121-新增變更清單設計">12.1 新增/變更清單（設計）</a><a class="l3" href="#122-建議實作步驟小步驗收">12.2 建議實作步驟（小步驗收）</a><a class="l3" href="#123-待決待調參數彙整">12.3 待決/待調參數彙整</a><a class="l2" href="#13-相依風險與相關文件">13. 相依、風險與相關文件</a><a class="l3" href="#131-主要風險沿用-strategy05-風險清單精神">13.1 主要風險（沿用 strategy/05 風險清單精神）</a><a class="l3" href="#132-相關文件">13.2 相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/strategy/12-階段三-知識庫與RAG設計規格.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

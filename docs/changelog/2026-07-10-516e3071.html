@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>資料一致性強化：刪素材清孤兒＋編修標記過時＋一致性巡檢頁（0.3.19→0.3.20）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>資料一致性強化：刪素材清孤兒＋編修標記過時＋一致性巡檢頁（0.3.19→0.3.20）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-10</li><li>版本：0.3.19 → 0.3.20</li><li>類型：新增功能／資料一致性修正（依 <code>docs/architecture/資料生命週期與維護.md</code> §6 backlog）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p><code>KnowledgeSourceItem</code> 以 <code>ItemType</code>＋<code>ItemId</code> <strong>軟參照</strong>素材、無硬 FK，導致三個維護缺口：</p>
+<ul><li><strong>刪素材留孤兒（P1-A）</strong>：刪 <code>MediaTranscription</code>/<code>DocumentExtraction</code>/<code>ImageRecognition</code> 不會清除引用它的成員，下游清洗/蒸餾/向量默默過時，只在顯示時標「（來源已不存在）」。</li><li><strong>編修素材文字不標記過時（P2）</strong>：就地改逐字稿/Markdown/解讀文字後，下游不知情、連 <code>ContentStale</code> 都不設。</li><li><strong>無孤兒／一致性一覽（P1-B）</strong>：既有孤兒與過時來源只能人工逐筆找、逐筆重跑。</li></ul>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="商業層">商業層</h3>
+<ul><li>新增 <code>KnowledgeSourceMaintenanceHelper.MarkOwningSourcesStaleAsync(context, itemType, itemId, removeOrphanItems)</code>（<code>Business/Helpers</code>）：查引用該素材的 <code>KnowledgeSourceItem</code>，將所屬來源設 <code>ContentStale=true</code>＋<code>UpdatedAt</code>；<code>removeOrphanItems=true</code> 時 <code>RemoveRange</code> 孤兒成員。<strong>不自行 <code>SaveChanges</code></strong>，與呼叫端同一交易原子提交。</li><li><strong>P1-A</strong>：三個素材 <code>DeleteAsync</code> 在 <code>Remove(item)</code> 前呼叫 helper（<code>removeOrphanItems: true</code>）。</li><li><strong>P2</strong>：<code>MediaTranscriptionService.UpdateTranscriptContentAsync</code>、<code>DocumentExtractionService.UpdateMarkdownContentAsync</code>、<code>ImageRecognitionService.UpdateRecognitionTextContentAsync</code> 落檔後呼叫 helper（<code>removeOrphanItems: false</code>；成員保留）。</li><li><strong>P1-B</strong>：新增 <code>DataConsistencyService</code>（<code>GetReportAsync</code> 偵測孤兒成員與過時來源；<code>CleanupOrphansAsync</code> 清孤兒；admin 看全庫、非 admin 依 <code>TagStringHelper</code> 權控）。</li></ul>
+<h3 id="模型">模型</h3>
+<ul><li>新增 <code>DataConsistencyReportAdapterModel</code>（<code>OrphanMemberAdapterModel</code>／<code>StaleSourceAdapterModel</code>）與 <code>DataConsistencyCleanupResult</code>。</li></ul>
+<h3 id="ui-層">UI 層</h3>
+<ul><li>新增 admin 頁 <code>/data-consistency</code>（<code>DataConsistencyPage</code> + <code>DataConsistencyView</code>，Flavor B）：兩張唯讀表（孤兒成員、過時來源）＋工具列「清除所有孤兒成員」「重新清洗所有過時來源」（逐筆重用帶權控的 <code>KnowledgeSourceService.TriggerCleaningAsync</code>）＋逐列「重新清洗」。</li><li><code>Menu.json</code> 於「系統管理」群組（id 4）新增 <code>adminOnly</code> 子項（id 45，icon <code>fact_check</code>）；因掛既有 admin 群組，<strong>免動 <code>RolePermissionService</code>/<code>MagicObjectHelper</code> 三方同步</strong>。</li><li>DI：<code>ServiceCollectionExtensions</code> 註冊 <code>DataConsistencyService</code>（Scoped）。</li></ul>
+<h3 id="測試">測試</h3>
+<ul><li>新增 <code>DataConsistencyTests</code>（6 筆）：helper 刪除清孤兒＋標記過時、僅標記過時（成員保留）、多來源皆標記、不相關成員不受影響；<code>DataConsistencyService</code> 偵測孤兒／過時、<code>CleanupOrphansAsync</code> 只清孤兒且標記來源過時。</li><li><code>MenuIconTests</code>／<code>CrudActionIconTests</code> 維持綠（新頁圖示 <code>fact_check</code> 已在允許清單；View 未用工具列 emoji）。</li></ul>
+<h2 id="範圍決策誠實記錄" class="t3">範圍決策（誠實記錄）</h2>
+<ul><li><strong>無 schema 變更 → 無 migration</strong>（純服務／UI／查詢）。</li><li>巡檢頁為 <strong>admin-only</strong>、看全庫（與 <code>/rag-diagnostics</code> 一致）；重跑動作各自再檢查團隊權控。</li><li>刪素材/編修僅<strong>標記過時</strong>、不自動重跑下游（避免非預期運算成本）；重跑由使用者或巡檢頁批次觸發。</li><li>未納入：素材版本鏈（P3，需雙資料庫 migration），維持選配 backlog。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li><code>docs/architecture/資料生命週期與維護.md</code> §5（A/C 已修正、B 已提供巡檢頁）、§6（狀態表）。</li><li><code>docs/guides/新手完整操作指南.md</code> §16.4/§16.5/§16.6。</li><li><code>docs/guides/知識頁審核與Wiki頁管理指南.md</code> §五。</li><li><code>appsettings.json</code> SystemVersion 0.3.19 → 0.3.20。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>dotnet build</code> 成功；<code>dotnet test</code> 綠燈（含新增 <code>DataConsistencyTests</code>、<code>MenuIconTests</code>、<code>CrudActionIconTests</code>）。</li><li>手動：admin 於「系統管理 → 資料一致性巡檢」可見、非 admin 不可見。</li><li>造孤兒：來源加入某素材 → 刪該素材 → 該來源死成員自動移除、來源標記過時。</li><li>編修某素材逐字稿 → 所屬來源標記過時。</li><li>巡檢頁對 legacy 孤兒/過時來源顯示並可一鍵清除/重新清洗。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#商業層">商業層</a><a class="l3" href="#模型">模型</a><a class="l3" href="#ui-層">UI 層</a><a class="l3" href="#測試">測試</a><a class="l2" href="#範圍決策誠實記錄">範圍決策（誠實記錄）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-10-資料一致性強化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

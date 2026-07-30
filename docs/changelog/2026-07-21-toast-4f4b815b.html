@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toast 通知全站改右下角＋工作項目可靠追溯來源會議（1.0.24）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Toast 通知全站改右下角＋工作項目可靠追溯來源會議（1.0.24）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/21</li><li>版本：1.0.23 → <strong>1.0.24</strong></li><li>類型：體驗一致化修正 ＋ 資料追溯強化</li><li>觸發來源：使用者回報兩問題——(1) 上傳錄音後背景轉錄的逐則進度 toast 出現在螢幕中間偏上，與系統其他右下角通知不一致；且尾端多則會「一次大量冒出」。(2) 由會議待辦建立的工作項目，其描述內「（來源會議：111）」在會議標題改名（111→222）後仍顯示舊名，日後無法回溯來源會議。</li><li>相關：<a href="../../docs/changelog/2026-07-20-eb6074ea.html">背景管線處理過程逐則 toast 通知（1.0.23）</a>、<a href="../../docs/changelog/2026-07-20-ai-34102033.html">會議 AI 自動化</a>、<a href="../../docs/changelog/2026-07-20-c9d5467c.html">會議欄位擴充與進度統計</a></li></ul>
+<hr>
+<h2 id="一問題一toast-位置不一致" class="t1">一、問題一：toast 位置不一致</h2>
+<h3 id="根因">根因</h3>
+<p>系統用兩套 AntDesign 服務：<code>NotificationService</code>（可設 <code>Placement = BottomRight</code>，右下角卡片，全站結果通知都用它）與 <code>MessageService</code>（固定置中頂部、<strong>無位置選項</strong>）。少數路徑走 <code>MessageService</code>，就是那些置中的 toast。背景管線進度（<code>PipelineProgressToaster</code>）正是其一。</p>
+<p>另發現一個放大不一致的樣板：不少 CRUD 檢視<strong>同一動作同時彈兩次</strong>——先一則右下角 <code>NotificationService</code> 卡片，緊接著又一則置中 <code>MessageService</code>（多為「新增成功」），屬純重複。</p>
+<h3 id="做法全站掃描一律改右下角">做法：全站掃描，一律改右下角</h3>
+<p>以 <code>messageService.*Async()</code> 為線索全站清點約 90 處，分三類處理：</p>
+<div class="tw"><table><thead><tr><th>類別</th><th>情形</th><th>處理</th></tr></thead><tbody><tr><td>A（重複雙彈）</td><td>已有相鄰右下角通知，另有一則重複的置中訊息</td><td><strong>刪除</strong>該置中訊息；若 <code>MessageService</code> 因此不再被使用，一併移除其注入</td></tr><tr><td>B（唯一回饋）</td><td>該處只有置中訊息、無相鄰通知</td><td><strong>改為</strong> <code>notificationService.Open(new NotificationConfig{ …, Placement = BottomRight })</code>；5 個原本未注入 <code>NotificationService</code> 的檔案補上注入</td></tr><tr><td>C（管線進度）</td><td><code>PipelineProgressToaster</code> 逐則進度</td><td>改走 <code>NotificationService</code> 右下角，並加短存留 <code>Duration = 3</code> 避免堆疊</td></tr></tbody></table></div>
+<p>樣式採<strong>逐處內嵌</strong> <code>NotificationConfig</code>，吻合程式庫既有約 137 處內嵌寫法，不另建 helper。跳過未註冊的範例檔 <code>RoleViewViewSample.razor.cs</code>。轉換過程另修好 6 處「半遷移殘留」（Media/Doc/Image 檢視中，同一動作已有右下角通知卻又留一則置中訊息）——刪掉多餘那則，避免兩則相同卡片連彈。</p>
+<h3 id="進度流暢度錯開依序淡入">進度流暢度：錯開依序淡入</h3>
+<p>管線進度是「每 5 秒輪詢、一次撈齊該批新事件」的機制，尾端幾則（段完成→簡繁轉換→存逐字稿→轉錄完成）在伺服器端幾秒內接連發生，於是同批一次爆出。改為 <code>PumpAsync</code> 內每則間隔 <code>StaggerDelayMs = 600</code>（毫秒）依序彈出，卡片從右下角順勢級聯淡入。保持 5 秒輪詢不變（不增伺服器負載）。</p>
+<p><code>cursor</code> 在彈出前已推進，延遲期間下一輪不會重撈；各檢視 <code>PollTickAsync</code> 的 <code>isPolling</code> 旗標保證不重疊；8 則 × 600ms ≈ 4.8 秒 &lt; 5 秒間隔，收斂安全。</p>
+<h2 id="二問題二工作項目可靠追溯來源會議" class="t2">二、問題二：工作項目可靠追溯來源會議</h2>
+<h3 id="根因-1">根因</h3>
+<p><code>MeetingActionItemService.BuildDescription</code> 把 <code>meeting.Title</code> 以字串內插成「（來源會議：{標題}）」寫進 <code>MyTask.Description</code>——這是<strong>建立當下的標題快照</strong>。<code>MyTask</code> 與 <code>Meeting</code> 之間沒有任何 Id 關聯，會議改名後快照不會更新，也無從回溯。</p>
+<h3 id="做法軟參照--即時解析">做法：軟參照 ＋ 即時解析</h3>
+<ul><li><code>MyTask</code> 新增 <code>int? SourceMeetingId</code>，<strong>軟參照、不做硬 FK</strong>——比照既有 <code>Meeting.SourceTranscriptionId</code> 慣例，避免全域 Restrict 刪除政策讓「有工作掛著的會議」刪不掉，讀取端容忍孤兒 Id。</li><li>建立工作項目時寫入 <code>SourceMeetingId = meeting.Id</code>，並<strong>停止</strong>把標題快照寫進描述（描述只留草稿本文）。</li><li><code>MyTasService.GetAsync</code> 依 <code>SourceMeetingId</code> 即時查出會議的<strong>目前</strong>標題填入 <code>SourceMeetingTitle</code>（不落地），並<strong>套團隊權控</strong>：會議已刪或無權時不外洩標題／連結。</li><li>工作項目編輯視窗新增唯讀「來源會議」欄位，顯示目前標題並可<strong>點擊跳轉</strong>（帶 <code>?openMeetingId=</code> 導向 <code>/meeting</code>，由會議頁自動開啟該筆編輯視窗）。標題改名 111→222 後，欄位自動顯示 222。</li></ul>
+<h3 id="已知限制">已知限制</h3>
+<ul><li><strong>不回填</strong>：既有工作項目仍保留舊的「（來源會議：…）」描述文字且 <code>SourceMeetingId</code> 為 null，不會出現新欄位。</li><li><strong>軟參照</strong>：來源會議被刪或無團隊權限時，欄位顯示灰字後備、無連結。</li></ul>
+<h2 id="三變更檔案" class="t3">三、變更檔案</h2>
+<p><strong>Fix 1（toast）</strong></p>
+<ul><li><code>Web/Components/Views/Commons/PipelineProgressToaster.cs</code>：改注入 <code>NotificationService</code>、右下角、<code>Duration = 3</code>、<code>StaggerDelayMs = 600</code> 錯開淡入。</li><li>約 28 個檢視檔：類別 A 刪除重複置中訊息＋孤兒清理；類別 B 改右下角通知（<code>MainLayout</code>、<code>LogSettingsView</code>、<code>LogDownloadView</code>、<code>KnowledgeSourceChatView</code>、<code>KnowledgeBaseChatView</code> 另補注入 <code>NotificationService</code>）。</li></ul>
+<p><strong>Fix 2（來源會議）</strong></p>
+<ul><li><code>AccessDatas/Models/MyTask.cs</code>：新增 <code>SourceMeetingId</code>（軟參照）。</li><li><code>Business/Services/DataAccess/MeetingActionItemService.cs</code>：寫入 <code>SourceMeetingId</code>、移除標題快照與 <code>BuildDescription</code>。</li><li><code>Business/Services/DataAccess/MyTasService.cs</code>：<code>GetAsync</code> 即時解析會議目前標題（套權控）。</li><li><code>Models/AdapterModel/MyTasAdapterModel.cs</code>：新增 <code>SourceMeetingId</code>／<code>SourceMeetingTitle</code>。</li><li><code>Business/Models/AutoMapping.cs</code>：<code>SourceMeetingTitle</code> 標記 <code>Ignore</code>（由服務填入）。</li><li><code>Web/Components/Views/Projects/MyTasEditModal.razor(.cs)</code>：唯讀可點「來源會議」欄位＋<code>OpenSourceMeeting</code>。</li><li><code>Web/Components/Views/Projects/MeetingViewView.razor.cs</code>：處理 <code>?openMeetingId=</code> 深連結自動開啟。</li></ul>
+<p><strong>Migration</strong>：<code>AddMyTaskSourceMeeting</code>，Sqlite 與 SqlServer 雙 provider，各只新增 <code>SourceMeetingId</code> 單欄。</p>
+<h2 id="四驗證" class="t4">四、驗證</h2>
+<ul><li><code>dotnet build</code> 0 錯誤；<code>dotnet test</code> <strong>629 項全通過</strong>，零迴歸。</li><li>兩份 migration 產出乾淨，只有對 <code>MyTas</code> 表的單欄 <code>AddColumn</code>，未夾帶 <code>MyTas</code>/<code>MyTask</code> 非預期 rename。</li><li>全站僅剩未註冊的 <code>RoleViewViewSample.razor.cs</code> 一處 <code>MessageService</code>（刻意略過）。</li></ul>
+<p>待實機驗證：上傳錄音後進度 toast 於右下角依序淡入；工作項目「來源會議」欄位在會議改名後顯示新名並可跳轉；來源會議刪除／無權時顯示灰字後備。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一問題一toast-位置不一致">一、問題一：toast 位置不一致</a><a class="l3" href="#根因">根因</a><a class="l3" href="#做法全站掃描一律改右下角">做法：全站掃描，一律改右下角</a><a class="l3" href="#進度流暢度錯開依序淡入">進度流暢度：錯開依序淡入</a><a class="l2" href="#二問題二工作項目可靠追溯來源會議">二、問題二：工作項目可靠追溯來源會議</a><a class="l3" href="#根因-1">根因</a><a class="l3" href="#做法軟參照--即時解析">做法：軟參照 ＋ 即時解析</a><a class="l3" href="#已知限制">已知限制</a><a class="l2" href="#三變更檔案">三、變更檔案</a><a class="l2" href="#四驗證">四、驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-21-Toast一致化與工作項目來源會議追溯.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

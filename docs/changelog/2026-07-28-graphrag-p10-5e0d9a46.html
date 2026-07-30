@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph RAG P10：圖檢索評測題組（1.0.91 → 1.0.92）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Graph RAG P10：圖檢索評測題組（1.0.91 → 1.0.92）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-28</li><li>版本：1.0.91 → 1.0.92</li><li>類型：新增功能（Graph RAG 第十階段；<strong>雙庫 migration <code>AddRagEvalGraphFields</code></strong>）</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>P1～P9 把 Graph RAG 做完了，但<strong>九個階段做下來，沒有任何數據能回答「圖到底有沒有提升召回」</strong>：</p>
+<ul><li><code>Services/Embeddings/RagEvaluator.cs</code> 全檔沒有圖的概念，只算 Precision／Recall／NDCG／MRR／出處正確率／越權洩漏。</li><li><code>RagEvalParamSnapshot</code> 只快照 <code>TopK</code>／<code>CandidateTopK</code>／<code>VectorWeight</code>／<code>KeywordWeight</code>／<code>MinScore</code> 與兩個門檻，<strong>沒記 <code>GraphWeight</code>／<code>GraphMaxHops</code>／<code>GraphHopDecay</code></strong>——所以既有基線根本無從得知是在哪組圖設定下跑出來的。</li><li>評測集裡沒有多跳題，也沒有全域問答題——而這兩類問題<strong>正是導入 Graph RAG 的理由</strong>。</li></ul>
+<p>也就是說，藍圖 §9 的「每階段共同要求：評測回歸，不得使既有指標退步」，對圖這一路<strong>從來沒有真正生效過</strong>。本階段補上這件事。</p>
+<h2 id="關鍵發現不需要跑對照組" class="t2">關鍵發現：不需要跑對照組</h2>
+<p><code>RetrievalHit</code> 早就帶 <code>VectorScore</code>／<code>KeywordScore</code>／<code>GraphScore</code> 三個分項（<code>IRetrievalService.cs</code> 末行），只是評測層一直沒用。</p>
+<p>因此「圖帶來多少召回」可由<strong>單次檢索</strong>推導，不必再跑一次「關掉圖」的對照組——省下一半評測成本，也避免兩次檢索之間狀態漂移。</p>
+<h2 id="變更" class="t3">變更</h2>
+<h3 id="1-三個圖檢索指標確定性不呼叫-llm">1. 三個圖檢索指標（確定性、不呼叫 LLM）</h3>
+<div class="tw"><table><thead><tr><th>指標</th><th>定義</th></tr></thead><tbody><tr><td><code>GraphOnlyHits</code></td><td><code>GraphScore &gt; 0</code> 且向量與關鍵字分項皆為 0 的命中數——<strong>沒有圖就召不回的命中</strong></td></tr><tr><td><code>GraphAssistedRate</code></td><td><code>GraphScore &gt; 0</code> 的命中比例（圖參與了多少命中）</td></tr><tr><td><code>GraphRecallGain</code></td><td>期望來源中「其命中<strong>全部</strong>來自圖路」的相異來源數 ÷ 期望數——<strong>「圖有沒有用」的主指標</strong></td></tr></tbody></table></div>
+<p>⚠️ <code>GraphRecallGain</code> 是<strong>保守下界</strong>：融合重排效應（圖把原本落在 topK 之外的命中推進來）不計入。這是刻意的取捨——要精確量到重排效應就得跑對照組，成本加倍而結論方向不變。</p>
+<p>⚠️ 來源層與命中層的判定刻意不同：某來源只要有<strong>任一筆</strong>命中帶向量或關鍵字分數，沒有圖也召得回，故<strong>不計入增益</strong>（即使同一來源另有圖獨有命中）。</p>
+<h3 id="2-基線快照補上三個圖參數">2. 基線快照補上三個圖參數</h3>
+<p><code>RagEvalParamSnapshot</code> 尾端追加 <code>GraphWeight</code>／<code>GraphMaxHops</code>／<code>GraphHopDecay</code>。</p>
+<p>⚠️ 三者型別為<strong>可為 null</strong>，不是「預設 0」——舊基線的 <code>ParamsJson</code> 沒有這三個屬性，若用 0 當預設就會<strong>謊稱「該基線是在圖檢索關閉下跑的」</strong>，而事實是當時根本沒記。UI 對 null 顯示「未記錄（此基線於 1.0.92 之前擷取，重設基線即可補上）」。</p>
+<h3 id="3-global-模式評測新樣本類型">3. global 模式評測（新樣本類型）</h3>
+<p><code>RagEvalSample</code> 加 <code>EvalMode</code>（<code>local</code> 預設／<code>global</code>）與 <code>ExpectedKeywords</code>。global 樣本改走 <code>KnowledgeBaseChatService.GlobalMapAsync</code>，以「期望關鍵詞涵蓋率」與「取用社群數」計分。</p>
+<p>Precision／Recall／NDCG／MRR／出處正確率一律留 0，UI 顯示為「—」而非誤導的 0——社群摘要沒有 chunk 層出處，也沒有相似度可言。</p>
+<p><strong>彙總報告的分母也分開</strong>（<code>LocalCount</code>／<code>GlobalCount</code>）：否則 global 樣本恆為 0 的檢索類指標會把整體平均拖低而誤導判讀。越權洩漏總數則<strong>跨模式加總</strong>（資安指標不分模式）。</p>
+<h3 id="4--紅線global-評測的身分問題本階段真正的資安修補">4. ⚠️ 紅線：global 評測的身分問題（本階段真正的資安修補）</h3>
+<p><code>GlobalMapAsync</code> → <code>GraphCommunityService.GetAccessibleSummariesAsync</code> 取的是 <code>IRecordAccessScopeProvider.GetAsync()</code> 的<strong>環境身分</strong>，也就是「按下評測按鈕的人」。而評測樣本標的是<strong>模擬身分</strong>（<code>EvalIsAdmin</code>／<code>EvalTeams</code>）。</p>
+<p>兩者不一致的後果：管理員跑評測時，global 樣本會看到<strong>全部</strong>社群，等於<strong>全域問答的權控從來測不到</strong>——樣本標了「只屬甲隊」也沒用。</p>
+<p>修法：<code>GlobalMapAsync</code> 與 <code>GetAccessibleSummariesAsync</code> 各加一個<strong>可選 <code>RecordAccessScope? scopeOverride = null</code></strong>（null＝維持現行由 provider 取得）。既有呼叫端（Blazor 問答頁、MCP <code>KnowledgeAskTool</code>）<strong>一行未改、行為完全不變</strong>；只有評測會傳。</p>
+<p>取回的社群另以相同的子集判定<strong>二次校驗</strong>寫入 <code>LeakHits</code>，作為回歸守門。</p>
+<h3 id="5-種子樣本補兩筆圖題型">5. 種子樣本補兩筆圖題型</h3>
+<p>原本兩筆都是單點檢索題。新增「跨文件關聯／多跳」（刻意標兩個期望來源）與「全域歸納」（social 摘要＋期望關鍵詞）各一筆——若評測集裡沒有這兩類題，圖檢索的效果就永遠無從證明。</p>
+<h3 id="6-ui">6. UI</h3>
+<ul><li>儀表板依模式分列：檢索類指標、圖指標（圖召回增益／圖參與率／圖獨有命中）、全域指標（關鍵詞涵蓋率／平均取用社群數）。</li><li>表格加「模式」「圖增益」「關鍵詞涵蓋」三欄；不適用的欄位顯示「—」。</li><li>編輯表單加評測模式切換，並依模式<strong>只顯示該模式用得到的欄位</strong>（global 顯示期望關鍵詞、local 顯示期望來源與錨點）。</li><li>基線比較表加「圖召回增益」「圖參與率」「關鍵詞涵蓋率」三列。</li></ul>
+<h2 id="相容性" class="t4">相容性</h2>
+<ul><li><strong>省略 <code>EvalMode</code> 時行為與 1.0.91 完全相同</strong>（回歸測試釘住）；migration 對既有列填 <code>"local"</code>（手動把鷹架產生的 <code>""</code> 改掉，讓資料本身即正確）。</li><li><code>RagSampleMetrics</code> 只<strong>新增</strong>欄位，舊 <code>LastMetricsJson</code> 反序列化後 <code>Mode</code> 保留初始值 <code>local</code>、圖指標為 0，不需回填。</li><li><code>scopeOverride</code> 為 null 時所有既有路徑行為不變。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ul><li><code>dotnet build</code> 成功、<strong>無新增警告種類、無新增警告位置</strong>。整案唯一變化是 <code>RagEvaluationView</code> 的 Razor 產生碼 <code>CS8669</code> 由 12 條變 16 條——純粹因為新增兩個表格欄位，每欄各生兩條同類警告。</li><li><code>dotnet test</code> <strong>899 全綠</strong>（既有 877 + 新增 22）：</li><li><code>RagEvaluatorTests</code> +12：<code>GraphWeight=0</code> 時三個圖指標皆 0、<code>GraphOnlyHits</code> 只算向量與關鍵字都沒召回者、<code>GraphRecallGain</code> 的來源層判定、同來源另有向量命中時<strong>不算</strong>增益、無期望來源時增益為 0、<code>EvaluateGlobal</code> 的關鍵詞比對（大小寫不敏感）、global 不計檢索類指標、<strong>彙總的 local／global 分母分離</strong>、越權洩漏跨模式加總。</li><li><code>RagEvaluationServiceTests</code> +8：基線快照含三個圖參數、<strong>舊 <code>ParamsJson</code> 反序列化為 null（不謊報 0）</strong>、舊 <code>LastMetricsJson</code> 預設為 local、global 模式關鍵詞涵蓋率、<strong>global 以樣本身分而非執行者身分跑（leak=0；他隊與跨隊社群皆不可見）</strong>、無社群仍可完成評測、<code>EvalMode</code> 正規化（Theory 4 列）。</li><li><code>RagEvalComparerTests</code> +2：比較項由 7 增為 10、圖召回增益為「越高越好」。</li><li>雙庫 migration <code>AddRagEvalGraphFields</code> 各一份（Sqlite <code>20260728014952</code>／SqlServer <code>20260728015046</code>）。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 0 失敗；版本 1.0.92。</li></ul>
+<h2 id="已知限制未來增量" class="t6">已知限制（未來增量）</h2>
+<ul><li><code>GraphRecallGain</code> 不計融合重排效應，是保守下界（見上）。要精確量測需跑「關掉圖」的對照組，成本加倍。</li><li>global 評測<strong>會呼叫 LLM</strong>，因此<strong>非確定性</strong>：同一樣本重跑兩次的關鍵詞涵蓋率可能不同。local 評測仍是完全確定性的。</li><li>global 評測成本＝可存取社群數次 LLM 呼叫（受 <code>GraphGlobalCommunityCap</code> 控管，預設 20）。「評測全部」若含多筆 global 樣本會放大成本，<strong>目前沒有針對評測的額外節流</strong>。</li><li>關鍵詞涵蓋率為<strong>子字串比對</strong>，不做同義詞或詞形變化處理。</li><li><strong>未執行</strong>：以實際知識庫跑一輪完整評測並設為基線（需已索引的真實資料）。本次不宣稱已驗，留給部署後驗收。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#關鍵發現不需要跑對照組">關鍵發現：不需要跑對照組</a><a class="l2" href="#變更">變更</a><a class="l3" href="#1-三個圖檢索指標確定性不呼叫-llm">1. 三個圖檢索指標（確定性、不呼叫 LLM）</a><a class="l3" href="#2-基線快照補上三個圖參數">2. 基線快照補上三個圖參數</a><a class="l3" href="#3-global-模式評測新樣本類型">3. global 模式評測（新樣本類型）</a><a class="l3" href="#4--紅線global-評測的身分問題本階段真正的資安修補">4. ⚠️ 紅線：global 評測的身分問題（本階段真正的資安修補）</a><a class="l3" href="#5-種子樣本補兩筆圖題型">5. 種子樣本補兩筆圖題型</a><a class="l3" href="#6-ui">6. UI</a><a class="l2" href="#相容性">相容性</a><a class="l2" href="#驗證">驗證</a><a class="l2" href="#已知限制未來增量">已知限制（未來增量）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-28-GraphRAG-P10.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

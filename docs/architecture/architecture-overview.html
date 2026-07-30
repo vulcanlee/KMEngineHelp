@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>架構總覽｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 系統架構</p><header class="hero"><div class="kicker">系統架構</div><h1>架構總覽</h1></header><div class="docwrap"><main><h2 id="文件目的" class="t1">文件目的</h2>
+<p>說明本專案的整體分層、各專案職責、依賴方向、啟動流程，以及 DI 容器中註冊的主要服務，協助新進開發者快速建立心智模型。</p>
+<hr>
+<h2 id="1-解決方案組成" class="t2">1. 解決方案組成</h2>
+<p>方案檔：<code>src/KnowledgeExtraction/KnowledgeExtraction.slnx</code>（採新版 <code>.slnx</code> 格式）。共 8 個專案，採典型的分層架構：</p>
+<div class="tw"><table><thead><tr><th>專案</th><th>主要職責</th><th>依賴方向</th></tr></thead><tbody><tr><td><code>KnowledgeExtraction.Web</code></td><td>Blazor Server 宿主、Razor 元件、Web API、登入、本地化、靜態資源</td><td>依賴所有其他專案</td></tr><tr><td><code>KnowledgeExtraction.Business</code></td><td>商業邏輯：Service、Repository、AutoMapper Profile、Helper</td><td>→ AccessDatas、Models、Dtos、Share</td></tr><tr><td><code>KnowledgeExtraction.AccessDatas</code></td><td>EF Core <code>DbContext</code>、Entity、Migration</td><td>→ 無外部專案相依</td></tr><tr><td><code>KnowledgeExtraction.AccessDatas.SqlServerMigrations</code></td><td>SQL Server 專用 EF Core migration assembly</td><td>→ AccessDatas</td></tr><tr><td><code>KnowledgeExtraction.Models</code></td><td>AdapterModel、System 設定模型、共用領域模型</td><td>→ 無外部專案相依</td></tr><tr><td><code>KnowledgeExtraction.Dtos</code></td><td>API 對外 DTO：<code>ApiResult&lt;T&gt;</code>、<code>PagedResult&lt;T&gt;</code>、模組 DTO</td><td>→ 無外部專案相依</td></tr><tr><td><code>KnowledgeExtraction.Share</code></td><td>跨層共用 Helper、Extension（純工具）</td><td>→ 無外部專案相依</td></tr></tbody></table></div>
+<blockquote><p>依賴方向永遠由「上層」指向「下層」，不可反向引用。Web 不應跳過 Business 直接操作 <code>BackendDBContext</code>，但 Web 內的 API Controller 為了輕量化，使用 <code>Repository</code>（仍位於 Business 專案）。</p></blockquote>
+<hr>
+<h2 id="2-啟動流程knowledgeextractionwebprogramcs" class="t3">2. 啟動流程（<code>KnowledgeExtraction.Web/Program.cs</code>）</h2>
+<p>啟動主檔位於 <span class="docref" title="../../src/KnowledgeExtraction/KnowledgeExtraction.Web/Program.cs"><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Program.cs</code></span>。整體流程：</p>
+<ol><li><strong>建立 <code>WebApplicationBuilder</code></strong>（<code>Program.cs</code> 開頭的 <code>WebApplication.CreateBuilder</code>）。</li><li><strong>NLog 設定</strong>（<code>Program.cs</code> 的 NLog 設定區塊）：</li><li>從 <code>NLog:BasePath</code> 讀取根目錄，於其下建立 <code>KnowledgeExtraction.Web</code> 子目錄。</li><li>清除預設 logger provider，改由 <code>UseNLog()</code> 接管。</li><li>立即建構服務取得 <code>ILogger&lt;Program&gt;</code> 寫入啟動日誌。</li><li><strong>核心服務註冊</strong>（<code>Program.cs</code> 的核心服務註冊，含 <code>AddRazorComponents</code>）：</li><li><code>AddRazorComponents().AddInteractiveServerComponents()</code>：Blazor Server 互動式渲染。</li><li><code>AddControllers()</code>、<code>AddSwaggerGen()</code>：傳統 Web API + Swagger。</li><li><code>AddLocalization()</code>、<code>AddAntDesign()</code>：在地化與 AntDesign。</li><li><code>RequestLocalizationOptions</code>：支援 <code>zh-TW</code> / <code>en-US</code>，採 <code>AcceptLanguageHeaderRequestCultureProvider</code>。</li><li><code>LocaleProvider.SetLocale("zh-TW", AntDesignLocaleFactory.Create("zh-TW"))</code>：套用本地化字串。</li><li><strong>認證</strong>（<code>Program.cs</code> 的 <code>AddAuthentication</code> 區塊）：</li><li>Cookie 政策：<code>CheckConsentNeeded = true</code>、<code>MinimumSameSitePolicy = None</code>。</li><li><code>AddAuthentication(MagicObjectHelper.CookieScheme).AddCookie(...)</code>：登入 / 登出 / 拒絕路徑均指向 <code>/Auths/Login</code> 系列。</li><li><code>AddAuthorization()</code>。</li><li><strong>AutoMapper</strong>（<code>Program.cs</code> 的 AutoMapper 註冊）：載入 <code>AutoMapping</code> Profile，可選擇套用 LicenseKey。</li><li><strong>強型別設定</strong>（<code>ServiceCollectionExtensions.AddConfiguredOptions</code>）：將 <code>SystemSettings</code> section 綁定為 <code>IOptions&lt;SystemSettings&gt;</code>。</li><li><strong>外部目錄準備</strong>（<code>Program.cs</code> 的 <code>EnsureDirectoryExists</code> 呼叫序列）：依 <code>SystemSettings.ExternalFileSystem</code> 各路徑呼叫 <code>EnsureDirectoryExists</code>，缺少時自動建立。</li><li><strong>EF Core</strong>（<code>Program.cs</code> 的 <code>AddDbContext</code> 區塊）：透過 <code>SystemSettings.DatabaseProvider</code> 切換 <code>Sqlite</code> / <code>SqlServer</code>；SQLite 連線字串由 <code>DatabasePath</code> 動態產生，SQL Server 使用 <code>DefaultConnection</code> 與獨立 migration assembly。</li><li><strong>客製服務</strong>（<code>ServiceCollectionExtensions.AddApplicationServices</code>）：所有 Service / Repository 一律 <code>Scoped</code> 生命週期。</li><li><strong>資料庫初始化</strong>（<code>Program.cs</code> 的資料庫初始化與種子區塊）：</li><li>若有 Migration 則 <code>Database.Migrate()</code>，否則 <code>EnsureCreated()</code>。</li><li>Seed 預設 <code>RoleView</code>（<code>MagicObjectHelper.預設角色</code>）並寫入完整權限 JSON。</li><li>Seed 預設 <code>MyUser</code>（<code>MagicObjectHelper.開發者帳號</code>），密碼以 SHA + Salt 存放，標記為 <code>IsAdmin</code>。</li><li><strong>中介軟體管線</strong>（<code>Program.cs</code> 的中介軟體管線設定）：</li><li>自訂 middleware 紀錄每筆 HTTP 請求耗時與例外。</li><li><code>UseForwardedHeaders</code>、<code>UseStatusCodePagesWithReExecute("/not-found")</code>、<code>UseHttpsRedirection</code>、<code>UseRequestLocalization</code>、<code>UseCors</code>、<code>UseRateLimiter</code>、<code>UseAntiforgery</code>。</li><li><code>MapStaticAssets</code>、<code>UseStaticFiles</code> 將 <code>DownloadPath</code> 對應為 <code>/UploadFiles</code>。</li><li><code>UseAuthentication</code> → <code>UseAuthorization</code>。</li><li><code>MapControllers</code>、<code>MapHealthChecks("/health/live")</code>、<code>MapHealthChecks("/health/ready")</code>、<code>MapRazorComponents&lt;App&gt;().AddInteractiveServerRenderMode()</code>。</li><li><code>/system-health</code> 由 Razor 元件提供人工巡檢頁，需 Cookie 登入且管理員限定。</li></ol>
+<hr>
+<h2 id="3-已註冊的-scoped-服務" class="t4">3. 已註冊的 Scoped 服務</h2>
+<p>服務註冊集中於 <code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs</code> 的 <code>AddApplicationServices</code>（<strong>單一真實來源，請以該檔為準</strong>）。下列為<strong>代表性節錄</strong>，刻意不逐一列全——過去正是因為在此複製完整清單而長期缺漏二十餘項：</p>
+<pre><code>AuthenticationStateHelper      // 驗證登入狀態、載入 CurrentUser、回傳認證檢查結果
+CurrentUserService             // 全局保存目前登入使用者（含角色 / 權限）
+MyUserServiceLogin             // 登入專用驗證流程（密碼比對、驗證碼）
+SidebarMenuService             // 載入 Menu.json 並依角色過濾
+RolePermissionService          // 角色權限樹（GetRoleListPermissionAllName 等）
+RoleViewService                // 角色檢視（RoleView Entity）CRUD
+MyUserService                  // 使用者 CRUD
+ProjectService / ProjectRepository
+MyTaskRepository / MyTasService
+MeetingRepository / MeetingService
+MediaTranscriptionService / DocumentExtractionService   // 音訊轉錄 / 文件萃取
+ImageRecognitionService                                 // 圖片清單（上傳與 LLM 視覺解讀）
+CategoryService / CategoryRepository                    // 分類清單
+TeamService / TeamRepository                            // 團隊清單
+PromptService                                           // 提示詞清單
+CleaningProfileService                                  // 清洗設定檔 CRUD
+KnowledgeSourceService                                  // 知識來源 CRUD、成員聚合、人工審核(核准/退回)
+CleaningProcessor / CleaningEnhancer                    // 清洗管線處理器 / LLM 增強(去重/遮罩/分類/摘要/信心)
+KnowledgeSourceContentAggregator                        // 彙整知識來源各成員原始內容(清洗管線與「AI 對話」共用)
+KnowledgeSourceChatService                              // 知識來源「AI 對話」：載入上下文、組多輪訊息、委派串流
+KnowledgeBaseChatService                                // 知識庫問答：跨來源檢索、組出處 context、串流回答
+WikiPageService                                         // 知識蒸餾 Wiki 頁 CRUD、審核、重蒸餾/取消/重試
+GoldenSampleService                                     // 黃金評測樣本 CRUD、評測、門檻校準
+RagEvaluationService                                    // RAG 評測樣本 CRUD 與檢索品質評測
+GraphEdgeService                                        // Wiki 頁 [[標題]] 連結具體化為 GraphEdge(概念連結邊，無 LLM、冪等重建)
+GraphTripleService                                      // 三元組審核 CRUD、N 跳鄰域查詢、待抽取來源、手動重抽/取消
+GraphCommunityService                                   // 社群摘要重建觸發、狀態查詢、依 ACL 取可用社群(全域問答用)
+GraphEntityAliasService                                 // 實體別名審核 CRUD 與 LLM 建議觸發(全域治理，僅管理員)
+GraphJobStateService                                    // 全域圖譜作業(社群重建/別名生成)狀態機 CRUD，供 /pipeline-jobs
+GraphExtractionProcessor / GraphExtractionEnhancer      // 三元組抽取管線處理器 / LLM 抽「實體—關係—實體」
+GraphCommunityBuilder / CommunityDetector               // 已核可三元組建圖分群 + 每群 LLM 摘要 / 純函式社群偵測
+GraphEntityAliasGenerator                               // LLM 掃既有實體名、建議「別名→標準名」候選
+EntityAliasResolver / EntityNameNormalizer              // 已核可別名的傳遞閉包解析 / 實體名正規化(社群偵測、檢索、瀏覽共用)
+IChatCompletionClient → OpenAIChatCompletionClient      // 單輪聊天/生成 LLM 抽象(雲端/地端可切換，供清洗與內容產生重用)
+IChatConversationClient → OpenAIChatCompletionClient    // 多輪串流(SSE)對話 LLM 抽象(知識來源 AI 對話用)
+IEmbeddingClient → OpenAIEmbeddingClient                // 嵌入模型抽象(雲端/地端可切換)
+IVectorStore → DualDbVectorStore                        // SQLite/SQL Server 共用向量儲存層
+IRetrievalService → RetrievalService                    // 向量+關鍵字混合檢索，檢索層套團隊權控
+Chunker                                                 // 清洗/Wiki 內容切塊
+EmbeddingIndexProcessor                                 // 嵌入索引管線處理器
+DistillationProcessor / DistillationEnhancer            // 知識蒸餾管線處理器 / LLM 多頁 Wiki 產生
+LlmPromptResolver                                       // 四層提示詞解析(單次操作→DB→appsettings→程式 fallback)
+IRecordAccessScopeProvider → RecordAccessScopeProvider  // 解析目前使用者(IsAdmin, 授權團隊)，供紀錄團隊權控
+SystemHealthService            // 彙整健康檢查、加權分數、紅黃綠燈號與日誌 tail
+HealthLogReader                // 讀取 NLog 今日日誌檔最後 100 筆紀錄</code></pre>
+<blockquote><p><strong>非 Scoped 例外</strong>：八條非同步管線的佇列為 <strong>Singleton</strong>（<code>I*Queue → *Queue</code>，內含 <code>Channel&lt;int&gt;</code>），對應的 <code>*BackgroundService</code> 以 <strong>HostedService</strong> 註冊（見 §4.3）；<code>IPipelineCancellationRegistry</code> 與檢索熱路徑快取 <code>IGraphRetrievalCache</code> 亦為 Singleton。 <strong>圖譜的兩條全域作業刻意不進 <code>PipelineNames</code></strong>：社群摘要重建與 LLM 別名建議是<strong>全域單例</strong>（非 per-record），以 <code>GraphJobState.JobType</code> 識別與持久化，但仍重用 <code>IPipelineCancellationRegistry</code> 取得取消權杖，因此同樣可在 <code>/pipeline-jobs</code> 觀測與取消。 Repository 用於 Web API（<code>Controllers/</code>），Service 用於 Razor 元件 / Page；兩者目前並存。 分類/團隊標籤與「團隊資料權控」相關共用元件：<code>TagStringHelper</code>、<code>TeamJsonHelper</code>（<code>KnowledgeExtraction.Business/Helpers</code>）、<code>IRecordAccessScopeProvider</code>；權控規則見 <a href="../../docs/security/auth-and-permissions.html">認證授權與權限機制</a>。 <strong>LLM 互動與提示詞</strong>：知識來源「AI 對話」為獨立全頁、多輪、SSE 串流（<code>KnowledgeSourceChatService</code> + <code>IChatConversationClient</code>，僅記憶體保存）；所有提示詞統一走 <code>LlmPromptResolver</code> 四層解析（單次操作 → DB <code>Prompt</code>(同名鍵) → appsettings <code>LlmPrompts</code> → 程式 fallback <code>LlmPromptDefaults</code>）；所有 LLM 呼叫（chat 文字/視覺/檔案/串流＋語音轉錄）皆記完整 token 用量（<code>TokenUsageFormatter</code>）。詳見 <a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a>。</p></blockquote>
+<hr>
+<h2 id="4-請求生命週期" class="t5">4. 請求生命週期</h2>
+<h3 id="41-razor-元件請求blazor-server">4.1 Razor 元件請求（Blazor Server）</h3>
+<pre><code>Browser ─► UseAuthentication ─► UseAuthorization ─► MapRazorComponents
+                                                         │
+                                                         ▼
+                                         Layout.razor + Page.razor
+                                                         │
+                                                         ▼
+                                       View 元件 ──► Service ──► DbContext</code></pre>
+<p><code>AuthenticationStateHelper.Check(...)</code> 會在進入受保護頁面時讀取 <code>ClaimsPrincipal</code>、由 <code>Sid</code> 對應到 <code>MyUser</code>，檢查使用者狀態、強制改密碼需求與角色權限資料。檢查結果會以 <code>AuthenticationCheckResult</code> 回傳；Layout、NavMenu 或 Page 會依 <code>Succeeded</code>、<code>Unauthenticated</code>、<code>InvalidUser</code>、<code>RequiresPasswordChange</code> 決定是否繼續載入、停止載入或交由 Helper 導向登出與 <code>/ChangePassword</code>。</p>
+<h3 id="42-web-api-請求">4.2 Web API 請求</h3>
+<pre><code>Browser ─► UseRateLimiter ─► UseAuthentication ─► UseAuthorization ─► MapControllers
+                                                         │
+                                                         ▼
+                                       Controller ──► Repository ──► DbContext
+                                                         │
+                                                         ▼
+                                       回傳 ApiResult&lt;T&gt; 或 PagedResult&lt;T&gt;</code></pre>
+<p>詳見 <a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例</a>。</p>
+<p>API Controller 目前同時支援 <code>/api/{controller}</code> 與 <code>/api/v1/{controller}</code>；新用戶端應優先使用 <code>/api/v1/...</code>。</p>
+<h3 id="43-非同步管線佇列式背景處理">4.3 非同步管線（佇列式背景處理）</h3>
+<p>長時間工作（轉錄、萃取、視覺解讀、清洗、蒸餾、嵌入索引、會議紀錄產生、三元組抽取）一律採同構的三層佇列模式，避免阻塞 UI：</p>
+<pre><code>觸發(Page/Service) ─► I*Queue(Singleton, Channel&lt;int&gt;) ─► *BackgroundService(HostedService)
+                                                                  │ 出列、建立 DI scope
+                                                                  ▼
+                                              *Processor(Scoped) ──► 更新 Status/Progress/Error ──► DbContext</code></pre>
+<div class="tw"><table><thead><tr><th>管線</th><th>佇列</th><th>背景服務</th><th>處理器</th></tr></thead><tbody><tr><td>影音轉逐字稿</td><td><code>ITranscriptionQueue</code></td><td><code>TranscriptionBackgroundService</code></td><td><code>TranscriptionProcessor</code></td></tr><tr><td>文件轉文字</td><td><code>IDocumentExtractionQueue</code></td><td><code>DocumentExtractionBackgroundService</code></td><td><code>DocumentExtractionProcessor</code></td></tr><tr><td>圖片識別</td><td><code>IImageRecognitionQueue</code></td><td><code>ImageRecognitionBackgroundService</code></td><td><code>ImageRecognitionProcessor</code></td></tr><tr><td>資料清洗</td><td><code>ICleaningQueue</code></td><td><code>CleaningBackgroundService</code></td><td><code>CleaningProcessor</code>（＋<code>CleaningEnhancer</code> 做 LLM 去重/遮罩/分類/摘要/信心自評）</td></tr><tr><td>知識頁審核</td><td><code>IDistillationQueue</code></td><td><code>DistillationBackgroundService</code></td><td><code>DistillationProcessor</code>（＋<code>DistillationEnhancer</code> 產生多頁 Wiki）</td></tr><tr><td>嵌入索引</td><td><code>IEmbeddingIndexQueue</code></td><td><code>EmbeddingIndexBackgroundService</code></td><td><code>EmbeddingIndexProcessor</code>（清洗內容/Wiki 切塊、嵌入、寫入 <code>VectorEmbedding</code>）</td></tr><tr><td>會議紀錄產生</td><td><code>IMeetingMinutesQueue</code></td><td><code>MeetingMinutesBackgroundService</code></td><td><code>MeetingMinutesProcessor</code>（轉錄完成後由 <code>TranscriptionProcessor</code> 入列，LLM 產生 AI 會議紀錄，1.0.20）</td></tr><tr><td>三元組抽取</td><td><code>IGraphExtractionQueue</code></td><td><code>GraphExtractionBackgroundService</code></td><td><code>GraphExtractionProcessor</code>（＋<code>GraphExtractionEnhancer</code> 從<strong>現行 Wiki 頁</strong>抽「實體—關係—實體」，1.0.84）</td></tr></tbody></table></div>
+<ul><li><strong>自動重試</strong>：Processor 套 <code>PipelineRetryHelper</code>（暫時性錯誤自動重試），另有 UI 手動重試與重啟後自動重新入列。</li><li><strong>取消</strong>：各背景服務經 <code>IPipelineCancellationRegistry</code> 取得 linked token，刪除/取消可中止對應工作並標記「已取消」。</li><li><strong>清洗門檻</strong>：清洗完成依 <code>SystemSettings.Cleaning.ConfidenceThreshold</code>(0.70) 路由為「已清洗」或「待審核」（QA-2），待審核者進人工審核關卡（QA-3）；品質以清洗品質評測集回歸（QA-4，門檻見 <a href="../../docs/strategy/open-questions-risks.html">strategy/05 §五</a>）。</li><li><strong>蒸餾與索引</strong>：知識頁審核完成後產生 <code>WikiPage</code> 並在嵌入設定完整時自動入列重建索引；問答與 檢索品質評測皆透過 <code>IRetrievalService</code> 混合檢索並套團隊權控。</li><li><strong>圖檢索（Graph RAG，1.0.83～1.0.96）</strong>：<code>RetrievalService.SearchGraphAsync</code> 是混合檢索的<strong>第三路</strong>——以向量∪關鍵字命中的 Wiki 頁為種子，沿 <code>GraphEdge</code> 與<strong>已核可</strong>三元組做多跳 BFS，融合權重為 <code>SystemSettings.Retrieval.GraphWeight</code>（設 0 即完全關閉此路）。三元組一律先「待審核」、經人工核可才生效；社群摘要另供「全域問答」map-reduce 使用。設計見 <a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行 §4.2–§4.4</a>，操作見 <a href="../../docs/guides/knowledge-graph.html">知識圖譜使用指南</a>。</li></ul>
+<p>詳細慣例與不變量見 <a href="../../docs/architecture/dev-conventions.html">開發慣例與限制速查</a>。</p>
+<hr>
+<h2 id="5-程式碼分層慣例" class="t6">5. 程式碼分層慣例</h2>
+<div class="tw"><table><thead><tr><th>慣例</th><th>說明</th></tr></thead><tbody><tr><td>命名對齊</td><td><code>XxxPage</code> / <code>XxxView</code> / <code>XxxService</code> / <code>XxxRepository</code> / <code>XxxAdapterModel</code> / <code>XxxDto</code></td></tr><tr><td>UI 不直接觸 DbContext</td><td>Razor 只呼叫 Service / Repository，不直接 <code>using</code> <code>BackendDBContext</code>。</td></tr><tr><td>Edit 前先 Clone</td><td>表格列被編輯前要 <code>Clone()</code> 隔離，避免雙向綁定污染來源。</td></tr><tr><td>EF 追蹤清理</td><td>Update / Delete 前以 <code>CleanTrackingHelper</code> 清除追蹤實體。</td></tr><tr><td>通知統一走 AntDesign</td><td>成功 / 失敗一律經 <code>NotificationService</code> / <code>MessageService</code>。</td></tr><tr><td>API 回應統一</td><td>任何 Controller 一律回傳 <code>ApiResult&lt;T&gt;</code>，分頁則包 <code>PagedResult&lt;T&gt;</code>。</td></tr></tbody></table></div>
+<p>詳細模板請見 <a href="../../docs/guides/new-crud-page.html">建立一個新 CRUD 操作網頁說明</a>。</p>
+<hr>
+<h2 id="6-延伸閱讀" class="t7">6. 延伸閱讀</h2>
+<ul><li><a href="../../docs/architecture/data-model.html">資料模型與資料庫</a></li><li><a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例</a></li><li><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a></li><li><a href="../../docs/guides/knowledge-graph.html">知識圖譜（Graph RAG）使用指南</a></li><li><a href="../../docs/security/auth-and-permissions.html">認證授權與權限機制</a></li><li><a href="../../docs/security/google-oauth2.html">Google OAuth2 第三方登入</a></li><li><a href="../../docs/features/i18n.html">多語系與本地化</a></li><li><a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a></li><li><a href="../../docs/features/health-monitoring.html">系統健康監控</a></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>導入顧問：客戶問能不能跟 ERP／PLM／MES 整合</li><li>知識庫系統銷售人員：客戶問技術問題，我不想答錯也不想失去專業</li></ul></div><div class="card"><h3>同類文件（系統架構）</h3><ul><li><a href="../../docs/architecture/two-stage-threshold.html">AI 知識問答：兩段式相似度門檻與查無依據攔截（設計文件）</a></li><li><a href="../../docs/architecture/knowledge-type-versioning.html">知識型態抽象 × 版本化 × 時效性（設計文件）</a></li><li><a href="../../docs/architecture/api-versioning.html">API Versioning 策略</a></li><li><a href="../../docs/architecture/dto-boundaries.html">DTO 與模型邊界規範</a></li><li><a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a></li><li><a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a></li><li><a href="../../docs/architecture/rag-rerank-analysis.html">RAG 是否導入 Re-rank（二階重排）分析與建議</a></li><li><a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例</a></li><li><a href="../../docs/architecture/wiki-vs-cleaned.html">Wiki 與 Cleaned 的角色差異</a></li><li><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a></li><li><a href="../../docs/architecture/data-model.html">資料模型與資料庫</a></li><li><a href="../../docs/architecture/data-lifecycle.html">資料生命週期與維護（更新、刪除、級聯與孤兒）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#文件目的">文件目的</a><a class="l2" href="#1-解決方案組成">1. 解決方案組成</a><a class="l2" href="#2-啟動流程knowledgeextractionwebprogramcs">2. 啟動流程（KnowledgeExtraction.Web/Program.cs）</a><a class="l2" href="#3-已註冊的-scoped-服務">3. 已註冊的 Scoped 服務</a><a class="l2" href="#4-請求生命週期">4. 請求生命週期</a><a class="l3" href="#41-razor-元件請求blazor-server">4.1 Razor 元件請求（Blazor Server）</a><a class="l3" href="#42-web-api-請求">4.2 Web API 請求</a><a class="l3" href="#43-非同步管線佇列式背景處理">4.3 非同步管線（佇列式背景處理）</a><a class="l2" href="#5-程式碼分層慣例">5. 程式碼分層慣例</a><a class="l2" href="#6-延伸閱讀">6. 延伸閱讀</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/architecture/架構總覽.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

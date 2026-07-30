@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文件庫全面同步：0.3.x 功能校正、索引補齊與命名一致（0.3.15）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>文件庫全面同步：0.3.x 功能校正、索引補齊與命名一致（0.3.15）</h1></header><div class="docwrap"><main><h2 id="版本" class="t1">版本</h2>
+<ul><li><code>appsettings.json</code>：<code>SystemSettings.SystemInformation.SystemVersion</code> 由 <code>0.3.14 (2026/07/09)</code> 遞增為 <code>0.3.15 (2026/07/09)</code>。</li></ul>
+<h2 id="背景" class="t2">背景</h2>
+<p>0.3.x（0.3.1–0.3.14）兩天內快速新增了 EVAL 評測/診斷、SEC 資安、RQ-8 一鍵重索引、DIS 知識瀏覽、VER-1/VER-2 版本化與時效性等能力。多數文件已隨每次 commit 同步（尤其 <code>changelog/</code> 與 <code>planning/12</code>），但仍有落後點：對外門面（根 README、<code>docs/features/</code>）未反映最新能力、部分子目錄索引漂移、若干 guides/prd 仍描述舊的「重蒸餾＝刪舊頁取代」行為、以及策略/簡報殘留「chunk 級/單元級權控」超前話術。本次以程式 0.3.14 現況為準全庫校正。</p>
+<h2 id="異動內容僅文件與版本號" class="t3">異動內容（僅文件與版本號）</h2>
+<ul><li><strong>對外門面</strong>：</li><li>重寫根 <span class="docref" title="../../readme.md">readme.md</span> §1 定位（由「骨架/起點」改為「已實作端到端知識平台」）、§4 新增「知識平台能力」整段；§8.3 修正編碼口徑（<code>docs/*.md</code> 必須含 BOM）；§9 補齊 architecture/guides/operations/planning/strategy/features 索引與近期 changelog。</li><li><a href="../../docs/docs-index.html">docs/README</a>：features 補兩篇新專篇；內嵌 changelog 補 0.3.9–0.3.14 與 0.2.161。</li><li>各子目錄 <code>README.md</code> 索引補漏（architecture／planning／operations／guides／prompts／superpowers/specs／features）。</li><li><strong>新增功能專篇</strong>：<a href="../../docs/features/versioning-freshness.html">features/版本化與時效性</a>（VER-1/VER-2）、<a href="../../docs/features/wiki-and-wikilink.html">features/知識瀏覽與 WikiLink</a>（DIS-1/DIS-2）。</li><li><strong>architecture 校正</strong>：<a href="../../docs/architecture/rag-rerank-analysis.html">RAG-rerank 是否導入分析</a> 對齊「EVAL 地基已建、rerank 仍未採用（P2）」；<a href="../../docs/architecture/wiki-vs-cleaned.html">Wiki 與 Cleaned 角色差異</a> 新增 §八版本化與時效性、修正「重蒸餾先刪舊頁」為版本鏈保留。</li><li><strong>guides/prd 校正（VER-1 行為）</strong>：知識蒸餾 PRD、知識蒸餾與 Wiki 頁管理指南、知識來源管理與清洗設定檔指南、從匯入到知識的操作流程、RAG 評測使用指南、RAG PoC 執行與驗收指南——將「重蒸餾＝取代/先刪舊頁」改為「保留舊版→superseded→版本鏈」；並修正 PoC 指南「沒有手動建索引按鈕」為「每列有建立/重建索引按鈕＋RQ-8 一鍵全量重建」。RAG 問題診斷手冊對應版本更新至 0.3.14。</li><li><strong>命名/話術一致</strong>：策略、行銷「對外銷售版」、簡報（旗艦簡報、講者指南）殘留「chunk 級／單元級權控」統一為「團隊層權控（檢索層過濾）」；strategy/01 現況表補「版本化/時效性已實作」、版本錨更新至 0.3.14；strategy/13 §3.2 缺口表加註 0.3.x 已收斂項；planning/11 快照用詞校正；planning/12 明細格與其 §〇 主追蹤致自洽（VER 區標題、EVAL-3/4 列、§四統計 12→17）。</li><li><strong>prompts 瑕疵</strong>：修正 3 處錯置/重複的 H1 標題（使用手冊製作說明、客戶用的簡報 Steve Jobs、提示詞清單）；為 3 個無標題壓縮檔提示詞補 H1；<code>知識庫產品調研 prompt .md</code> 去除檔名尾端空白；補齊 prompts/README 索引。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>本次只更新文件與版本號，不變更 API、DTO、Entity、migration、路由或 UI 行為。</li><li>保留 PRD／changelog／design 既有歷史標註與 strategy/05、06、08、12 等<strong>刻意開放</strong>的待釐清/待補登記，不臆造答案。</li><li><strong>簡報匯出物已同步</strong>：<code>presentation/旗艦簡報</code> 以 <code>scripts/Build-FlagshipDeck.py</code> 重新產生 <code>.html</code>＋<code>.pptx</code>（29 頁，自包含）；<code>marketing/商業簡報-對外銷售版</code>（marp 產物、本環境無 marp CLI）改以就地修補 <code>.html</code> 與 <code>.pptx</code>（slide XML）同步同 3 處權控用詞，已驗證 <code>.pptx</code> 可正常開啟。<code>presentation/簡報講者指南</code> 僅 <code>.md</code>、無匯出物。</li><li>全庫通過 <code>scripts/Test-DocsEncoding.ps1</code>（UTF-8 含 BOM、無亂碼）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#版本">版本</a><a class="l2" href="#背景">背景</a><a class="l2" href="#異動內容僅文件與版本號">異動內容（僅文件與版本號）</a><a class="l2" href="#影響範圍">影響範圍</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-09-文件庫全面同步0.3.15.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

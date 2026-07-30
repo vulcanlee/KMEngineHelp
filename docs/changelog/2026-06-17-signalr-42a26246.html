@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>提高 SignalR 訊息上限，修復編修長逐字稿時畫面閃爍（0.2.81）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>提高 SignalR 訊息上限，修復編修長逐字稿時畫面閃爍（0.2.81）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-17</li><li>版本：0.2.80 → 0.2.81</li><li>類型：缺陷修正 / 基礎設定</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p>於「編修逐字稿」對話窗點選文字仍造成畫面不斷閃爍，瀏覽器主控台持續出現： <code>Error: Cannot send data if the connection is not in the 'Connected' State.</code> （堆疊顯示 <code>ant-design-blazor.js</code> → <code>invokeMethodAsync</code> → <code>beginInvokeDotNetFromJS</code>）</p>
+<p>0.2.80 移除右側 Markdown 預覽後，問題仍在 —— 證明預覽並非閃爍主因。</p>
+<h2 id="真正根因" class="t2">真正根因</h2>
+<p>本系統為 Blazor Server（Interactive Server，SignalR circuit）。<code>Program.cs</code> 未設定 <code>MaximumReceiveMessageSize</code>，沿用 SignalR <strong>預設 32KB</strong> 上限。</p>
+<p>當很長的逐字稿載入 AntDesign <code>&lt;TextArea&gt;</code> 後，元件把整段大字串<strong>由用戶端同步回伺服器</strong>（AntDesign JS interop 於輸入／焦點事件回呼 .NET，挾帶整段文字）。訊息超過 32KB → SignalR hub 中斷 circuit → Blazor 進入重連迴圈（畫面閃爍），用戶端後續送出即拋 <code>Cannot send data ... 'Connected' State</code>。</p>
+<p>失敗方向是 <strong>client → server</strong> 的接收上限，因此移除 server→client 的預覽渲染無法解決。</p>
+<h2 id="修正" class="t3">修正</h2>
+<p><code>Program.cs</code>：於 <code>AddInteractiveServerComponents()</code> 後鏈接 <code>AddHubOptions</code>，提高接收訊息上限至 <strong>10MB</strong>：</p>
+<pre><code>builder.Services.AddRazorComponents()
+.AddInteractiveServerComponents()
+.AddHubOptions(options =&gt;
+{
+    options.MaximumReceiveMessageSize = 10 * 1024 * 1024;
+});</code></pre>
+<ul><li>10MB 足以容納數小時逐字稿（一般數十～數百 KB），仍為有限上限（非無限），內部系統安全寬裕。</li><li>同時涵蓋其他長內容情境（編修產生結果、文件 Markdown 等可能 &gt;32KB）。</li></ul>
+<h2 id="與-0280-的關係" class="t4">與 0.2.80 的關係</h2>
+<p>0.2.80 的 <code>ShowPreview</code> 參數（逐字稿不顯示 Markdown 預覽）<strong>維持不變</strong>，定位為<strong>純文字 UX 改善</strong>，而非閃爍修正；本次方為閃爍／斷線的真正解法。</p>
+<h2 id="影響範圍" class="t5">影響範圍</h2>
+<ul><li>變更檔案：<code>Program.cs</code>（SignalR Hub 設定）。</li><li>無模型／資料庫變更，<strong>不需 migration</strong>。</li></ul>
+<h2 id="驗證" class="t6">驗證</h2>
+<ol><li>對逐字稿很長（明顯 &gt;32KB）的紀錄點「編修逐字稿」：點選／捲動／連續輸入不再閃爍，主控台無 <code>Cannot send data ...</code>、無 circuit 重連；儲存正確寫回。</li><li>回歸：長的「編修產生結果」內容可正常編修、預覽、儲存，不閃爍。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#真正根因">真正根因</a><a class="l2" href="#修正">修正</a><a class="l2" href="#與-0280-的關係">與 0.2.80 的關係</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-17-提高SignalR訊息上限修復長逐字稿閃爍.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

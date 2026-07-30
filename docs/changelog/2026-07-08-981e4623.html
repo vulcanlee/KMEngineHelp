@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>側邊選單新增「僅管理員可見」機制，系統管理群組併入 /system-health 與 /rag-diagnostics（0.3.3→0.3.4）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>側邊選單新增「僅管理員可見」機制，系統管理群組併入 /system-health 與 /rag-diagnostics（0.3.3→0.3.4）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-08</li><li>版本：0.3.3 → 0.3.4</li><li>類型：功能／權限強化</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>管理員專用頁原本靠頁內 <code>CheckIsAdmin()</code> 守門，但<strong>側邊選單沒有「僅管理員可見」機制</strong>（選單只依角色權限 <code>CheckAccessPage</code> 過濾，而 <code>IsAdmin</code> 與 <code>RoleList</code> 是兩條獨立軌道，管理員不自動擁有所有權限）。導致：</p>
+<ul><li><code>/system-health</code>、<code>/rag-diagnostics</code> 是管理員專用頁卻不在選單（只能記網址）。</li><li>既有「系統管理」群組（<code>/myusers</code>、<code>/roleviews</code>，本身也是 <code>CheckIsAdmin</code> 專用頁）以角色權限顯示，出現「非管理員被權限勾選看得到選單、卻在頁面被擋」的不一致。</li></ul>
+<h2 id="稽核結論" class="t2">稽核結論</h2>
+<p>全站盤點所有 <code>@page</code> 路由後，「管理員專用（<code>CheckIsAdmin</code>）但不在側邊選單」的頁面<strong>僅兩個</strong>：<code>/system-health</code>、<code>/rag-diagnostics</code>。<code>/myusers</code>、<code>/roleviews</code> 已在「系統管理」群組。</p>
+<h2 id="變更" class="t3">變更</h2>
+<ul><li><strong><code>SidebarMenuItemModel</code></strong> 新增 <code>AdminOnly</code> 欄位（並在 <code>CloneWith</code> 一併複製，避免 clone 遺失）。</li><li><strong><code>SidebarMenuService</code></strong> 過濾抽出純函式 <code>FilterMenuItems(items, isAdmin, checkAccessPage)</code>（可單測）：<code>AdminOnly</code> 項僅管理員可見（略過角色權限 <code>CheckAccessPage</code>），非管理員整項含子樹隱藏。</li><li><strong><code>Menu.json</code></strong>：「系統管理」群組與其所有子項標 <code>adminOnly: true</code>，群組 icon 改 <code>admin_panel_settings</code>，新增子項「系統健康監控」(<code>/system-health</code>)、「RAG診斷」(<code>/rag-diagnostics</code>)。</li><li><strong>雙層防護</strong>：選單隱藏（本次）+ 頁面 <code>CheckIsAdmin</code>（既有，四頁皆具）——非管理員即使直接輸入網址也被擋。</li></ul>
+<h2 id="行為變更" class="t4">行為變更</h2>
+<ul><li>「系統管理」群組<strong>改為僅管理員可見</strong>（原為角色權限控制）。因群組內四頁本來就是 <code>CheckIsAdmin</code> 專用頁，此改動使「選單可見性」與「頁面實際可存取性」一致，並修正先前不一致。</li><li>免動 <code>RolePermissionService</code>／<code>MagicObjectHelper</code>（不新增頂層群組、不改順序，無位置索引風險）。</li></ul>
+<h2 id="測試" class="t5">測試</h2>
+<ul><li>新增 <code>SidebarMenuServiceTests</code>（3）：管理員可見系統管理＋全部 adminOnly 子項（略過角色權限）；非管理員即使 <code>CheckAccessPage</code> 一律 true 仍看不到；一般群組無權限則隱藏。</li></ul>
+<h2 id="影響範圍" class="t6">影響範圍</h2>
+<ul><li><code>appsettings.json</code> SystemVersion 0.3.3 → 0.3.4。無資料庫變更。</li><li>選單有快取，部署／重啟後生效。</li><li>同步更新 <code>docs/operations/RAG問題診斷手冊.md</code>（/rag-diagnostics 已入管理員選單）。</li></ul>
+<h2 id="驗證" class="t7">驗證</h2>
+<ol><li><code>dotnet test --filter SidebarMenuServiceTests</code> 綠燈（3 通過）；<code>dotnet build</code> 成功。</li><li>手動：管理員登入見「系統管理」含四項並可開啟；非管理員看不到該群組；非管理員直達 <code>/system-health</code>、<code>/rag-diagnostics</code> 被擋。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#稽核結論">稽核結論</a><a class="l2" href="#變更">變更</a><a class="l2" href="#行為變更">行為變更</a><a class="l2" href="#測試">測試</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-08-管理員選單與頁面權限.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

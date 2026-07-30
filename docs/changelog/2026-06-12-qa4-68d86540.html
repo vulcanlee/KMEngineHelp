@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗 QA-4：黃金評測集（0.2.66）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>清洗 QA-4：黃金評測集（0.2.66）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-12</li><li>版本：0.2.65 → 0.2.66</li><li>對應路線圖：<a href="../../docs/planning/07-todo-f1c7d6cc.html">資料清洗開發代辦清單 第四階段 QA-4</a>、設計 <a href="../../docs/strategy/cleaning-stage-design.html">strategy/08</a></li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>建立「黃金評測集」應用內頁面：人工標註小樣本，跑清洗管線並比對，<strong>量化遮罩漏判、分類準確率、摘要品質</strong>， 並以<strong>門檻掃描</strong>校準信心門檻（QA-2 的 <code>Cleaning.ConfidenceThreshold</code>）。</p>
+<h2 id="內容" class="t2">內容</h2>
+<ul><li><strong>資料模型</strong>：<code>GoldenSample</code>（Title、InputText、ExpectedMaskedTerms/MustKeepTerms/ExpectedCategories/</li></ul>
+<p>ExpectedSummaryEntities、HumanPass、最近評測結果 LastEvaluatedAt/LastConfidence/LastMetricsJson）。 雙 provider migration <code>AddGoldenSample</code>。</p>
+<ul><li><strong>純評估器</strong> <code>CleaningEvaluator</code>（靜態、可單測、不需 LLM）：</li><li>遮罩：列出仍出現在本文的「應遮罩字串」（漏判）、算 MaskRecall、MustKeep 是否保留。</li><li>分類：與管線建議分類做集合比對 → Precision/Recall/F1。</li><li>摘要：預期關鍵實體在摘要中的涵蓋率（啟發式）。</li><li>門檻掃描：0.5~0.9 各門檻的自動清洗率/待審率/對人工 Pass 的精準率與召回率，並建議門檻。</li><li><strong>服務</strong> <code>GoldenSampleService</code>：樣本 CRUD、<code>EvaluateOneAsync</code>（重用 <code>CleaningEnhancer</code> 跑真 LLM → 比對 → 存指標）、</li></ul>
+<p><code>GetAggregateAsync</code>（彙整指標＋門檻掃描＋建議/目前門檻）、<code>SeedBuiltInAsync</code>（一鍵載入內建繁中合成樣本）。</p>
+<ul><li><strong>頁面/權限</strong>：「清洗與蒸餾 &gt; 黃金評測」（路由 <code>/golden-samples</code>，新增頁面權限 <code>角色_黃金評測</code>，</li></ul>
+<p>三處同步＋位置索引；圖示 <code>fact_check</code>）。頁面含樣本 CRUD、載入種子、評測（單筆/全部）、指標與門檻儀表板。</p>
+<ul><li><strong>測試</strong>：<code>CleaningEvaluatorTests</code>（17 筆，指標/門檻純函式）、<code>GoldenSampleServiceTests</code>（5 筆，含假 LLM 端到端）；</li></ul>
+<p>全測試 221 筆綠燈。<code>MenuIconTests</code> 允許清單加入 <code>fact_check</code>。</p>
+<h2 id="備註" class="t3">備註</h2>
+<ul><li>評測需設定 OpenAI ApiKey（重用清洗管線）；未設定則回明確提示、不評測。</li><li>校準只<strong>建議</strong>門檻，套用仍由人改 <code>appsettings</code>（避免自動改動線上行為）。</li><li>摘要品質採啟發式關鍵實體涵蓋率；LLM 評審打分留待後續。</li><li>資料清洗第四階段（QA-1~QA-4）至此完成；下一步可往知識蒸餾推進。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#內容">內容</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-12-清洗QA4黃金評測.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

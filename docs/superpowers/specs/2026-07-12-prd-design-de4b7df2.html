@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRD 全庫基線重建設計｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../../index.html">角色首頁</a>
+    <a href="../../../all-docs.html">全部文件</a>
+    <a href="../../../search.html">搜尋</a>
+    <a href="../../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../../all-docs.html">全部文件</a> ／ superpowers/specs</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">superpowers/specs</div><h1>PRD 全庫基線重建設計</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/12</li><li>目標系統版本：0.3.34</li><li>狀態：已由使用者確認，待實作</li></ul>
+<h2 id="一目標" class="t1">一、目標</h2>
+<p>將 <code>docs/prd</code> 建立為可驗證的產品需求單一入口：完整覆蓋目前已實作的系統能力，同時保留尚未實作的產品藍圖，但兩者必須嚴格分層，不能讓讀者把規劃誤認為現況。</p>
+<p>本次保留既有 PRD 路徑與歷史引用，不進行大規模重新命名或合併。文件以產品能力為單位；所有正式選單頁仍須透過覆蓋矩陣對應至少一份 PRD。</p>
+<h2 id="二真實來源與判定順序" class="t2">二、真實來源與判定順序</h2>
+<p>PRD 校正依下列順序判定現況：</p>
+<ol><li>程式碼、資料模型、設定與自動化測試。</li><li><code>Menu.json</code>、Razor <code>@page</code>、權限樹與實際服務流程。</li><li>架構、安全、功能、操作及維運專題文件。</li><li>changelog 與既有 PRD 的歷史描述。</li></ol>
+<p>文件互相衝突時，以較高順位來源校正；有保存價值的舊決策放入變更紀錄，不保留在現行需求中。</p>
+<h2 id="三prd-資訊架構" class="t3">三、PRD 資訊架構</h2>
+<p>每份 PRD 統一標示：文件版本、文件狀態、現行系統版本、首次實作版本、最後核對日期。能力狀態只使用「已實作」「部分實作」「規劃中」「已淘汰」。</p>
+<p>每份文件至少包含：</p>
+<ul><li>產品目標、使用者與入口。</li><li>已實作範圍與明確非目標。</li><li>使用流程、畫面／介面與資料規則。</li><li>權限、安全及團隊權控。</li><li>狀態機、背景作業、錯誤與恢復行為（適用時）。</li><li>資料影響、版本／時效性與下游連動（適用時）。</li><li>可驗證的驗收條件、主要程式來源與關聯文件。</li><li>獨立的「規劃中需求」章節；不得把未實作欄位或流程寫入現況章節。</li></ul>
+<p><code>docs/prd/README.md</code> 升級為 PRD 主控台，包含：</p>
+<ul><li>產品能力、PRD、選單頁、程式來源與狀態覆蓋矩陣。</li><li>無選單入口的核心背景管線、索引、權控、版本生命週期與稽核能力。</li><li>已實作與規劃中藍圖分區。</li><li>新增／修改功能時的 PRD 維護規則。</li></ul>
+<h2 id="四新增能力-prd" class="t4">四、新增能力 PRD</h2>
+<p>新增五組產品能力文件：</p>
+<ol><li><strong>知識瀏覽與 Wiki 導覽</strong>：涵蓋 <code>/knowledge-wiki</code>、概念索引、分類／團隊篩選、WikiLink、版本閱讀、複製／PDF 與權控。</li><li><strong>嵌入索引與混合檢索</strong>：涵蓋切塊、嵌入、向量儲存、關鍵字／向量融合、來源與分類限制、索引狀態、單筆／全量重建及權控。</li><li><strong>RAG 診斷與查詢期調校</strong>：涵蓋 <code>/rag-diagnostics</code>、門檻、查詢期參數、分佈／模擬、索引健康、自檢、試檢索及熱套用風險。</li><li><strong>資料版本、時效性與一致性生命週期</strong>：涵蓋素材版本鏈、as-of、過時標記、孤兒成員、<code>/data-consistency</code>、重新清洗／蒸餾／索引連動與安全清理。</li><li><strong>AI 可觀測性與成本治理</strong>：涵蓋 <code>/chat-logs</code>、滿意度、問答稽核、<code>/token-usage</code>、成本統計、資料留存與管理員權限。</li></ol>
+<p><code>/log-settings</code> 併入擴充後的「系統健康監控 PRD」，與健康檢查、日誌尾端、執行期診斷形成同一產品能力。</p>
+<p>內容搜尋取代、共用內容編修、PDF 下載、批次壓縮檔上傳等較小的跨頁能力，回寫所屬現有 PRD，不另建碎片文件。</p>
+<h2 id="五既有-prd-校正" class="t5">五、既有 PRD 校正</h2>
+<p>逐份審核現有 26 份 PRD，按下列群組執行：</p>
+<ul><li>帳號與治理：首頁、登入、使用者、角色、分類、團隊、提示詞、系統健康。</li><li>專案協作：專案、工作、會議與附件。</li><li>內容匯入：影音轉錄、文件萃取、圖片辨識、逐字稿／文件衍生內容。</li><li>知識加工：知識來源、清洗、清洗設定檔、黃金評測、蒸餾。</li><li>RAG 與品質：問答、RAG 評測、PDF 專屬 RAG 藍圖、索引／檢索與診斷。</li></ul>
+<p>每份檢查路由、欄位、按鈕、狀態、設定鍵、權限、團隊權控、資料影響、錯誤恢復、驗收及程式連結。近期香港功能須回寫正確歸屬，包括素材版本鏈、內容搜尋取代、問答來源／分類限制、滿意度與聊天稽核、Token 用量、全量索引、資料一致性與診斷頁。</p>
+<p>《PDF 型 RAG 處理 PRD》保留，但分成「目前通用 RAG 已提供的能力」與「尚未實作的 PDF 結構感知藍圖」，規劃內容不得出現在現況驗收。</p>
+<h2 id="六驗收與交付" class="t6">六、驗收與交付</h2>
+<ul><li>所有正式選單頁 100% 對應至少一份現況 PRD。</li><li>所有背景管線、核心資料實體與跨域安全能力都有產品需求歸屬。</li><li>PRD 中的路由、設定鍵、狀態與主要功能可由程式碼或測試驗證。</li><li>已實作與規劃中需求完全分區；部分實作項目逐條標示完成／未完成。</li><li>所有相對連結可解析，<code>scripts/Test-DocsEncoding.ps1</code> 全數通過。</li><li><code>dotnet test</code> 通過；Git diff 僅包含 PRD、必要索引／changelog、設計／計畫文件與版本設定。</li><li>系統版本由 0.3.33 升為 0.3.34；新增 PRD 版本為 1.0，既有 PRD 依校正幅度提升文件版本。</li><li>不自動 commit；交付時提供建議 commit message 並保留獨立 worktree 供審閱。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（superpowers/specs）</h3><ul><li><a href="../../../docs/superpowers/specs/2026-06-03-youtube-design-09a22705.html">音訊轉錄擴充設計規格：YouTube 來源、繁體輸出修正、語言選擇</a></li><li><a href="../../../docs/superpowers/specs/2026-06-04-design-7470dd71.html">抖音影片自動轉錄整合 — 設計文件</a></li><li><a href="../../../docs/superpowers/specs/2026-06-29-design-b8503e21.html">設計：專案列表「工作與會議」對話窗 + 共用編輯 Modal 抽取</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目標">一、目標</a><a class="l2" href="#二真實來源與判定順序">二、真實來源與判定順序</a><a class="l2" href="#三prd-資訊架構">三、PRD 資訊架構</a><a class="l2" href="#四新增能力-prd">四、新增能力 PRD</a><a class="l2" href="#五既有-prd-校正">五、既有 PRD 校正</a><a class="l2" href="#六驗收與交付">六、驗收與交付</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/superpowers/specs/2026-07-12-PRD全庫基線重建-design.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

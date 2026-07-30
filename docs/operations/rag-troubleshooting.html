@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAG 問題診斷手冊（維運用）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 部署與維運</p><header class="hero"><div class="kicker">部署與維運</div><h1>RAG 問題診斷手冊（維運用）</h1><p class="sub">把「使用者問答異常」的排查，從零散的參數表／問題對照表，強化成一套症狀 → 檢查 → 建議調整 → 是否需重建索引的決策手冊；並涵蓋「檢索診斷與調校網頁」（EVAL-4，✅ 0.3.6）與「查詢期參數化設定 UI」（EVAL-5，✅ 0.3.9）兩者的實作說明。</p></header><div class="docwrap"><main><ul><li>文件用途：把「使用者問答異常」的排查，從零散的參數表／問題對照表，強化成一套<strong>症狀 → 檢查 → 建議調整 → 是否需重建索引</strong>的決策手冊；並涵蓋「檢索診斷與調校網頁」（EVAL-4，✅ 0.3.6）與「查詢期參數化設定 UI」（EVAL-5，✅ 0.3.9）兩者的<strong>實作說明</strong>。</li><li>主要讀者：維運人員、客服、導入顧問、系統負責人</li><li>對應版本：0.3.14（含 EVAL-4 診斷頁 0.3.6、EVAL-5 查詢期參數化 0.3.9、VER-2 as-of 試檢索 0.3.14）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li><li>建立日期：2026/07/08</li></ul>
+<blockquote><p>本手冊是「決策流程」；參數定義與完整脈絡見 <a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a>（§四參數表、§七參數調整指引）。兩層概念見 <a href="../../docs/architecture/wiki-vs-cleaned.html">Wiki 與 Cleaned 角色差異</a>。待辦追蹤見 <a href="../../docs/planning/12-rag-b561e5d2.html">RAG 系統補強總彙整</a>。</p></blockquote>
+<hr>
+<h2 id="一先看三個狀態源排查前必看" class="t1">一、先看三個「狀態源」（排查前必看）</h2>
+<p>任何診斷都從這三處取得客觀狀態，避免憑感覺調參：</p>
+<div class="tw"><table><thead><tr><th>狀態源</th><th>看什麼</th><th>位置</th></tr></thead><tbody><tr><td><strong><code>/system-health</code>「向量索引涵蓋率」</strong></td><td>是否有已清洗來源但索引為空／是否未設定嵌入</td><td>系統健康頁</td></tr><tr><td><strong>問答稽核日誌</strong></td><td>每輪「最高分 topScore／信心級別／命中明細 <code>#Id(layer,score)</code>」；持久化稽核另記提問者帳號（SEC-5，可歸責「誰問了什麼」）。<strong>注意</strong>：<code>KnowledgeBaseQueryAudit</code> 只存<strong>身分＋長度＋分數、無本文</strong>；若要看<strong>完整提問與回覆全文</strong>，是另一個獨立機制 <code>LlmChatLog</code>（0.3.29，全文存檔、管理員 <code>/chat-logs</code> 查閱），兩者勿混淆。</td><td>NLog 結構化日誌 + <code>KnowledgeBaseQueryAudit</code> 表（<code>/rag-diagnostics</code> 近期稽核可查）</td></tr><tr><td><strong>管理員問答診斷提示</strong></td><td>查無依據時系統自動提示「嵌入未設定／索引為空」</td><td>問答頁（僅管理員可見）</td></tr></tbody></table></div>
+<blockquote><p>「跨查詢的 topScore 分佈統計」已於 0.3.6 落地於 <code>/rag-diagnostics</code>（見 §四），<strong>不需</strong>再人工從日誌彙整。</p></blockquote>
+<hr>
+<h2 id="二四大症狀決策樹強化版" class="t2">二、四大症狀決策樹（強化版）</h2>
+<p>以下把原始診斷流程樹補上「判斷依據、對應參數、是否重建索引、對應程式」。</p>
+<h3 id="症狀-a一律查無依據幾乎每題都答查無相關依據">症狀 A｜一律查無依據（幾乎每題都答「查無相關依據」）</h3>
+<pre><code>A. 一律查無依據
+├─ 1. 先看 /system-health「向量索引涵蓋率」
+│     ├─ 顯示「未設定嵌入」 → 設定 OpenAISettings 的 Embedding*（雲端 ApiKey 或地端端點）
+│     └─ 顯示「索引為空」   → 到「知識來源管理清單」對已清洗來源按「建立索引」；多筆可用工具列「全量重建索引」一次排入（RQ-8，增量冪等、背景處理）
+├─ 2. 確認來源狀態鏈：已清洗？已蒸餾？Wiki 已核准（已完成）？
+│     └─ VectorEmbedding 為空的常見主因：內容在索引管線上線前就蒸餾，或當時未設嵌入
+├─ 3. 確認 embedding 模型一致：查詢與文件必須同模型、同維度（1024）
+│     └─ 換過 EmbeddingModel/Dimensions 但沒重建索引 → 維度/語意不一致 → 重建索引
+└─ 4. 門檻是否設太嚴：RejectThreshold 是否被調得過高（見症狀 C 反向）</code></pre>
+<ul><li><strong>是否重建索引</strong>：情境 1（建立索引即可，不需重蒸餾）；情境 3（換模型/維度需重建）。</li><li><strong>對應</strong>：<code>KnowledgeSourceService.TriggerEmbeddingIndexAsync</code>／<code>TriggerEmbeddingIndexAllAsync</code>（RQ-8 全量）、<code>EmbeddingIndexProcessor</code>、<code>OpenAISettings.Embedding*</code>。</li></ul>
+<h3 id="症狀-b有命中但答案不準有撈到內容但答得不對不完整">症狀 B｜有命中但答案不準（有撈到內容，但答得不對／不完整）</h3>
+<pre><code>B. 有命中但答案不準
+├─ 1. 召回廣度：適度增加 TopK / CandidateTopK（讓更多相關 chunk 有機會進 context）
+├─ 2. chunk 顆粒：
+│     ├─ 太小 → 上下文被切碎 → 增加 ChunkTargetChars / ChunkOverlapChars（需重建索引）
+│     └─ 太大 → 一塊混多主題 → 降低 ChunkTargetChars / ChunkMaxChars（需重建索引）
+├─ 3. Wiki 是否過度摘要：命中集中在 Wiki 層且細節缺失
+│     └─ 確認 Cleaned 層有進索引當佐證；必要時提高對 Cleaned 的權重來源（見 Wiki/Cleaned 角色差異）
+├─ 4. 是否需要 adjacent chunk expansion（章節/條款被切開）→ 補強清單 RQ-2（未實作）
+└─ 5. 融合權重：語意對但關鍵詞不同→提高 VectorWeight；關鍵詞精確命中差→提高 KeywordWeight</code></pre>
+<ul><li><strong>是否重建索引</strong>：情境 2（改切塊要重建）；情境 1、5（調 TopK／權重不需重建）。</li><li><strong>注意</strong>：先窮盡「調設定」再考慮 rerank；rerank 是<strong>評測驅動的有條件 P2</strong>，見 <a href="../../docs/architecture/rag-rerank-analysis.html">rerank 分析</a>。</li></ul>
+<h3 id="症狀-c庫外問題仍硬答知識庫沒有的內容卻臆造回答">症狀 C｜庫外問題仍硬答（知識庫沒有的內容，卻臆造回答）</h3>
+<pre><code>C. 庫外問題仍硬答 / 答非所問
+├─ 1. 看稽核日誌的 topScore 分佈：庫外問題的最高分通常偏低
+├─ 2. 提高 RejectThreshold（更容易判為「查無依據」直接不呼叫 LLM）
+├─ 3. 視需要提高 LowConfidenceThreshold（更容易加上「⚠️ 信心不足」前綴）
+└─ 4. 校準原則：以「真實庫內問題的最高分下緣」與「庫外問題的最高分上緣」之間取值</code></pre>
+<ul><li><strong>是否重建索引</strong>：不需（純查詢期門檻）。</li><li><strong>對應</strong>：<code>RejectThreshold</code>／<code>LowConfidenceThreshold</code>（<code>SystemSettings.Retrieval</code>）、<code>KnowledgeBaseChatService</code> 兩段式判定。<strong>門檻校準＝補強清單 RQ-1，前提是 EVAL-2/EVAL-3 有分佈數據。</strong></li></ul>
+<h3 id="症狀-d出處錯誤答案還行但出處指向不對">症狀 D｜出處錯誤（答案還行，但出處指向不對）</h3>
+<pre><code>D. 出處錯誤
+├─ 1. 看該筆出處層別：是「清洗內容」還是「蒸餾頁」？
+├─ 2. 檢查 AnchorRef：是否指到錯誤章節（切塊把標題與內文切開？）
+├─ 3. 若為蒸餾頁：檢查 WikiPage 對應與內容是否忠於來源
+├─ 4. 若為清洗內容：檢查 Cleaned Markdown 結構（標題層級是否正常）
+└─ 5. 修正內容或切塊後 → 重建索引</code></pre>
+<ul><li><strong>是否重建索引</strong>：改內容／切塊需重建。</li><li><strong>對應</strong>：<code>Chunker</code>（<code>AnchorRef</code> 產生）、<code>VectorEmbedding.AnchorRef</code>／<code>WikiPageId</code>。</li></ul>
+<h3 id="症狀-e整體綜觀類問題答不出來或全域模式說沒有可用社群">症狀 E｜「整體／綜觀」類問題答不出來，或全域模式說沒有可用社群</h3>
+<p>這一類是 Graph RAG（1.0.83～1.0.96）才有的症狀，與向量／關鍵字檢索無關。</p>
+<pre><code>E. 綜觀類問題答不出來
+├─ 1. 先分辨是哪一種問題
+│     ├─ 「A 跟 C 有什麼關聯」（多跳）      → 走下面 2～5（圖檢索路徑）
+│     └─ 「整體風險/趨勢/系統性根因有哪些」 → 走下面 6～8（全域問答路徑）
+├─ 2. Chat LLM 有設定嗎？（/system-health 看 LLM 可用性）
+│     └─ 沒設定 → 三元組抽取、社群摘要、全域問答全部不能用
+├─ 3. 該來源的 Wiki 頁核可了嗎？
+│     └─ 未核可 → 抽取會跑完但抽不到東西（抽取讀的是「已完成且現行」的 Wiki 頁）
+├─ 4. 三元組核可了嗎？（/knowledge-graph-review「三元組審核」）
+│     └─ 還在「待審核」或已被「退回」 → 完全不影響檢索。核可後即時生效
+├─ 5. GraphWeight 是不是 0？（/rag-diagnostics 看實際生效值，不是看 appsettings）
+│     ├─ 是 0 → 圖檢索整路關閉（連查詢都不發）
+│     └─ 不是 0 但沒效果 → 看 GraphMaxHops 是否為 1（單跳撈不到 2 跳外的關聯）
+├─ 6. 「重建社群摘要」執行過嗎？（審核頁頂端狀態列的社群數）
+│     └─ 從未重建 → 全域問答無社群可用（系統會回可行動的原因，不是空白）
+├─ 7. 這個使用者符合社群 ACL 嗎？
+│     └─ 社群摘要採「社群團隊聯集 ⊆ 使用者團隊」的子集判定，比一般紀錄的交集判定更嚴
+└─ 8. 問法對嗎？
+      └─ 具體條款/數字請改用「一般（精準檢索）」模式；全域模式沒有出處可核對</code></pre>
+<ul><li><strong>是否重建索引</strong>：都不需要。圖譜與向量索引是<strong>兩條獨立的路</strong>，重建索引不會補上三元組，重抽三元組也不會動到向量。</li><li><strong>要不要重建社群摘要</strong>：核可<strong>別名</strong>後要（社群才會套用實體合併）；核可<strong>三元組</strong>後不必（檢索即時生效），但社群內容會與最新核可狀態有落差，適時重建。</li><li><strong>對應</strong>：<code>RetrievalService.SearchGraphAsync</code>（圖分）、<code>GraphCommunityService</code>（社群 ACL）、<code>KnowledgeBaseChatService.GlobalMapAsync</code>（全域 map-reduce）。</li><li><strong>想量化「圖到底有沒有用」</strong>：<code>/rag-evaluation</code> 的四個圖指標（圖召回增益／圖參與率／圖獨有命中／平均取用社群數），見 <a href="../../docs/guides/knowledge-graph.html">知識圖譜使用指南 §九</a>。</li></ul>
+<blockquote><p>⚠️ <strong>升級後檢索結果「變多」不一定是壞了</strong>：<code>GraphMaxHops</code> 預設為 2（1.0.90 起多跳生效），會讓召回增加、既有評測基線位移。請重跑評測建立新基線；要回到單跳行為就把 <code>GraphMaxHops</code> 設 1。</p></blockquote>
+<hr>
+<h2 id="三問題歸屬快速分流判斷根因在哪一層" class="t3">三、「問題歸屬」快速分流（判斷根因在哪一層）</h2>
+<p>維運最需要的是：<strong>問題到底出在資料品質、清洗、蒸餾、還是 RAG 設計/參數？</strong> 用下表快速歸屬：</p>
+<div class="tw"><table><thead><tr><th>觀察</th><th>較可能的根因層</th><th>先做</th></tr></thead><tbody><tr><td>一律查無依據、<code>/system-health</code> 示警</td><td>RAG 索引未建 / 嵌入未設</td><td>建立索引 / 設定嵌入</td></tr><tr><td>命中都在但內容本身就殘缺、含雜訊</td><td><strong>資料品質 / 清洗</strong></td><td>檢視 Cleaned 內容、調清洗規則設定重清洗</td></tr><tr><td>概念頁把關鍵細節摘掉、答案空泛</td><td><strong>蒸餾</strong></td><td>檢視 Wiki 頁、重蒸餾，或問答時倚重 Cleaned</td></tr><tr><td>內容都在、就是排序/召回差</td><td><strong>RAG 參數</strong></td><td>調 TopK/權重/切塊/門檻（本手冊 §二）</td></tr><tr><td>敏感資訊外洩到答案</td><td><strong>清洗遮罩</strong>（蒸餾不補救）</td><td>回清洗階段補遮罩、重清洗→重蒸餾→重索引（SEC-2）</td></tr><tr><td>出處指錯段落</td><td>切塊 / 內容結構</td><td>檢查 AnchorRef、重建索引</td></tr><tr><td>多跳關聯題答不出來、或全域模式無社群</td><td><strong>圖譜層</strong>（Graph RAG）</td><td>到 <code>/knowledge-graph-review</code> 確認 Wiki 頁已核可、三元組已核可、社群已重建；到 <code>/rag-diagnostics</code> 確認 <code>GraphWeight</code> 生效值不為 0（本手冊 §二 症狀 E）</td></tr></tbody></table></div>
+<hr>
+<h2 id="四系統內檢索診斷與調校網頁eval-4-036-完整落地於-rag-diagnostics" class="t4">四、系統內「檢索診斷與調校網頁」（EVAL-4，✅ 0.3.6 完整落地於 <code>/rag-diagnostics</code>）</h2>
+<blockquote><p><strong>已完整落地（0.3.6）</strong>：<code>/rag-diagnostics</code>（管理員，<code>CheckIsAdmin</code> 擋人；側邊選單「系統管理」adminOnly + 頁面守門＝雙層防護）已含下列全部五區——<strong>① 索引健康</strong>（每來源清洗/蒸餾/已核准Wiki/Cleaned·Wiki chunk 數/最後索引時間 + 紅黃綠燈 + 未設嵌入提示）、<strong>② topScore 分佈</strong>（直方圖/百分位/信心佔比）、<strong>③ 目前vs建議門檻 + 效果模擬 + 直接套用/回復</strong>（見 §五）、<strong>④ 症狀自檢</strong>（自動列出當前問題與建議動作）、<strong>⑤ 試檢索</strong>（輸入問句看候選 chunk 的向量/關鍵字/融合分、層別、AnchorRef、片段與信心；不呼叫 LLM、不寫稽核）。另有 <strong>近期問答稽核紀錄</strong> 逐筆分頁表（可依信心篩選；無問句本文）。至此 <code>/rag-diagnostics</code> 為完整「RAG 維運中心」。</p></blockquote>
+<p><strong>目標</strong>：把 §一～§三 的人工排查變成一頁可視化自助診斷，維運不必翻日誌。<strong>此目標已達成</strong>——各區的實際功能見上方落地說明，逐項操作見 <a href="../../docs/guides/beginner-guide.html">新手完整操作指南 §14.3</a>；資料源為 <code>KnowledgeSource</code> 的三個狀態、<code>VectorEmbedding</code> 統計與問答稽核紀錄。</p>
+<p><strong>不變量</strong>：所有查詢與試檢索都必須套團隊權控（此頁限管理員，但仍不得繞過越權洩漏＝0 的原則）；不顯示完整敏感 context 於日誌。</p>
+<hr>
+<h2 id="五參數化設定-uieval-5-039-查詢期參數全數落地於-rag-diagnostics" class="t5">五、「參數化設定 UI」（EVAL-5，✅ 0.3.9 查詢期參數全數落地於 <code>/rag-diagnostics</code>）</h2>
+<blockquote><p><strong>已落地（0.3.9）</strong>：<code>/rag-diagnostics</code> 除既有的 <strong>RejectThreshold／LowConfidenceThreshold</strong>（0.3.3）外，新增「<strong>查詢期檢索參數</strong>」區塊，可直接調整 <strong>TopK／CandidateTopK／VectorWeight／KeywordWeight／MinScore</strong> 並<strong>熱套用</strong>（免改 appsettings、免重啟）。</p></blockquote>
+<p><strong>機制</strong>：</p>
+<ul><li>查詢期參數用<strong>獨立單列覆蓋表</strong> <code>RetrievalParamOverride</code>（與門檻表 <code>RetrievalSettingOverride</code> <strong>分表</strong>，避免兩者的「回復預設」互相清除），同走 <code>IRetrievalSettingsProvider</code>（讀取優先序：<strong>DB 覆蓋 → appsettings → 程式預設</strong>）。</li><li><code>RetrievalService</code> 由原本直接吃 <code>IOptions&lt;SystemSettings&gt;</code> 改為<strong>每次檢索即時解析</strong> <code>GetEffectiveParamsAsync()</code>，因此頁面套用後<strong>下一次檢索即生效</strong>；並可「回復預設」。</li><li><strong>驗證</strong>：<code>TopK ≥ 1</code>、<code>CandidateTopK ≥ TopK</code>、<code>VectorWeight／KeywordWeight／MinScore ∈ [0,1]</code>（不合法即擋下，不寫入）。</li><li><strong>稽核</strong>：覆蓋表記錄 <code>UpdatedAt／UpdatedBy</code>。</li></ul>
+<p><strong>刻意不納入熱套用的參數</strong>：<strong>切塊三參數（ChunkTargetChars／ChunkMaxChars／ChunkOverlapChars）</strong>改動須<strong>重建索引</strong>才生效，性質與查詢期參數不同，維持於 <code>appsettings.json</code>，不在此頁熱套用（頁面亦明示此點）。</p>
+<p><strong>與評測基線的關係（調參—量測閉環）</strong>：在 <code>/rag-diagnostics</code> 調完查詢期參數後，到 <code>/rag-evaluation</code>「評測全部」並與<strong>基線</strong>（EVAL-1，見<a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a> §四）比對逐指標差異，即可判斷此次調整是變好還是變差——診斷頁調參、評測頁量測、診斷頁看 topScore 分佈是否改善，形成完整閉環。</p>
+<hr>
+<h2 id="六落地順序建議呼應補強清單" class="t6">六、落地順序建議（呼應補強清單）</h2>
+<ol><li><strong>先打數據地基</strong>：EVAL-2（稽核持久化）→ EVAL-3（topScore 分佈統計）。沒有數據，門檻校準與診斷網頁都只是空殼。</li><li><strong>再做可視化</strong>：EVAL-4 診斷網頁（先做「索引健康區 + 參數現值區 + 症狀自檢區」，分佈區待 EVAL-2/3）。</li><li><strong>再做可調參</strong>：EVAL-5 參數化設定 UI（✅ 0.3.9 查詢期參數全數上線；索引期／切塊參數因需重建索引仍維持 appsettings）。</li><li><strong>資安紅線並行不等</strong>：SEC-1／SEC-2 不需等上述，應優先處理。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：問答結果不如預期，我要找出原因</li><li>導入顧問：客戶環境出問題，我要排查</li></ul></div><div class="card"><h3>同類文件（部署與維運）</h3><ul><li><a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定（C:\KMEngineTools）</a></li><li><a href="../../docs/operations/fresh-machine-sop.html">全新機器部署 SOP</a></li><li><a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a></li><li><a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a></li><li><a href="../../docs/operations/help-site-build.html">文件說明網站：產生與佈署</a></li><li><a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a></li><li><a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a></li><li><a href="../../docs/operations/maintenance-rules.html">維護規範</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一先看三個狀態源排查前必看">一、先看三個「狀態源」（排查前必看）</a><a class="l2" href="#二四大症狀決策樹強化版">二、四大症狀決策樹（強化版）</a><a class="l3" href="#症狀-a一律查無依據幾乎每題都答查無相關依據">症狀 A｜一律查無依據（幾乎每題都答「查無相關依據」）</a><a class="l3" href="#症狀-b有命中但答案不準有撈到內容但答得不對不完整">症狀 B｜有命中但答案不準（有撈到內容，但答得不對／不完整）</a><a class="l3" href="#症狀-c庫外問題仍硬答知識庫沒有的內容卻臆造回答">症狀 C｜庫外問題仍硬答（知識庫沒有的內容，卻臆造回答）</a><a class="l3" href="#症狀-d出處錯誤答案還行但出處指向不對">症狀 D｜出處錯誤（答案還行，但出處指向不對）</a><a class="l3" href="#症狀-e整體綜觀類問題答不出來或全域模式說沒有可用社群">症狀 E｜「整體／綜觀」類問題答不出來，或全域模式說沒有可用社群</a><a class="l2" href="#三問題歸屬快速分流判斷根因在哪一層">三、「問題歸屬」快速分流（判斷根因在哪一層）</a><a class="l2" href="#四系統內檢索診斷與調校網頁eval-4-036-完整落地於-rag-diagnostics">四、系統內「檢索診斷與調校網頁」（EVAL-4，✅ 0.3.6 完整落地於 /rag-diagnostics）</a><a class="l2" href="#五參數化設定-uieval-5-039-查詢期參數全數落地於-rag-diagnostics">五、「參數化設定 UI」（EVAL-5，✅ 0.3.9 查詢期參數全數落地於 /rag-diagnostics）</a><a class="l2" href="#六落地順序建議呼應補強清單">六、落地順序建議（呼應補強清單）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/operations/RAG問題診斷手冊.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

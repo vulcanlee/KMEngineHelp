@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>環境檢測腳本補強：.NET 10 執行時 / PowerShell 7.x / npm（0.2.136）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>環境檢測腳本補強：.NET 10 執行時 / PowerShell 7.x / npm（0.2.136）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-27</li><li>版本：0.2.135 → 0.2.136</li><li>類型：維運 / 環境檢測改善</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>新機器若缺少必要執行時期軟體，系統會無法執行。原檢測腳本 <code>scripts/Test-ExternalTools.ps1</code> 只檢查外部工具（ffmpeg／yt-dlp／markitdown 與抖音鏈），<strong>未檢測本系統最關鍵的 .NET 10 執行時</strong>， 也沒有檢查 PowerShell 版本與 npm。</p>
+<h2 id="調整內容" class="t2">調整內容</h2>
+<p><code>scripts/Test-ExternalTools.ps1</code> 新增「平台前置需求」檢測：</p>
+<ul><li><strong>.NET 10 ASP.NET Core Runtime（阻斷型）</strong>：以 <code>dotnet --list-runtimes</code> 比對是否存在</li></ul>
+<p><code>Microsoft.AspNetCore.App 10.x</code>。缺少（或未裝 dotnet）→ 顯示 <code>FAILED</code>、提示 「系統將無法執行」與安裝指令（<code>winget install Microsoft.DotNet.AspNetCore.10</code>），並納入結束碼（缺少→1）。</p>
+<ul><li><strong>PowerShell 版本（警告型）</strong>：檢查 <code>$PSVersionTable.PSVersion</code>，低於 7 → 警告並提示</li></ul>
+<p><code>winget install --id Microsoft.PowerShell -e</code>；不影響結束碼（程式本身不需 PowerShell）。</p>
+<ul><li><strong>npm（警告型，抖音鏈）</strong>：於抖音區塊新增 <code>npm --version</code> 檢測。</li></ul>
+<p>同步更新腳本檔頭 <code>.SYNOPSIS</code>／<code>.DESCRIPTION</code> 與結束碼／摘要訊息（阻斷條件＝ .NET 10 ＋核心工具）。</p>
+<h2 id="文件" class="t3">文件</h2>
+<ul><li><code>docs/operations/全新機器部署SOP.md §1</code>：補 PowerShell 7+ 選配建議與「一鍵檢測」提示。</li><li><code>README.md</code> 快速開始：補 PowerShell 7.x 建議與檢測腳本提示。</li><li><code>docs/operations/外部工具安裝與路徑設定.md</code>：更新 <code>Test-ExternalTools.ps1</code> 說明，標明已涵蓋 .NET 10／PowerShell／npm。</li><li><code>docs/guides/使用者安裝與操作手冊.md §1</code>：補「一鍵確認 .NET 10／PowerShell／外部工具」說明。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ul><li>本機執行 <code>pwsh -File scripts/Test-ExternalTools.ps1</code>：摘要新增「.NET 執行時 / PowerShell / npm」三列，</li></ul>
+<p>本機（.NET 10.0.9、PowerShell 7.6.3、npm 11.x）皆 <code>OK</code>，結束碼 0。</p>
+<ul><li>缺 .NET 10 時 .NET 列顯示 <code>FAILED</code>＋安裝提示且結束碼為 1；PowerShell &lt; 7 僅警告、結束碼不變。</li></ul>
+<h2 id="備註" class="t5">備註</h2>
+<p>本次僅調整檢測腳本與文件，未動程式碼、資料模型、權限、路由，不需 migration、不需權限三處同步。 安裝腳本 <code>Install-ExternalTools.ps1</code> 維持原行為（不自動安裝 .NET，由使用者依提示安裝）。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#調整內容">調整內容</a><a class="l2" href="#文件">文件</a><a class="l2" href="#驗證">驗證</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-27-環境檢測補強.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

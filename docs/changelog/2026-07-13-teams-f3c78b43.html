@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>統計報表第一階段：LlmTokenUsage／LlmChatLog 新增 Teams 團隊快照＋雙 migration（0.3.36→0.3.37）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>統計報表第一階段：LlmTokenUsage／LlmChatLog 新增 Teams 團隊快照＋雙 migration（0.3.36→0.3.37）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-13</li><li>版本：0.3.36 → 0.3.37</li><li>類型：新功能（基礎建設，統計報表前置）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>規劃中的<a href="../../docs/prd/prd-eda2f75f.html">知識庫統計報表</a>要能「依團隊」統計 Token 用量與聊天回饋，但來源表 <code>LlmTokenUsage</code>、<code>LlmChatLog</code> 只存 <code>UserAccount</code>／<code>UserName</code>，無團隊欄位，無法按團隊切分。本階段新增 <code>Teams</code> 快照欄位並串接寫入路徑，讓升版後新紀錄開始帶團隊；報表頁於後續階段實作。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="資料層">資料層</h3>
+<ul><li><code>LlmTokenUsage</code>、<code>LlmChatLog</code> 各新增可空 <code>string? Teams</code>：於紀錄產生當下快照「使用者當時所屬團隊」，採 <code>TagStringHelper.ToStored</code> 的 <code>\n</code> 包夾格式（與 <code>KnowledgeSource.Teams</code> 等一致，供後續 <code>BuildContainsAnyPredicate</code> 過濾）。</li><li>雙 provider migration <code>AddTeamsToLlmUsageLogs</code>（SQLite 於 <code>AccessDatas</code>、SQL Server 於 <code>AccessDatas.SqlServerMigrations</code>）：兩份僅對兩表各 <code>AddColumn Teams</code>（nullable），無 rename/drop。</li></ul>
+<h3 id="情境與寫入路徑">情境與寫入路徑</h3>
+<ul><li><code>Share/Helpers/OperationContext.cs</code>：<code>OperationInfo</code> 加 <code>Teams</code>、<code>Push(...)</code> 加尾端可選參數 <code>teams</code>；背景作業（清洗/蒸餾/索引/轉錄…）未帶則為 null（向後相容）。</li><li><code>TokenUsageRecorder</code>：建立用量列時帶入 <code>OperationContext.Current.Teams</code>。</li><li><code>ChatLogService.WriteAsync</code>：以 <code>TagStringHelper.ToStored(user.TeamList)</code> 快照寫入 <code>LlmChatLog.Teams</code>。</li><li>兩個聊天進入點 <code>KnowledgeBaseChatView</code>、<code>KnowledgeSourceChatView</code> 於 <code>OperationContext.Push</code> 帶入 <code>CurrentUser.TeamList</code>。</li></ul>
+<h2 id="範圍與已知限制誠實記錄" class="t3">範圍與已知限制（誠實記錄）</h2>
+<ul><li>團隊快照<strong>僅對升版後新紀錄有值</strong>；歷史 <code>LlmTokenUsage</code>/<code>LlmChatLog</code> 的 <code>Teams</code> 為 null，統計時歸「未標記團隊」。不回填歷史資料。</li><li>背景作業（無使用者情境）的 token 用量 <code>Teams</code> 為 null。</li><li>既有 <code>KnowledgeBaseQueryAudit.Teams</code> 為逗號格式（<code>string.Join(",", …)</code>），與本次 <code>\n</code> 格式不同；留待「檢索品質報表」階段處理，本階段不動。</li><li>本階段不含報表服務／頁面／選單／PDF（後續階段）。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li><code>appsettings.json</code> SystemVersion 0.3.36 → 0.3.37。</li><li>程式：<code>AccessDatas/Models/LlmTokenUsage.cs</code>、<code>LlmChatLog.cs</code>、<code>Share/Helpers/OperationContext.cs</code>、<code>Business/Services/DataAccess/TokenUsageRecorder.cs</code>、<code>ChatLogService.cs</code>、<code>Web/Components/Views/KnowledgeBase/KnowledgeBaseChatView.razor.cs</code>、<code>Web/Components/Views/KnowledgeSources/KnowledgeSourceChatView.razor.cs</code>。</li><li>Migration：<code>AccessDatas/Migrations/*_AddTeamsToLlmUsageLogs.cs</code>、<code>AccessDatas.SqlServerMigrations/Migrations/*_AddTeamsToLlmUsageLogs.cs</code>。</li><li>文件：<code>docs/planning/知識庫統計報表-todo.md</code>（第一階段勾選）。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>dotnet build</code> 0 錯誤；兩份 <code>AddTeamsToLlmUsageLogs</code> migration 僅新增 <code>Teams</code> 欄位。</li><li><code>dotnet test</code> 綠。</li><li>手動：有團隊使用者問答後，<code>LlmChatLog.Teams</code>／對應 <code>LlmTokenUsage.Teams</code> 為 <code>\n團隊\n</code> 格式；背景作業與無團隊使用者為 null。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#資料層">資料層</a><a class="l3" href="#情境與寫入路徑">情境與寫入路徑</a><a class="l2" href="#範圍與已知限制誠實記錄">範圍與已知限制（誠實記錄）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-13-統計報表第一階段Teams快照.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

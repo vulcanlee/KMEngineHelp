@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>檔案上傳進度對話窗 ＋ 全站重複「關閉」按鈕修正（1.0.50）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>檔案上傳進度對話窗 ＋ 全站重複「關閉」按鈕修正（1.0.50）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-25</li><li>版本：1.0.49 → 1.0.50</li><li>類型：使用體驗強化（UI／上傳流程）</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<ol><li><strong>大檔上傳無進度、無法取消</strong>：音訊轉錄／文件萃取／圖片清單／會議錄音的上傳皆走 Blazor <code>&lt;InputFile&gt;</code> + <code>IBrowserFile.OpenReadStream()</code>（SignalR circuit），實際瓶頸是 <code>stream.CopyToAsync(memory)</code> 把整包檔案讀進伺服器記憶體。主「新增」對話窗按下確定即關窗，<code>CopyToAsync</code> 在背景繼續跑——使用者看不到百分比、不知是否完成，也無法中止。全專案先前沒有任何上傳進度回報。</li><li><strong>多處對話窗有兩顆同名「關閉」按鈕</strong>：如右上角使用者選單的「關於」窗，<code>OkText</code> 與 <code>CancelText</code> 都設為「關閉」，使 AntDesign 預設 footer 的 OK/Cancel 兩顆都顯示「關閉」，重複多餘。</li></ol>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="一上傳進度對話窗--取消">一、上傳進度對話窗 ＋ 取消</h3>
+<ul><li>新增共用元件 <code>Components/Commons/UploadProgressModal.razor</code>：對外提供 <code>ReadWithProgressAsync(IBrowserFile file, long maxSize)</code>，以分塊讀取取代單一 <code>CopyToAsync</code>，回報 <code>已讀 / 總大小</code> 百分比並支援 <code>CancellationToken</code>；完成或取消後自動關窗。回傳緩衝好的 <code>MemoryStream</code>（Position=0），使用者取消則回傳 <code>null</code>。</li><li>各上傳點改用此元件（把原本三行 <code>OpenReadStream</code>＋<code>CopyToAsync</code> 樣板替換為 <code>ReadWithProgressAsync</code>）：</li><li><code>MediaTranscriptions/MediaTranscriptionView</code>（新增、上傳新版本）</li><li><code>DocumentExtractions/DocumentExtractionView</code>（新增、上傳新版本、批次 zip）</li><li><code>ImageRecognitions/ImageRecognitionView</code>（新增、上傳新版本、批次 zip）</li><li><code>Projects/MeetingRecordingUploadModal</code>（原本 <code>Content = stream</code> 直送，改為先緩衝再送）</li><li>取消語意：中止「瀏覽器→伺服器」這段傳輸；因服務端存檔只在傳輸完成後才呼叫，取消＝不會有任何檔案被寫入。</li></ul>
+<h3 id="二修正重複關閉取消按鈕">二、修正重複「關閉／取消」按鈕</h3>
+<ul><li>七個「兩顆都叫『關閉』」的純確認窗改為單顆「關閉」（沿用專案既有 <code>Footer="null"</code> + 內容右對齊單顆按鈕的慣例）：</li><li><code>Layout/MainLayout.razor</code>（關於）</li><li><code>Views/GoldenSamples/GoldenSampleView.razor</code></li><li><code>Views/DocumentExtractions/DocumentExtractionView.razor</code>（批次匯入結果、預覽）</li><li><code>Views/KnowledgeSources/KnowledgeSourceView.razor</code>（全量重建索引：略過清單）</li><li><code>Views/RagEvaluations/RagEvaluationView.razor</code></li><li><code>Views/ImageRecognitions/ImageRecognitionView.razor</code>（批次匯入結果）</li><li>範例檔 <code>Views/Admins/RoleViewViewSample.razor</code>：Modal 加 <code>Footer="null"</code>，移除與內容自放「儲存／取消」重複的預設 footer。</li></ul>
+<h2 id="影響範圍" class="t3">影響範圍</h2>
+<ul><li>上傳成功後的服務端寫檔流程與佇列排入不變（仍先緩衝到記憶體，與原行為一致，無記憶體用量回歸）。</li><li>確認窗改為單顆按鈕，關閉行為與 <code>×</code>／Esc 不變。</li><li>無資料庫 migration（純前端行為與 UI）。<code>appsettings.json</code> <code>SystemVersion</code> 1.0.49 → 1.0.50。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ol><li><code>dotnet build</code> 通過、無亂碼、我方檔案無新警告。</li><li>四種匯入各上傳一個大檔：按確定後出現進度窗、百分比遞增、完成自動關閉、佇列有排入；上傳中按「取消」→ 立即中止、無檔案寫入。批次 zip 與「上傳新版本」同樣有進度窗。</li><li>「關於」及其餘確認窗底部只剩單顆「關閉」；範例檔無重複「取消」。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#變更">變更</a><a class="l3" href="#一上傳進度對話窗--取消">一、上傳進度對話窗 ＋ 取消</a><a class="l3" href="#二修正重複關閉取消按鈕">二、修正重複「關閉／取消」按鈕</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-上傳進度對話窗與重複關閉按鈕修正.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

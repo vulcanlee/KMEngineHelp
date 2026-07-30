@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 可觀測性與成本治理 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>AI 可觀測性與成本治理 PRD</h1></header><div class="docwrap"><main><ul><li>文件版本：1.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.63</li><li>首次實作版本：0.3.29–0.3.30</li><li>最後核對日期：2026/07/25</li></ul>
+<h2 id="一產品目標與範圍" class="t1">一、產品目標與範圍</h2>
+<p>讓管理員可稽核 AI 知識問答與單一來源 AI 對話的實際輸入／回覆、信心與使用者回饋，並依作業、模型、帳號及時間觀察 Token 用量與成本趨勢。涵蓋三個明細頁 <code>/chat-logs</code>（單輪稽核）、<code>/chat-sessions</code>（整段對話，1.0.5x 起）、<code>/token-usage</code>（用量），以及首頁摘要與經營洞察。</p>
+<h2 id="二問答稽核明細" class="t2">二、問答稽核明細</h2>
+<ul><li>入口：系統管理 → 問答稽核明細，路由 <code>/chat-logs</code>，僅管理員。</li><li>記錄每一輪 AI 知識問答、知識來源 AI 對話與 <strong>MCP 問答（<code>knowledge_ask</code>，來源標為 MCP，1.0.8 起）</strong> 的時間、帳號、姓名、來源、提示詞、回覆、信心、topScore 與滿意度。MCP 問答由外部 AI Agent 觸發，答案由用戶端 LLM 生成，聊天紀錄明確標註「伺服器端未生成答案」。</li><li>支援帳號／姓名、日期、來源類型、滿意／不滿意／未回饋篩選。</li><li>表格提供摘要欄位；「查看全文」顯示該輪完整提示詞與回覆。</li><li>問答使用者可在回答下方給滿意／不滿意，允許改選或取消；變更同步至稽核紀錄與首頁統計。</li></ul>
+<h2 id="二之一完整對話紀錄session-級" class="t3">二之一、完整對話紀錄（Session 級）</h2>
+<ul><li>入口：系統管理 → AI 與整合 → 完整對話紀錄，路由 <code>/chat-sessions</code>，僅管理員。</li><li>與上一節的差異是<strong>粒度</strong>：問答稽核明細一列 = <strong>一輪</strong>問答（稽核用）；本頁一列 = <strong>一整段對話</strong>（<code>LlmChatSession</code>），欄位為對話標題（首輪提問摘要）、帳號／姓名、來源出處、知識來源標題、建立時間、最後活動時間與輪數，依最後活動時間遞減排序。</li><li>儲存架構比照聊天紀錄：資料列只存中繼資料，<strong>對話全文（各輪問答＋當時的提示詞設定條件）存實體 JSON 檔</strong>（<code>sessions/{yyyy}/{sessionId}.json</code>），不入資料庫。</li><li>支援帳號關鍵字、起訖日期與來源出處篩選；「對話全文」Modal 逐輪展開整段內容。</li><li>同一份 session 資料同時供<strong>使用者檢視／續談自己的對話</strong>；本頁是管理員的跨使用者綜覽視圖。</li></ul>
+<h2 id="三token-用量" class="t4">三、Token 用量</h2>
+<ul><li>入口：系統管理 → Token 用量，路由 <code>/token-usage</code>，僅管理員。</li><li>每次 LLM 呼叫記錄作業／畫面、型別、模型、帳號、輸入、輸出、快取及推理 Token；MCP 問答的檢索期 Token 以專屬作業（<code>McpKnowledgeAsk</code>／<code>McpKnowledgeSearch</code>）歸屬到呼叫者（生成答案 Token 在用戶端計量，不在本系統）。</li><li>寫入採背景佇列，避免用量紀錄拖慢主要 AI 回應；寫入失敗需留日誌但不能竄改呼叫結果。</li><li>支援依帳號、日期、作業、型別及模型篩選；顯示篩選範圍各類 Token 合計與逐筆詳細。</li><li>大數字以 K／M 緊湊顯示，tooltip 提供精確值；首頁顯示最近 30 天總量。</li><li>可將目前篩選結果<strong>匯出 PDF</strong>（依作業別統計＋逐筆明細，含篩選條件字串），共用報表匯出元件 <code>ReportPdfExporter</code>。</li></ul>
+<h2 id="四資料治理與安全" class="t5">四、資料治理與安全</h2>
+<ul><li>兩頁均僅管理員；服務端驗證不可只靠 <code>adminOnly</code> 選單。</li><li>不記錄 API Key、Bearer token、密碼或憑證；錯誤日誌不得輸出秘密。</li><li>聊天全文可能含業務資料，只能由管理員依稽核目的存取；匯出或跨系統傳送不在現行範圍。</li><li>使用者身份、來源與時間必須可追溯；匿名或缺失身份需明確標示。</li><li>Token 數據是用量，不等同帳單金額；若未設定價格，不顯示虛構成本。</li></ul>
+<h2 id="五首頁摘要與經營洞察" class="t6">五、首頁摘要與經營洞察</h2>
+<ul><li>首頁顯示最近 30 天 AI 回答滿意度及 Token 用量，提供管理者快速觀察。</li><li><strong>經營洞察區塊（1.0.5x 起，僅管理員可見）</strong>：區間<strong>可切換</strong>（不固定 30 天），指標涵蓋活躍使用者、問答總量、Token 總量、內容處理量、滿意率、不滿意數、低信心數、被封鎖數、零命中率，以及 Token／問答／內容貢獻的 Top N 排名。由 <code>DashboardService.GetManagementInsightsAsync</code> 聚合，排名區塊與統計報表共用 <code>ReportRankList</code> 元件以確保呈現與口徑一致。</li><li>首頁卡片與管理頁使用相同資料來源及日期定義，避免統計口徑不同。</li><li>無資料時顯示 0／未有回饋，不拋出錯誤。</li></ul>
+<h2 id="六錯誤與邊界" class="t7">六、錯誤與邊界</h2>
+<ul><li>稽核或 Token 寫入失敗不得讓主要問答失敗，但必須留下可診斷警告／錯誤。</li><li>全文檔案遺失時表格仍可查詢，查看全文顯示明確錯誤。</li><li>日期範圍與篩選需服務端驗證；大量資料以分頁查詢，不一次載入全部。</li></ul>
+<h2 id="七驗收條件" class="t8">七、驗收條件</h2>
+<ol><li>問答及單一來源對話各產生可查詢稽核紀錄。</li><li>滿意度可新增、改選、取消，首頁與管理頁統計一致。</li><li>LLM 呼叫產生分類正確的 Token 用量，篩選合計等於逐筆資料總和。</li><li>緊湊數字與 tooltip 精確值一致。</li><li>非管理員不能進頁或取得資料，紀錄不包含秘密。</li><li>稽核／用量寫入失敗不阻斷主要 AI 流程且有日誌。</li></ol>
+<h2 id="八規劃中需求" class="t1">八、規劃中需求</h2>
+<ul><li>尚未實作：模型價格表與實際金額、預算警示、部門配額、<strong>聊天稽核與對話全文的匯出</strong>、保留期限自動清除及隱私遮罩工作流。</li><li>註：Token 用量頁<strong>已支援 PDF 匯出</strong>（見第三節），尚未實作的是聊天紀錄與對話全文的匯出。</li></ul>
+<h2 id="九相關文件" class="t2">九、相關文件</h2>
+<ul><li><a href="../../docs/prd/prd-b13bd3af.html">AI 知識問答 PRD</a></li><li><a href="../../docs/prd/ai-prd-8b935739.html">知識來源 AI 對話 PRD</a></li><li><a href="../../docs/prd/prd-5645c8a7.html">首頁與導覽 PRD</a></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li><li><a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一產品目標與範圍">一、產品目標與範圍</a><a class="l2" href="#二問答稽核明細">二、問答稽核明細</a><a class="l2" href="#二之一完整對話紀錄session-級">二之一、完整對話紀錄（Session 級）</a><a class="l2" href="#三token-用量">三、Token 用量</a><a class="l2" href="#四資料治理與安全">四、資料治理與安全</a><a class="l2" href="#五首頁摘要與經營洞察">五、首頁摘要與經營洞察</a><a class="l2" href="#六錯誤與邊界">六、錯誤與邊界</a><a class="l2" href="#七驗收條件">七、驗收條件</a><a class="l2" href="#八規劃中需求">八、規劃中需求</a><a class="l2" href="#九相關文件">九、相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/AI可觀測性與成本治理-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>完整操作手冊對齊系統 0.3.32（文件 1.0 → 2.0）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>完整操作手冊對齊系統 0.3.32（文件 1.0 → 2.0）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-12</li><li>版本：文件 1.0 → 2.0（對應系統 0.2.130 → 0.3.32）</li><li>類型：文件更新</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p><code>docs/guides/完整操作手冊.md</code>（自足型參考手冊、每頁附欄位表）停在系統 0.2.130、文件版本 1.0，缺少現行系統已有的多個頁面與功能。需求：更新成對齊現行系統 0.3.32「智庫引擎」的完整參考手冊，維持既有精簡欄位表風格。</p>
+<h2 id="範圍決策與需求者確認" class="t2">範圍決策（與需求者確認）</h2>
+<ol><li><strong>每頁都補簡潔章節</strong>：為六個缺的新頁（知識瀏覽、Token 用量、AI 聊天紀錄、RAG 診斷、資料一致性巡檢、日誌等級）各補用途＋主要控制項/欄位/狀態。</li><li><strong>章節結構</strong>：擴充 §14 為「系統管理維運頁（管理員）」下設 14.1~14.6；知識瀏覽放 §9 蒸餾之後；不動 §15~19 編號。</li></ol>
+<h2 id="變更" class="t3">變更</h2>
+<ul><li><strong>Metadata</strong>：文件 1.0→2.0、加更新日期、對應系統 0.3.32、標示系統名「智庫引擎」。</li><li><strong>畫面地圖（§3）</strong>：群組數更正為五大群組；補列知識瀏覽、Token 用量、RAG 診斷、資料一致性巡檢、日誌等級，系統健康檢查歸回系統管理群組。</li><li><strong>匯入章（§6）</strong>：音訊來源類型「檔案上傳/影片連結」、語言「繁體中文/English/自動偵測」、副檔名、狀態補「已取消」、完成後動作與「搜尋取代」；文件/圖片補「批次上傳壓縮檔」；文件「依提示詞產生」補產生來源切換；新增素材版本鏈（上傳新版本/版本歷史）說明。</li><li><strong>知識來源/索引/問答</strong>：清洗狀態補「已退回」；索引章補「全量重建索引」；問答控制項補限定知識來源/分類、送出/停止、下載 PDF、滿意度回饋、QueryRewrite。</li><li><strong>新增知識瀏覽 <code>/knowledge-wiki</code></strong>（§9 蒸餾後）。</li><li><strong>擴充 §14 系統管理維運頁</strong>：14.1 系統健康檢查、14.2 Token 用量、14.3 AI 聊天紀錄、14.4 RAG 診斷、14.5 資料一致性巡檢、14.6 日誌等級。</li><li><strong>FAQ（§18）</strong>：補 RAG 診斷、Token 用量、資料一致性、日誌等級相關排除項。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>僅文件變更，<strong>不動 <code>appsettings.json</code> 系統版本</strong>。</li><li>檔案：<code>docs/guides/完整操作手冊.md</code>（1.0 → 2.0）。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠（UTF-8 含 BOM）。</li><li>文中每個 <code>/route</code> 對照 <code>Menu.json</code> 無死連結、無已移除頁。</li><li>修正/新增的 UI 字串對照現行 <code>*View.razor</code> 元件一致。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#範圍決策與需求者確認">範圍決策（與需求者確認）</a><a class="l2" href="#變更">變更</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-12-完整操作手冊更新0.3.32.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

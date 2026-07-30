@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>強化最高風險的逾時點（1.0.34）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>強化最高風險的逾時點（1.0.34）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-23</li><li>版本：1.0.33 → 1.0.34</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>延續逾時盤點，強化三項最容易在「突發網路問題／資料過大」時導致處理逾時或無限阻塞的地方。</p>
+<h2 id="內容" class="t2">內容</h2>
+<h3 id="1-非串流-llm-產生改走串流解除-120-秒硬上限">1. 非串流 LLM 產生改走串流（解除 120 秒硬上限）</h3>
+<p>蒸餾、會議紀錄、文件萃取 LLM 產生、技能產生、逐字稿 LLM 產生原本走非串流 <code>CompleteAsync</code>，長內容整段生成易撞 120 秒 HttpClient 逾時。改用 1.0.33 建立的 <code>CompleteStreamingAsync</code>（以 SSE、<code>ResponseHeadersRead</code> 讀取，逾時只界定取得 headers 的時間），與清洗一致。</p>
+<ul><li><code>DistillationEnhancer</code>、<code>MeetingMinutesGenerationService</code>、<code>DocumentLlmGenerationService</code>、<code>SkillGenerationProcessor</code>、<code>LlmGenerationService</code> 各一處呼叫改為串流。</li><li>圖片解讀（<code>CompleteWithImageAsync</code>）與 Query Rewrite（已有 30 秒 per-call）維持不變。</li></ul>
+<h3 id="2-ffmpegyt-dlp-加可設定逾時避免無限阻塞">2. ffmpeg／yt-dlp 加可設定逾時（避免無限阻塞）</h3>
+<p><code>VideoTranscoder</code>、<code>MediaChunker</code>、<code>MediaUrlDownloader</code> 原本只吃外部取消權杖、無逾時上限，大檔或慢速網路可無限期阻塞背景管線。新增共用 <code>ProcessRunner</code>：套用逾時、逾時則 Kill 整個程序樹並擲 <code>TimeoutException</code>（沿用 Douyin／MarkItDown 既有範式，讀取輸出與等待同受逾時約束）。</p>
+<ul><li>新增設定 <code>OpenAISettings:FfmpegTimeoutSeconds</code>（預設 3600）、<code>OpenAISettings:YtDlpTimeoutSeconds</code>（預設 1800）；值 ≤ 0 表示不套逾時。</li><li><code>PipelineRetryHelper.IsTransient</code> 新增 <code>TimeoutException =&gt; false</code>：外部程序逾時代表「太久」，不再被重試放大（此改亦讓既有 MarkItDown 600 秒逾時不再重跑 3 次）。</li></ul>
+<h3 id="3-資料庫命令逾時--sqlserver-連線重試">3. 資料庫命令逾時 + SqlServer 連線重試</h3>
+<p><code>AddConfiguredDatabase</code> 原本未設 command timeout（EF 預設 30 秒），大查詢／批次寫入易逾時；SqlServer 亦無連線重試。</p>
+<ul><li>SqlServer 與 Sqlite 兩分支皆加 <code>CommandTimeout</code>，值取自新設定 <code>SystemSettings:DatabaseCommandTimeoutSeconds</code>（預設 120）。</li><li>SqlServer 加 <code>EnableRetryOnFailure</code>（最多 3 次、間隔 10 秒），網路抖動時自動重試。</li></ul>
+<h2 id="實作" class="t3">實作</h2>
+<ul><li><code>Business/Services/Transcription/ProcessRunner.cs</code>（新增）；<code>VideoTranscoder.cs</code>、<code>MediaChunker.cs</code>、<code>MediaUrlDownloader.cs</code>（建構式加逾時參數、程序等待套 <code>ProcessRunner</code>）。</li><li>建構點串接：<code>TranscriptionProcessor.cs</code>、<code>MediaTranscriptionService.cs</code>。</li><li><code>Models/Systems/OpenAISettings.cs</code>、<code>Models/Systems/SystemSettings.cs</code>（新設定）；<code>Web/Extensions/ServiceCollectionExtensions.cs</code>（DB 逾時與重試）；<code>Business/Services/Pipelines/PipelineRetryHelper.cs</code>（逾時不重試）。</li><li>五個 LLM 產生服務改呼叫 <code>CompleteStreamingAsync</code>。</li><li>測試：<code>PipelineRetryHelperTests</code> 新增 <code>TimeoutException</code> 不重試斷言；既有 LLM 服務測試靠 <code>CompleteStreamingAsync</code> 預設委派維持通過（632 全綠）。</li></ul>
+<h2 id="備註" class="t4">備註</h2>
+<ul><li>無資料模型變更，不需要資料庫 migration。</li><li>本次不含 SignalR <code>ClientTimeoutInterval</code>、IIS 請求 body 上限、Sqlite <code>busy_timeout</code>、<code>ShutdownTimeout</code>、RateLimiter、重試次數設定化等其餘風險項。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#內容">內容</a><a class="l3" href="#1-非串流-llm-產生改走串流解除-120-秒硬上限">1. 非串流 LLM 產生改走串流（解除 120 秒硬上限）</a><a class="l3" href="#2-ffmpegyt-dlp-加可設定逾時避免無限阻塞">2. ffmpeg／yt-dlp 加可設定逾時（避免無限阻塞）</a><a class="l3" href="#3-資料庫命令逾時--sqlserver-連線重試">3. 資料庫命令逾時 + SqlServer 連線重試</a><a class="l2" href="#實作">實作</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-23-逾時強化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

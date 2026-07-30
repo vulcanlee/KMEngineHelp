@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PDF 文件萃取可改用大語言模型（1.0.54）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>PDF 文件萃取可改用大語言模型（1.0.54）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-25</li><li>版本：1.0.53 → 1.0.54</li><li>類型：功能新增（文件萃取管線；預設關閉、行為不變）</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p>「文件萃取」頁（<code>/document-extraction</code>）上傳的所有檔案，一律由 <code>DocumentExtractionProcessor</code> 呼叫本機 <code>markitdown.exe</code> 轉成 Markdown，PDF 沒有任何專屬路徑。</p>
+<p>MarkItDown 對 PDF 只做純文字抽取：圖片、圖表、流程圖完全遺失，複雜表格常被壓成無結構的文字。需要能在設定檔指定「遇到 PDF 時改呼叫大語言模型 API」，由 LLM 盡可能把 PDF 的全部內容（含無法直接抽取的圖片與表格）表達成 Markdown，並可指定使用哪一個模型。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="1-設定markitdownsettings-新增三個鍵">1. 設定（<code>MarkItDownSettings</code> 新增三個鍵）</h3>
+<pre><code>"MarkItDownSettings": {
+  "MarkItDownPath": "C:\\KMEngineTools\\python\\Scripts\\markitdown.exe",
+  "TimeoutSeconds": 600,
+  "PdfUseLlm": false,
+  "PdfLlmModel": "",
+  "PdfLlmTimeoutSeconds": 600
+}</code></pre>
+<ul><li><code>PdfUseLlm</code>：PDF 是否改走大語言模型。<strong>預設 <code>false</code>，升級後行為完全不變</strong>，需手動開啟。</li><li><code>PdfLlmModel</code>：指定模型；留空＝沿用 <code>OpenAISettings.ResolveChatLlm()</code> 的聊天模型（比照 <code>QueryRewriteModel</code> 的 fallback 慣例）。</li><li><code>PdfLlmTimeoutSeconds</code>：<code>0</code>＝沿用聊天模型逾時。</li></ul>
+<h3 id="2-新增-pdfmarkdownllmclient">2. 新增 <code>PdfMarkdownLlmClient</code></h3>
+<p><code>KnowledgeExtraction.Business/Services/DocumentExtractions/PdfMarkdownLlmClient.cs</code>。以 base64 <code>data:application/pdf;base64,...</code> 夾帶 <code>type:"file"</code> 內容送 <code>chat/completions</code>。</p>
+<p><strong>重用既有實作，未重寫 API 呼叫層</strong>：請求組法與回應解析直接沿用 <code>OpenAIChatCompletionClient.BuildFileRequestBody</code> 與 <code>ParseContent</code>（兩者本就是 <code>public static</code>，原供「依提示詞產生（原始檔案模式）」使用）。</p>
+<p>依專案既有 typed client 慣例（<code>OpenAITranscriptionClient</code> / <code>OpenAIChatCompletionClient</code> / <code>OpenAIEmbeddingClient</code> 各有自己的 BaseUrl 與逾時），於 <code>Program.cs</code> 註冊專屬 <code>AddHttpClient&lt;PdfMarkdownLlmClient&gt;</code>，讓 PDF 的長逾時不牽動對話、清洗等其他 LLM 功能。</p>
+<h3 id="3-提示詞四層解析">3. 提示詞（四層解析）</h3>
+<p>新增槽位鍵 <code>LlmPromptKeys.DocumentPdfToMarkdown</code> =「文件-PDF轉Markdown」，走既有 <code>LlmPromptResolver</code>：單次操作 &gt; DB <code>Prompt</code> 表 &gt; appsettings <code>LlmPrompts</code> &gt; <code>LlmPromptDefaults</code>。可於「提示詞清單」<code>/prompts</code> 線上調整、免重啟。</p>
+<blockquote><p><strong>勘誤（1.0.77 補註）</strong>：上面那句「單次操作 &gt; DB &gt; appsettings &gt; fallback」講的是 <code>LlmPromptResolver</code> 的<strong>通則</strong>， 但<strong>這條路徑實際只有 3 層</strong>——<code>DocumentExtractionProcessor</code> 呼叫 <code>ResolveAsync</code> 時第 2 引數（<code>perOperationOverride</code>） 硬傳 <code>null</code>，而 PDF 自動萃取是背景管線、沒有使用者互動點，所以「單次操作覆蓋」這一層從未生效、也沒有入口。 實際生效的是：DB <code>/prompts</code> &gt; appsettings <code>LlmPrompts</code> &gt; <code>LlmPromptDefaults</code>。</p></blockquote>
+<p>內建預設提示詞要求：不省略不摘要、標題階層對應、表格轉 Markdown 表格語法、圖片與圖表在原位置以 <code>&gt; **[圖片]**</code> 詳述內容與數值、圖表可還原時另附數據表、數學式用 LaTeX、直接輸出 Markdown 不加圍欄。</p>
+<h3 id="4-流程分流與自動降級">4. 流程分流與自動降級</h3>
+<p><code>DocumentExtractionProcessor.ProcessCoreAsync</code> 在來源檔為 <code>.pdf</code> 且 <code>PdfUseLlm</code> 開啟時先試 LLM，成功即把 Markdown 寫到與 MarkItDown 相同的輸出路徑，後續流程完全共用。</p>
+<ul><li><strong>LLM 只嘗試一次</strong>，任何失敗（金鑰未設定、API 錯誤、逾時、模型不支援 <code>file</code> 輸入）立即自動改用 MarkItDown 完成轉換。</li><li>降級後狀態仍為「已完成」，訊息欄顯示「AI 解析 PDF 失敗，已自動改用 MarkItDown 轉換：…」（沿用現有 <code>ErrorMessage</code> 欄位，<strong>不新增欄位、不需 migration</strong>）。</li><li>例外過濾加上 <code>when (!cancellationToken.IsCancellationRequested)</code>，確保使用者按取消時不會被誤判為降級。</li><li>外層 <code>ProcessAsync</code> 的 3 次重試機制不動。</li></ul>
+<h3 id="5-token-用量">5. Token 用量</h3>
+<p>用量記為 Operation=<code>DocumentExtraction</code>（由 <code>DocumentExtractionBackgroundService</code> 既有的 <code>OperationContext.Push</code> 自動帶入）、CallType=<code>File</code>，Model 為實際使用的模型。另在 <code>LlmTokenUsage</code> 補上 <code>OperationDocumentExtraction</code> 常數與其他作業齊平。</p>
+<h2 id="影響範圍" class="t3">影響範圍</h2>
+<ul><li>新檔 1 個；異動 <code>MarkItDownSettings</code>、<code>LlmPromptsSettings</code>、<code>LlmPromptKeys</code>、<code>LlmPromptDefaults</code>、<code>DocumentExtractionProcessor</code>、<code>Program.cs</code>、<code>LlmTokenUsage</code>、<code>appsettings.json</code>。</li><li><strong>無資料庫 migration</strong>（未新增欄位）。</li><li><strong>預設關閉</strong>，不開啟則行為與 1.0.53 完全相同。</li><li>zip 批次上傳中的 PDF 因走同一個 Processor，同樣適用。</li><li><code>appsettings.json</code> <code>SystemVersion</code> 1.0.53 → 1.0.54。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ol><li><code>dotnet build</code> 通過（0 錯誤；警告數與變更前相同）。</li><li><code>dotnet test</code> 通過：638 個測試全數通過（原 632 + 新增 6）。</li><li><code>PdfMarkdownLlmClientTests</code>：<code>ResolveModel</code> 兩條 fallback 分支、<code>MarkItDownSettings</code> 新屬性預設值、<code>BuildFileRequestBody</code> 的 <code>type:"file"</code> / <code>filename</code> / <code>file_data</code> JSON 結構。</li><li><code>LlmPromptResolverTests</code>：新槽位鍵的 appsettings 層與 DB 覆蓋層。</li><li>端對端（需人工）：<code>PdfUseLlm: true</code> + 有效 <code>ApiKey</code> 上傳含圖表的 PDF，確認產出含 Markdown 表格與 <code>&gt; **[圖片]**</code> 描述、<code>/token-usage</code> 出現 Operation=<code>DocumentExtraction</code>／CallType=<code>File</code> 紀錄；再把 <code>PdfLlmModel</code> 設為不存在的模型名，確認自動降級且訊息欄有提示。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#變更">變更</a><a class="l3" href="#1-設定markitdownsettings-新增三個鍵">1. 設定（MarkItDownSettings 新增三個鍵）</a><a class="l3" href="#2-新增-pdfmarkdownllmclient">2. 新增 PdfMarkdownLlmClient</a><a class="l3" href="#3-提示詞四層解析">3. 提示詞（四層解析）</a><a class="l3" href="#4-流程分流與自動降級">4. 流程分流與自動降級</a><a class="l3" href="#5-token-用量">5. Token 用量</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-PDF改用大語言模型萃取.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markdown 表格渲染成純文字：啟用 Markdig 的 UsePipeTables（1.0.102）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Markdown 表格渲染成純文字：啟用 Markdig 的 UsePipeTables（1.0.102）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-29</li><li>版本：1.0.101 → <strong>1.0.102</strong></li><li>類型：Bug 修正（共用 Markdown 渲染器；影響 12 個呼叫端，其中多數是<strong>既有問題</strong>而非本次造成）</li></ul>
+<h2 id="症狀" class="t1">症狀</h2>
+<p>頁面說明對話窗（1.0.101 新增）裡的表格顯示成字面文字，而不是表格：</p>
+<pre><code>| | 一般（精準檢索） | 全域（社群摘要） |
+|---|---|---|
+| 適合問 | 具體的事實、條款、步驟、數字 | 整體風險有哪些 |</code></pre>
+<h2 id="根因" class="t2">根因</h2>
+<p><code>Components/Commons/MarkdownRenderer.cs</code> 的 Markdig pipeline 只有兩個擴充：</p>
+<pre><code>new MarkdownPipelineBuilder()
+    .DisableHtml()
+    .UseSoftlineBreakAsHardlineBreak()
+    .Build();</code></pre>
+<p><strong>Markdig 預設是純 CommonMark，不認得 pipe table 語法</strong>——表格必須明確加 <code>UsePipeTables()</code>（或整包 <code>UseAdvancedExtensions()</code>）才會啟用。全 repo 從未啟用過（<code>UsePipeTables|UseAdvancedExtensions|UseGridTables</code> 零命中）。沒有表格擴充時，Markdig 把那幾行當成普通段落原樣輸出，於是畫面上出現字面的 <code>|</code>。</p>
+<p>這是<strong>靜默失敗</strong>的典型：建置成功、沒有例外、沒有警告、既有測試全綠，只有人眼看得出來。</p>
+<h2 id="影響範圍比表面更大" class="t3">影響範圍比表面更大</h2>
+<p>該 renderer 有 <strong>12 個呼叫端</strong>（11 個檔案）。除了頁面說明，最關鍵的是 <code>Components/Commons/ContentEditDialog.razor:81</code>——它被知識來源、文件轉文字、影音轉逐字稿、圖片解讀、Wiki 頁、會議編輯與檢視共 <strong>8 個視圖</strong>重用，渲染的是抽取／清洗後的內容。</p>
+<p>而系統<strong>自己的提示詞就要求 LLM 輸出表格</strong>（<code>KnowledgeExtraction.Business/Services/Prompts/LlmPromptDefaults.cs</code> 的 <code>DocumentPdfToMarkdown</code>）：</p>
+<ul><li>「表格一律轉為 Markdown 表格語法並保留每一格內容；跨欄跨列的儲存格請另以文字補述。」</li><li>「圖表若可還原為數據，請額外以 Markdown 表格呈現該數據。」</li></ul>
+<p>也就是說，<strong>PDF 文件抽取結果裡的表格在 1.0.101 之前就已經渲染壞了</strong>——只要原始 PDF 有表格。同樣受影響的還有 Wiki 頁（知識百科）、AI 知識問答與知識來源對話的回答、會議紀錄摘要與決議事項、聊天紀錄稽核。1.0.101 的 40 份說明檔（共 <strong>260 個表格</strong>，平均每頁 6.5 個）只是把這個既有問題放大到每一頁都看得見。</p>
+<h2 id="變更" class="t4">變更</h2>
+<h3 id="1-啟用表格擴充componentscommonsmarkdownrenderercs">1. 啟用表格擴充（<code>Components/Commons/MarkdownRenderer.cs</code>）</h3>
+<pre><code>new MarkdownPipelineBuilder()
+    .DisableHtml()            // 保留：MarkupString 的 XSS 防線
+    .UsePipeTables()          // 新增
+    .UseSoftlineBreakAsHardlineBreak()
+    .Build();</code></pre>
+<p><code>UsePipeTables()</code> 內建於 Markdig 主套件（本專案 1.3.2），<strong>不需要新增任何 NuGet 參考</strong>。它也<strong>不開放任何原始 HTML 透傳</strong>——<code>DisableHtml()</code> 這條 XSS 防線完全未動。</p>
+<p>類別上補了 <code>&lt;remarks&gt;</code>，明寫這兩個擴充都不可移除、以及移除後的具體後果。</p>
+<p><strong>刻意不用 <code>UseAdvancedExtensions()</code></strong>：它一次啟用約 15 個擴充，其中 <code>Mathematics</code> 會把 <code>$</code> 當數學公式起始——知識庫文件常出現「$100 到 $200」這種金額，會被吃成公式而顯示錯亂；<code>MediaLinks</code> 還可能輸出 <code>&lt;iframe&gt;</code>。範圍遠超「修表格」所需。也不加 <code>UseGridTables()</code>（沒有內容使用 grid table）。</p>
+<h3 id="2-補上表格樣式wwwrootappcss">2. 補上表格樣式（<code>wwwroot/app.css</code>）</h3>
+<p>只修渲染還不夠，有兩個都會讓使用者看到壞畫面的問題：</p>
+<ul><li><strong><code>.markdown-preview</code> 全專案沒有任何 CSS</strong>（9 個呼叫端共用這個 class），<code>app.css</code> 也沒有任何 <code>table</code>/<code>th</code>/<code>td</code> 規則。只啟用擴充，那 9 處會變成瀏覽器預設的無框線、無底色表格。</li><li><strong><code>.page-help-content</code> 是 <code>overflow: hidden auto</code></strong>（水平隱藏），寬表格會被<strong>裁掉且無法捲動</strong>。</li></ul>
+<p>新增一組同時涵蓋兩個容器的樣式。關鍵是 <code>display: block</code> + <code>overflow-x: auto</code>：Markdig 產生的是<strong>裸 <code>&lt;table&gt;</code>、沒有外層 wrapper</strong> 可以掛捲動容器，所以讓表格自己成為捲動容器——寬表格橫向捲動，既不會被裁切，也不會讓整頁冒出水平捲軸。</p>
+<h3 id="3-移除重複定義componentscommonspagehelpdialograzor">3. 移除重複定義（<code>Components/Commons/PageHelpDialog.razor</code>）</h3>
+<p>1.0.101 在該元件的 <code>&lt;style&gt;</code> 內寫了一份 <code>.page-help-content table</code> 樣式。現在統一由 <code>app.css</code> 定義（<code>app.css</code> 是全域檔，對 AntDesign Modal 的 portal 內容有效——<code>.change-password-modal</code>、<code>.member-manage-modal</code> 已是先例），元件內那三塊刪除，只留一行註解指向 <code>app.css</code>。</p>
+<h2 id="測試" class="t5">測試</h2>
+<h3 id="新增-knowledgeextractiontestsmarkdownrenderertestscs9-條">新增 <code>KnowledgeExtraction.Tests/MarkdownRendererTests.cs</code>（9 條）</h3>
+<p><code>MarkdownRenderer</code> 被 12 個呼叫端共用，卻<strong>長期零測試覆蓋</strong>——這正是這個 bug 能一直存在的原因。補上守門：</p>
+<div class="tw"><table><thead><tr><th>測試</th><th>釘住什麼</th></tr></thead><tbody><tr><td>pipe table → 輸出含 <code>&lt;table&gt;</code>／<code>&lt;th&gt;</code>／<code>&lt;td&gt;</code></td><td><strong>本次 bug 的回歸釘</strong></td></tr><tr><td>表格內中文儲存格內容完整保留</td><td>中文不被吃掉</td></tr><tr><td><code>&lt;script&gt;</code> 與 <code>&lt;img onerror=...&gt;</code> 都被轉義</td><td><strong><code>DisableHtml()</code> 這條 XSS 防線沒被這次改動弄掉</strong></td></tr><tr><td>單一換行仍輸出 <code>&lt;br&gt;</code></td><td><code>UseSoftlineBreakAsHardlineBreak()</code> 沒被表格擴充影響</td></tr><tr><td>圍欄程式碼區塊仍輸出 <code>&lt;pre&gt;&lt;code&gt;</code></td><td>說明檔用它畫 ASCII 流程圖</td></tr><tr><td><code>$100</code>／<code>$200</code> 字面保留、輸出不含 <code>math</code></td><td><strong>刻意不開 <code>UseAdvancedExtensions()</code> 的決定</strong></td></tr><tr><td><code>null</code>／空字串 → <code>string.Empty</code></td><td>既有行為</td></tr></tbody></table></div>
+<h3 id="新增-pagehelpcatalogtestseveryhelpdocumentwithatable_rendersanhtmltable1-條">新增 <code>PageHelpCatalogTests.EveryHelpDocumentWithATable_RendersAnHtmlTable</code>（1 條）</h3>
+<p>掃 <code>Datas/Help/*.md</code>，凡含表格分隔列（<code>^\|[-:\s|]+\|$</code>）的檔案，整份經 <code>MarkdownRenderer.ToHtml()</code> 渲染後<strong>必須含 <code>&lt;table&gt;</code></strong>。</p>
+<p><strong>40 份檔案全部匹配到表格分隔列</strong>（合計 260 個），所以這一條不是空過的斷言——它以真實內容涵蓋全部說明檔。日後若有人移除 <code>UsePipeTables()</code>，這一條會連同 <code>MarkdownRendererTests</code> 一起紅。</p>
+<h2 id="驗證" class="t6">驗證</h2>
+<ul><li><code>dotnet build</code>：<strong>0 錯誤</strong>（43 個警告全為既有）。</li><li><code>dotnet test</code>：<strong>1035 測試全綠</strong>（1025 → 1035，新增 10）。</li><li>表格分隔列統計：<code>Datas/Help/</code> 40 檔全部命中、共 260 處——確認新測試涵蓋全部說明檔而非空過。</li><li><code>scripts/Test-DocsEncoding.ps1</code>：0 失敗。</li></ul>
+<p><strong>尚待人工驗收</strong>（測試抓不到視覺效果）：</p>
+<ol><li><code>/knowledge-base-chat</code> 說明窗的「兩種查詢模式」表格是有框線的表格。</li><li>欄多、內容長的表格（<code>knowledge-graph-review.md</code>、<code>reports-token-usage-report.md</code> 各 9 張）在表格內橫向捲動、不被裁切、對話窗不出現水平捲軸。</li><li>縮到手機寬度再看同一張表格。</li><li><strong>開一筆 PDF 來源的知識來源 → 內容編修預覽</strong>，確認抽取出的表格也正常了（本次順帶修好的既有問題）。</li><li>隨手看一則 AI 問答回答與一則 Wiki 頁，確認沒有因為啟用表格擴充而讓原本正常的內容變形。</li></ol>
+<h2 id="相關紀錄" class="t7">相關紀錄</h2>
+<ul><li><a href="../../docs/changelog/2026-07-29-e39767b4.html">頁面說明系統：頂欄 Help 圖示 ＋ 近滿版說明對話窗（1.0.101）</a>——本次修正的觸發來源。該篇「刻意不做」第 4 項「不改 <code>MarkdownRenderer</code>」已標註作廢。</li><li><a href="../../docs/changelog/2026-06-16-dc76a9c4.html">內容線上編修（<code>MarkdownRenderer</code> 建立時）</a></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#症狀">症狀</a><a class="l2" href="#根因">根因</a><a class="l2" href="#影響範圍比表面更大">影響範圍比表面更大</a><a class="l2" href="#變更">變更</a><a class="l3" href="#1-啟用表格擴充componentscommonsmarkdownrenderercs">1. 啟用表格擴充（Components/Commons/MarkdownRenderer.cs）</a><a class="l3" href="#2-補上表格樣式wwwrootappcss">2. 補上表格樣式（wwwroot/app.css）</a><a class="l3" href="#3-移除重複定義componentscommonspagehelpdialograzor">3. 移除重複定義（Components/Commons/PageHelpDialog.razor）</a><a class="l2" href="#測試">測試</a><a class="l3" href="#新增-knowledgeextractiontestsmarkdownrenderertestscs9-條">新增 KnowledgeExtraction.Tests/MarkdownRendererTests.cs（9 條）</a><a class="l3" href="#新增-pagehelpcatalogtestseveryhelpdocumentwithatable_rendersanhtmltable1-條">新增 PageHelpCatalogTests.EveryHelpDocumentWithATable_RendersAnHtmlTable（1 條）</a><a class="l2" href="#驗證">驗證</a><a class="l2" href="#相關紀錄">相關紀錄</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-29-Markdown表格渲染修正.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>音訊轉錄擴充設計規格：YouTube 來源、繁體輸出修正、語言選擇｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../../index.html">角色首頁</a>
+    <a href="../../../all-docs.html">全部文件</a>
+    <a href="../../../search.html">搜尋</a>
+    <a href="../../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../../all-docs.html">全部文件</a> ／ superpowers/specs</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">superpowers/specs</div><h1>音訊轉錄擴充設計規格：YouTube 來源、繁體輸出修正、語言選擇</h1></header><div class="docwrap"><main><div class="tw"><table><thead><tr><th>項目</th><th>內容</th></tr></thead><tbody><tr><td>撰寫日期</td><td>2026/06/03</td></tr><tr><td>對應版本</td><td>0.2.18</td></tr><tr><td>狀態</td><td>已實作</td></tr><tr><td>相關文件</td><td><a href="../../../docs/prd/prd-0af3129c.html">音訊影片轉錄服務 PRD §13</a>、<a href="../../../docs/operations/logging-and-settings.html">日誌與設定檔說明 §4.8</a></td></tr></tbody></table></div>
+<h2 id="背景與問題" class="t1">背景與問題</h2>
+<p>現有「音訊轉錄」只能上傳本機檔案，並以固定 <code>language=zh</code>／繁體 <code>prompt</code> 呼叫 <code>gpt-4o-transcribe</code>。實務遇到三個問題與一個延伸需求：</p>
+<ol><li>無法直接以 YouTube 連結轉錄（需手動下載再上傳）。</li><li>中文輸出常為<strong>簡體</strong>。經查證：OpenAI 轉錄 API 的 <code>language</code> 僅接受 ISO-639-1 兩碼（中文僅 <code>zh</code>，<strong>不支援 <code>zh-tw</code></strong>），且 <code>language</code>／<code>prompt</code> 對模型只是軟性偏好，無法保證繁體。</li><li>純英文影片被中文設定干擾，需逐筆選擇語言。</li><li>需同步更新說明文件。</li></ol>
+<h2 id="設計決策已與使用者確認" class="t2">設計決策（已與使用者確認）</h2>
+<ul><li><strong>繁體修正</strong>：強化繁體 <code>prompt</code> ＋ <strong>OpenCC（<code>OpenccNetLib</code> s2twp）後處理保底</strong>，僅在語言為中文時套用。</li><li><strong>語言選擇</strong>：新增記錄時提供「轉錄語言」下拉（繁體中文／English／自動偵測），逐筆指定。</li><li><strong>YouTube</strong>：以 <code>yt-dlp -x</code> <strong>僅下載音訊</strong>轉 mp3。</li><li><strong>來源類型</strong>：同一新增表單用「來源類型」切換（檔案上傳／YouTube 連結），共用同一套記錄與背景流程。</li></ul>
+<h2 id="架構與資料流" class="t3">架構與資料流</h2>
+<pre><code>[新增表單] 來源類型 + 語言
+   ├─ 檔案上傳 → 寫檔 → 建立記錄(Upload, Language) → 佇列
+   └─ YouTube  → 僅存 URL → 建立記錄(YouTube, SourceUrl, Language) → 佇列
+                                   │
+[TranscriptionBackgroundService] ──┤
+                                   ▼
+[TranscriptionProcessor]
+   1. 若 YouTube 且尚未下載 → YouTubeDownloader 抽音訊 mp3，補齊檔案欄位
+   2. &gt;25MB → MediaChunker 分段
+   3. 依 Language 解析 (apiLanguage, prompt, applyOpenCC)
+   4. 逐段 OpenAITranscriptionClient.TranscribeAsync(part, language, prompt)
+   5. 合併；若 applyOpenCC → ChineseConverter.ToTraditional（s2twp）
+   6. 存逐字稿 .txt、更新狀態</code></pre>
+<h3 id="語言對應規則transcriptionprocessorresolvelanguageoptions">語言對應規則（<code>TranscriptionProcessor.ResolveLanguageOptions</code>）</h3>
+<div class="tw"><table><thead><tr><th>UI 選項</th><th><code>Language</code></th><th>API <code>language</code></th><th><code>prompt</code></th><th>OpenCC 轉繁</th></tr></thead><tbody><tr><td>繁體中文</td><td><code>zh</code></td><td><code>zh</code></td><td>強化繁體 prompt</td><td>是</td></tr><tr><td>English</td><td><code>en</code></td><td><code>en</code></td><td>（不送）</td><td>否</td></tr><tr><td>自動偵測</td><td><code>auto</code></td><td>（不送）</td><td>（不送）</td><td>否</td></tr></tbody></table></div>
+<h2 id="元件職責" class="t4">元件職責</h2>
+<ul><li><strong><code>YouTubeDownloader</code></strong>（新增）：以 <code>Process</code> 叫用 yt-dlp，<code>-x --audio-format mp3 --no-playlist --ffmpeg-location ...</code>，輸出 <code>{yyyy}/{guid}.mp3</code>，並取影片標題作為原始檔名。回傳路徑／大小／ContentType。</li><li><strong><code>ChineseConverter</code></strong>（新增，Singleton）：包裝 <code>OpenccNetLib.Opencc("s2twp").S2Twp</code>，簡轉台灣繁體；字典檔隨建置輸出至 <code>dicts/</code>。</li><li><strong><code>OpenAITranscriptionClient.TranscribeAsync</code></strong>：新增 <code>language</code>／<code>prompt</code> 參數，空值不送該欄位。</li><li><strong><code>TranscriptionProcessor</code></strong>：新增 YouTube 下載步驟、語言解析、OpenCC 後處理；不再於完成時覆寫 <code>Language</code>。</li><li><strong><code>MediaTranscriptionService</code></strong>：<code>BeforeAddCheckAsync</code> 依來源分流；新增 <code>AddYouTubeAsync</code>；<code>AddAsync</code> 寫入 <code>SourceType</code>／<code>Language</code>。</li><li><strong>前端</strong>：新增表單加「來源類型」「轉錄語言」與 URL 欄位，<code>OnModalOkAsync</code> 依來源分流。</li></ul>
+<h2 id="資料模型" class="t5">資料模型</h2>
+<p><code>MediaTranscription</code> 新增 <code>SourceType</code>（<code>Upload</code>/<code>YouTube</code>，既有資料預設 <code>Upload</code>）、<code>SourceUrl</code>（nullable）。<code>Language</code> 改為建立時寫入。SQLite 與 SqlServer 兩套 migration <code>AddYouTubeSourceToMediaTranscription</code> 皆已建立。</p>
+<h2 id="錯誤處理" class="t6">錯誤處理</h2>
+<ul><li>yt-dlp／ffmpeg 缺失或下載失敗 → 拋出中文訊息，該筆標記「失敗」並記錄 <code>ErrorMessage</code>。</li><li>YouTube URL 驗證：<code>http(s)</code> 且網域含 <code>youtube.com</code>／<code>youtu.be</code>。</li><li>刪除記錄時連動刪除已下載音訊與逐字稿（沿用既有 <code>TryDeleteRelative</code>）。</li></ul>
+<h2 id="前置需求" class="t7">前置需求</h2>
+<p>系統需安裝 <strong>yt-dlp</strong> 與 <strong>FFmpeg</strong>，路徑由 <code>OpenAISettings:YtDlpPath</code>／<code>FfmpegPath</code> 指定。</p>
+<h2 id="驗證" class="t8">驗證</h2>
+<ul><li>單元測試 <code>ChineseConverterTests</code> 驗證簡轉繁（软件→軟體、程序→程式）。</li><li><code>dotnet build</code>、<code>dotnet test</code>（66 + 5 測試）全數通過。</li><li>端對端：上傳中文影片得台灣繁體；YouTube 連結免上傳完成轉錄；英文影片不轉繁；自動偵測不送 language。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（superpowers/specs）</h3><ul><li><a href="../../../docs/superpowers/specs/2026-06-04-design-7470dd71.html">抖音影片自動轉錄整合 — 設計文件</a></li><li><a href="../../../docs/superpowers/specs/2026-06-29-design-b8503e21.html">設計：專案列表「工作與會議」對話窗 + 共用編輯 Modal 抽取</a></li><li><a href="../../../docs/superpowers/specs/2026-07-12-prd-design-de4b7df2.html">PRD 全庫基線重建設計</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景與問題">背景與問題</a><a class="l2" href="#設計決策已與使用者確認">設計決策（已與使用者確認）</a><a class="l2" href="#架構與資料流">架構與資料流</a><a class="l3" href="#語言對應規則transcriptionprocessorresolvelanguageoptions">語言對應規則（TranscriptionProcessor.ResolveLanguageOptions）</a><a class="l2" href="#元件職責">元件職責</a><a class="l2" href="#資料模型">資料模型</a><a class="l2" href="#錯誤處理">錯誤處理</a><a class="l2" href="#前置需求">前置需求</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/superpowers/specs/2026-06-03-youtube-音訊轉錄-design.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

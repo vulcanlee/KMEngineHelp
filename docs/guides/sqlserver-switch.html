@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQL Server 切換說明｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>SQL Server 切換說明</h1><p class="sub">說明本系統如何在 SQLite（預設） 與 SQL Server 之間切換，包含實際操作步驟、設定鍵、migration assembly 邊界與注意事項。</p></header><div class="docwrap"><main><ul><li>文件用途：說明本系統如何在 <strong>SQLite（預設）</strong> 與 <strong>SQL Server</strong> 之間切換，包含實際操作步驟、設定鍵、migration assembly 邊界與注意事項。</li><li>主要讀者：開發者、部署與維運人員</li><li>文件版本：2.0（由完工 backlog 改寫為操作說明）</li><li>更新日期：2026/07/26</li><li>對應系統版本：1.0.71</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>相關：migration 指令見 <a href="../../docs/guides/efcore.html">EFCore.md</a>；正式部署見 <a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a>。</p></blockquote>
+<hr>
+<h2 id="一怎麼切3-步" class="t1">一、怎麼切（3 步）</h2>
+<p><strong>1. 改 provider</strong></p>
+<p><code>appsettings.json</code> 的 <code>SystemSettings.DatabaseProvider</code> 改成 <code>SqlServer</code>（可接受值：<code>Sqlite</code>／<code>SqlServer</code>）：</p>
+<pre><code>"SystemSettings": {
+  "DatabaseProvider": "SqlServer",
+  ...
+}</code></pre>
+<p><strong>2. 填連線字串</strong></p>
+<p><code>SystemSettings.ConnectionStrings.DefaultConnection</code>：</p>
+<pre><code>"ConnectionStrings": {
+  "DefaultConnection": "Server=...;Initial Catalog=BackendDB;..."
+}</code></pre>
+<p>⚠️ <strong>這個值空白會讓程式啟動就擲 <code>InvalidOperationException</code></strong>（在 <code>AddConfiguredDatabase</code> 裡直接擋下），不是靜默 fallback 回 SQLite。</p>
+<p><strong>3. 重啟程式</strong></p>
+<p>Provider 是在啟動時決定的（DI 註冊階段），<strong>改了設定一定要重啟</strong>，沒有熱套用。</p>
+<p>啟動後會自動套用 SQL Server 那套 migration（<code>Program.cs</code> 的 <code>Database.Migrate()</code>）。</p>
+<hr>
+<h2 id="二設定鍵一覽" class="t2">二、設定鍵一覽</h2>
+<div class="tw"><table><thead><tr><th>設定鍵</th><th>說明</th></tr></thead><tbody><tr><td><code>SystemSettings.DatabaseProvider</code></td><td><code>Sqlite</code>（預設）或 <code>SqlServer</code></td></tr><tr><td><code>SystemSettings.ConnectionStrings.DefaultConnection</code></td><td><strong>SQL Server</strong> 連線字串。provider 為 <code>SqlServer</code> 時必填</td></tr><tr><td><code>SystemSettings.DatabaseCommandTimeoutSeconds</code></td><td>指令逾時秒數，預設 <strong>120</strong>，兩種 provider 都會套用</td></tr><tr><td><code>SystemSettings.ExternalFileSystem.DatabasePath</code></td><td><strong>SQLite 實際使用的目錄</strong>；SQLite 連線字串是由這個路徑 ＋ <code>BackendDB.db</code> 組出來的</td></tr></tbody></table></div>
+<h3 id="sqlitedefaultconnection-是死設定改它沒有用">⚠️ <code>SQLiteDefaultConnection</code> 是死設定，改它沒有用</h3>
+<p><code>appsettings.json</code> 裡有一個 <code>SystemSettings.ConnectionStrings.SQLiteDefaultConnection</code>（值 <code>Data Source=BackendDB.db</code>），看起來像是 SQLite 的連線字串，<strong>但全庫沒有任何地方讀取它</strong>（只有宣告，沒有讀取點）。</p>
+<p>SQLite 的連線字串實際上是由 <code>ExternalFileSystem.DatabasePath</code> 組出來的（透過 <code>MagicObjectHelper.GetSQLiteConnectionString(...)</code>）。<strong>要換 SQLite 的資料庫位置，改 <code>DatabasePath</code>，不是改 <code>SQLiteDefaultConnection</code>。</strong></p>
+<hr>
+<h2 id="三兩種-provider-的行為差異" class="t3">三、兩種 provider 的行為差異</h2>
+<div class="tw"><table><thead><tr><th></th><th>SQLite</th><th>SQL Server</th></tr></thead><tbody><tr><td>連線字串來源</td><td>由 <code>ExternalFileSystem.DatabasePath</code> ＋ <code>BackendDB.db</code> 組出</td><td>直接讀 <code>DefaultConnection</code></td></tr><tr><td>指令逾時</td><td>套用 <code>DatabaseCommandTimeoutSeconds</code></td><td>套用 <code>DatabaseCommandTimeoutSeconds</code></td></tr><tr><td>連線重試</td><td>無</td><td><strong><code>EnableRetryOnFailure(3, 10 秒)</code></strong>（暫時性錯誤自動重試 3 次）</td></tr><tr><td>migration assembly</td><td><code>KnowledgeExtraction.AccessDatas</code></td><td><code>KnowledgeExtraction.AccessDatas.SqlServerMigrations</code></td></tr></tbody></table></div>
+<p>EF Core 的註冊集中在 <code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs</code> 的 <strong><code>AddConfiguredDatabase</code></strong>（早期版本在 <code>Program.cs</code>，已搬移）。SQL Server 的 migration assembly 由 marker 型別自動綁定，<strong>不需要手動指定</strong>。</p>
+<hr>
+<h2 id="四migration-邊界重要" class="t4">四、Migration 邊界（重要）</h2>
+<p>SQLite 與 SQL Server <strong>各維護一套 migration</strong>，模型一改就要產兩支，詳見 <a href="../../docs/guides/efcore.html">EFCore.md</a>。</p>
+<blockquote><p>⚠️ <strong>SQL Server 那套不能用來從零建庫。</strong> 目前 SQLite 有 49 支、SQL Server 只有 46 支 —— SQL Server 缺最早的 <code>init</code>／<code>add-some</code>／<code>AddGoogleOAuth</code>，第一支是 <code>AddMediaTranscription</code>。它假設資料庫已有基礎表，<strong>直接對空的 SQL Server 資料庫套用會失敗</strong>。新建 SQL Server 環境前請先確認基礎 schema 從哪裡來。</p></blockquote>
+<hr>
+<h2 id="五正式環境的連線字串放哪" class="t5">五、正式環境的連線字串放哪</h2>
+<p><strong>不要把正式連線字串寫進 <code>appsettings.json</code> 並提交進版控。</strong> 改用環境變數或部署平台的 secret：</p>
+<pre><code>SystemSettings__ConnectionStrings__DefaultConnection=Server=...;...</code></pre>
+<p>（ASP.NET Core 的設定階層用 <code>__</code> 對應 <code>:</code>。）</p>
+<blockquote><p>現況提醒：<code>appsettings.Production.json</code> <strong>目前只有 <code>OpenAISettings.ApiKey</code> 一個 placeholder</strong>，並沒有預留 ConnectionStrings 的空白項。要在該檔管理連線字串的話得自己加，或（建議）一律走環境變數。</p></blockquote>
+<hr>
+<h2 id="六切換前的相容性風險" class="t6">六、切換前的相容性風險</h2>
+<p>SQLite 與 SQL Server 在<strong>型別、索引、預設值、定序（collation）與交易行為</strong>上都有差異，正式切換前務必做實體資料庫測試：</p>
+<ul><li><strong>定序與大小寫</strong>：SQLite 的 <code>LIKE</code> 預設不分大小寫、SQL Server 取決於資料庫定序。本系統的標籤欄位（<code>Categories</code>／<code>Teams</code>）用 <code>Contains</code> 做精確成員比對，定序差異可能影響命中。</li><li><strong>日期時間精度</strong>與 <code>decimal</code> 精度可能不同。</li><li><strong>並行與鎖</strong>：SQLite 是檔案鎖（寫入序列化），SQL Server 是列/頁鎖；背景管線大量寫入時的行為會不一樣。</li><li>目前 integration tests 跑的是 SQLite；<strong>SQL Server 需在具備該環境的機器或 CI 上另做實體驗證</strong>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>導入顧問：我要把系統部署到客戶的機器</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li><li><a href="../../docs/guides/import-to-knowledge-flow.html">從客戶匯入到完成知識：操作流程指南</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一怎麼切3-步">一、怎麼切（3 步）</a><a class="l2" href="#二設定鍵一覽">二、設定鍵一覽</a><a class="l3" href="#sqlitedefaultconnection-是死設定改它沒有用">⚠️ SQLiteDefaultConnection 是死設定，改它沒有用</a><a class="l2" href="#三兩種-provider-的行為差異">三、兩種 provider 的行為差異</a><a class="l2" href="#四migration-邊界重要">四、Migration 邊界（重要）</a><a class="l2" href="#五正式環境的連線字串放哪">五、正式環境的連線字串放哪</a><a class="l2" href="#六切換前的相容性風險">六、切換前的相容性風險</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/SQL Server 切換說明.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

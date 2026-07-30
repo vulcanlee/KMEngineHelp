@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>檔案上傳機制｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 功能機制</p><header class="hero"><div class="kicker">功能機制</div><h1>檔案上傳機制</h1></header><div class="docwrap"><main><h2 id="文件目的" class="t1">文件目的</h2>
+<p>說明專案、工作、會議三種紀錄的附件如何上傳、儲存、刪除，以及實體檔案的目錄組織策略。</p>
+<hr>
+<h2 id="1-三類附件對照" class="t2">1. 三類附件對照</h2>
+<div class="tw"><table><thead><tr><th>主表</th><th>附件 Entity</th><th>設定檔欄位（<code>SystemSettings.ExternalFileSystem</code>）</th></tr></thead><tbody><tr><td><code>Project</code></td><td><code>ProjectFile</code></td><td><code>ProjectFilePath</code></td></tr><tr><td><code>MyTask</code>（DbSet 名 <code>MyTas</code>）</td><td><code>MyTasFile</code></td><td><code>TaskFilePath</code></td></tr><tr><td><code>Meeting</code></td><td><code>MeetingFile</code></td><td><code>MeetingFilePath</code></td></tr></tbody></table></div>
+<p>預設值（<code>appsettings.json</code>）：</p>
+<pre><code>"ProjectFilePath":  "C:\\temp\\KnowledgeExtraction\\ProjectFile",
+"TaskFilePath":     "C:\\temp\\KnowledgeExtraction\\TaskFilePath",
+"MeetingFilePath":  "C:\\temp\\KnowledgeExtraction\\MeetingFilePath"</code></pre>
+<p>啟動時 <code>Program.cs</code> 會呼叫 <code>EnsureDirectoryExists(...)</code> 自動建立缺少的目錄。</p>
+<hr>
+<h2 id="2-目錄組織策略" class="t3">2. 目錄組織策略</h2>
+<p>每筆紀錄的附件依「主表的建立時間」決定目錄分層：</p>
+<pre><code>{各模組根目錄}/
+└── {年}/                ← 主表 CreatedAt.Year
+    └── {月}/             ← 主表 CreatedAt.Month（補零兩碼）
+        ├── 檔案 A
+        ├── 檔案 B
+        └── ...</code></pre>
+<p>例：2026 年 5 月新增的專案，其檔案會落在 <code>C:\temp\KnowledgeExtraction\ProjectFile\2026\05\</code> 下。</p>
+<hr>
+<h2 id="3-上傳行為" class="t4">3. 上傳行為</h2>
+<ul><li>一筆紀錄可上傳多個檔案。</li><li>單檔最大 1GB（前端與後端皆需驗證）。</li><li>在「新增模式」下，使用者上傳的檔案會先暫留於 UI；按下「儲存」後，Service 才將實體檔案落地到對應年月目錄，並建立資料庫紀錄。</li><li>在「修改模式」下：</li><li>既有檔案會列在清單中，可手動移除（標記為待刪除）。</li><li>可繼續加入新檔案，落地行為同新增模式。</li><li>按下「儲存」後：被標記為待刪除的紀錄連同實體檔案一併移除；新檔案則寫入目錄並登入資料庫。</li></ul>
+<hr>
+<h2 id="4-刪除行為" class="t5">4. 刪除行為</h2>
+<p>當使用者刪除主表紀錄（例如刪除一筆專案）：</p>
+<ol><li>EF Core 因 <code>DeleteBehavior.Cascade</code>（見 <code>BackendDBContext.OnModelCreating</code>）會自動刪除附件資料表的 row。</li><li><strong>實體檔案</strong>仍須由 Service 層在刪除前蒐集 <code>StoredPath</code>、刪除主表後再呼叫 <code>File.Delete(...)</code>。</li><li>若實體檔案刪除失敗（例如已被外部移動），Service 應寫入 <code>Warning</code> 等級日誌，但不阻斷主表刪除流程。</li></ol>
+<hr>
+<h2 id="5-對應-dto-與設定強型別" class="t6">5. 對應 DTO 與設定強型別</h2>
+<p><code>SystemSettings.ExternalFileSystem</code> 透過 <code>IOptions&lt;SystemSettings&gt;</code> 注入到 Service：</p>
+<pre><code>public class FooService(IOptions&lt;SystemSettings&gt; options, ILogger&lt;FooService&gt; logger)
+{
+    private readonly ExternalFileSystem fileSystem = options.Value.ExternalFileSystem;
+    // ...
+}</code></pre>
+<p>於 Service 內統一使用 <code>fileSystem.ProjectFilePath</code> 等屬性，<strong>禁止</strong>直接從 <code>IConfiguration</code> 讀字串。</p>
+<hr>
+<h2 id="6-uploadfiles-靜態資源對應" class="t7">6. <code>/UploadFiles</code> 靜態資源對應</h2>
+<p><code>Program.cs</code> 的靜態檔案對映：</p>
+<pre><code>app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(systemSettings.ExternalFileSystem.DownloadPath),
+    RequestPath = "/UploadFiles"
+});</code></pre>
+<ul><li><code>DownloadPath</code> 是「公開可下載」目錄；任何放在這裡的檔案都會被 <code>/UploadFiles/...</code> 對外服務。</li><li>三類附件目錄（<code>ProjectFilePath</code>、<code>TaskFilePath</code>、<code>MeetingFilePath</code>）<strong>不</strong>直接對應 <code>/UploadFiles</code>；下載這些附件需透過 Controller 端點，由 Service 驗證權限後再回傳檔案串流。</li></ul>
+<hr>
+<h2 id="7-實作檢查清單範本非現行-backlog" class="t8">7. 實作檢查清單（範本，非現行 backlog）</h2>
+<p>新增「附件功能」時請確認：</p>
+<ul><li>Entity 已新增 <code>XxxFile</code> 子表，並在 <code>BackendDBContext.OnModelCreating</code> 設定 <code>Cascade</code>。</li><li><code>appsettings.json</code> 已新增對應根目錄欄位，並在 <code>SystemSettings.ExternalFileSystem</code> 模型中對映。</li><li><code>Program.cs</code> 已呼叫 <code>EnsureDirectoryExists</code> 包含新目錄。</li><li>Service 對外提供 <code>Add</code> / <code>Update</code> / <code>Delete</code> 時皆同步處理實體檔案。</li><li>對外下載端點需做角色檢查與檔名清洗，避免路徑跳脫攻擊。</li></ul>
+<hr>
+<h2 id="8-延伸閱讀" class="t1">8. 延伸閱讀</h2>
+<ul><li><a href="../../docs/architecture/data-model.html">資料模型與資料庫</a> — Cascade 行為、附件 Entity 欄位。</li><li><a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例</a> — 上傳 / 下載端點命名建議。</li><li><a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a> — <code>SystemSettings.ExternalFileSystem</code> 各欄位完整對照。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（功能機制）</h3><ul><li><a href="../../docs/features/distributed-cache.html">分散式快取機制</a></li><li><a href="../../docs/features/i18n.html">多語系與本地化</a></li><li><a href="../../docs/features/versioning-freshness.html">版本化與時效性</a></li><li><a href="../../docs/features/wiki-and-wikilink.html">知識百科與 WikiLink</a></li><li><a href="../../docs/features/health-monitoring.html">系統健康監控</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#文件目的">文件目的</a><a class="l2" href="#1-三類附件對照">1. 三類附件對照</a><a class="l2" href="#2-目錄組織策略">2. 目錄組織策略</a><a class="l2" href="#3-上傳行為">3. 上傳行為</a><a class="l2" href="#4-刪除行為">4. 刪除行為</a><a class="l2" href="#5-對應-dto-與設定強型別">5. 對應 DTO 與設定強型別</a><a class="l2" href="#6-uploadfiles-靜態資源對應">6. /UploadFiles 靜態資源對應</a><a class="l2" href="#7-實作檢查清單範本非現行-backlog">7. 實作檢查清單（範本，非現行 backlog）</a><a class="l2" href="#8-延伸閱讀">8. 延伸閱讀</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/features/檔案上傳機制.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

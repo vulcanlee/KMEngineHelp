@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Production 機密軟偵測（不擋啟動）與寫入背景服務納入健康檢查（1.0.71→1.0.72）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Production 機密軟偵測（不擋啟動）與寫入背景服務納入健康檢查（1.0.71→1.0.72）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-26</li><li>版本：1.0.71 → 1.0.72</li><li>類型：資安補強（軟偵測）＋可觀測性補強</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>兩件被前幾版明確延後的事，這次一起補完。</p>
+<h3 id="一production-機密完全沒有任何偵測">一、Production 機密完全沒有任何偵測</h3>
+<p>三道防線在三個版本內依序被拆掉：</p>
+<div class="tw"><table><thead><tr><th>版本</th><th>發生什麼</th></tr></thead><tbody><tr><td>1.0.65</td><td>查出 <code>StartupSafetyValidator</code> 的兩個守門<strong>永不觸發</strong>（比對的字面值與 <code>appsettings.json</code> 實際值不相等），改以 <code>DevelopmentOnly-</code> 前綴判定</td></tr><tr><td>1.0.68</td><td>該驗證器<strong>連續兩次擋住正式部署</strong>（IIS 回 500.30，現場難以從該錯誤碼判讀原因）→ 整支移除</td></tr><tr><td>1.0.69</td><td><code>/system-health</code>「身分驗證」項仍紅（金鑰被改過但仍以 <code>DevelopmentOnly-</code> 開頭）→ 移除該判定</td></tr></tbody></table></div>
+<p>結果是<strong>系統沒有任何地方會提示「Production 正在用開發預設金鑰或預設密碼」</strong>。而出貨的 <code>appsettings.json</code> 至今仍是 <code>SigningKey = "DevelopmentOnly-…"</code>（94 字元）與 <code>SupportPassword = "1qaz@WSX"</code>——任何看得到原始碼的人都能偽造 JWT。</p>
+<p>更關鍵的是：<code>docs/planning/08-優化建議清單-TODO.md</code> 把「列入部署檢查清單、每次部署後人工核對」寫成<strong>僅剩的補償方式</strong>，但那份清單當時反而以 <code>[x]</code> 宣稱「程式會直接中止啟動」（4 處，已於本版前的純文件 commit 更正）。唯一的補償控制是空的，還在誤導維運人員。</p>
+<h3 id="二兩支寫入背景服務不在健康檢查範圍內">二、兩支寫入背景服務不在健康檢查範圍內</h3>
+<p>1.0.66 把背景管線檢查改為由 <code>PipelineNames</code> 反射推導，但推導只涵蓋業務管線。<code>TokenUsageWriterBackgroundService</code> 與 <code>PipelineProgressWriterBackgroundService</code> 沒有對應常數，因此<strong>完全不在任何檢查範圍內</strong>——<code>SystemHealthService</code> 的註解自承這件事，測試裡甚至有一條<strong>主動斷言它們被排除</strong>。</p>
+<p>後果不對稱地嚴重：<code>TokenUsageWriter</code> 沒起來＝<strong>Token 用量默默不再記錄</strong>，而那是成本治理與 5 份統計報表的資料基礎，且不會有任何錯誤訊息；<code>PipelineProgressWriter</code> 沒起來＝進度不更新、完成 toast 消失，使用者只會覺得「卡住了」。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="機密軟偵測只提示絕不中止">機密軟偵測：只提示，絕不中止</h3>
+<p>還原 <code>Web/Configuration/UnsafeDefaults.cs</code>（從 git 取回 1.0.65 的版本——它的前綴判定邏輯已驗證過，不重新設計），新增純函式：</p>
+<pre><code>public static IReadOnlyList&lt;string&gt; DetectProductionRisks(
+    IConfiguration configuration, string environmentName)</code></pre>
+<p><strong>回傳清單而非「拋例外」，是為了讓「不會中止啟動」這件事寫在簽章上。</strong> 兩個消費端：</p>
+<ol><li><strong><code>Program.cs</code></strong>：在 <code>builder.Build()</code> 之後（L374 附近，緊接既有的「執行環境摘要」）記一筆 <code>Error</code>：</li></ol>
+<p><code>Production 安全風險：偵測到不安全的預設設定值 N 項，站台仍會正常啟動，請依部署檢查清單更換。…</code> 以 <code>#region</code> 包住並在註解寫死<strong>三條鐵則</strong>：① 必須在 <code>Build()</code> 之後（在那之前拿不到 <code>ILogger</code>，訊息不進 NLog）② 不得 <code>throw</code>／<code>Environment.Exit</code> ③ 不得改用 <code>ValidateOnStart</code>（那會在 <code>Build()</code> 期間拋例外，等於回到 1.0.68 被移除的行為）。</p>
+<ol><li><strong><code>SystemHealthService.CheckAuthentication</code></strong>：接線壞 → <code>Unhealthy</code>；接線正常但有風險 → <strong><code>Degraded</code>（黃燈）</strong>，evidence 尾端附 <code>⚠️</code> 與原因。<strong>刻意用黃不用紅</strong>：此項權重 15（全站第二高），而 Cookie/JWT 接線本身沒壞——1.0.69 之所以整條移除，正是因為紅燈被誤判為身分驗證故障。</li></ol>
+<p>判定只在 <strong>Production</strong> 生效（環境名比對不分大小寫）。開發／測試沿用預設值是正常的，報了只會變成雜訊。</p>
+<p><strong>刻意不恢復 Swagger 與 Redis 兩項判定</strong>：Redis 已被 <code>/system-health</code>「分散式快取」項<strong>實測連線</strong>涵蓋（比啟動期字串檢查更有效）；Swagger 未列出該鍵時沿用基底 <code>false</code>（安全側）。少兩個判定＝少兩個誤報來源。</p>
+<h3 id="寫入服務納入健康檢查併入現有項不新增第-25-項">寫入服務納入健康檢查：併入現有項，不新增第 25 項</h3>
+<p>新增硬編的 <code>SystemHealthService.ExpectedWriterBackgroundServices</code>（那兩支沒有 <code>PipelineNames</code> 常數，無法推導），與反射推導的管線清單取聯集後檢查，evidence 分開報數：</p>
+<blockquote><p>匯入/處理管線就緒：7/7；用量與進度寫入服務就緒：2/2。</p></blockquote>
+<p><strong>為什麼不新增第 25 項</strong>（原本的估法）：盤點後發現「24 項」硬寫在 <strong>17 份文件</strong>裡，包含 <code>marketing/*.html</code>、<code>presentation/*.html</code> 這些會由 <code>scripts/Build-DeckPptx.py</code>／<code>Build-FlagshipDeck.py</code> 產生 <code>.pptx</code> 的檔案（得重生三種格式），還要重算「權重合計 232」；而兩案的可觀測性收益<strong>完全相同</strong>——服務沒起來一樣會亮燈。併入現有項只要動 3 份文件，<strong>檢查項數維持 24</strong>、權重維持 8。</p>
+<p>1.0.66 的 <code>ExpectedPipelineBackgroundServices</code> 反射推導<strong>完全不動</strong>（那是它的成果，也是既有測試的斷言對象）。</p>
+<h2 id="測試" class="t3">測試</h2>
+<p>661 → <strong>686</strong>（+25，全綠）。</p>
+<ul><li>新增 <code>UnsafeDefaultsTests</code>。<strong>最關鍵那條</strong>：<code>DetectProductionRisks_WithRepositoryAppSettings_ReportsBothSecrets</code> 直接從磁碟載入本 repo 的 <code>appsettings.json</code>，斷言兩個機密都被指出。這是唯一能結構性防止「預設值漂移了、判定沒跟著改」的作法——1.0.65 前的守門失效，正是因為當時的測試餵手寫字面值而非真實設定檔。</li></ul>
+<p>邊界測試涵蓋 1.0.69 實際遇到的錯誤做法（在預設值後面接一段字，長度變成 202 但前綴仍在 → 仍要判為不安全）。</p>
+<ul><li>新增 <code>SystemHealthReportTests.GetReportAsync_Authentication_InNonProduction_StaysHealthy</code>：防止偵測不慎在非 Production 也生效。若本機與 CI 永遠亮黃燈，燈號就再次失去意義（這正是 1.0.69 的痛點）。</li><li><code>BackgroundPipelineHealthCheckTests</code> 那條反向斷言<strong>不刪，改變它守護的對象</strong>：改為同時斷言「不在推導清單」（推導的前提仍成立）＋「在寫入服務清單」（1.0.72 起必須被涵蓋）。並刪掉測試檔內的第二份私有清單，改用生產端常數；新增 <code>EveryWriterService_HasMatchingType</code> 守住硬編清單與真實型別一致。</li></ul>
+<h2 id="影響與相容性" class="t4">影響與相容性</h2>
+<ul><li><strong>不會改變啟動行為</strong>。這是本次最重要的相容性保證：偵測到風險時站台仍正常啟動，只是多一筆 <code>Error</code> 日誌。</li><li>⚠️ <strong>部署現場注意</strong>：日誌裡出現 <code>Production 安全風險</code> 這筆 Error <strong>不是 500.30 的原因</strong>。已在 <code>全新機器部署SOP.md</code> §6.4 的 500.30 排查段明確標註，避免誤判。</li><li>Production 沿用開發預設值時，<code>/system-health</code> 總分會少約 3.2 分（權重 15 的一半，滿分 232），「身分驗證」項轉黃。這是預期行為。</li><li>檢查項數維持 <strong>24</strong>、權重合計維持 <strong>232</strong>，17 份寫「24 項」的文件不需變動。</li><li>無資料庫 migration、無 API 合約變更。</li></ul>
+<h2 id="文件同步" class="t5">文件同步</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>改什麼</th></tr></thead><tbody><tr><td><code>operations/正式部署與安全檢查清單.md</code></td><td>金鑰／密碼兩條改為「不擋啟動但會提示」，並說明軟偵測只有在有人去看時才會發現，人工核對不可省；補註 Swagger／Redis 刻意未恢復的理由</td></tr><tr><td><code>security/認證授權與權限機制.md</code></td><td>兩條安全待辦補上 1.0.72 的軟偵測範圍與前綴判定</td></tr><tr><td><code>operations/全新機器部署SOP.md</code> §6.4</td><td>新增「看到 <code>Production 安全風險</code> 不是啟動失敗原因」的明確提醒</td></tr><tr><td><code>features/系統健康監控.md</code></td><td>身分驗證項的黃燈條件；背景管線項納入 2 支寫入服務並說明為何要檢查</td></tr><tr><td><code>guides/系統監控與健康檢查指南.md</code></td><td>同上，另在異常排查表新增「身分驗證黃燈」一列</td></tr><tr><td><code>prd/系統健康監控-prd.md</code></td><td>背景管線項的涵蓋範圍</td></tr><tr><td><code>planning/08-優化建議清單-TODO.md</code></td><td>兩項打勾並寫明實際處置與「為何不新增第 25 項」</td></tr></tbody></table></div>
+<h2 id="版本" class="t6">版本</h2>
+<ul><li><code>appsettings.json</code> <code>SystemVersion</code>：<code>1.0.71</code> → <code>1.0.72</code>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l3" href="#一production-機密完全沒有任何偵測">一、Production 機密完全沒有任何偵測</a><a class="l3" href="#二兩支寫入背景服務不在健康檢查範圍內">二、兩支寫入背景服務不在健康檢查範圍內</a><a class="l2" href="#變更">變更</a><a class="l3" href="#機密軟偵測只提示絕不中止">機密軟偵測：只提示，絕不中止</a><a class="l3" href="#寫入服務納入健康檢查併入現有項不新增第-25-項">寫入服務納入健康檢查：併入現有項，不新增第 25 項</a><a class="l2" href="#測試">測試</a><a class="l2" href="#影響與相容性">影響與相容性</a><a class="l2" href="#文件同步">文件同步</a><a class="l2" href="#版本">版本</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-26-機密軟偵測與寫入服務健康檢查.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

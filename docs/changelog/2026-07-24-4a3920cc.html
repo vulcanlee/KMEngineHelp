@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>首頁儀表板管理者專區新增「經營洞察」（1.0.46→1.0.47）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>首頁儀表板管理者專區新增「經營洞察」（1.0.46→1.0.47）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-24</li><li>版本：1.0.46 → 1.0.47</li><li>類型：新功能（純查詢／唯讀，無資料模型變更）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>主管/雇主希望在一個面板一眼看懂系統被使用的情況、大家最喜歡哪些功能、未來可改善方向。決定強化現有首頁儀表板（<code>/App</code> 的 <code>DashboardView</code>，標題本就叫「統計儀表板」），在其<strong>管理者專區</strong>新增一組「經營洞察」，並可切換統計區間。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="後端dashboardservice">後端（<code>DashboardService</code>）</h3>
+<ul><li>新增 <code>GetManagementInsightsAsync(int rangeDays)</code>（全庫統計、不套團隊權控、依序 await）：</li><li><strong>使用概況 KPI</strong>：活躍使用者（LlmChatLog／LlmTokenUsage／KnowledgeBaseQueryAudit 三來源 distinct 非空帳號聯集）、問答總量、Token 總量、內容處理數（音訊/文件/圖片 IsLatest）。</li><li><strong>使用者排行榜</strong>：Token 用量 Top（重用 <code>TokenUsageReportService.UserRanking</code>）、知識庫互動 Top（重用 <code>ChatReportService.GetActivityReportAsync.UserRanking</code>）、內容貢獻 Top（近似：以 LlmTokenUsage 內容作業〔轉錄/圖片辨識/清洗/蒸餾/文件產生/媒體產生〕的觸發者、依 distinct RecordId 件數估算）。</li><li><strong>最受歡迎的功能</strong>：LlmTokenUsage 依作業使用次數（排除健康檢查）。</li><li><strong>改善方向訊號</strong>：滿意率、不滿意數、低信心數、被封鎖數、零命中率（重用 Chat／RetrievalQuality 報表）。</li><li>排行榜帳號經 <code>MyUser</code> 對應為「姓名（帳號）」；「（系統/背景）」保持原樣。</li><li>建構式新增注入 <code>TokenUsageReportService</code>（已於 <code>ServiceCollectionExtensions</code> 註冊）。</li><li>新增模型 <code>Models/Dashboard/ManagementInsightsViewModel.cs</code>（用 <code>Models.Reports</code> 的 <code>RankRow</code>/<code>LabeledCount</code>）。</li></ul>
+<h3 id="uidashboardview">UI（<code>DashboardView</code>）</h3>
+<ul><li>管理者專區下方新增「經營洞察（近 N 天）」區塊：右上角區間切換（近 7/30/90 天，預設 30，只重載本區塊）、使用概況 KPI 卡、三欄使用者排行榜、最受歡迎功能長條、改善方向訊號卡（痛點警示色）。</li><li>重用 <code>Reports/Shared</code> 的 <code>ReportRankList</code>／<code>ReportBarList</code>（CSS 於全域 <code>app.css</code>）；新增少量 scoped 樣式。</li><li>內容貢獻排行標注「（近似：以 AI 作業觸發者估算）」。</li></ul>
+<h3 id="測試">測試</h3>
+<ul><li>新增 <code>Dashboard/DashboardManagementInsightsTests</code>（in-memory SQLite）：活躍使用者聯集、內容貢獻近似（distinct RecordId、排除非內容作業與空帳號、帳號→顯示名）、熱門功能排除健康檢查、區間邊界。</li></ul>
+<h2 id="影響與相容性" class="t3">影響與相容性</h2>
+<ul><li>純查詢/唯讀，<strong>無模型變更、不需 migration</strong>。</li><li>新區塊僅管理員可見（含個人層級用量）。</li><li>「內容貢獻」為近似值（AI 作業觸發者，非上傳者）；若需精準需另加內容表建立者欄位（獨立任務）。</li></ul>
+<h2 id="版本" class="t4">版本</h2>
+<ul><li><code>appsettings.json</code> <code>SystemVersion</code>：<code>1.0.46 (2026/07/24)</code> → <code>1.0.47 (2026/07/24)</code>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#後端dashboardservice">後端（DashboardService）</a><a class="l3" href="#uidashboardview">UI（DashboardView）</a><a class="l3" href="#測試">測試</a><a class="l2" href="#影響與相容性">影響與相容性</a><a class="l2" href="#版本">版本</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-24-儀表板經營洞察.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

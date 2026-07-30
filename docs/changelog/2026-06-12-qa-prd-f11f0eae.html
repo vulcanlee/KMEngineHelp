@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>資料清洗與品質保證整合 PRD（0.2.70）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>資料清洗與品質保證整合 PRD（0.2.70）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-12</li><li>版本：0.2.69 → 0.2.70（純文件變更，依專案慣例版本 +1）</li></ul>
+<h2 id="一做了什麼" class="t1">一、做了什麼</h2>
+<p>清洗管線（QA-1）、LLM 步驟、信心門檻（QA-2）、人工審核（QA-3）、黃金評測（QA-4）與門檻鎖定的 <strong>設計散見</strong> <a href="../../docs/strategy/cleaning-stage-design.html">strategy/08</a> 與 <a href="../../docs/planning/07-todo-f1c7d6cc.html">planning/07</a>， 缺一份整合的功能需求文件。本次補上：</p>
+<ul><li>新增 <a href="../../docs/prd/prd-a1cd6b20.html">資料清洗管線與品質保證（QA-1..QA-4）＋黃金評測集 PRD</a>（回填整合，狀態：已實作 0.2.60–0.2.68）。</li><li>內容對齊實作現況：清洗步驟（彙整→正規化 OpenCC→LLM 去重/遮罩/分類/摘要/信心→產出→路由）、</li></ul>
+<p>遮罩失敗即整筆失敗、信心門檻 0.70 路由、人工審核（核准/退回，動作權限）、<code>CleaningEvaluator</code> 指標與門檻掃描、 已鎖定門檻、設定鍵、權限三處同步、驗收條件與涉及檔案。</p>
+<h2 id="二索引同步" class="t2">二、索引同步</h2>
+<ul><li><code>docs/README.md</code> PRD 區新增本 PRD。</li><li>根 <code>readme.md</code> PRD 區補齊先前遺漏的既有 PRD（提示詞清單、逐字稿 LLM 產生、圖片清單、知識來源管理）＋本 PRD。</li></ul>
+<h2 id="備註" class="t3">備註</h2>
+<ul><li>純文件，未改程式。清洗/黃金評測為「已實作」功能，本 PRD 為回填整合而非新規格。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一做了什麼">一、做了什麼</a><a class="l2" href="#二索引同步">二、索引同步</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-12-清洗QA整合PRD.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

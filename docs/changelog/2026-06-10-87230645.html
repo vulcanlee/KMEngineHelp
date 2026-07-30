@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</h1></header><div class="docwrap"><main><h2 id="摘要" class="t1">摘要</h2>
+<p>完成資料清洗前置工作（<a href="../../docs/strategy/cleaning-stage-design.html">strategy/08</a> Part A 的 A1/A2/A3，對應 <a href="../../docs/planning/07-todo-f1c7d6cc.html">planning/07 第〇階段</a>）：圖片識別改為佇列化處理並補齊狀態機，與文件萃取／媒體轉錄三管線一致；三條管線一併加入自動重試、手動重試、取消機制與重啟回復。系統版本 0.2.55 → 0.2.58（每階段 +1）。</p>
+<h2 id="異動內容" class="t2">異動內容</h2>
+<h3 id="a1-圖片識別佇列化0256">A1 圖片識別佇列化（0.2.56）</h3>
+<ul><li><strong>資料模型</strong>：<code>ImageRecognition</code> 新增 <code>Status</code>（未解讀／等待中／處理中／已完成／失敗／已取消，上傳預設「未解讀」）、<code>ProgressPercentage</code>、<code>ErrorMessage</code>、<code>RecognitionPrompt</code>（最近一次解讀提示詞，供重試重新入列）；雙 provider migration <code>AddImageRecognitionStatus</code>，<code>Up()</code> 內回填既有資料（已有解讀文字者標「已完成」）。</li><li><strong>管線</strong>：新增 <code>IImageRecognitionQueue</code>／<code>ImageRecognitionQueue</code>（<code>Channel&lt;int&gt;</code>）、<code>ImageRecognitionProcessor</code>、<code>ImageRecognitionBackgroundService</code>，完全比照文件萃取模式；<strong>移除 <code>ImageRecognitionGenerationService</code></strong>，LLM 呼叫與檔案寫入併入 Processor（圖片改由 Processor 自磁碟讀取；入列動作於 UI scope 通過團隊權控）。</li><li><strong>服務</strong>：<code>ImageRecognitionService</code> 新增 <code>EnqueueRecognitionAsync(id, prompt)</code>（權控、提示詞必填、等待中/處理中拒絕重複入列）。</li><li><strong>UI</strong>：解讀對話窗按「解讀」改為入列（移除 <code>Task.Run</code> 與 <code>recognizingIds</code>）；列表新增「狀態」「進度」欄（狀態可排序）；解讀中停用 ✨；輪詢改依 <code>Status</code> 判斷。觸發時機維持手動選提示詞。</li></ul>
+<h3 id="a3-取消機制0257">A3 取消機制（0.2.57）</h3>
+<ul><li><strong>取消註冊表</strong>：新增 <code>IPipelineCancellationRegistry</code>／<code>PipelineCancellationRegistry</code>（Singleton，<code>(管線, Id)</code> → linked <code>CancellationTokenSource</code>；Dispose 以 KeyValuePair 精確移除避免誤刪同 Id 新註冊）；<code>PipelineNames</code> 常數。</li><li><strong>背景服務</strong>：三個 <code>BackgroundService</code> 處理每筆時註冊取消權杖；單筆取消（非主機關機）時 <code>MarkCancelledAsync</code> 標記「已取消」（僅當狀態仍為等待中/處理中，不覆蓋已完成；紀錄已刪除則略過）。</li><li><strong>狀態</strong>：三個 AdapterModel 新增 <code>StatusCancelled = "已取消"</code>；Processor 出列時跳過已取消紀錄。</li><li><strong>服務</strong>：三個 Service 的 <code>DeleteAsync</code> 先發取消再刪除；新增 <code>CancelAsync</code>（等待中直接標記；處理中發取消、註冊表未命中的重啟孤兒直接標記）；<code>TryDeleteRelative</code> 改容錯（檔案被佔用記 log 不中斷）。</li></ul>
+<h3 id="a2-自動重試與重啟回復0258">A2 自動重試與重啟回復（0.2.58）</h3>
+<ul><li><strong>重試規則</strong>：新增 <code>PipelineRetryHelper</code>（<code>MaxAttempts = 3</code>，即首次＋自動重試 2 次；退避 10s×N）。暫時性錯誤（<code>HttpRequestException</code>、<code>IOException</code>、<code>TaskCanceledException</code> 逾時、未知例外）可重試；真取消、檔案不存在、設定/參數錯誤不重試。</li><li><strong>Processor</strong>：三個 Processor 核心抽出 <code>ProcessCoreAsync</code>，<code>ProcessAsync</code> 套重試迴圈；重試期間 <code>ErrorMessage</code> 註記「第 N 次嘗試失敗，自動重試中」。</li><li><strong>手動重試</strong>：三個 Service 新增 <code>RetryAsync</code>（僅失敗/已取消；圖片另需留有 <code>RecognitionPrompt</code>）。</li><li><strong>重啟回復</strong>：三個 <code>BackgroundService</code> 啟動時 <code>RecoverPendingAsync</code>——「處理中」重設為「等待中」（註記系統重啟）並連同原「等待中」依 Id 升冪重新入列；圖片「未解讀」不入列（維持手動觸發）。</li><li><strong>UI</strong>：三個清單頁操作區新增 重試（🔁，失敗/已取消）與 取消（⏹️，等待中/處理中）按鈕；圖片頁新增 檢視錯誤訊息（⚠️）；刪除確認文案註明會一併取消進行中工作。</li></ul>
+<h3 id="測試">測試</h3>
+<ul><li>新增 <code>PipelineCancellationRegistryTests</code>（7）、<code>PipelineRetryHelperTests</code>（3）、<code>ImageRecognitionQueueFlowTests</code>（9，SQLite in-memory 驗證入列/重試/取消狀態流與權控）；全部測試 164 綠。</li></ul>
+<h2 id="注意事項" class="t3">注意事項</h2>
+<ul><li>套用本版需執行資料庫 migration（SQLite 與 SQL Server 各有 <code>AddImageRecognitionStatus</code>），啟動時自動套用。</li><li>既有圖片紀錄經回填後：已有解讀文字者顯示「已完成」，其餘顯示「未解讀」。</li><li>既有「失敗」紀錄沒有 <code>RecognitionPrompt</code>（佇列化前產生），不能用 🔁 重試，需以 ✨ 重新選提示詞解讀。</li></ul>
+<h2 id="範圍外" class="t4">範圍外</h2>
+<ul><li>A4 容量邊界文件化（前端事前提示、各工具上限說明）仍在 <a href="../../docs/planning/07-todo-f1c7d6cc.html">planning/07</a> 待辦。</li><li>多實例部署的入列競態防護（目前單實例 read-then-write 可接受）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li><li><a href="../../docs/changelog/2026-06-11-qa2-b3079fb4.html">清洗 QA-2：LLM 自評信心分數 + 自動門檻（0.2.62）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#異動內容">異動內容</a><a class="l3" href="#a1-圖片識別佇列化0256">A1 圖片識別佇列化（0.2.56）</a><a class="l3" href="#a3-取消機制0257">A3 取消機制（0.2.57）</a><a class="l3" href="#a2-自動重試與重啟回復0258">A2 自動重試與重啟回復（0.2.58）</a><a class="l3" href="#測試">測試</a><a class="l2" href="#注意事項">注意事項</a><a class="l2" href="#範圍外">範圍外</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-10-三管線佇列化重試取消.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

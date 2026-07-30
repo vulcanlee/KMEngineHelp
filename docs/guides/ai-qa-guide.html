@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 知識問答使用指南｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>AI 知識問答使用指南</h1><p class="sub">說明「AI 知識問答」為什麼需要、頁面各控制項怎麼操作、出處面板如何鑽取與下載、權控如何運作，以及怎麼問得到好答案——讓使用者看完即可自行操作。</p></header><div class="docwrap"><main><ul><li>文件用途：說明「AI 知識問答」為什麼需要、頁面各控制項怎麼操作、出處面板如何鑽取與下載、權控如何運作，以及怎麼問得到好答案——讓使用者看完即可自行操作。</li><li>主要讀者：一般使用者、知識庫管理者、導入顧問</li><li>文件版本：1.3（新增「查詢模式：一般／全域（社群摘要）」控制項、全域模式的出處與權控差異、圖譜相關 FAQ）</li><li>建立日期：2026/06/26</li><li>更新日期：2026/07/29</li><li>對應系統版本：1.0.100（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>相關：上手地圖見 <a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a>；前置（清洗→蒸餾→索引）見 <a href="../../docs/guides/rag-poc-acceptance.html">PoC 執行與驗收指南</a>；RAG 流程與參數見 <a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a>；檢索品質量化見 <a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a>；<strong>「全域（社群摘要）」查詢模式與圖檢索</strong>見 <a href="../../docs/guides/knowledge-graph.html">知識圖譜（Graph RAG）使用指南</a>。</p></blockquote>
+<hr>
+<h2 id="一ai-知識問答在做什麼為什麼需要" class="t1">一、AI 知識問答在做什麼？（為什麼需要）</h2>
+<p>一句話：<strong>用自然語言對「整個知識庫」提問，得到「附出處、且只包含你有權看的內容」的答案。</strong></p>
+<p>它解決的痛點：知識散在多份來源、人工翻找慢、AI 答了卻不知依據在哪、不同人不該看到不同內容。AI 知識問答用<strong>混合檢索（向量＋關鍵字）</strong>跨來源找出最相關片段，組成參考資料給 LLM 作答，並<strong>附上可鑽取回原始檔的出處</strong>，全程<strong>受團隊權控</strong>。</p>
+<hr>
+<h2 id="二開始前的前提" class="t2">二、開始前的前提</h2>
+<ul><li>要能跨來源語意問答，知識來源需走完「<strong>已清洗 → 已蒸餾 → 已索引</strong>」，且<strong>已設定嵌入端點</strong>。前置見 <a href="../../docs/guides/rag-poc-acceptance.html">PoC 指南 §2.1</a>。</li><li>若未設定嵌入，新索引無法建立向量；檢索服務仍可用既有資料做關鍵字路徑，但不等於完整的跨來源語意檢索。</li></ul>
+<hr>
+<h2 id="三操作步驟頁面各控制項" class="t3">三、操作步驟（頁面各控制項）</h2>
+<p><strong>進入</strong>：登入後預設直接落在本頁；亦可從選單「知識庫 → AI 知識問答」(<code>/knowledge-base-chat</code>) 進入。權限樹上要勾的是 <strong><code>知識庫問答</code></strong>（刻意保留的舊名，對照見 <a href="../../docs/guides/complete-manual.html#%E9%81%B8%E5%96%AE%E5%90%8D%E8%88%87%E6%AC%8A%E9%99%90%E6%A8%B9%E5%90%8D%E5%B0%8D%E7%85%A7%E8%A1%A8">完整操作手冊 §3.1</a>）。</p>
+<p><strong>標題列的三顆按鈕</strong>：</p>
+<div class="tw"><table><thead><tr><th>按鈕</th><th>作用</th></tr></thead><tbody><tr><td><strong>新對話</strong></td><td>清空畫面上的問答並開始新的一段對話（<code>sessionId</code> 重置，下次送出時才產生新識別碼，不會留下 0 輪的空對話）。<strong>設定面板的所有條件與輸入框草稿都保留</strong>。串流中此鈕停用（要中斷請按「停止」）。1.0.105 起</td></tr><tr><td><strong>我的對話</strong></td><td>開啟抽屜列出你自己的歷史對話，可<strong>關鍵字搜尋</strong>、回看與「繼續對話」。見 §3.1</td></tr><tr><td><strong>系統提示詞設定</strong></td><td>展開/收合下方設定面板；展開後按鈕文字會變成「<strong>收合設定</strong>」</td></tr></tbody></table></div>
+<p><strong>設定面板（按「系統提示詞設定」展開）</strong>：</p>
+<ul><li><strong>查詢模式</strong>：<strong>一般（精準檢索）</strong>（預設）/ <strong>全域（社群摘要）</strong>。這是兩種性質不同的問答方式，不是效能開關：</li><li><strong>一般</strong>：走混合檢索（向量＋關鍵字＋圖），適合具體事實、條款、步驟、數字。<strong>有出處面板可鑽取回原始檔。</strong></li><li><strong>全域</strong>：走知識圖譜的社群摘要 map-reduce，適合「整體風險有哪些」「反覆出現的系統性問題是什麼」這類<strong>要看過全部才答得出</strong>的問題。⚠️ <strong>沒有出處面板、沒有相似度</strong>（改顯示取用社群數）、<strong>不套用下方的限定來源／分類／團隊篩選</strong>，且成本是「每個你有權存取的社群各一次 LLM」。</li><li>前置：管理員需先在「知識庫 → 知識圖譜審核」按過「重建社群摘要」；從未重建時系統會回可行動的原因說明，不是空白。詳見 <a href="../../docs/guides/knowledge-graph.html">知識圖譜（Graph RAG）使用指南 §六</a>。</li><li><strong>回答詳簡</strong>：簡潔 / 標準（預設）/ 詳細。</li><li><strong>套用既有提示詞</strong>：從清單挑一個提示詞帶入系統提示詞欄（仍可編輯）。</li><li><strong>系統提示詞</strong>：可留空（用內建知識庫助理提示詞），也可自訂；變更後<strong>下一則訊息</strong>起生效。</li><li><strong>限定知識來源 / 限定分類 / 限定團隊（多選）</strong>：把檢索範圍縮小到選定的知識來源、分類或團隊；留空＝在你有權限的整個知識庫範圍內問答。此為<strong>查詢期篩選</strong>，改選即於下一則訊息生效、不需重建索引，且<strong>疊加在團隊權控之上</strong>（只會縮小、不會讓你看到無權限內容）。適合「多客戶／多系統／多團隊」情境下只問某一套範圍。</li><li>知識來源 / 分類篩選 0.3.22 起；<strong>團隊篩選 0.3.36 起</strong>。</li><li>「限定分類」下拉只列出<strong>你可存取知識中實際用到的分類</strong>；「限定團隊」下拉只列出<strong>你可存取的團隊</strong>（管理員為全部啟用團隊）。兩者預設皆留空＝全部。</li></ul>
+<p><strong>對話</strong>：</p>
+<ul><li>在底部輸入框打問題 → 「送出」；回答以<strong>串流</strong>逐字呈現。</li><li>串流中可按「<strong>停止</strong>」中止。每則 AI 回答下方為<strong>同一列常駐</strong>的動作按鈕：<strong>複製 / 下載 PDF / 滿意 / 不滿意</strong>。</li><li>支援<strong>多輪</strong>：系統會帶入先前對話作為脈絡；若你問「它有哪些限制？」、「剛剛那個怎麼處理？」這類短問句，系統會先把問題補全成可檢索的查詢，再去找資料。</li></ul>
+<h3 id="31-我的對話與繼續對話">3.1 我的對話與繼續對話</h3>
+<p>按標題列的「<strong>我的對話</strong>」會滑出抽屜（標題就是「我的對話」），列出<strong>你自己</strong>在本頁的歷史對話：</p>
+<ul><li>每列顯示：對話標題（取自首輪提問，過長會截斷）、藍色「<strong>N 輪</strong>」標籤、時間；知識來源對話還會附上來源標題。</li><li><strong>每頁 10 筆</strong>；沒有紀錄時顯示「尚無對話紀錄」。</li><li><strong>關鍵字搜尋（1.0.105 起）</strong>：抽屜最上方有搜尋框，輸入後按 Enter 或「搜尋」即可篩選；比對範圍是<strong>對話標題與該段對話各輪的提問文字，不含 AI 回答</strong>，所以第 2 輪以後才問到的關鍵字也找得到。按「清除」回到完整清單；換關鍵字會自動回到第 1 頁；關閉再開抽屜時關鍵字會重置。</li><li>實作上提問文字另存於 <code>LlmChatSession.QuestionsIndex</code>（各輪提問以換行串接、上限 4000 字），因此搜尋與分頁都由 SQL 完成。本功能上線前的舊對話由啟動時的一次性回填補齊。</li><li>點任一列進入詳細頁，可看整段問答，每輪下方有「設定：」摘要當時的條件（詳簡、套用的提示詞、有無自訂系統提示詞、分類、團隊、限定來源幾個）。</li><li>詳細頁上方有「<strong>← 返回清單</strong>」與「<strong>繼續對話</strong>」。按「<strong>繼續對話</strong>」會把那段對話載回主畫面，你可以接著問下去。</li></ul>
+<blockquote><p><strong>這個抽屜只看得到你自己的對話</strong>（系統會驗證帳號，別人的讀不到）。管理員若要查全部使用者的對話，用「系統管理 → AI 與整合 → <strong>完整對話紀錄</strong>」（<code>/chat-sessions</code>）。</p></blockquote>
+<h3 id="32-你的回饋去哪裡了">3.2 你的回饋去哪裡了</h3>
+<p>按「滿意」👍／「不滿意」👎 之後（再按同一顆＝取消）：</p>
+<ul><li>明細會進「系統管理 → AI 與整合 → <strong>問答稽核明細</strong>」（<code>/chat-logs</code>），管理員看得到你問了什麼、系統答了什麼、當時的信心與 topScore。</li><li>統計會匯總進「統計報表 → <strong>AI 回答滿意度</strong>」與「<strong>問答使用統計</strong>」。</li></ul>
+<blockquote><p><strong>提醒</strong>：問答的問句與回覆<strong>全文會保留在伺服器的實體檔案</strong>（刻意的稽核設計，僅管理員可查閱）。這不是「匿名統計」——填入機密內容前請留意。</p></blockquote>
+<hr>
+<h2 id="四出處面板鑽取與下載" class="t4">四、出處面板：鑽取與下載</h2>
+<blockquote><p>⚠️ <strong>本章只適用於「一般（精準檢索）」模式。「全域（社群摘要）」模式沒有出處面板、也沒有相似度</strong>，改為顯示取用了幾個社群——社群摘要是跨多筆來源歸納後的產物，本來就沒有對應到某一段原文的位置。要追出處請切回一般模式再問一次具體問題。</p></blockquote>
+<p>每則 AI 回答下方會列出「出處（N）」。出處明細<strong>預設收合</strong>（查詢後先不展開每一筆內容），標題右側提供「<strong>展開／收合</strong>」切換按鈕：按「展開」後列出全部出處明細、按鈕變為「收合」；再按即收回。每則回答的出處面板各自獨立收合。</p>
+<p>展開後每筆命中包含：</p>
+<ul><li><strong>層別標籤</strong>：藍色標籤文字是「<strong>蒸餾頁</strong>」（Wiki，概念導引）、綠色是「<strong>清洗內容</strong>」（Cleaned，事實佐證）。</li><li><strong>來源標題</strong>（過長時滑鼠移上看全文）、<strong>錨點</strong>（如章節/條款）、<strong>相似度分數</strong>（融合分數，固定三位小數，如「相似度 0.423」，越高越相關）、<strong>文字片段</strong>（截斷 160 字）。</li><li>出處區標頭是「<strong>出處（N）</strong>」，<strong>預設收合</strong>，按「展開」/「收合」切換。</li><li><strong>鑽取來源</strong>：展開後列出該來源的<strong>成員</strong>（影音轉逐字稿/文件轉文字/圖片解讀）。</li><li><strong>下載原始檔</strong>：對有權限的成員可下載原始素材（音訊/文件/圖片各自的受權控端點）。</li></ul>
+<p>這條鑽取鏈讓答案可一路回溯：<strong>命中片段 → 來源 → 成員 → 原始檔</strong>，是「答案可信」的關鍵。</p>
+<hr>
+<h2 id="五權控如何運作資安關鍵" class="t5">五、權控如何運作（資安關鍵）</h2>
+<ul><li><strong>每一輪</strong>問答都會<strong>重新取得你的存取範圍</strong>（避免身分切換後沿用舊權限）。</li><li>多輪短問句的查詢補全只影響檢索文字，不會放寬權限；仍只會檢索你有權看到的公開或團隊資料。</li><li>非授權團隊的內容由<strong>檢索層直接過濾</strong>，不會進入參考資料、答案或出處；出處面板的成員標題也受權控（無權者顯示「（無權限）」）。</li><li>找不到依據時，系統會<strong>由程式直接回覆「查無相關依據」並不呼叫 LLM、不臆造</strong>（見下節「兩段式信心提示」）。</li><li><strong>全域（社群摘要）模式的權控更嚴</strong>：社群摘要採<strong>子集判定</strong>——社群涵蓋來源的團隊聯集必須是你的團隊的子集，或該社群完全公開，你才取用得到。理由是一份摘要混了多筆來源的知識，其中任一筆你無權看，整份就不能給。這是全系統唯一採子集判定的地方（其餘紀錄都是交集判定）。</li><li><strong>知識圖譜的加分也受權控</strong>：他人團隊的三元組<strong>即使兩端頁面都是公開的，也不會替你加分</strong>——「這兩者之間有關係」本身就是一項知識，歸屬於抽出它的來源所在團隊。多跳遍歷的<strong>每一跳都重新驗權限</strong>，不能借道無權限節點繞路。</li></ul>
+<h3 id="51-兩段式信心提示">5.1 兩段式信心提示</h3>
+<p>系統會依檢索到的最相關內容「分數高低」決定回應方式，避免知識庫其實沒有相關內容卻硬答：</p>
+<ul><li><strong>查無依據</strong>：最相關內容分數仍太低（或完全沒命中）時，回覆固定訊息「您的問題在知識庫中查無相關依據…」，不附出處。請換更精確的問法，或確認該主題是否已納入知識庫。</li><li><strong>信心不足</strong>：有命中但分數偏低時，仍會回答，但會在回答<strong>最前面</strong>標示「⚠️ 信心不足：知識庫中僅找到弱相關內容，以下回答僅供參考。」——請務必展開出處核對。</li><li><strong>正常回答</strong>：分數足夠時正常作答並附出處。</li></ul>
+<blockquote><p><strong>判定門檻不必改設定檔、也不必重啟。</strong> <code>appsettings.json</code> 的 <code>RejectThreshold</code>（0.15）與 <code>LowConfidenceThreshold</code>（0.30）只是<strong>預設值</strong>；管理員可在「系統管理 → 診斷與日誌 → <strong>檢索診斷與調校</strong>」（<code>/rag-diagnostics</code>）手動輸入或「套用建議值」，<strong>下一則問答就生效</strong>（覆寫存在資料庫）。該頁會顯示「頁面覆蓋中」徽章與覆蓋時間/覆蓋者，也可清除覆寫還原成 appsettings 的值。</p>
+<p>同一頁還能熱套用查詢期檢索參數 <code>TopK</code>／<code>CandidateTopK</code>／<code>VectorWeight</code>／<code>KeywordWeight</code>／<code>MinScore</code>（<strong>下一次檢索</strong>生效）。<strong>唯一不能熱套用的是切塊參數</strong>（<code>ChunkTargetChars</code> 等）——那個改了必須重建索引才生效。</p>
+<p>也就是說：<strong>你在 appsettings 看到的值不一定是當前生效值</strong>，要確認實際生效值請看 <code>/rag-diagnostics</code>。詳見 <a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行 §4.1</a>。</p></blockquote>
+<hr>
+<h2 id="六怎麼問得到好答案建議" class="t6">六、怎麼問得到好答案（建議）</h2>
+<ul><li><strong>問具體、單一意圖</strong>：一次問一件事；把關鍵詞講清楚（如「入職滿三年的健康檢查福利」優於「福利」）。</li><li><strong>多輪追問可自然一點</strong>：前一輪已經講清楚主題時，可以問「它的限制？」或「那要怎麼設定？」；系統會嘗試補全檢索查詢。但涉及數字、條款、專案名時，仍建議把關鍵字講出來。</li><li><strong>善用詳簡</strong>：要點用「簡潔」，要完整說明用「詳細」。</li><li><strong>先看出處再採信</strong>：展開出處、必要時下載原始檔核對，特別是涉及數字/條款的答案。</li><li><strong>答非所問或查無依據時</strong>：換更精確的問法，或確認該主題是否已清洗/蒸餾/索引。</li><li><strong>用系統提示詞調風格</strong>：例如要求「條列、附條款編號、不確定就說不知道」。</li></ul>
+<hr>
+<h2 id="七常見問題faq" class="t7">七、常見問題（FAQ）</h2>
+<div class="tw"><table><thead><tr><th>問題</th><th>說明</th></tr></thead><tbody><tr><td>問什麼都「查無依據」</td><td>最常見原因是<strong>向量索引從未建立</strong>（例如內容在索引功能上線前就蒸餾）。管理員請到「知識來源加工」，對已清洗來源按「<strong>建立索引</strong>」（不需重蒸餾），完成後即可問答；也可在 <code>/system-health</code> 看「向量索引涵蓋率」。管理員在問答頁查無依據時也會看到診斷提示。若主題確實在庫內卻被誤判，到 <code>/rag-diagnostics</code> 調降 <code>RejectThreshold</code> 並套用即可（<strong>免改設定檔、免重啟</strong>，下一則問答生效）。</td></tr><tr><td>短問句（如只打「RAG」）沒有被自動補全</td><td>設計使然：查詢改寫只在「有對話歷史」且問句依賴上下文時才啟動，避免把單一關鍵詞亂擴寫。第一句請把問題講完整（如「RAG 是什麼？」）；索引建好後單一關鍵詞通常也能命中。</td></tr><tr><td>回答最前面出現「⚠️ 信心不足」</td><td>表示僅找到弱相關內容、屬正常提醒；請展開出處核對，或換更精確的問法。</td></tr><tr><td>出處下載不了</td><td>你對該成員所屬團隊無權限，或原始素材已不存在。</td></tr><tr><td>看不到別人團隊的內容</td><td>正常，團隊權控；管理員或具該團隊者才看得到。</td></tr><tr><td>答案太長／太短</td><td>調「回答詳簡」。</td></tr><tr><td>多輪追問答非所問</td><td>系統會自動補全短問句，但仍可能判斷錯主題；請把主詞補上，例如「RAG Query Rewrite 的限制是什麼？」。</td></tr><tr><td>想換回答風格/語氣</td><td>在系統提示詞自訂，或套用既有提示詞。</td></tr><tr><td>串流跑很久</td><td>可按「停止」保留已生成部分；或縮小問題範圍。</td></tr><tr><td>什麼時候該用「全域」模式</td><td>問題是「整體風險有哪些」「反覆出現的系統性問題是什麼」這種<strong>要看過全部才答得出</strong>的類型時。具體條款、數字、步驟一律用「一般」模式——那才有出處可核對。</td></tr><tr><td>全域模式沒有出處，是壞了嗎</td><td>不是，設計如此。社群摘要是跨多筆來源歸納後的產物，沒有對應到某一段原文的位置；改顯示取用社群數。</td></tr><tr><td>全域模式說「沒有可用社群」</td><td>管理員需先到「知識庫 → 知識圖譜審核」按「重建社群摘要」。這是部署後最常漏掉的一步。</td></tr><tr><td>問「A 和 C 有什麼關聯」答不出來</td><td>這需要知識圖譜的多跳能力：確認該來源的 <strong>Wiki 頁已核可</strong> → 已抽取三元組 → <strong>三元組已核可</strong>（待審核的不算）→ 管理員在 <code>/rag-diagnostics</code> 確認 <code>GraphWeight</code> 生效值不為 0。詳見 <a href="../../docs/guides/knowledge-graph.html">知識圖譜使用指南</a>。</td></tr></tbody></table></div><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：我要讓答案更準、更可信</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li><li><a href="../../docs/guides/import-to-knowledge-flow.html">從客戶匯入到完成知識：操作流程指南</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一ai-知識問答在做什麼為什麼需要">一、AI 知識問答在做什麼？（為什麼需要）</a><a class="l2" href="#二開始前的前提">二、開始前的前提</a><a class="l2" href="#三操作步驟頁面各控制項">三、操作步驟（頁面各控制項）</a><a class="l3" href="#31-我的對話與繼續對話">3.1 我的對話與繼續對話</a><a class="l3" href="#32-你的回饋去哪裡了">3.2 你的回饋去哪裡了</a><a class="l2" href="#四出處面板鑽取與下載">四、出處面板：鑽取與下載</a><a class="l2" href="#五權控如何運作資安關鍵">五、權控如何運作（資安關鍵）</a><a class="l3" href="#51-兩段式信心提示">5.1 兩段式信心提示</a><a class="l2" href="#六怎麼問得到好答案建議">六、怎麼問得到好答案（建議）</a><a class="l2" href="#七常見問題faq">七、常見問題（FAQ）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/AI知識問答使用指南.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

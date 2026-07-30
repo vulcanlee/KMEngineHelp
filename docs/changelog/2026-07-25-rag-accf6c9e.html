@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>儀表板與 RAG 診斷頁：放寬區塊/段落垂直間距（1.0.51）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>儀表板與 RAG 診斷頁：放寬區塊/段落垂直間距（1.0.51）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-25</li><li>版本：1.0.50 → 1.0.51</li><li>類型：使用體驗修正（版面間距，純 CSS）</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p>使用者反映兩個管理頁面看起來擁擠、段落之間缺乏適當垂直間距：</p>
+<ul><li><strong>首頁儀表板（<code>/App</code>）「經營洞察」</strong>：1.0.48 已把「管理者專區↔經營洞察」兩大區塊用「直接子區塊 28px + 細分隔線」分開，但「經營洞察」<strong>內部</strong>的子群組（KPI 卡列 → 三個 Top 榜 → 最受歡迎功能/改善方向訊號）是孫層、拿不到那條規則，彼此擠在一起；<code>h4</code> 標題（Token 用量 Top、最受歡迎的功能）上緣只有 4px，貼著上方內容。</li><li><strong>RAG 診斷（<code>/rag-diagnostics</code>）</strong>：段落間距只靠 <code>.rag-diag-section { margin-top: 20px }</code>、<code>h3 { margin-bottom: 8px }</code>，偏小且無分隔線，整頁擁擠。</li></ul>
+<h2 id="變更" class="t2">變更</h2>
+<p>僅改兩個 scoped CSS 檔，不動 razor 結構、不動全域 <code>app.css</code>。</p>
+<ul><li><code>Components/Views/RagDiagnostics/RagDiagnosticsView.razor.css</code>：</li><li><code>.rag-diag-section</code> <code>margin-top</code> 20 → 24px。</li><li>新增 <code>.rag-diag-section:not(:first-of-type)</code>：<code>margin-top/padding-top: 28px</code> + <code>border-top: 1px solid #f0f0f0</code>（第一段緊接統計卡片列，只留白不畫線；其後每段各有淡色細分隔線分段，比照儀表板大區塊慣例）。</li><li><code>.rag-diag-section h3</code> <code>margin-bottom</code> 8 → 12px。</li><li><code>Components/Views/Dashboard/DashboardView.razor.css</code>：</li><li><code>.dashboard-insights h4</code> <code>margin</code> <code>4px 0 8px</code> → <code>0 0 10px</code>（標題不再貼著上方內容）。</li><li>新增 <code>.dashboard-insights .dashboard-columns { margin-top: 24px }</code>：讓經營洞察內部三組欄群（三個 Top 榜、最受歡迎功能/改善方向訊號）與上方內容分開。大區塊已有分隔線，內部僅用留白、不重複加線。</li></ul>
+<h2 id="影響範圍" class="t3">影響範圍</h2>
+<ul><li>純版面間距調整，無邏輯、無資料、無 razor/C# 異動，無資料庫 migration。</li><li>管理者專區↔經營洞察大區塊分隔線（1.0.48）維持不變。</li><li><code>appsettings.json</code> <code>SystemVersion</code> 1.0.50 → 1.0.51。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ol><li><code>dotnet build</code> 通過。</li><li><code>/App</code>：經營洞察三組欄群之間有明顯留白、h4 標題不再貼上方；大區塊分隔線不變。</li><li><code>/rag-diagnostics</code>：各段落之間留白加大且有淡色細分隔線分段，整頁不再擁擠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#變更">變更</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-儀表板與RAG診斷段落間距放寬.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

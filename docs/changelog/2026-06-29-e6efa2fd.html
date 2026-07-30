@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>專案列表「工作與會議」對話窗 + 共用編輯 Modal 抽取（0.2.152）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>專案列表「工作與會議」對話窗 + 共用編輯 Modal 抽取（0.2.152）</h1></header><div class="docwrap"><main><ul><li>日期：2026/06/29</li><li>版本：0.2.151 → 0.2.152</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>在「專案項目」清單每列新增「工作與會議」按鈕，以<strong>對話窗</strong>（非路由切換）顯示該專案關聯的工作項目與會議記錄，並能就地新增/修改/刪除。用對話窗是為了避免離開專案清單而遺失頁次與捲動位置。同時把工作/會議的編輯表單抽成<strong>共用編輯對話窗元件</strong>，原頁面與新對話窗共用同一實作。</p>
+<h2 id="變更內容" class="t2">變更內容</h2>
+<ul><li>新增 <code>MyTasEditModal</code> / <code>MeetingEditModal</code>：自包含的編輯對話窗（含 Modal、表單、驗證、附件上傳、呼叫服務存檔），以參數驅動（新增/編輯、鎖定/隱藏專案、子工作繼承），完成後以 <code>OnSaved</code>/<code>OnCancelled</code> 通知宿主。</li><li>重構 <code>MyTasViewView</code> / <code>MeetingViewView</code>：移除頁面內嵌的編輯 Modal，改用上述共用元件；工作項目的「管理子工作」仍留在原頁，改驅動同一個編輯元件（沿用隱藏/還原巢狀 Modal 與父工作日期同步）。</li><li>新增 <code>ProjectRelatedRecordsModal</code>：Tabs（工作項目/會議記錄）+ 簡單表格 + 每列新增/修改/刪除；依 <code>角色_工作項目</code>/<code>角色_會議項目</code> 權限顯示分頁；新增與修改皆<strong>鎖定</strong>所屬專案為當前專案。</li><li><code>ProjectViewView</code>：ActionColumn 新增「工作與會議」按鈕（具工作或會議權限才顯示）；以疊加對話窗開啟，不導航、不影響清單頁次/捲動。</li><li><code>MeetingService.GetAsync</code>：新增 <code>ProjectIdFilters</code> 過濾（仿 <code>MyTasService</code>）。</li><li><code>wwwroot/app.css</code>：新增 <code>.project-related-records-modal</code> 寬版 Modal 樣式。</li><li><code>SystemVersion</code> 升至 <code>0.2.152 (2026/06/29)</code>。</li></ul>
+<h2 id="注意事項" class="t3">注意事項</h2>
+<ul><li>無資料庫/模型變更，沿用既有 <code>MyTask.ProjectId</code>/<code>Meeting.ProjectId</code> 外鍵，<strong>無 migration</strong>。</li><li>團隊權控完全沿用各服務 <code>GetAsync</code> 內既有 <code>BuildTeamAccessPredicate</code>。</li><li>共用編輯元件以 <code>_wasVisible</code> 守衛，僅在開啟（hidden→visible）時重建資料，避免重繪清空輸入。</li><li>已以 Playwright 實機驗證：對話窗 Tabs 正常、新增工作所屬專案鎖定為當前專案、巢狀編輯取消後還原、關閉後專案清單頁次不變、原工作/會議頁編輯回歸正常。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#變更內容">變更內容</a><a class="l2" href="#注意事項">注意事項</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-29-專案工作與會議對話窗.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

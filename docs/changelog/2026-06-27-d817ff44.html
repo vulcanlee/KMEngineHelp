@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>側邊欄父選單圖示依語意顯示（0.2.134）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>側邊欄父選單圖示依語意顯示（0.2.134）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-27</li><li>版本：0.2.133 → 0.2.134</li><li>類型：Bug 修正</li></ul>
+<h2 id="症狀" class="t1">症狀</h2>
+<p>側邊欄的 4 個父功能表（專案管理、清洗與蒸餾、系統管理、資料定義）圖示完全相同 （都是資料夾 <code>folder_open</code>），無法一眼看出各群組用途；收合側邊欄時尤其明顯。</p>
+<h2 id="根本原因" class="t2">根本原因</h2>
+<p><code>Menu.json</code> 其實已為每個父選單設定不同的 <code>icon</code>，但 <code>SidebarMenuNode</code>／<code>NavMenu</code> 的 <code>GetMaterialIconKind</code> 內有一條攔截所有父選單的 catch-all：</p>
+<pre><code>_ when Item.HasChildren =&gt; "folder_open",
+_ =&gt; icon</code></pre>
+<p>凡是不在明確 <code>switch</code> 名單中的父選單圖示，一律被覆寫為 <code>folder_open</code>，因此 4 個父選單顯示同一個 資料夾。子選單（葉節點）走 <code>_ =&gt; icon</code> 直通，故本來就各自正確。此為早期刻意設計 （見 <code>docs/changelog/2026-06-11-修正側邊欄圖示.md</code>），現調整為父選單也依語意顯示圖示。</p>
+<p>另外，原「專案管理」圖示 <code>folder_managed</code> 屬 <strong>Material Symbols-only</strong>，本應用程式 （<code>Components/App.razor</code>）載入的是 <strong>classic Material Icons</strong>，移除 catch-all 後若直通會破圖。</p>
+<h2 id="修正" class="t3">修正</h2>
+<ul><li><code>SidebarMenuNode.razor.cs</code>／<code>NavMenu.razor.cs</code>：移除 <code>_ when HasChildren =&gt; "folder_open"</code> 這條，</li></ul>
+<p>讓父選單圖示經 <code>_ =&gt; icon</code> 直通；保留空字串 fallback 與既有別名（含 <code>shield_person =&gt; security</code>）。</p>
+<ul><li><code>Menu.json</code>：「專案管理」圖示 <code>folder_managed</code> → <code>assignment</code>（合法 classic Material Icons，語意為任務/專案）。</li><li>其餘父圖示維持 <code>cleaning_services</code>／<code>manage_accounts</code>／<code>dataset</code>（皆為合法 classic 名稱）。</li><li><code>MenuIconTests</code>：新增父選單圖示允許清單 <code>AllowedParentIcons</code> 與回歸測試</li></ul>
+<p><code>MenuJson_ParentIcons_AreAllowedClassicMaterialIcons</code>，並更新類別 doc comment。</p>
+<h2 id="備註" class="t4">備註</h2>
+<p>本次只動圖示，未新增頁面或權限，故不需動 MagicObjectHelper／RolePermissionService／權限樹三處同步， 亦不需資料庫 migration。新增父選單時，請使用 classic Material Icons 名稱並加入 <code>MenuIconTests.AllowedParentIcons</code>。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#症狀">症狀</a><a class="l2" href="#根本原因">根本原因</a><a class="l2" href="#修正">修正</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-27-父選單圖示依語意顯示.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

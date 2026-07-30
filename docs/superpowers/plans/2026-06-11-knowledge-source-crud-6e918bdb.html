@@ -1,0 +1,1277 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識來源管理清單（KnowledgeSource）CRUD + 成員聚合 實作計畫｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../../index.html">角色首頁</a>
+    <a href="../../../all-docs.html">全部文件</a>
+    <a href="../../../search.html">搜尋</a>
+    <a href="../../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../../all-docs.html">全部文件</a> ／ superpowers/plans</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">superpowers/plans</div><h1>知識來源管理清單（KnowledgeSource）CRUD + 成員聚合 實作計畫</h1></header><div class="docwrap"><main><blockquote><p><strong>Archived historical implementation plan:</strong> 本檔保留當時 agent 執行計畫與脈絡；下列步驟不再作為目前 backlog 追蹤。</p></blockquote>
+<p><strong>Goal:</strong> 新增「知識來源管理清單」頁面，提供知識來源的 CRUD 與跨三管線（音訊轉錄／文件萃取／圖片清單）的成員聚合管理，並於側邊欄新增父選單「清洗與蒸餾」與角色權限。</p>
+<p><strong>Architecture:</strong> 比照 <code>DocumentExtraction</code> 的分層（Entity → AdapterModel → Service → Blazor View），但<strong>不上傳檔案、不接佇列</strong>；新增 <code>KnowledgeSource</code>（本體）與 <code>KnowledgeSourceItem</code>（成員，軟參照 <code>ItemType+ItemId</code>，Cascade Delete）。團隊權控沿用 <code>IRecordAccessScopeProvider</code> + <code>TagStringHelper</code>。清單預設依 <code>UpdatedAt</code> 由新到舊。選單／權限三處以位置索引同步。</p>
+<p><strong>Tech Stack:</strong> .NET 10、Blazor Server、Ant Design Blazor、EF Core（SQLite + SQL Server 雙 provider）、AutoMapper、xUnit（SQLite in-memory 測試）。</p>
+<p><strong>規格來源：</strong> <code>docs/prd/知識來源管理-prd.md</code></p>
+<hr>
+<h2 id="檔案結構將新增修改" class="t1">檔案結構（將新增／修改）</h2>
+<p><strong>新增</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/Models/KnowledgeSource.cs</code></li><li><code>KnowledgeExtraction.AccessDatas/Models/KnowledgeSourceItem.cs</code></li><li><code>KnowledgeExtraction.Models/AdapterModel/KnowledgeSourceAdapterModel.cs</code></li><li><code>KnowledgeExtraction.Models/AdapterModel/KnowledgeSourceItemAdapterModel.cs</code></li><li><code>KnowledgeExtraction.Models/AdapterModel/SelectableSourceItemAdapterModel.cs</code></li><li><code>KnowledgeExtraction.Business/Services/DataAccess/KnowledgeSourceService.cs</code></li><li><code>KnowledgeExtraction.Web/Components/Pages/KnowledgeSources/KnowledgeSourcePage.razor</code></li><li><code>KnowledgeExtraction.Web/Components/Views/KnowledgeSources/KnowledgeSourceView.razor</code></li><li><code>KnowledgeExtraction.Web/Components/Views/KnowledgeSources/KnowledgeSourceView.razor.cs</code></li><li><code>KnowledgeExtraction.Web/Components/Views/KnowledgeSources/KnowledgeSourceView.razor.css</code></li><li><code>KnowledgeExtraction.Tests/KnowledgeSourceServiceTests.cs</code></li><li>雙 provider migration <code>AddKnowledgeSource</code>（兩個 migrations 專案各一）</li></ul>
+<p><strong>修改</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/BackendDBContext.cs</code>（兩個 DbSet + Cascade 設定）</li><li><code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code>（雙向映射）</li><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code>（兩個權限常數）</li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code>（新增權限群組，index 2）</li><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code>（新增父選單與子頁，id 順移）</li><li><code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs</code>（DI 註冊）</li><li><code>KnowledgeExtraction.Web/appsettings.json</code>（版本號 +1）</li><li><code>docs/README.md</code>（已含 PRD 連結；如需補實作 changelog 再說）</li></ul>
+<blockquote><p>注意：<code>AutoMapping</code> 類別位於 <code>KnowledgeExtraction.Models.Systems</code> 命名空間，但檔案在 <code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code>（既有事實，勿更動）。</p></blockquote>
+<hr>
+<h2 id="task-1建立-entity-與-dbcontext-註冊" class="t2">Task 1：建立 Entity 與 DbContext 註冊</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.AccessDatas/Models/KnowledgeSource.cs</code></li><li>Create: <code>KnowledgeExtraction.AccessDatas/Models/KnowledgeSourceItem.cs</code></li><li>Modify: <code>KnowledgeExtraction.AccessDatas/BackendDBContext.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1：建立 <code>KnowledgeSource.cs</code></strong></li></ul>
+<pre><code>using System.ComponentModel.DataAnnotations;
+
+namespace KnowledgeExtraction.AccessDatas.Models;
+
+public class KnowledgeSource
+{
+    public int Id { get; set; }
+
+    [Required]
+    public string Title { get; set; } = string.Empty;
+
+    public string? Description { get; set; }
+
+    /// &lt;summary&gt;分類標籤（多值，以分隔字串儲存，可空）&lt;/summary&gt;
+    public string? Categories { get; set; }
+
+    /// &lt;summary&gt;團隊標籤（多值，以分隔字串儲存，可空）&lt;/summary&gt;
+    public string? Teams { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+
+    /// &lt;summary&gt;聚合的成員（跨三管線素材，Cascade Delete）&lt;/summary&gt;
+    public List&lt;KnowledgeSourceItem&gt; Items { get; set; } = [];
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2：建立 <code>KnowledgeSourceItem.cs</code></strong></li></ul>
+<pre><code>using System.ComponentModel.DataAnnotations;
+
+namespace KnowledgeExtraction.AccessDatas.Models;
+
+public class KnowledgeSourceItem
+{
+    public int Id { get; set; }
+
+    public int KnowledgeSourceId { get; set; }
+
+    public KnowledgeSource? KnowledgeSource { get; set; }
+
+    /// &lt;summary&gt;素材型別：MediaTranscription / DocumentExtraction / ImageRecognition&lt;/summary&gt;
+    [Required]
+    public string ItemType { get; set; } = string.Empty;
+
+    /// &lt;summary&gt;對應型別的紀錄 Id（軟參照，不做硬 FK）&lt;/summary&gt;
+    public int ItemId { get; set; }
+
+    /// &lt;summary&gt;來源內成員排序&lt;/summary&gt;
+    public int SortOrder { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3：在 <code>BackendDBContext.cs</code> 加入兩個 DbSet</strong></li></ul>
+<p>在 <code>public virtual DbSet&lt;ImageRecognition&gt; ImageRecognition { get; set; }</code>（第 30 行）之後加入：</p>
+<pre><code>    public virtual DbSet&lt;KnowledgeSource&gt; KnowledgeSource { get; set; }
+    public virtual DbSet&lt;KnowledgeSourceItem&gt; KnowledgeSourceItem { get; set; }</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4：在 <code>OnModelCreating</code> 加入 Cascade 設定</strong></li></ul>
+<p>在 <code>OnModelCreatingPartial(modelBuilder);</code>（第 76 行）之前，比照 <code>Project</code> 區塊加入：</p>
+<pre><code>        modelBuilder.Entity&lt;KnowledgeSource&gt;(entity =&gt;
+        {
+            entity.HasMany(x =&gt; x.Items)
+                .WithOne(x =&gt; x.KnowledgeSource)
+                .HasForeignKey(x =&gt; x.KnowledgeSourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity&lt;KnowledgeSourceItem&gt;(entity =&gt;
+        {
+            entity.HasIndex(x =&gt; new { x.KnowledgeSourceId, x.ItemType, x.ItemId }).IsUnique();
+        });</code></pre>
+<ul><li>（歷史步驟）<strong>Step 5：編譯 AccessDatas 專案確認無誤</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas/KnowledgeExtraction.AccessDatas.csproj</code> Expected: Build succeeded.</p>
+<ul><li>（歷史步驟）<strong>Step 6：Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas
+git commit -m "feat: 知識來源 Entity 與 DbContext 註冊（KnowledgeSource / KnowledgeSourceItem）"</code></pre>
+<hr>
+<h2 id="task-2建立-adaptermodel" class="t3">Task 2：建立 AdapterModel</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Models/AdapterModel/KnowledgeSourceAdapterModel.cs</code></li><li>Create: <code>KnowledgeExtraction.Models/AdapterModel/KnowledgeSourceItemAdapterModel.cs</code></li><li>Create: <code>KnowledgeExtraction.Models/AdapterModel/SelectableSourceItemAdapterModel.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1：建立 <code>KnowledgeSourceItemAdapterModel.cs</code>（含型別常數與顯示名）</strong></li></ul>
+<pre><code>namespace KnowledgeExtraction.Models.AdapterModel;
+
+public class KnowledgeSourceItemAdapterModel
+{
+    public const string TypeMediaTranscription = "MediaTranscription";
+    public const string TypeDocumentExtraction = "DocumentExtraction";
+    public const string TypeImageRecognition = "ImageRecognition";
+
+    public int Id { get; set; }
+    public int KnowledgeSourceId { get; set; }
+    public string ItemType { get; set; } = string.Empty;
+    public int ItemId { get; set; }
+    public int SortOrder { get; set; }
+
+    /// &lt;summary&gt;型別中文名（由 Service 設定）&lt;/summary&gt;
+    public string ItemTypeName { get; set; } = string.Empty;
+
+    /// &lt;summary&gt;素材現值標題（由 Service 即時解析；查不到時為「（來源已不存在）」）&lt;/summary&gt;
+    public string ItemTitle { get; set; } = string.Empty;
+
+    public static string ResolveTypeName(string itemType) =&gt; itemType switch
+    {
+        TypeMediaTranscription =&gt; "音訊轉錄",
+        TypeDocumentExtraction =&gt; "文件萃取",
+        TypeImageRecognition =&gt; "圖片清單",
+        _ =&gt; itemType
+    };
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2：建立 <code>KnowledgeSourceAdapterModel.cs</code></strong></li></ul>
+<pre><code>using System.ComponentModel.DataAnnotations;
+
+namespace KnowledgeExtraction.Models.AdapterModel;
+
+public class KnowledgeSourceAdapterModel
+{
+    public int Id { get; set; }
+
+    [Required(ErrorMessage = "標題 不可為空白")]
+    public string Title { get; set; } = string.Empty;
+
+    public string? Description { get; set; }
+
+    public List&lt;string&gt; Categories { get; set; } = [];
+    public List&lt;string&gt; Teams { get; set; } = [];
+    public string CategoriesText =&gt; string.Join("、", Categories);
+    public string TeamsText =&gt; string.Join("、", Teams);
+
+    public int ItemCount { get; set; }
+    public List&lt;KnowledgeSourceItemAdapterModel&gt; Items { get; set; } = [];
+
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3：建立 <code>SelectableSourceItemAdapterModel.cs</code>（成員挑選清單用）</strong></li></ul>
+<pre><code>namespace KnowledgeExtraction.Models.AdapterModel;
+
+public class SelectableSourceItemAdapterModel
+{
+    public string ItemType { get; set; } = string.Empty;
+    public int ItemId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public DateTime UpdatedAt { get; set; }
+    public bool AlreadyAdded { get; set; }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4：Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Models/AdapterModel
+git commit -m "feat: 知識來源 AdapterModel（來源／成員／可選素材）"</code></pre>
+<hr>
+<h2 id="task-3automapper-雙向映射" class="t4">Task 3：AutoMapper 雙向映射</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1：在 DocumentExtraction 映射 region 之後新增 KnowledgeSource region</strong></li></ul>
+<p>找到 <code>#region DocumentExtraction ... #endregion</code>（約第 90–97 行），在其 <code>#endregion</code> 後加入：</p>
+<pre><code>        #region KnowledgeSource
+        CreateMap&lt;KnowledgeSource, KnowledgeSourceAdapterModel&gt;()
+            .ForMember(d =&gt; d.Categories, o =&gt; o.MapFrom(s =&gt; TagStringHelper.ToList(s.Categories)))
+            .ForMember(d =&gt; d.Teams, o =&gt; o.MapFrom(s =&gt; TagStringHelper.ToList(s.Teams)))
+            .ForMember(d =&gt; d.ItemCount, o =&gt; o.MapFrom(s =&gt; s.Items.Count))
+            .ForMember(d =&gt; d.Items, o =&gt; o.Ignore());
+        CreateMap&lt;KnowledgeSourceAdapterModel, KnowledgeSource&gt;()
+            .ForMember(d =&gt; d.Categories, o =&gt; o.MapFrom(s =&gt; TagStringHelper.ToStored(s.Categories)))
+            .ForMember(d =&gt; d.Teams, o =&gt; o.MapFrom(s =&gt; TagStringHelper.ToStored(s.Teams)))
+            .ForMember(d =&gt; d.Items, o =&gt; o.Ignore());
+
+        CreateMap&lt;KnowledgeSourceItem, KnowledgeSourceItemAdapterModel&gt;()
+            .ForMember(d =&gt; d.ItemTypeName, o =&gt; o.Ignore())
+            .ForMember(d =&gt; d.ItemTitle, o =&gt; o.Ignore());
+        #endregion</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2：編譯 Business 專案</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Business/KnowledgeExtraction.Business.csproj</code> Expected: Build succeeded.（<code>KnowledgeSourceService</code> 尚未建立，但映射本身可編譯。）</p>
+<ul><li>（歷史步驟）<strong>Step 3：Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Business/Models/AutoMapping.cs
+git commit -m "feat: 知識來源 AutoMapper 映射"</code></pre>
+<hr>
+<h2 id="task-4knowledgesourceservicetdd" class="t5">Task 4：KnowledgeSourceService（TDD）</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Business/Services/DataAccess/KnowledgeSourceService.cs</code></li><li>Test: <code>KnowledgeExtraction.Tests/KnowledgeSourceServiceTests.cs</code></li></ul>
+<blockquote><p>重用 <code>VerifyRecordResultFactory</code>、<code>VerifyRecordResult</code>（與 <code>DocumentExtractionService</code> 同）， <code>IRecordAccessScopeProvider</code>、<code>TagStringHelper</code>。測試沿用 <code>ProjectTeamAccessTests</code> 的 SQLite in-memory + <code>AutoMapping</code> + <code>FakeAccessScopeProvider</code>（已存在於測試組件，<code>internal sealed</code>）。</p></blockquote>
+<ul><li>（歷史步驟）<strong>Step 1：先寫失敗測試 <code>KnowledgeSourceServiceTests.cs</code></strong></li></ul>
+<pre><code>using AutoMapper;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using KnowledgeExtraction.AccessDatas;
+using KnowledgeExtraction.AccessDatas.Models;
+using KnowledgeExtraction.Business.Services.DataAccess;
+using KnowledgeExtraction.Business.Services.Other;
+using KnowledgeExtraction.Models.AdapterModel;
+using KnowledgeExtraction.Models.Systems;
+
+namespace KnowledgeExtraction.Tests;
+
+public sealed class KnowledgeSourceServiceTests
+{
+    [Fact]
+    public async Task GetAsync_WithoutSort_OrdersByUpdatedAtDescending()
+    {
+        await using var fx = await Fixture.CreateAsync();
+        await fx.AddSourceAsync("舊", new DateTime(2026, 1, 1));
+        await fx.AddSourceAsync("新", new DateTime(2026, 6, 1));
+        await fx.AddSourceAsync("中", new DateTime(2026, 3, 1));
+        var service = fx.CreateService(new FakeAccessScopeProvider(isAdmin: true));
+
+        var result = await service.GetAsync(new DataRequest { CurrentPage = 1, PageSize = 10, Take = 0 });
+
+        Assert.Equal(new[] { "新", "中", "舊" }, result.Result.Select(x =&gt; x.Title).ToArray());
+    }
+
+    [Fact]
+    public async Task GetAsync_NonAdmin_SeesTeamlessAndIntersectingOnly()
+    {
+        await using var fx = await Fixture.CreateAsync();
+        await fx.AddSourceAsync("公開", teams: null);
+        await fx.AddSourceAsync("甲隊", teams: ["甲"]);
+        await fx.AddSourceAsync("乙隊", teams: ["乙"]);
+        var service = fx.CreateService(new FakeAccessScopeProvider(isAdmin: false, teams: ["甲"]));
+
+        var result = await service.GetAsync(new DataRequest { CurrentPage = 1, PageSize = 10, Take = 0 });
+
+        Assert.Equal(new[] { "公開", "甲隊" }, result.Result.Select(x =&gt; x.Title).OrderBy(x =&gt; x).ToArray());
+    }
+
+    [Fact]
+    public async Task AddItemAsync_RejectsDuplicateAndAssignsIncrementalSortOrder()
+    {
+        await using var fx = await Fixture.CreateAsync();
+        var source = await fx.AddSourceAsync("來源");
+        var docId = await fx.AddDocumentExtractionAsync("文件A", "已完成");
+        var service = fx.CreateService(new FakeAccessScopeProvider(isAdmin: true));
+
+        var first = await service.AddItemAsync(source.Id, KnowledgeSourceItemAdapterModel.TypeDocumentExtraction, docId);
+        var dup = await service.AddItemAsync(source.Id, KnowledgeSourceItemAdapterModel.TypeDocumentExtraction, docId);
+
+        Assert.True(first.Success);
+        Assert.False(dup.Success);
+
+        var loaded = await service.GetAsync(source.Id);
+        Assert.Single(loaded.Items);
+        Assert.Equal(0, loaded.Items[0].SortOrder);
+        Assert.Equal("文件A", loaded.Items[0].ItemTitle);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_RemovesItemsButKeepsMaterialRecords()
+    {
+        await using var fx = await Fixture.CreateAsync();
+        var source = await fx.AddSourceAsync("來源");
+        var docId = await fx.AddDocumentExtractionAsync("文件A", "已完成");
+        var service = fx.CreateService(new FakeAccessScopeProvider(isAdmin: true));
+        await service.AddItemAsync(source.Id, KnowledgeSourceItemAdapterModel.TypeDocumentExtraction, docId);
+
+        var del = await service.DeleteAsync(source.Id);
+
+        Assert.True(del.Success);
+        Assert.Equal(0, await fx.Context.KnowledgeSourceItem.CountAsync());
+        Assert.Equal(1, await fx.Context.DocumentExtraction.CountAsync()); // 素材原紀錄保留
+    }
+
+    [Fact]
+    public async Task GetSelectableItemsAsync_ReturnsOnlyCompletedAndAccessible()
+    {
+        await using var fx = await Fixture.CreateAsync();
+        await fx.AddDocumentExtractionAsync("完成-公開", "已完成", teams: null);
+        await fx.AddDocumentExtractionAsync("處理中-公開", "處理中", teams: null);
+        await fx.AddDocumentExtractionAsync("完成-乙隊", "已完成", teams: ["乙"]);
+        var service = fx.CreateService(new FakeAccessScopeProvider(isAdmin: false, teams: ["甲"]));
+
+        var result = await service.GetSelectableItemsAsync(
+            KnowledgeSourceItemAdapterModel.TypeDocumentExtraction, 0,
+            new DataRequest { CurrentPage = 1, PageSize = 10, Take = 0 });
+
+        Assert.Equal(new[] { "完成-公開" }, result.Result.Select(x =&gt; x.Title).ToArray());
+    }
+
+    private sealed class Fixture : IAsyncDisposable
+    {
+        private readonly SqliteConnection connection;
+        private readonly IMapper mapper;
+        private readonly ILoggerFactory loggerFactory;
+
+        private Fixture(SqliteConnection connection, BackendDBContext context)
+        {
+            this.connection = connection;
+            Context = context;
+            loggerFactory = LoggerFactory.Create(_ =&gt; { });
+            var cfg = new MapperConfiguration(c =&gt; c.AddProfile&lt;AutoMapping&gt;(), loggerFactory);
+            mapper = cfg.CreateMapper();
+        }
+
+        public BackendDBContext Context { get; }
+
+        public static async Task&lt;Fixture&gt; CreateAsync()
+        {
+            var connection = new SqliteConnection("Data Source=:memory:");
+            await connection.OpenAsync();
+            var options = new DbContextOptionsBuilder&lt;BackendDBContext&gt;().UseSqlite(connection).Options;
+            var context = new BackendDBContext(options);
+            await context.Database.EnsureCreatedAsync();
+            return new Fixture(connection, context);
+        }
+
+        public KnowledgeSourceService CreateService(IRecordAccessScopeProvider accessScope)
+            =&gt; new(Context, mapper, loggerFactory.CreateLogger&lt;KnowledgeSourceService&gt;(), accessScope);
+
+        public async Task&lt;KnowledgeSource&gt; AddSourceAsync(string title, DateTime? updatedAt = null, string[]? teams = null)
+        {
+            var now = updatedAt ?? DateTime.Now;
+            var source = new KnowledgeSource
+            {
+                Title = title,
+                Teams = KnowledgeExtraction.Business.Helpers.TagStringHelper.ToStored(teams),
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            Context.KnowledgeSource.Add(source);
+            await Context.SaveChangesAsync();
+            Context.ChangeTracker.Clear();
+            return source;
+        }
+
+        public async Task&lt;int&gt; AddDocumentExtractionAsync(string title, string status, string[]? teams = null)
+        {
+            var now = DateTime.Now;
+            var doc = new DocumentExtraction
+            {
+                Title = title,
+                OriginalFileName = "a.pdf",
+                StoredFileName = "a.pdf",
+                SourceRelativePath = "2026/a.pdf",
+                Status = status,
+                Teams = KnowledgeExtraction.Business.Helpers.TagStringHelper.ToStored(teams),
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            Context.DocumentExtraction.Add(doc);
+            await Context.SaveChangesAsync();
+            Context.ChangeTracker.Clear();
+            return doc.Id;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await Context.DisposeAsync();
+            await connection.DisposeAsync();
+            loggerFactory.Dispose();
+        }
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2：執行測試確認失敗（編譯失敗：KnowledgeSourceService 不存在）</strong></li></ul>
+<p>Run: <code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests/KnowledgeExtraction.Tests.csproj --filter KnowledgeSourceServiceTests</code> Expected: 編譯錯誤（找不到 <code>KnowledgeSourceService</code>）。</p>
+<ul><li>（歷史步驟）<strong>Step 3：實作 <code>KnowledgeSourceService.cs</code></strong></li></ul>
+<pre><code>using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using KnowledgeExtraction.AccessDatas;
+using KnowledgeExtraction.AccessDatas.Models;
+using KnowledgeExtraction.Business.Factories;
+using KnowledgeExtraction.Business.Helpers;
+using KnowledgeExtraction.Business.Services.Other;
+using KnowledgeExtraction.Models.AdapterModel;
+using KnowledgeExtraction.Models.Systems;
+
+namespace KnowledgeExtraction.Business.Services.DataAccess;
+
+public class KnowledgeSourceService
+{
+    private const string ItemStatusCompleted = "已完成";
+
+    private readonly BackendDBContext context;
+    private readonly IRecordAccessScopeProvider accessScope;
+
+    public IMapper Mapper { get; }
+    public ILogger&lt;KnowledgeSourceService&gt; Logger { get; }
+
+    public KnowledgeSourceService(
+        BackendDBContext context,
+        IMapper mapper,
+        ILogger&lt;KnowledgeSourceService&gt; logger,
+        IRecordAccessScopeProvider accessScope)
+    {
+        this.context = context;
+        Mapper = mapper;
+        Logger = logger;
+        this.accessScope = accessScope;
+    }
+
+    public async Task&lt;DataRequestResult&lt;KnowledgeSourceAdapterModel&gt;&gt; GetAsync(DataRequest dataRequest)
+    {
+        DataRequestResult&lt;KnowledgeSourceAdapterModel&gt; result = new();
+        IQueryable&lt;KnowledgeSource&gt; dataSource = context.KnowledgeSource.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(dataRequest.Search))
+        {
+            var search = dataRequest.Search.Trim();
+            dataSource = dataSource.Where(x =&gt;
+                x.Title.Contains(search) ||
+                (x.Description ?? string.Empty).Contains(search));
+        }
+
+        if (dataRequest.CategoryFilters.Count &gt; 0)
+        {
+            dataSource = dataSource.Where(TagStringHelper.BuildContainsAnyPredicate&lt;KnowledgeSource&gt;(x =&gt; x.Categories, dataRequest.CategoryFilters));
+        }
+
+        if (dataRequest.TeamFilters.Count &gt; 0)
+        {
+            dataSource = dataSource.Where(TagStringHelper.BuildContainsAnyPredicate&lt;KnowledgeSource&gt;(x =&gt; x.Teams, dataRequest.TeamFilters));
+        }
+
+        var scope = await accessScope.GetAsync();
+        if (!scope.IsAdmin)
+        {
+            dataSource = dataSource.Where(TagStringHelper.BuildTeamAccessPredicate&lt;KnowledgeSource&gt;(x =&gt; x.Teams, scope.Teams));
+        }
+
+        dataSource = (dataRequest.SortField, dataRequest.SortDescending) switch
+        {
+            (nameof(KnowledgeSourceAdapterModel.Title), true) =&gt; dataSource.OrderByDescending(x =&gt; x.Title).ThenByDescending(x =&gt; x.Id),
+            (nameof(KnowledgeSourceAdapterModel.Title), false) =&gt; dataSource.OrderBy(x =&gt; x.Title).ThenBy(x =&gt; x.Id),
+            (nameof(KnowledgeSourceAdapterModel.CreatedAt), true) =&gt; dataSource.OrderByDescending(x =&gt; x.CreatedAt).ThenByDescending(x =&gt; x.Id),
+            (nameof(KnowledgeSourceAdapterModel.CreatedAt), false) =&gt; dataSource.OrderBy(x =&gt; x.CreatedAt).ThenBy(x =&gt; x.Id),
+            (nameof(KnowledgeSourceAdapterModel.UpdatedAt), false) =&gt; dataSource.OrderBy(x =&gt; x.UpdatedAt).ThenBy(x =&gt; x.Id),
+            // 預設與 UpdatedAt 降序：最近更新在最前
+            _ =&gt; dataSource.OrderByDescending(x =&gt; x.UpdatedAt).ThenByDescending(x =&gt; x.Id)
+        };
+
+        result.Count = await dataSource.CountAsync();
+        dataSource = dataSource.Skip((dataRequest.CurrentPage - 1) * dataRequest.PageSize);
+        if (dataRequest.Take != 0)
+        {
+            dataSource = dataSource.Take(dataRequest.PageSize);
+        }
+
+        var records = await dataSource
+            .Select(x =&gt; new { Entity = x, ItemCount = x.Items.Count })
+            .ToListAsync();
+
+        var models = new List&lt;KnowledgeSourceAdapterModel&gt;();
+        foreach (var row in records)
+        {
+            var model = Mapper.Map&lt;KnowledgeSourceAdapterModel&gt;(row.Entity);
+            model.ItemCount = row.ItemCount;
+            models.Add(model);
+        }
+        result.Result = models;
+        return result;
+    }
+
+    public async Task&lt;KnowledgeSourceAdapterModel&gt; GetAsync(int id)
+    {
+        var item = await context.KnowledgeSource.AsNoTracking()
+            .Include(x =&gt; x.Items)
+            .FirstOrDefaultAsync(x =&gt; x.Id == id);
+        if (item is null)
+        {
+            return new KnowledgeSourceAdapterModel();
+        }
+
+        var scope = await accessScope.GetAsync();
+        if (!TagStringHelper.IsTeamAccessible(item.Teams, scope.Teams, scope.IsAdmin))
+        {
+            Logger.LogWarning("Knowledge source access denied by team scope. Id={Id}", id);
+            return new KnowledgeSourceAdapterModel();
+        }
+
+        var model = Mapper.Map&lt;KnowledgeSourceAdapterModel&gt;(item);
+        model.ItemCount = item.Items.Count;
+        model.Items = new List&lt;KnowledgeSourceItemAdapterModel&gt;();
+        foreach (var member in item.Items.OrderBy(x =&gt; x.SortOrder).ThenBy(x =&gt; x.Id))
+        {
+            var memberModel = Mapper.Map&lt;KnowledgeSourceItemAdapterModel&gt;(member);
+            memberModel.ItemTypeName = KnowledgeSourceItemAdapterModel.ResolveTypeName(member.ItemType);
+            memberModel.ItemTitle = await ResolveItemTitleAsync(member.ItemType, member.ItemId);
+            model.Items.Add(memberModel);
+        }
+        return model;
+    }
+
+    public async Task&lt;VerifyRecordResult&gt; AddAsync(KnowledgeSourceAdapterModel paraObject)
+    {
+        try
+        {
+            var now = DateTime.Now;
+            var entity = new KnowledgeSource
+            {
+                Title = paraObject.Title,
+                Description = paraObject.Description,
+                Categories = TagStringHelper.ToStored(paraObject.Categories),
+                Teams = TagStringHelper.ToStored(paraObject.Teams),
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            await context.KnowledgeSource.AddAsync(entity);
+            await context.SaveChangesAsync();
+            return VerifyRecordResultFactory.Build(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to create knowledge source. Title={Title}", paraObject.Title);
+            return VerifyRecordResultFactory.Build(false, "新增知識來源失敗。", ex);
+        }
+    }
+
+    public async Task&lt;VerifyRecordResult&gt; UpdateAsync(KnowledgeSourceAdapterModel paraObject)
+    {
+        try
+        {
+            var current = await context.KnowledgeSource.FirstOrDefaultAsync(x =&gt; x.Id == paraObject.Id);
+            if (current is null)
+            {
+                return VerifyRecordResultFactory.Build(false, "找不到要修改的知識來源。");
+            }
+
+            var scope = await accessScope.GetAsync();
+            if (!TagStringHelper.IsTeamAccessible(current.Teams, scope.Teams, scope.IsAdmin))
+            {
+                return VerifyRecordResultFactory.Build(false, "您沒有此紀錄的存取權限。");
+            }
+
+            current.Title = paraObject.Title;
+            current.Description = paraObject.Description;
+            current.Categories = TagStringHelper.ToStored(paraObject.Categories);
+            current.Teams = TagStringHelper.ToStored(paraObject.Teams);
+            current.UpdatedAt = DateTime.Now;
+            await context.SaveChangesAsync();
+            return VerifyRecordResultFactory.Build(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to update knowledge source. Id={Id}", paraObject.Id);
+            return VerifyRecordResultFactory.Build(false, "修改知識來源失敗。", ex);
+        }
+    }
+
+    public async Task&lt;VerifyRecordResult&gt; DeleteAsync(int id)
+    {
+        try
+        {
+            var item = await context.KnowledgeSource.Include(x =&gt; x.Items).FirstOrDefaultAsync(x =&gt; x.Id == id);
+            if (item is null)
+            {
+                return VerifyRecordResultFactory.Build(false, "找不到要刪除的知識來源。");
+            }
+
+            var scope = await accessScope.GetAsync();
+            if (!TagStringHelper.IsTeamAccessible(item.Teams, scope.Teams, scope.IsAdmin))
+            {
+                return VerifyRecordResultFactory.Build(false, "您沒有此紀錄的存取權限。");
+            }
+
+            context.KnowledgeSource.Remove(item); // 成員 KnowledgeSourceItem 由 Cascade 刪除；素材原紀錄不動
+            await context.SaveChangesAsync();
+            return VerifyRecordResultFactory.Build(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete knowledge source. Id={Id}", id);
+            return VerifyRecordResultFactory.Build(false, "刪除知識來源失敗。", ex);
+        }
+    }
+
+    public async Task&lt;VerifyRecordResult&gt; AddItemAsync(int sourceId, string itemType, int itemId)
+    {
+        try
+        {
+            var source = await context.KnowledgeSource.Include(x =&gt; x.Items).FirstOrDefaultAsync(x =&gt; x.Id == sourceId);
+            if (source is null)
+            {
+                return VerifyRecordResultFactory.Build(false, "找不到知識來源。");
+            }
+
+            var scope = await accessScope.GetAsync();
+            if (!TagStringHelper.IsTeamAccessible(source.Teams, scope.Teams, scope.IsAdmin))
+            {
+                return VerifyRecordResultFactory.Build(false, "您沒有此知識來源的存取權限。");
+            }
+
+            if (source.Items.Any(x =&gt; x.ItemType == itemType &amp;&amp; x.ItemId == itemId))
+            {
+                return VerifyRecordResultFactory.Build(false, "此素材已加入該知識來源。");
+            }
+
+            var nextOrder = source.Items.Count == 0 ? 0 : source.Items.Max(x =&gt; x.SortOrder) + 1;
+            source.Items.Add(new KnowledgeSourceItem
+            {
+                ItemType = itemType,
+                ItemId = itemId,
+                SortOrder = nextOrder,
+                CreatedAt = DateTime.Now
+            });
+            source.UpdatedAt = DateTime.Now;
+            await context.SaveChangesAsync();
+            return VerifyRecordResultFactory.Build(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to add item to knowledge source. SourceId={SourceId}", sourceId);
+            return VerifyRecordResultFactory.Build(false, "加入成員失敗。", ex);
+        }
+    }
+
+    public async Task&lt;VerifyRecordResult&gt; RemoveItemAsync(int itemId)
+    {
+        try
+        {
+            var member = await context.KnowledgeSourceItem.Include(x =&gt; x.KnowledgeSource).FirstOrDefaultAsync(x =&gt; x.Id == itemId);
+            if (member is null || member.KnowledgeSource is null)
+            {
+                return VerifyRecordResultFactory.Build(false, "找不到要移除的成員。");
+            }
+
+            var scope = await accessScope.GetAsync();
+            if (!TagStringHelper.IsTeamAccessible(member.KnowledgeSource.Teams, scope.Teams, scope.IsAdmin))
+            {
+                return VerifyRecordResultFactory.Build(false, "您沒有此知識來源的存取權限。");
+            }
+
+            member.KnowledgeSource.UpdatedAt = DateTime.Now;
+            context.KnowledgeSourceItem.Remove(member);
+            await context.SaveChangesAsync();
+            return VerifyRecordResultFactory.Build(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to remove knowledge source item. ItemId={ItemId}", itemId);
+            return VerifyRecordResultFactory.Build(false, "移除成員失敗。", ex);
+        }
+    }
+
+    /// &lt;summary&gt;上移（up=true）或下移成員，交換相鄰兩筆 SortOrder。&lt;/summary&gt;
+    public async Task&lt;VerifyRecordResult&gt; MoveItemAsync(int itemId, bool up)
+    {
+        try
+        {
+            var member = await context.KnowledgeSourceItem.Include(x =&gt; x.KnowledgeSource).FirstOrDefaultAsync(x =&gt; x.Id == itemId);
+            if (member is null || member.KnowledgeSource is null)
+            {
+                return VerifyRecordResultFactory.Build(false, "找不到成員。");
+            }
+
+            var scope = await accessScope.GetAsync();
+            if (!TagStringHelper.IsTeamAccessible(member.KnowledgeSource.Teams, scope.Teams, scope.IsAdmin))
+            {
+                return VerifyRecordResultFactory.Build(false, "您沒有此知識來源的存取權限。");
+            }
+
+            var siblings = await context.KnowledgeSourceItem
+                .Where(x =&gt; x.KnowledgeSourceId == member.KnowledgeSourceId)
+                .OrderBy(x =&gt; x.SortOrder).ThenBy(x =&gt; x.Id)
+                .ToListAsync();
+            var index = siblings.FindIndex(x =&gt; x.Id == itemId);
+            var swapIndex = up ? index - 1 : index + 1;
+            if (index &lt; 0 || swapIndex &lt; 0 || swapIndex &gt;= siblings.Count)
+            {
+                return VerifyRecordResultFactory.Build(true); // 已在邊界，無需移動
+            }
+
+            (siblings[index].SortOrder, siblings[swapIndex].SortOrder) = (siblings[swapIndex].SortOrder, siblings[index].SortOrder);
+            member.KnowledgeSource.UpdatedAt = DateTime.Now;
+            await context.SaveChangesAsync();
+            return VerifyRecordResultFactory.Build(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to move knowledge source item. ItemId={ItemId}", itemId);
+            return VerifyRecordResultFactory.Build(false, "調整成員順序失敗。", ex);
+        }
+    }
+
+    /// &lt;summary&gt;查指定型別、狀態為「已完成」、且經團隊權控的可選素材。excludeSourceId 用於標記已加入。&lt;/summary&gt;
+    public async Task&lt;DataRequestResult&lt;SelectableSourceItemAdapterModel&gt;&gt; GetSelectableItemsAsync(
+        string itemType, int excludeSourceId, DataRequest dataRequest)
+    {
+        DataRequestResult&lt;SelectableSourceItemAdapterModel&gt; result = new();
+        var scope = await accessScope.GetAsync();
+        var search = dataRequest.Search?.Trim() ?? string.Empty;
+
+        IQueryable&lt;SelectableSourceItemAdapterModel&gt; query = itemType switch
+        {
+            KnowledgeSourceItemAdapterModel.TypeMediaTranscription =&gt; FilterPipeline(context.MediaTranscription, scope, search),
+            KnowledgeSourceItemAdapterModel.TypeDocumentExtraction =&gt; FilterPipeline(context.DocumentExtraction, scope, search),
+            KnowledgeSourceItemAdapterModel.TypeImageRecognition =&gt; FilterPipeline(context.ImageRecognition, scope, search),
+            _ =&gt; Enumerable.Empty&lt;SelectableSourceItemAdapterModel&gt;().AsQueryable()
+        };
+
+        query = query.OrderByDescending(x =&gt; x.UpdatedAt);
+        result.Count = await query.CountAsync();
+        var page = await query
+            .Skip((dataRequest.CurrentPage - 1) * dataRequest.PageSize)
+            .Take(dataRequest.PageSize)
+            .ToListAsync();
+
+        if (excludeSourceId &gt; 0)
+        {
+            var added = await context.KnowledgeSourceItem
+                .Where(x =&gt; x.KnowledgeSourceId == excludeSourceId &amp;&amp; x.ItemType == itemType)
+                .Select(x =&gt; x.ItemId)
+                .ToListAsync();
+            var addedSet = added.ToHashSet();
+            foreach (var row in page)
+            {
+                row.AlreadyAdded = addedSet.Contains(row.ItemId);
+            }
+        }
+
+        result.Result = page;
+        return result;
+    }
+
+    private static IQueryable&lt;SelectableSourceItemAdapterModel&gt; FilterPipeline&lt;T&gt;(
+        IQueryable&lt;T&gt; source, RecordAccessScope scope, string search) where T : class
+    {
+        // 三個實體皆有 Title/Status/Teams/UpdatedAt；以動態投影統一
+        // 注意：實作時改為各型別明確投影（見下方說明），此泛型僅為示意。
+        throw new NotImplementedException();
+    }
+
+    private async Task&lt;string&gt; ResolveItemTitleAsync(string itemType, int itemId)
+    {
+        string? title = itemType switch
+        {
+            KnowledgeSourceItemAdapterModel.TypeMediaTranscription =&gt;
+                await context.MediaTranscription.AsNoTracking().Where(x =&gt; x.Id == itemId).Select(x =&gt; x.Title).FirstOrDefaultAsync(),
+            KnowledgeSourceItemAdapterModel.TypeDocumentExtraction =&gt;
+                await context.DocumentExtraction.AsNoTracking().Where(x =&gt; x.Id == itemId).Select(x =&gt; x.Title).FirstOrDefaultAsync(),
+            KnowledgeSourceItemAdapterModel.TypeImageRecognition =&gt;
+                await context.ImageRecognition.AsNoTracking().Where(x =&gt; x.Id == itemId).Select(x =&gt; x.Title).FirstOrDefaultAsync(),
+            _ =&gt; null
+        };
+        return string.IsNullOrEmpty(title) ? "（來源已不存在）" : title;
+    }
+}</code></pre>
+<blockquote><p><strong>實作備註（重要）：</strong> 上面的泛型 <code>FilterPipeline&lt;T&gt;</code> 無法直接用於 EF Core 投影（型別不共享介面）。 改為<strong>三個明確的私有方法</strong>，各自投影對應實體，套用 <code>Status == ItemStatusCompleted</code>、 搜尋（<code>Title.Contains</code>）、與團隊權控述詞。範例（DocumentExtraction，其餘比照）：</p>
+<pre><code>private IQueryable&lt;SelectableSourceItemAdapterModel&gt; SelectableDocuments(RecordAccessScope scope, string search)
+{
+    IQueryable&lt;DocumentExtraction&gt; q = context.DocumentExtraction.AsNoTracking()
+        .Where(x =&gt; x.Status == ItemStatusCompleted);
+    if (!string.IsNullOrEmpty(search)) q = q.Where(x =&gt; x.Title.Contains(search));
+    if (!scope.IsAdmin) q = q.Where(TagStringHelper.BuildTeamAccessPredicate&lt;DocumentExtraction&gt;(x =&gt; x.Teams, scope.Teams));
+    return q.Select(x =&gt; new SelectableSourceItemAdapterModel
+    {
+        ItemType = KnowledgeSourceItemAdapterModel.TypeDocumentExtraction,
+        ItemId = x.Id, Title = x.Title, Status = x.Status, UpdatedAt = x.UpdatedAt
+    });
+}</code></pre>
+<p>三個方法回傳的 <code>IQueryable&lt;SelectableSourceItemAdapterModel&gt;</code> 可直接用於 switch 指派， 移除示意用的 <code>FilterPipeline&lt;T&gt;</code>。<code>MediaTranscription</code>／<code>ImageRecognition</code> 需確認其 <code>UpdatedAt</code> 欄位存在（與其他實體一致）；若無則改用 <code>CreatedAt</code>。</p></blockquote>
+<ul><li>（歷史步驟）<strong>Step 4：執行測試確認通過</strong></li></ul>
+<p>Run: <code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests/KnowledgeExtraction.Tests.csproj --filter KnowledgeSourceServiceTests</code> Expected: 全數 PASS（5 筆）。</p>
+<ul><li>（歷史步驟）<strong>Step 5：Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/KnowledgeSourceService.cs src/KnowledgeExtraction/KnowledgeExtraction.Tests/KnowledgeSourceServiceTests.cs
+git commit -m "feat: KnowledgeSourceService（CRUD＋成員聚合＋團隊權控＋預設更新時間排序）含測試"</code></pre>
+<hr>
+<h2 id="task-5di-註冊" class="t6">Task 5：DI 註冊</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1：在 <code>services.AddSingleton&lt;IPipelineCancellationRegistry, ...&gt;();</code>（第 97 行）之後加入</strong></li></ul>
+<pre><code>        services.AddScoped&lt;KnowledgeSourceService&gt;();</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2：Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs
+git commit -m "feat: 註冊 KnowledgeSourceService"</code></pre>
+<hr>
+<h2 id="task-6雙-provider-migration" class="t7">Task 6：雙 provider Migration</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create（自動產生）：<code>AccessDatas/Migrations/*_AddKnowledgeSource.cs</code></li><li>Create（自動產生）：<code>AccessDatas.SqlServerMigrations/*_AddKnowledgeSource.cs</code></li></ul>
+<blockquote><p>指令依 <code>docs/guides/EFCore.md</code>。在 <code>src/KnowledgeExtraction</code> 目錄執行。</p></blockquote>
+<ul><li>（歷史步驟）<strong>Step 1：SQLite migration</strong></li></ul>
+<p>Run（PowerShell）:</p>
+<pre><code>dotnet ef migrations add AddKnowledgeSource --project KnowledgeExtraction.AccessDatas --startup-project KnowledgeExtraction.Web</code></pre>
+<p>Expected: 於 <code>KnowledgeExtraction.AccessDatas/Migrations</code> 產生 <code>*_AddKnowledgeSource.cs</code>。</p>
+<ul><li>（歷史步驟）<strong>Step 2：SQL Server migration（切換 provider 環境變數）</strong></li></ul>
+<p>Run（PowerShell）:</p>
+<pre><code>$env:SystemSettings__DatabaseProvider="SqlServer"
+dotnet ef migrations add AddKnowledgeSource --project KnowledgeExtraction.AccessDatas.SqlServerMigrations --startup-project KnowledgeExtraction.Web
+Remove-Item Env:\SystemSettings__DatabaseProvider</code></pre>
+<p>Expected: 於 <code>KnowledgeExtraction.AccessDatas.SqlServerMigrations</code> 產生 <code>*_AddKnowledgeSource.cs</code>。</p>
+<ul><li>（歷史步驟）<strong>Step 3：檢視 migration 內容</strong></li></ul>
+<p>確認兩個 migration 皆建立 <code>KnowledgeSource</code> 與 <code>KnowledgeSourceItem</code> 兩表、外鍵 Cascade、 <code>(KnowledgeSourceId, ItemType, ItemId)</code> 唯一索引。無預期外的 rename/drop。</p>
+<ul><li>（歷史步驟）<strong>Step 4：更新 <code>docs/guides/EFCore.md</code> 的已建立 migration 清單</strong>（追加一列 <code>AddKnowledgeSource</code>）。</li></ul>
+<ul><li>（歷史步驟）<strong>Step 5：Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas/Migrations src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas.SqlServerMigrations docs/guides/EFCore.md
+git commit -m "feat: 知識來源雙 provider migration（AddKnowledgeSource）"</code></pre>
+<hr>
+<h2 id="task-7選單與權限三處同步--版本號" class="t8">Task 7：選單與權限三處同步 + 版本號</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code></li><li>Modify: <code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code></li><li>Modify: <code>KnowledgeExtraction.Web/Datas/Menu.json</code></li><li>Modify: <code>KnowledgeExtraction.Web/appsettings.json</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1：<code>MagicObjectHelper.cs</code> — 在 <code>角色_圖片清單</code>（第 35 行）之後加入</strong></li></ul>
+<pre><code>    public const string 角色_清洗與蒸餾 = "清洗與蒸餾功能";
+    public const string 角色_知識來源管理清單 = "知識來源管理清單";</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2：<code>RolePermissionService.cs</code> — 在「專案管理」群組之後、「系統管理」之前插入新群組</strong></li></ul>
+<p>於 <code>GetRoleListPermissionAllName()</code> 的回傳清單，在 <code>角色_圖片清單</code> 那個群組的 <code>],</code> 之後插入：</p>
+<pre><code>            [
+                MagicObjectHelper.角色_清洗與蒸餾,
+                MagicObjectHelper.角色_知識來源管理清單,
+            ],</code></pre>
+<p>結果順序須為：首頁 / 專案管理群組 / <strong>清洗與蒸餾群組</strong> / 系統管理群組 / 資料定義群組 / 登出。</p>
+<ul><li>（歷史步驟）<strong>Step 3：<code>Menu.json</code> — 在「專案管理」(id 2) 物件之後插入父選單，並順移後續 id</strong></li></ul>
+<p>將原本 id 3（系統管理）、4（資料定義）、5（登出）順移為 4、5、6；新父選單為 id 3：</p>
+<pre><code>  {
+    "id": 3,
+    "name": "清洗與蒸餾",
+    "icon": "cleaning_services",
+    "subMenu": [
+      {
+        "id": 31,
+        "name": "知識來源管理清單",
+        "icon": "database",
+        "url": "/knowledge-sources"
+      }
+    ]
+  },</code></pre>
+<blockquote><p>同時把「系統管理」改 <code>"id": 4</code>（子 41/42）、「資料定義」改 <code>"id": 5</code>（子 51/52/53）、 「登出」改 <code>"id": 6</code>。頂層順序須與 Step 2 權限外層 List 位置一一對應。</p></blockquote>
+<ul><li>（歷史步驟）<strong>Step 4：<code>appsettings.json</code> — 版本號 +1</strong></li></ul>
+<p>將 <code>SystemSettings.SystemInformation.SystemVersion</code> 由 <code>0.2.58</code> 改為 <code>0.2.59</code>。</p>
+<ul><li>（歷史步驟）<strong>Step 5：建置整個方案確認無誤</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.sln</code> Expected: Build succeeded.</p>
+<ul><li>（歷史步驟）<strong>Step 6：Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs src/KnowledgeExtraction/KnowledgeExtraction.Web/Datas/Menu.json src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json
+git commit -m "feat: 新增『清洗與蒸餾』父選單與『知識來源管理清單』權限三處同步，版本 0.2.58 -&gt; 0.2.59"</code></pre>
+<hr>
+<h2 id="task-8blazor-頁面與檢視" class="t1">Task 8：Blazor 頁面與檢視</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Web/Components/Pages/KnowledgeSources/KnowledgeSourcePage.razor</code></li><li>Create: <code>KnowledgeExtraction.Web/Components/Views/KnowledgeSources/KnowledgeSourceView.razor</code></li><li>Create: <code>KnowledgeExtraction.Web/Components/Views/KnowledgeSources/KnowledgeSourceView.razor.cs</code></li><li>Create: <code>KnowledgeExtraction.Web/Components/Views/KnowledgeSources/KnowledgeSourceView.razor.css</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1：<code>KnowledgeSourcePage.razor</code></strong></li></ul>
+<pre><code>@page "/knowledge-sources"
+@layout MainLayout
+@using KnowledgeExtraction.Web.Components.Views.KnowledgeSources
+
+&lt;PageTitle&gt;知識來源管理清單&lt;/PageTitle&gt;
+
+&lt;KnowledgeSourceView /&gt;</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2：<code>KnowledgeSourceView.razor.cs</code>（code-behind）</strong></li></ul>
+<blockquote><p>模式比照 <code>DocumentExtractionView.razor.cs</code>：建構式注入 Service/AntDesign 服務、<code>[Inject]</code> 注入框架類； 進頁 <code>Check</code> + <code>CheckAccessPage(角色_知識來源管理清單)</code>；清單遠端資料源 + 排序；新增/編輯 Modal； 新增「成員管理」Modal。無檔案上傳、無輪詢。</p></blockquote>
+<pre><code>using AntDesign;
+using AntDesign.TableModels;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Web;
+using KnowledgeExtraction.Business.Services.DataAccess;
+using KnowledgeExtraction.Business.Services.Other;
+using KnowledgeExtraction.Models.AdapterModel;
+using KnowledgeExtraction.Models.Systems;
+using KnowledgeExtraction.Share.Helpers;
+
+namespace KnowledgeExtraction.Web.Components.Views.KnowledgeSources;
+
+public partial class KnowledgeSourceView
+{
+    private readonly ILogger&lt;KnowledgeSourceView&gt; logger;
+    private readonly KnowledgeSourceService service;
+    private readonly CategoryService categoryService;
+    private readonly TeamService teamService;
+    private readonly IRecordAccessScopeProvider accessScope;
+    private readonly ModalService modalService;
+    private readonly MessageService messageService;
+    private readonly NotificationService notificationService;
+
+    private List&lt;string&gt; availableCategories = [];
+    private List&lt;string&gt; availableTeams = [];
+    private IEnumerable&lt;string&gt; selectedCategoryFilters = new List&lt;string&gt;();
+    private IEnumerable&lt;string&gt; selectedTeamFilters = new List&lt;string&gt;();
+    private IReadOnlyList&lt;string&gt; currentUserTeams = [];
+
+    private ITable? table;
+    private int _pageIndex = 1;
+    private int _pageSize = MagicObjectHelper.PageSize;
+    private int _total;
+    private string searchText = string.Empty;
+    private string sortField = string.Empty;
+    private string sortDirection = "None";
+
+    private List&lt;KnowledgeSourceAdapterModel&gt; models = [];
+    private string modalTitle = "知識來源";
+    private bool modalVisible;
+    private bool isNewRecordMode;
+    private KnowledgeSourceAdapterModel CurrentRecord = new();
+    private string RoleMessage = string.Empty;
+
+    // 成員管理 Modal 狀態
+    private bool memberModalVisible;
+    private KnowledgeSourceAdapterModel memberSource = new();
+    private string memberPickType = KnowledgeSourceItemAdapterModel.TypeMediaTranscription;
+    private string memberSearch = string.Empty;
+    private List&lt;SelectableSourceItemAdapterModel&gt; selectableItems = [];
+
+    [Inject] public AuthenticationStateHelper AuthenticationStateHelper { get; set; } = default!;
+    [Inject] public AuthenticationStateProvider authStateProvider { get; set; } = default!;
+    [Inject] public NavigationManager NavigationManager { get; set; } = default!;
+
+    public KnowledgeSourceView(
+        ILogger&lt;KnowledgeSourceView&gt; logger,
+        KnowledgeSourceService service,
+        CategoryService categoryService,
+        TeamService teamService,
+        IRecordAccessScopeProvider accessScope,
+        ModalService modalService,
+        MessageService messageService,
+        NotificationService notificationService)
+    {
+        this.logger = logger;
+        this.service = service;
+        this.categoryService = categoryService;
+        this.teamService = teamService;
+        this.accessScope = accessScope;
+        this.modalService = modalService;
+        this.messageService = messageService;
+        this.notificationService = notificationService;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var checkResult = await AuthenticationStateHelper.Check(authStateProvider, NavigationManager);
+        if (checkResult != AuthenticationCheckResult.Succeeded)
+        {
+            return;
+        }
+
+        if (AuthenticationStateHelper.CheckAccessPage(MagicObjectHelper.角色_知識來源管理清單) == false)
+        {
+            RoleMessage = MagicObjectHelper.你沒有權限存取此頁面;
+            return;
+        }
+
+        availableCategories = await categoryService.GetAllEnabledNamesAsync();
+        availableTeams = await teamService.GetAllEnabledNamesAsync();
+        currentUserTeams = (await accessScope.GetAsync()).Teams;
+        await ReloadAsync();
+    }
+
+    public async Task ReloadAsync()
+    {
+        var dataRequestResult = await service.GetAsync(new DataRequest
+        {
+            Search = searchText,
+            SortField = sortField,
+            SortDescending = sortDirection == "Descending" ? true : sortDirection == "Ascending" ? false : (bool?)null,
+            CurrentPage = _pageIndex,
+            PageSize = _pageSize,
+            Take = 0,
+            CategoryFilters = selectedCategoryFilters.ToList(),
+            TeamFilters = selectedTeamFilters.ToList(),
+        });
+        models = dataRequestResult.Result.ToList();
+        _total = dataRequestResult.Count;
+        StateHasChanged();
+    }
+
+    private async Task OnTableChange(QueryModel&lt;KnowledgeSourceAdapterModel&gt; args)
+    {
+        _pageIndex = args.PageIndex;
+        if (args.SortModel?.Any() == true)
+        {
+            var m = args.SortModel.FirstOrDefault(x =&gt; x.SortDirection == SortDirection.Ascending || x.SortDirection == SortDirection.Descending) ?? args.SortModel.Last();
+            sortDirection = m.SortDirection.ToString() ?? "None";
+            sortField = string.IsNullOrWhiteSpace(m.FieldName) ? sortField : m.FieldName;
+        }
+        else
+        {
+            sortField = string.Empty;
+            sortDirection = "None";
+        }
+        await ReloadAsync();
+    }
+
+    private async Task OnSearchAsync() { _pageIndex = 1; await ReloadAsync(); }
+    private async Task OnCategoryFilterChanged(IEnumerable&lt;string&gt; values) { selectedCategoryFilters = values?.ToList() ?? []; _pageIndex = 1; await ReloadAsync(); }
+    private async Task OnTeamFilterChanged(IEnumerable&lt;string&gt; values) { selectedTeamFilters = values?.ToList() ?? []; _pageIndex = 1; await ReloadAsync(); }
+    private void OnRecordCategoriesChanged(IEnumerable&lt;string&gt; values) =&gt; CurrentRecord.Categories = values?.ToList() ?? [];
+    private void OnRecordTeamsChanged(IEnumerable&lt;string&gt; values) =&gt; CurrentRecord.Teams = values?.ToList() ?? [];
+
+    private Task OnAddAsync()
+    {
+        CurrentRecord = new KnowledgeSourceAdapterModel { Teams = currentUserTeams.ToList() };
+        isNewRecordMode = true;
+        modalTitle = "新增知識來源";
+        modalVisible = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task OnEditAsync(KnowledgeSourceAdapterModel model)
+    {
+        isNewRecordMode = false;
+        modalTitle = "修改知識來源";
+        CurrentRecord = await service.GetAsync(model.Id);
+        modalVisible = true;
+    }
+
+    private async Task OnModalOkAsync(MouseEventArgs args)
+    {
+        var result = isNewRecordMode ? await service.AddAsync(CurrentRecord) : await service.UpdateAsync(CurrentRecord);
+        if (!result.Success)
+        {
+            ShowError(result.Message);
+            modalVisible = true;
+            return;
+        }
+        _ = messageService.SuccessAsync(isNewRecordMode ? "已建立" : "修改成功");
+        modalVisible = false;
+        await ReloadAsync();
+    }
+
+    private Task OnModalCancelAsync(MouseEventArgs args) { modalVisible = false; return Task.CompletedTask; }
+
+    private async Task OnDeleteAsync(KnowledgeSourceAdapterModel model)
+    {
+        var ok = await modalService.ConfirmAsync(new ConfirmOptions
+        {
+            Title = "確認刪除",
+            Content = "確定要刪除這筆知識來源嗎？成員關聯會一併移除，但素材原紀錄保留。",
+            OkText = "刪除",
+            CancelText = "取消",
+            OkButtonProps = new ButtonProps { Danger = true },
+            MaskClosable = false
+        });
+        if (!ok) return;
+
+        var result = await service.DeleteAsync(model.Id);
+        if (!result.Success) { ShowError(result.Message); return; }
+        _ = messageService.SuccessAsync("刪除成功");
+        await ReloadAsync();
+    }
+
+    // ---- 成員管理 ----
+    private async Task OnManageMembersAsync(KnowledgeSourceAdapterModel model)
+    {
+        memberSource = await service.GetAsync(model.Id);
+        memberPickType = KnowledgeSourceItemAdapterModel.TypeMediaTranscription;
+        memberSearch = string.Empty;
+        await ReloadSelectableAsync();
+        memberModalVisible = true;
+    }
+
+    private async Task ReloadSelectableAsync()
+    {
+        var r = await service.GetSelectableItemsAsync(memberPickType, memberSource.Id,
+            new DataRequest { Search = memberSearch, CurrentPage = 1, PageSize = 50, Take = 0 });
+        selectableItems = r.Result.ToList();
+        StateHasChanged();
+    }
+
+    private async Task OnMemberTypeChanged(string type) { memberPickType = type; await ReloadSelectableAsync(); }
+    private async Task OnMemberSearchAsync() =&gt; await ReloadSelectableAsync();
+
+    private async Task OnAddMemberAsync(SelectableSourceItemAdapterModel item)
+    {
+        var r = await service.AddItemAsync(memberSource.Id, item.ItemType, item.ItemId);
+        if (!r.Success) { ShowError(r.Message); return; }
+        memberSource = await service.GetAsync(memberSource.Id);
+        await ReloadSelectableAsync();
+    }
+
+    private async Task OnRemoveMemberAsync(KnowledgeSourceItemAdapterModel member)
+    {
+        var r = await service.RemoveItemAsync(member.Id);
+        if (!r.Success) { ShowError(r.Message); return; }
+        memberSource = await service.GetAsync(memberSource.Id);
+        await ReloadSelectableAsync();
+    }
+
+    private async Task OnMoveMemberAsync(KnowledgeSourceItemAdapterModel member, bool up)
+    {
+        var r = await service.MoveItemAsync(member.Id, up);
+        if (!r.Success) { ShowError(r.Message); return; }
+        memberSource = await service.GetAsync(memberSource.Id);
+    }
+
+    private async Task OnMemberModalCloseAsync()
+    {
+        memberModalVisible = false;
+        await ReloadAsync(); // 成員數/更新時間可能變動
+    }
+
+    private void ShowError(string message)
+    {
+        _ = notificationService.Open(new NotificationConfig
+        {
+            Message = "系統訊息",
+            Description = message,
+            NotificationType = NotificationType.Error,
+            Placement = NotificationPlacement.BottomRight
+        });
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3：<code>KnowledgeSourceView.razor</code>（markup）</strong></li></ul>
+<blockquote><p>比照 <code>DocumentExtractionView.razor</code> 的工具列／表格樣式（重用 <code>project-view-*</code> class）， 表格欄：標題、描述、分類、團隊、成員數、更新時間（可排序）；操作：管理成員/編輯/刪除。 新增/編輯 Modal：標題/描述/分類/團隊（多選用 <code>Mode="SelectMode.Multiple"</code> + <code>Values</code>/<code>OnSelectedItemsChanged</code>）。 成員管理 Modal：型別頁籤 + 搜尋 + 可選清單（加入）＋ 已加入成員清單（上移/下移/移除）。</p></blockquote>
+<pre><code>@using KnowledgeExtraction.Models.AdapterModel
+
+@if (string.IsNullOrEmpty(RoleMessage) == false)
+{
+    &lt;div class="alert alert-danger" role="alert"&gt;@RoleMessage&lt;/div&gt;
+}
+else
+{
+    &lt;div&gt;
+        &lt;div class="project-view-toolbar"&gt;
+            &lt;div class="project-view-toolbar-left"&gt;
+                &lt;Tooltip Title="新增"&gt;&lt;Button Type="ButtonType.Default" Class="project-view-icon-button" OnClick="@(async () =&gt; await OnAddAsync())"&gt;➕&lt;/Button&gt;&lt;/Tooltip&gt;
+                &lt;Tooltip Title="重新整理"&gt;&lt;Button Type="ButtonType.Default" Class="project-view-icon-button" OnClick="@(async () =&gt; await ReloadAsync())"&gt;🔄&lt;/Button&gt;&lt;/Tooltip&gt;
+            &lt;/div&gt;
+            &lt;div class="project-view-toolbar-right"&gt;
+                &lt;Select TItem="string" TItemValue="string" Mode="SelectMode.Multiple" Values="selectedCategoryFilters" OnSelectedItemsChanged="OnCategoryFilterChanged" Placeholder="分類過濾" AllowClear EnableSearch Style="min-width: 160px;"&gt;
+                    @foreach (var c in availableCategories) { &lt;SelectOption TItemValue="string" TItem="string" Value="@c"&gt;@c&lt;/SelectOption&gt; }
+                &lt;/Select&gt;
+                &lt;Select TItem="string" TItemValue="string" Mode="SelectMode.Multiple" Values="selectedTeamFilters" OnSelectedItemsChanged="OnTeamFilterChanged" Placeholder="團隊過濾" AllowClear EnableSearch Style="min-width: 160px;"&gt;
+                    @foreach (var t in availableTeams) { &lt;SelectOption TItemValue="string" TItem="string" Value="@t"&gt;@t&lt;/SelectOption&gt; }
+                &lt;/Select&gt;
+                &lt;Input class="project-view-search-input" @bind-Value="searchText" Placeholder="請輸入搜尋關鍵字" /&gt;
+                &lt;Tooltip Title="搜尋"&gt;&lt;Button Type="ButtonType.Default" Class="project-view-icon-button" OnClick="@(async () =&gt; await OnSearchAsync())"&gt;🔍&lt;/Button&gt;&lt;/Tooltip&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class="project-view-table-wrap"&gt;
+            &lt;Table @ref="table" TItem="KnowledgeSourceAdapterModel" Class="project-view-table"
+                   RemoteDataSource="true" DataSource="@models" OnChange="OnTableChange"
+                   @bind-PageIndex="_pageIndex" @bind-PageSize="_pageSize" @bind-Total="_total"&gt;
+                &lt;Column TData="string" DataIndex="@nameof(KnowledgeSourceAdapterModel.Title)" Title="標題" Sortable /&gt;
+                &lt;Column TData="string" DataIndex="@nameof(KnowledgeSourceAdapterModel.Description)" Title="描述" /&gt;
+                &lt;Column TData="string" DataIndex="@nameof(KnowledgeSourceAdapterModel.CategoriesText)" Title="分類" /&gt;
+                &lt;Column TData="string" DataIndex="@nameof(KnowledgeSourceAdapterModel.TeamsText)" Title="團隊" /&gt;
+                &lt;Column TData="int" DataIndex="@nameof(KnowledgeSourceAdapterModel.ItemCount)" Title="成員數" /&gt;
+                &lt;Column TData="DateTime" DataIndex="@nameof(KnowledgeSourceAdapterModel.UpdatedAt)" Title="更新時間" Sortable DefaultSortOrder="SortDirection.Descending" /&gt;
+                &lt;ActionColumn Fixed="ColumnFixPlacement.Right" Title="操作"&gt;
+                    &lt;Space&gt;
+                        &lt;SpaceItem&gt;&lt;button class="btn-edit" title="管理成員" @onclick="@(async () =&gt; await OnManageMembersAsync(context))"&gt;&lt;span class="icon-edit"&gt;🧩&lt;/span&gt;&lt;/button&gt;&lt;/SpaceItem&gt;
+                        &lt;SpaceItem&gt;&lt;button class="btn-edit" title="修改" @onclick="@(async () =&gt; await OnEditAsync(context))"&gt;&lt;span class="icon-edit"&gt;✏️&lt;/span&gt;&lt;/button&gt;&lt;/SpaceItem&gt;
+                        &lt;SpaceItem&gt;&lt;button class="btn-edit" title="刪除" @onclick="@(async () =&gt; await OnDeleteAsync(context))"&gt;&lt;span class="icon-edit"&gt;🗑️&lt;/span&gt;&lt;/button&gt;&lt;/SpaceItem&gt;
+                    &lt;/Space&gt;
+                &lt;/ActionColumn&gt;
+            &lt;/Table&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+
+    &lt;Modal Title="@modalTitle" Class="project-view-modal" @bind-Visible="@modalVisible" Keyboard="true" MaskClosable="false" OnOk="OnModalOkAsync" OnCancel="OnModalCancelAsync"&gt;
+        &lt;EditForm Model="@CurrentRecord" Context="editContext"&gt;
+            &lt;DataAnnotationsValidator /&gt;
+            &lt;ValidationSummary /&gt;
+            &lt;AntDesign.Form TModel="KnowledgeSourceAdapterModel" Model="@CurrentRecord" Layout="FormLayout.Vertical" Context="formContext"&gt;
+                &lt;FormItem Label="標題" Required&gt;
+                    &lt;Input @bind-Value="CurrentRecord.Title" Placeholder="請輸入標題" /&gt;
+                    &lt;ValidationMessage For="() =&gt; CurrentRecord.Title" /&gt;
+                &lt;/FormItem&gt;
+                &lt;FormItem Label="描述"&gt;&lt;TextArea @bind-Value="CurrentRecord.Description" Rows="3" /&gt;&lt;/FormItem&gt;
+                &lt;FormItem Label="分類"&gt;
+                    &lt;Select TItem="string" TItemValue="string" Mode="SelectMode.Multiple" Values="CurrentRecord.Categories" OnSelectedItemsChanged="OnRecordCategoriesChanged" Placeholder="輸入關鍵字選擇分類" AllowClear EnableSearch Style="width: 100%;"&gt;
+                        @foreach (var c in availableCategories) { &lt;SelectOption TItemValue="string" TItem="string" Value="@c"&gt;@c&lt;/SelectOption&gt; }
+                    &lt;/Select&gt;
+                &lt;/FormItem&gt;
+                &lt;FormItem Label="團隊"&gt;
+                    &lt;Select TItem="string" TItemValue="string" Mode="SelectMode.Multiple" Values="CurrentRecord.Teams" OnSelectedItemsChanged="OnRecordTeamsChanged" Placeholder="輸入關鍵字選擇團隊" AllowClear EnableSearch Style="width: 100%;"&gt;
+                        @foreach (var t in availableTeams) { &lt;SelectOption TItemValue="string" TItem="string" Value="@t"&gt;@t&lt;/SelectOption&gt; }
+                    &lt;/Select&gt;
+                &lt;/FormItem&gt;
+            &lt;/AntDesign.Form&gt;
+        &lt;/EditForm&gt;
+    &lt;/Modal&gt;
+
+    &lt;Modal Title="@($"管理成員 - {memberSource.Title}")" Class="project-view-modal" Width="900" @bind-Visible="@memberModalVisible"
+           OkText="@("關閉")" CancelText="@("關閉")"
+           OnOk="@(_ =&gt; OnMemberModalCloseAsync())" OnCancel="@(_ =&gt; OnMemberModalCloseAsync())"&gt;
+        &lt;div class="ks-member-layout"&gt;
+            &lt;div class="ks-member-col"&gt;
+                &lt;h4&gt;已加入成員（依順序）&lt;/h4&gt;
+                @if (memberSource.Items.Count == 0) { &lt;div class="text-muted"&gt;尚無成員&lt;/div&gt; }
+                else
+                {
+                    &lt;ul class="ks-member-list"&gt;
+                        @foreach (var m in memberSource.Items)
+                        {
+                            &lt;li&gt;
+                                &lt;span class="ks-tag"&gt;@m.ItemTypeName&lt;/span&gt;
+                                &lt;span class="ks-title"&gt;@m.ItemTitle&lt;/span&gt;
+                                &lt;button class="btn-edit" title="上移" @onclick="@(async () =&gt; await OnMoveMemberAsync(m, true))"&gt;🔼&lt;/button&gt;
+                                &lt;button class="btn-edit" title="下移" @onclick="@(async () =&gt; await OnMoveMemberAsync(m, false))"&gt;🔽&lt;/button&gt;
+                                &lt;button class="btn-edit" title="移除" @onclick="@(async () =&gt; await OnRemoveMemberAsync(m))"&gt;🗑️&lt;/button&gt;
+                            &lt;/li&gt;
+                        }
+                    &lt;/ul&gt;
+                }
+            &lt;/div&gt;
+            &lt;div class="ks-member-col"&gt;
+                &lt;h4&gt;加入素材（僅顯示已完成）&lt;/h4&gt;
+                &lt;div class="ks-member-toolbar"&gt;
+                    &lt;Select TItem="string" TItemValue="string" Value="@memberPickType" ValueChanged="OnMemberTypeChanged" Style="min-width: 140px;"&gt;
+                        &lt;SelectOption TItemValue="string" TItem="string" Value="@KnowledgeSourceItemAdapterModel.TypeMediaTranscription"&gt;音訊轉錄&lt;/SelectOption&gt;
+                        &lt;SelectOption TItemValue="string" TItem="string" Value="@KnowledgeSourceItemAdapterModel.TypeDocumentExtraction"&gt;文件萃取&lt;/SelectOption&gt;
+                        &lt;SelectOption TItemValue="string" TItem="string" Value="@KnowledgeSourceItemAdapterModel.TypeImageRecognition"&gt;圖片清單&lt;/SelectOption&gt;
+                    &lt;/Select&gt;
+                    &lt;Input @bind-Value="memberSearch" Placeholder="搜尋標題" Style="width: 200px;" /&gt;
+                    &lt;Button OnClick="@(async () =&gt; await OnMemberSearchAsync())"&gt;🔍&lt;/Button&gt;
+                &lt;/div&gt;
+                &lt;ul class="ks-member-list"&gt;
+                    @foreach (var s in selectableItems)
+                    {
+                        &lt;li&gt;
+                            &lt;span class="ks-title"&gt;@s.Title&lt;/span&gt;
+                            @if (s.AlreadyAdded) { &lt;span class="text-muted"&gt;已加入&lt;/span&gt; }
+                            else { &lt;button class="btn-edit" title="加入" @onclick="@(async () =&gt; await OnAddMemberAsync(s))"&gt;➕&lt;/button&gt; }
+                        &lt;/li&gt;
+                    }
+                &lt;/ul&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/Modal&gt;
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4：<code>KnowledgeSourceView.razor.css</code>（最小樣式）</strong></li></ul>
+<pre><code>.ks-member-layout { display: flex; gap: 24px; }
+.ks-member-col { flex: 1; min-width: 0; }
+.ks-member-toolbar { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+.ks-member-list { list-style: none; padding: 0; margin: 0; max-height: 50vh; overflow: auto; }
+.ks-member-list li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+.ks-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ks-tag { background: #e6f7ff; color: #0958d9; border-radius: 4px; padding: 0 6px; font-size: 12px; }</code></pre>
+<ul><li>（歷史步驟）<strong>Step 5：建置 Web 專案</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Web/KnowledgeExtraction.Web.csproj</code> Expected: Build succeeded.</p>
+<ul><li>（歷史步驟）<strong>Step 6：Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Pages/KnowledgeSources src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/KnowledgeSources
+git commit -m "feat: 知識來源管理清單 Blazor 頁面與成員管理檢視"</code></pre>
+<hr>
+<h2 id="task-9端到端驗證與文件同步" class="t2">Task 9：端到端驗證與文件同步</h2>
+<ul><li>（歷史步驟）<strong>Step 1：套用 migration 到本機 SQLite 並啟動</strong></li></ul>
+<p>Run: <code>dotnet run --project src/KnowledgeExtraction/KnowledgeExtraction.Web</code> （啟動時若採 <code>EnsureCreated</code>/自動 migrate，確認 <code>KnowledgeSource</code>/<code>KnowledgeSourceItem</code> 表建立。）</p>
+<ul><li>（歷史步驟）<strong>Step 2：手動驗收（以 support 管理員登入）</strong></li><li>「清洗與蒸餾 &gt; 知識來源管理清單」選單出現、可進入。</li><li>新增來源（標題/描述/分類/團隊）→ 列表預設依更新時間新到舊。</li><li>管理成員：切換型別頁籤只見「已完成」素材；加入跨型別成員、重複加入被擋；上移/下移/移除生效。</li><li>編輯來源、刪除來源（成員關聯消失、素材原紀錄仍在）。</li><li>於「角色管理」勾選新權限後，非管理員角色才看得到頁面；非管理員僅見公開或交集團隊的來源。</li></ul>
+<ul><li>（歷史步驟）<strong>Step 3：跑完整測試</strong></li></ul>
+<p>Run: <code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests/KnowledgeExtraction.Tests.csproj</code> Expected: 全綠（含新 <code>KnowledgeSourceServiceTests</code>）。</p>
+<ul><li>（歷史步驟）<strong>Step 4：文件同步與編碼檢查</strong></li></ul>
+<ul><li>更新 PRD 狀態列（<code>docs/prd/知識來源管理-prd.md</code>：狀態 → 已實作、版本 0.2.59）。</li><li>視需要新增 <code>docs/changelog/2026-06-11-知識來源管理.md</code>，並於 <code>docs/README.md</code> changelog 區塊補連結。</li><li>Run: <code>pwsh scripts/Test-DocsEncoding.ps1</code> → 全綠（UTF-8+BOM、無亂碼）。</li></ul>
+<ul><li>（歷史步驟）<strong>Step 5：最終 Commit</strong></li></ul>
+<pre><code>git add docs
+git commit -m "docs: 知識來源管理實作完成同步（PRD 狀態/changelog/索引）"</code></pre>
+<hr>
+<h2 id="self-review撰寫後檢查已逐項確認" class="t3">Self-Review（撰寫後檢查，已逐項確認）</h2>
+<ul><li><strong>規格涵蓋</strong>：CRUD（Task 4,8）、成員聚合（Task 1,4,8）、預設更新時間排序（Task 4 測試）、</li></ul>
+<p>團隊權控（Task 4 測試）、選單/權限三處同步（Task 7）、雙 migration（Task 6）、不含上傳/清洗（未列入）。皆有對應任務。</p>
+<ul><li><strong>型別一致</strong>：<code>KnowledgeSourceItemAdapterModel.Type*</code> 常數、Service 方法簽名（<code>AddItemAsync</code>/<code>RemoveItemAsync</code>/</li></ul>
+<p><code>MoveItemAsync</code>/<code>GetSelectableItemsAsync</code>）於 Service、測試、View 三處一致。</p>
+<ul><li><strong>已知實作注意</strong>：Service 的 <code>GetSelectableItemsAsync</code> 內以三個明確投影方法取代示意用泛型</li></ul>
+<p><code>FilterPipeline&lt;T&gt;</code>（Step 3 備註已標明）；實作時務必移除 <code>NotImplementedException</code> 示意碼。</p>
+<ul><li><strong>待實作期間確認</strong>：<code>MediaTranscription</code>／<code>ImageRecognition</code> 是否有 <code>UpdatedAt</code> 欄位（用於可選清單排序），</li></ul>
+<p>若無改用 <code>CreatedAt</code>；<code>VerifyRecordResult</code>/<code>VerifyRecordResultFactory</code> 命名空間（與 <code>DocumentExtractionService</code> 同）。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（superpowers/plans）</h3><ul><li><a href="../../../docs/superpowers/plans/2026-06-02-73d2ea8b.html">音訊／影片轉錄服務 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-04-35c13737.html">抖音影片自動轉錄整合 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-09-7034edfd.html">提示詞清單（Prompt）管理頁面 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-07-10-d75d8738.html">KnowledgeExtraction.AI 安全優先穩定化計畫</a></li><li><a href="../../../docs/superpowers/plans/2026-07-12-prd-e14e5def.html">PRD 全庫基線重建 Implementation Plan</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#檔案結構將新增修改">檔案結構（將新增／修改）</a><a class="l2" href="#task-1建立-entity-與-dbcontext-註冊">Task 1：建立 Entity 與 DbContext 註冊</a><a class="l2" href="#task-2建立-adaptermodel">Task 2：建立 AdapterModel</a><a class="l2" href="#task-3automapper-雙向映射">Task 3：AutoMapper 雙向映射</a><a class="l2" href="#task-4knowledgesourceservicetdd">Task 4：KnowledgeSourceService（TDD）</a><a class="l2" href="#task-5di-註冊">Task 5：DI 註冊</a><a class="l2" href="#task-6雙-provider-migration">Task 6：雙 provider Migration</a><a class="l2" href="#task-7選單與權限三處同步--版本號">Task 7：選單與權限三處同步 + 版本號</a><a class="l2" href="#task-8blazor-頁面與檢視">Task 8：Blazor 頁面與檢視</a><a class="l2" href="#task-9端到端驗證與文件同步">Task 9：端到端驗證與文件同步</a><a class="l2" href="#self-review撰寫後檢查已逐項確認">Self-Review（撰寫後檢查，已逐項確認）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/superpowers/plans/2026-06-11-knowledge-source-crud.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>音訊轉錄抖音下載失敗後可直接重試，並強化下載斷線重試（0.2.85）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>音訊轉錄抖音下載失敗後可直接重試，並強化下載斷線重試（0.2.85）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-19</li><li>版本：0.2.84 → 0.2.85</li><li>類型：缺陷修正 + 強化</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p>轉錄抖音影片時，下載階段失敗（紀錄已顯示「失敗」），但按「重試轉錄」卻回：</p>
+<pre><code>只有失敗或已取消的紀錄可以重試。</code></pre>
+<p>導致無法重新下載；<strong>重新整理網頁後再按同一顆按鈕卻可以</strong>。背景日誌可見下載失敗：</p>
+<pre><code>System.InvalidOperationException: 抖音助手執行失敗 (ExitCode=1)：
+TypeError: terminated ... [cause]: SocketError: other side closed (code: 'UND_ERR_SOCKET')</code></pre>
+<h2 id="根因" class="t2">根因</h2>
+<p>兩個獨立成因：</p>
+<ol><li><strong>重試誤判＝EF Core 追蹤的陳舊實體</strong>：<code>MediaTranscriptionView</code> 以建構式注入</li></ol>
+<p><code>MediaTranscriptionService</code>，在 Blazor Server 中其 <code>BackendDBContext</code> 綁定整個 SignalR circuit（長壽命）。新增抖音網址時實體被以「等待中」追蹤；之後背景服務（獨立 scope／獨立 context）將 DB 更新為 處理中→失敗，但列表 reload 全用 <code>.AsNoTracking()</code>，不會更新已追蹤的 實體。<code>RetryAsync</code>／<code>CancelAsync</code> 的查詢未先清掉本地追蹤，EF 從識別映射回傳陳舊的「等待中」 實體，狀態檢查因而失敗。重整網頁＝全新 circuit／context，識別映射清空，才讀到 DB 真實的 「失敗」狀態，故能重試。</p>
+<ol><li><strong>下載失敗＝抖音 CDN 中途斷線且全鏈路無重試</strong>：抖音 CDN 偶爾中途關閉 TLS 連線</li></ol>
+<p>（<code>UND_ERR_SOCKET: other side closed</code>，屬瞬時網路／限流）。<code>get-douyin-audio.mjs</code> 的 <code>fetch()</code> 無逾時、無重試，斷一次即整體失敗；且 C# 端包成 <code>InvalidOperationException</code>，被 <code>PipelineRetryHelper.IsTransient</code> 判為不可重試，使 <code>TranscriptionProcessor</code> 的自動重試跳過。</p>
+<h2 id="修正" class="t3">修正</h2>
+<ul><li><code>MediaTranscriptionService.RetryAsync</code>／<code>CancelAsync</code>：查詢前加</li></ul>
+<p><code>CleanTrackingHelper.Clean&lt;MediaTranscription&gt;(context)</code>，強制讀 DB 最新狀態 （比照 <code>UpdateTranscriptContentAsync</code> 既有慣例，亦符合 CLAUDE.md「Update/Delete 前 <code>CleanTrackingHelper.Clean&lt;T&gt;()</code>」）。</p>
+<ul><li><code>tools/douyin-audio/get-douyin-audio.mjs</code>：下載段改為每次 25 秒逾時（<code>AbortController</code>）</li></ul>
+<p>+ 最多 3 次重試 + 遞增退避（1.5 秒 × 次數），重用同一預簽章 CDN 網址重抓，不需重啟瀏覽器； 重試耗盡後維持原本的失敗退出行為。未調整 C# 的 <code>IsTransient</code>（避免把設定／檔案錯誤也變成重試）。</p>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>變更檔案：<code>Business/Services/DataAccess/MediaTranscriptionService.cs</code>、</li></ul>
+<p><code>tools/douyin-audio/get-douyin-audio.mjs</code>、<code>tools/douyin-audio/README.md</code>、 <code>src/.../KnowledgeExtraction.Web/appsettings.json</code>（版本號）。</p>
+<ul><li><strong>無模型／資料庫變更，不需 migration</strong>。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li>同一瀏覽器 session 內新增抖音網址轉錄、不重整；待下載失敗顯示「失敗」後直接按「重試轉錄」，</li></ol>
+<p>應出現「已重新排入轉錄佇列」且狀態轉「等待中」，不再出現「只有失敗或已取消的紀錄可以重試」。</p>
+<ol><li>以正常抖音連結重跑，下載段在偶發斷線時會印出重試訊息並成功完成。</li><li>回歸：「取消轉錄」於處理中／等待中狀態仍正常運作。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#根因">根因</a><a class="l2" href="#修正">修正</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-19-音訊轉錄重試修正與抖音下載強化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

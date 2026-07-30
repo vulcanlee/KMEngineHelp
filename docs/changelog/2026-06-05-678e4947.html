@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>發行說明：團隊清單（Team）管理功能（0.2.35）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>發行說明：團隊清單（Team）管理功能（0.2.35）</h1></header><div class="docwrap"><main><blockquote><p>期間：2026/06/05。本輪新增「團隊清單」CRUD 管理頁面，供未來建立其他紀錄時指定「特定或所有團隊」可使用之用。與「分類清單」功能高度同構，差異在於團隊多一個「團隊代號」欄位。版本來源為 <code>appsettings.json</code> 的 <code>SystemVersion</code>。需求與規格見 <a href="../../docs/prd/prd-d64ff6af.html">團隊清單 PRD</a>。</p></blockquote>
+<hr>
+<h2 id="重點摘要" class="t1">重點摘要</h2>
+<ul><li>新增<strong>團隊清單</strong>管理頁面（路由 <code>/teams</code>），提供新增、查詢、編輯、刪除。</li><li>團隊<strong>名稱</strong>為唯一值；<strong>團隊代號</strong>為選填，但有填寫時亦須唯一。兩者比對皆<strong>忽略大小寫並去除頭尾空白</strong>，新增與編輯皆生效（編輯排除自身）。</li><li>列表預設依<strong>更新時間由新到舊</strong>排序。</li><li>側邊選單於既有「<strong>資料定義</strong>」主功能表下，在「分類清單」之後新增「團隊清單」，並納入角色權限控制。</li></ul>
+<hr>
+<h2 id="功能與變更" class="t2">功能與變更</h2>
+<h3 id="0235--新增團隊清單-crud">0.2.35 — 新增團隊清單 CRUD</h3>
+<ul><li><strong>資料模型</strong>：新增 <code>Team</code> 實體（Id、Name、Code、Description、IsEnabled、CreatedAt、UpdatedAt）；</li></ul>
+<p><code>BackendDBContext</code> 新增 <code>DbSet&lt;Team&gt;</code>；產生 Sqlite 與 SqlServer 雙 migration（<code>AddTeam</code>）。</p>
+<ul><li><strong>後端分層</strong>（比照 Category）：<code>TeamRepository</code>、<code>TeamService</code>、<code>TeamController</code>，</li></ul>
+<p>以及 <code>TeamDto</code>／<code>TeamCreateUpdateDto</code>／<code>TeamSearchRequestDto</code>／<code>TeamAdapterModel</code>。</p>
+<ul><li>名稱唯一性：UI 路徑由 <code>TeamService.BeforeAddCheckAsync</code>／<code>BeforeUpdateCheckAsync</code> 驗證；</li></ul>
+<p>API 路徑由 <code>TeamRepository.ExistsByNameAsync</code> 驗證，重複時回 <code>409 Conflict</code>。</p>
+<ul><li>代號唯一性：僅在代號非空白時檢查（<code>ExistsByCodeAsync</code>），允許多筆代號為空；同樣回 <code>409 Conflict</code>。</li><li>預設排序：<code>TeamRepository.GetPagedAsync</code> 與 <code>TeamService.GetAsync</code> 預設 <code>OrderByDescending(UpdatedAt)</code>。</li><li><strong>UI</strong>（Blazor Server + Ant Design）：<code>TeamPage</code>（<code>/teams</code>）與 <code>TeamViewView</code>；</li></ul>
+<p>表格欄位為名稱、團隊代號、描述、啟用狀態、更新時間、操作；新增／編輯 Modal 含團隊代號與啟用狀態切換。</p>
+<ul><li><strong>選單與權限</strong>：<code>Datas/Menu.json</code> 於「資料定義」下、「分類清單」之後新增「團隊清單」(id 42)；</li></ul>
+<p><code>MagicObjectHelper</code> 新增 <code>角色_團隊清單</code>；<code>RolePermissionService</code> 於「資料定義」群組加入對應權限（位置索引對齊）。</p>
+<ul><li><strong>接線</strong>：<code>AutoMapping</code> 新增 Team 對應；<code>ServiceCollectionExtensions</code> 註冊 <code>TeamService</code>／<code>TeamRepository</code>；</li></ul>
+<p><code>_Imports.razor</code> 加入 Teams 命名空間。</p>
+<ul><li><strong>測試</strong>：新增 <code>TeamServiceTests</code>，涵蓋名稱／代號唯一性（忽略大小寫＋去空白、空代號可並存、編輯排除自身）與預設排序；全套測試 103 筆通過。</li><li><strong>文件</strong>：新增 <a href="../../docs/prd/prd-d64ff6af.html">團隊清單 PRD</a>；<code>appsettings.json</code> 版本號 0.2.34 → 0.2.35。</li></ul>
+<hr>
+<h2 id="使用方式" class="t3">使用方式</h2>
+<ol><li>既有角色需先到「系統管理 → 角色管理」勾選「資料定義 / 團隊清單」權限。</li><li>部署前對資料庫套用 <code>AddTeam</code> migration（<code>Update-Database</code>）。</li><li>進入「資料定義 → 團隊清單」即可新增、編輯、刪除團隊；名稱重複（含僅大小寫或頭尾空白差異）會被擋下；團隊代號有填且重複時亦會被擋下。</li></ol>
+<h2 id="未來延伸out-of-scope" class="t4">未來延伸（Out of Scope）</h2>
+<ul><li>其他紀錄（專案、會議、轉錄等）指定「特定團隊」或「所有團隊」可使用之關聯機制（屆時可依 <code>IsEnabled</code> 僅顯示啟用中的團隊）。</li><li>團隊的批次匯入／匯出、團隊成員／負責人、階層（父子）結構。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li><li><a href="../../docs/changelog/2026-06-11-qa2-b3079fb4.html">清洗 QA-2：LLM 自評信心分數 + 自動門檻（0.2.62）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#重點摘要">重點摘要</a><a class="l2" href="#功能與變更">功能與變更</a><a class="l3" href="#0235--新增團隊清單-crud">0.2.35 — 新增團隊清單 CRUD</a><a class="l2" href="#使用方式">使用方式</a><a class="l2" href="#未來延伸out-of-scope">未來延伸（Out of Scope）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-05-團隊清單功能.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

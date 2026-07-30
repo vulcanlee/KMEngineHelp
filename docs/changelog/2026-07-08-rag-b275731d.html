@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAG 診斷頁：topScore 分佈統計、門檻建議與可套用門檻（EVAL-3 + RQ-1 + EVAL-5 門檻切片）（0.3.2→0.3.3）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>RAG 診斷頁：topScore 分佈統計、門檻建議與可套用門檻（EVAL-3 + RQ-1 + EVAL-5 門檻切片）（0.3.2→0.3.3）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-08</li><li>版本：0.3.2 → 0.3.3</li><li>類型：新增功能（RAG 補強清單）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>EVAL-2 已把問答稽核持久化但無讀取端。本次一次交付相扣三項：<strong>EVAL-3</strong>（topScore 分佈統計）、<strong>RQ-1</strong>（依分佈建議門檻 + 效果模擬）、<strong>EVAL-5 門檻切片</strong>（在頁面上直接套用兩段式門檻、熱生效）。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="資料層">資料層</h3>
+<ul><li>新增實體 <code>RetrievalSettingOverride</code>（單列覆蓋表：<code>RejectThreshold?</code>／<code>LowConfidenceThreshold?</code>／<code>UpdatedAt</code>／<code>UpdatedBy</code>）+ DbSet；<strong>雙 migration</strong> <code>AddRetrievalSettingOverride</code>。</li></ul>
+<h3 id="商業層">商業層</h3>
+<ul><li><code>IRetrievalSettingsProvider</code> + <code>RetrievalSettingsProvider</code>：解析「有效門檻」（<strong>DB 覆蓋 → appsettings → 預設</strong>），提供 <code>Set</code>／<code>Clear</code>（驗證 0 ≤ reject ≤ lowConf ≤ 1）。</li><li><code>KnowledgeBaseChatService.RetrieveAsync</code> 改為<strong>每輪取有效門檻</strong>用於兩段式判定與稽核記錄 → 頁面套用後<strong>下一則問答即熱生效</strong>。移除建構式對 <code>IOptions&lt;SystemSettings&gt;</code> 的直接門檻讀取（改由 provider，最小爆炸半徑，不動 <code>RetrievalService</code> 的 TopK/權重）。</li><li>純函式 <code>TopScoreStatsCalculator</code> + POCO <code>TopScoreStatsReport</code>：直方圖、<code>Min/P10/P25/Median/P75/P90/Max/Mean</code>（僅計有命中）、各信心佔比、啟發式建議（P10/P35，樣本 ≥20 才給）、門檻效果模擬。</li><li><code>RagDiagnosticsService</code>：聚合報告 + <code>ApplyThresholdsAsync</code>／<code>ResetThresholdsAsync</code>。</li></ul>
+<h3 id="ui-層">UI 層</h3>
+<ul><li>管理員頁 <code>/rag-diagnostics</code>（<code>RagDiagnosticsPage</code> + <code>RagDiagnosticsView</code>）：<code>CheckIsAdmin()</code> 擋人、由網址進入（<strong>不進 Menu.json、不動權限樹三處同步</strong>，比照 <code>/system-health</code>）。呈現分佈卡片、百分位表、直方圖、目前 vs 建議門檻、效果模擬表，及「套用／套用建議值／回復預設」。</li></ul>
+<h3 id="測試">測試</h3>
+<ul><li>新增 <code>TopScoreStatsCalculatorTests</code>（6）、<code>RagDiagnosticsTests</code>（provider 4 + service 2）、<code>KnowledgeBaseChatServiceTests</code> 熱套用測試（1）。相關 28 個測試全綠。</li></ul>
+<h2 id="校準誠實原則" class="t3">校準誠實原則</h2>
+<ul><li>建議門檻為<strong>啟發式起點</strong>（P10/P35），非以「庫內/庫外」標註校準；嚴謹校準仍需 RAG 評測黃金集（EVAL-1）。頁面與文件均明示此限制。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>進度：EVAL-3 ✅、RQ-1 ✅ 完成；EVAL-4／EVAL-5 部分完成（門檻切片）。詳見 <code>docs/planning/12-...</code> §〇。</li><li>同步更新 <code>docs/operations/RAG問題診斷手冊.md</code>、<code>docs/architecture/知識庫RAG設計與執行.md</code>、<code>docs/guides/RAG補強修正測試指南.md</code>。</li><li><code>appsettings.json</code> SystemVersion 0.3.2 → 0.3.3；需套用雙 migration。</li></ul>
+<h2 id="已知落差記錄備查" class="t5">已知落差（記錄備查）</h2>
+<ul><li>稽核 <code>Teams</code> 為逗號分隔（非 <code>TagStringHelper</code> 換行格式），故本頁為管理員全庫統計；未來要做「非管理員看自家團隊統計」需先統一格式。</li></ul>
+<h2 id="驗證" class="t6">驗證</h2>
+<ol><li><code>dotnet test --filter "KnowledgeBaseChatServiceTests|TopScoreStatsCalculatorTests|RagDiagnosticsTests"</code> 綠燈（28 通過）。</li><li><code>dotnet build</code> 成功。</li><li>手動：問數題 → <code>/rag-diagnostics</code> 看分佈/建議/模擬 → 套用門檻 → 再問確認改判 → 回復預設；非管理員被擋。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#資料層">資料層</a><a class="l3" href="#商業層">商業層</a><a class="l3" href="#ui-層">UI 層</a><a class="l3" href="#測試">測試</a><a class="l2" href="#校準誠實原則">校準誠實原則</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#已知落差記錄備查">已知落差（記錄備查）</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-08-RAG診斷頁與門檻校準.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Token 用量記錄與查閱頁＋首頁 30 天 Token 統計（0.3.29→0.3.30）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Token 用量記錄與查閱頁＋首頁 30 天 Token 統計（0.3.29→0.3.30）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-12</li><li>版本：0.3.29 → 0.3.30</li><li>類型：新功能</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>系統每次呼叫 OpenAI 都會拿到 <code>usage</code>（各類 token 統計），但過去只寫 NLog、未持久化，無法查閱、篩選或彙總。需求：把每次呼叫的 token 用量存進可查詢的資料表，記錄「哪個作業/畫面、哪個使用者、哪個模型、各類 token 數」；提供管理員查閱頁（可依使用者、作業、模型、<strong>時間區間</strong>篩選）；首頁儀表板顯示最近 30 天、依 token 類型的全站用量。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="資料層">資料層</h3>
+<ul><li>新增實體 <code>LlmTokenUsage</code>（<code>CreatedAt</code>/使用者/<code>Operation</code>/<code>CallType</code>/<code>Model</code>/<code>RecordId</code>/各類 token 欄位/<code>DetailsJson</code>），<code>BackendDBContext</code> 加 <code>DbSet</code> 與 <code>CreatedAt</code> 索引；雙 provider migration <code>AddLlmTokenUsage</code>。</li></ul>
+<h3 id="情境作業使用者">情境（作業/使用者）</h3>
+<ul><li>新增 <code>OperationContext</code>（AsyncLocal，<code>Share/Helpers</code>）攜帶「作業/紀錄Id/使用者」，沿 async 鏈流到 client。</li><li><strong>背景佇列帶入提交者身分</strong>：6 個佇列（Cleaning/Distillation/EmbeddingIndex/SkillGeneration/Transcription/ImageRecognition）載荷改 <code>PipelineJob(Id, UserAccount, UserName)</code>，<code>EnqueueAsync</code> 加可選身分參數；入列服務傳 <code>CurrentUser</code>；6 個背景服務迴圈 <code>OperationContext.Push</code>；系統復原入列身分為 null。互動端於知識庫問答／知識來源對話 View 的 <code>SendAsync</code> <code>Push</code>。</li></ul>
+<h3 id="記錄與落地">記錄與落地</h3>
+<ul><li><code>TokenUsageParser</code>（沿用 <code>TokenUsageFormatter</code> 攤平邏輯，回傳結構化用量＋<code>DetailsJson</code>）。</li><li><code>ITokenUsageRecorder</code>/<code>TokenUsageRecorder</code>（singleton＋<code>Channel</code>，非阻塞、失敗隔離）於 3 個 OpenAI client 的 4 個擷取點呼叫；<code>TokenUsageWriterBackgroundService</code>（hosted）以自建 scope 的獨立 <code>BackendDBContext</code> 批次落地。</li></ul>
+<h3 id="ui">UI</h3>
+<ul><li>新增管理員頁 <code>/token-usage</code>（<code>TokenUsageQueryService</code> 分頁/篩選/合計；篩選含使用者、時間區間、作業、型別、模型；上方顯示合計列）；<code>Menu.json</code> 系統管理群組 id 48（<code>data_usage</code>，<code>adminOnly</code>）。</li><li>首頁儀表板新增「最近 30 天 Token 用量」區塊（送出/接收/推理/快取/合計，全站彙總）。</li></ul>
+<h3 id="測試">測試</h3>
+<ul><li><code>TokenUsageParserTests</code>（chat/embedding/transcription 三種 usage 形狀＋空值）。</li><li>更新受佇列介面變更影響的測試假件與服務建構；補 <code>MenuIconTests</code>/<code>CrudActionIconTests</code> 允許清單（<code>data_usage</code>、<code>chat</code>、<code>history</code>）。</li></ul>
+<h2 id="範圍決策誠實記錄" class="t3">範圍決策（誠實記錄）</h2>
+<ul><li>Token 用量純數字、<strong>不含內容本文</strong>；記錄失敗一律隔離，絕不影響 LLM 主流程。</li><li><strong>無保留/清理策略</strong>（每次呼叫一列）；管理員需留意資料表成長，必要時自行封存。</li><li>儀表板為<strong>全站彙總</strong>、依 token 類型、不套團隊權控（純數字）。</li><li>互動作業標籤目前涵蓋兩個聊天入口與 6 條背景管線；其餘互動作業（媒體/文件生成、RAG/黃金評測、RAG 診斷試檢索）仍會記錄，但作業欄暫退化為 API 型別、使用者可能為空（後續可再補 <code>OperationContext.Push</code>）。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li><code>appsettings.json</code> SystemVersion 0.3.29 → 0.3.30。</li><li>文件：<code>docs/guides/新手完整操作指南.md</code>（1.5→1.6，新增 §14.7、3.2/3.4/摘要儀表板、名詞、TOC）、<code>docs/architecture/資料模型與資料庫.md</code>、<code>docs/guides/EFCore.md</code>、<code>docs/architecture/開發慣例與限制速查.md</code>、<code>docs/operations/日誌與設定檔說明.md</code>、<code>docs/operations/容量邊界與限制.md</code>、<code>docs/README.md</code>、<code>docs/guides/README.md</code>。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li>全解決方案建置 0 錯誤；雙 provider migration <code>AddLlmTokenUsage</code> 僅建 <code>LlmTokenUsage</code> 表＋<code>CreatedAt</code> 索引。</li><li>App 於 Development 啟動、自動套用 migration，確認 SQLite 已建 <code>LlmTokenUsage</code> 表與 <code>IX_LlmTokenUsage_CreatedAt</code>；<code>TokenUsageWriterBackgroundService</code> 啟動。</li><li><code>dotnet test</code> 全綠（504 通過，含 <code>TokenUsageParserTests</code>）。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#資料層">資料層</a><a class="l3" href="#情境作業使用者">情境（作業/使用者）</a><a class="l3" href="#記錄與落地">記錄與落地</a><a class="l3" href="#ui">UI</a><a class="l3" href="#測試">測試</a><a class="l2" href="#範圍決策誠實記錄">範圍決策（誠實記錄）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-12-Token用量記錄與查閱.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

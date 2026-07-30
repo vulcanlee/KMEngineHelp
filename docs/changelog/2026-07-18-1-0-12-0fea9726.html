@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>三大操作手冊同步至 1.0.12：補日誌下載、統計報表五頁與健康檢查/MCP 落差｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>三大操作手冊同步至 1.0.12：補日誌下載、統計報表五頁與健康檢查/MCP 落差</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-18</li><li>版本：1.0.12（不升版；本次為文件同步，非建置內容異動）</li><li>類型：文件（操作手冊功能同步）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>全面比對程式碼（頁面/選單/服務/git 歷史）與三份操作指南後，發現文件停在 1.0.11 且有功能缺漏：</p>
+<ol><li><strong>日誌下載頁 <code>/log-download</code></strong>（1.0.12 新增）：三份指南皆未涵蓋。</li><li><strong>統計報表五頁 <code>/reports/*</code></strong>（0.3.38–0.3.39 起即有）：三份指南皆完全未提及。</li><li><strong>完整操作手冊</strong>額外落後：§14.1 未涵蓋 1.0.11 的 21 項健康檢查（含 MCP Server ＋ 4 項基礎設施檢查）；MCP 僅一行帶過（另兩份已有專章/專節）。</li></ol>
+<p>決策（與需求方確認）：appsettings 不動、文件標 1.0.12；統計報表完整補章節；完整操作手冊新增精簡 MCP 小節；Lab 新功能併入第 18 章維運頁、不開新練習章。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="guides完整操作手冊md21--22">guides/完整操作手冊.md（2.1 → 2.2）</h3>
+<ul><li>標頭：更新日期 2026/07/18、對應系統版本 1.0.12。</li><li>§3：選單改六大群組；畫面地圖表補「日誌下載」與「統計報表 5 頁」兩列。</li><li>§11 新增 <code>11.1 外部 AI Agent 整合（MCP Server）</code>：端點 <code>/mcp</code>、5 工具、JWT/API Key 雙認證、<code>/mcp-api-keys</code>、權控/稽核/計量一致，連結 MCP 服務使用說明書。</li><li>§14.1 改寫：補 21 項分類檢查（8＋5＋2＋1＋基礎設施與整合 5 項，1.0.11 新增）。</li><li>§14 新增 <code>14.7 日誌下載</code>（預設近一小時、31 天上限、200 MB 防護、zip 檔名規則、空區間行為、僅管理員）與 <code>14.8–14.13 統計報表</code>（共通操作＋五支報表逐頁：路由/資料來源/統計卡/區塊/PDF 前綴）。</li><li>§18 FAQ 補「打包日誌給支援人員」「看整體統計」兩列。</li></ul>
+<h3 id="guides新手完整操作指南md17--18">guides/新手完整操作指南.md（1.7 → 1.8）</h3>
+<ul><li>標頭：更新日期 2026/07/18、對應系統版本 1.0.12。</li><li>索引目錄補 14.8/14.9；§3 選單改七大群組；§3.2 總覽表補日誌下載＋統計報表五列；§3.4 系統管理員角色補統計報表與日誌下載。</li><li>§14 前言放寬為涵蓋日誌下載與統計報表；§14.5 症狀表補兩列。</li><li>新增 <code>14.8 日誌下載 /log-download</code>（本書慣例四行 blockquote＋白話說明＋限制與訊息表＋30 天輪替提醒）與 <code>14.9 統計報表：五張管理儀表</code>（共通操作＋ 14.9.1–14.9.5 每頁「回答什麼問題」＋資料來源對應）。</li></ul>
+<h3 id="guides實作練習手冊-hands-on-labmd22--23">guides/實作練習手冊-Hands-on Lab.md（2.2 → 2.3）</h3>
+<ul><li>標頭：更新日期 2026/07/18、對應系統版本 1.0.12；內文三處「1.0.11」→「1.0.12」。</li><li>功能一覽表補日誌下載與統計報表兩列。</li><li>第 18 章：前言補「統計報表」群組；新增 <code>17.7 日誌下載（小範圍動手做）</code> 與 <code>17.8 統計報表五頁（觀察式驗收）</code>（含通過條件、無金鑰註記）；原 17.7/17.8 循序改號為 17.9/17.10；完訓成果矩陣「維運觀察」列補日誌下載 zip 與五張統計報表。</li></ul>
+<h3 id="索引同步">索引同步</h3>
+<ul><li><code>guides/README.md</code>：新手指南描述改「對應 1.0.12」並補日誌下載、統計報表。</li><li><code>docs/README.md</code>：新手/Hands-on 描述改 1.0.12（Hands-on 2.3），補 §14.8/§14.9 與觀察式驗收；changelog 索引加入本條目。</li></ul>
+<h2 id="驗證" class="t3">驗證</h2>
+<ol><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠（<code>.md</code> UTF-8 含 BOM、無亂碼）。</li><li><code>grep 1.0.11</code>：三份指南與兩個 README 僅剩歷史性「1.0.11 新增」標註；現況版本標記歸零。</li><li><code>grep</code> 確認 <code>/log-download</code> 與 <code>/reports/</code> 在三份指南皆可搜得；Lab 內 17.7–17.10 編號連續無殘留舊引用。</li><li><code>git diff</code> 逐檔檢視：僅預期行變動、表格對齊、中文完好。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#guides完整操作手冊md21--22">guides/完整操作手冊.md（2.1 → 2.2）</a><a class="l3" href="#guides新手完整操作指南md17--18">guides/新手完整操作指南.md（1.7 → 1.8）</a><a class="l3" href="#guides實作練習手冊-hands-on-labmd22--23">guides/實作練習手冊-Hands-on Lab.md（2.2 → 2.3）</a><a class="l3" href="#索引同步">索引同步</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-18-三大操作手冊同步1.0.12.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新增「PDF 型 RAG 處理」PRD（規劃中，0.2.91）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>新增「PDF 型 RAG 處理」PRD（規劃中，0.2.91）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-19</li><li>版本：0.2.90 → 0.2.91</li><li>類型：文件新增（PRD，規劃中）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>依據「PDF 型 RAG 處理思路」的內容，建立一份 PRD 作為日後系統改善依據：PDF 做 RAG 不能只「轉文字→切片→丟向量庫」，重點在辨識類型、保留結構、語意切分、可追溯引用、多工具協作與評測閉環。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="新增-docsprdpdf型rag處理-prdmd狀態規劃中">新增 <code>docs/prd/PDF型RAG處理-prd.md</code>（狀態：規劃中）</h3>
+<p>聚焦「讀懂・切分・引用」，涵蓋：</p>
+<ul><li>PDF 類型判斷（原生文字/掃描/圖文混排）與對應解析策略。</li><li>文件結構還原（頁碼、標題層級、章節、段落、表格位置、圖片說明、註腳、頁眉頁腳標記避免重複召回）。</li><li>語意切片與 chunk metadata（非固定字數；標題不離正文、條款完整、表格獨立、圖表摘要；metadata 含頁碼/章節/編號/Teams，繼承來源權控；可選 contextual note）。</li><li>表格/圖片/圖表專門處理（沿用既有多模態 API）。</li><li>Agent 工具鏈（Search PDF / Read Page / Extract Table / Chart Analysis / Citation Source）。</li><li>可追溯引用與評測閉環（檢索/頁碼/表格/OCR/圖表/引用支撐度等細指標，延伸黃金評測精神）。</li><li>技術選型建議（具體＋替代）：PyMuPDF/pdfplumber、Docling/Unstructured、PaddleOCR/Tesseract、沿用 OpenAI vision、pgvector（屬路線圖階段三）。</li><li>資料模型草案、相依與風險、容量限制、與現有架構整合、分階段落地、驗收條件。</li></ul>
+<p>明確界定範圍：embedding/向量庫/混合檢索＋rerank/問答 UI 屬路線圖「階段三建立知識庫」，本 PRD 不重複規格，只負責產出可被階段三索引的結構化 chunk。</p>
+<h3 id="索引與版本">索引與版本</h3>
+<ul><li><code>docs/README.md</code> prd 區塊新增索引。</li><li><code>appsettings.json</code> SystemVersion 0.2.90 → 0.2.91。</li></ul>
+<h2 id="影響範圍" class="t3">影響範圍</h2>
+<ul><li>純文件、規劃中；無程式碼／資料庫變更，不需 migration。</li><li>與現況查證一致：PDF 目前僅 markitdown 單一 blob、無 RAG 基礎建設、已有多模態 API。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ol><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠（新檔 BOM=True、無亂碼）。</li><li>PRD 體例與既有 PRD 一致；範圍與路線圖階段三不重疊；相關文件連結可達。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#新增-docsprdpdf型rag處理-prdmd狀態規劃中">新增 docs/prd/PDF型RAG處理-prd.md（狀態：規劃中）</a><a class="l3" href="#索引與版本">索引與版本</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-19-PDF型RAG處理PRD.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

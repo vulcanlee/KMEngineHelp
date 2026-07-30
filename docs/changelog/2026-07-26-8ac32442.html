@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新增「待處理背景工作」管理者頁、儀表板管線分布補齊 7 條，並修正會議紀錄管線的四個缺陷（1.0.77→1.0.78）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>新增「待處理背景工作」管理者頁、儀表板管線分布補齊 7 條，並修正會議紀錄管線的四個缺陷（1.0.77→1.0.78）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-26</li><li>版本：1.0.77 → 1.0.78</li><li>類型：功能新增（管理者維運頁）＋資料正確性修正（會議紀錄管線）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>使用者要三件事：①儀表板看到「還有多少處理管線待處理」②一個管理者頁面列出待處理的背景工作 ③在該頁<strong>取消尚未執行的</strong>工作。</p>
+<h3 id="先確認的技術前提佇列無法列舉">先確認的技術前提：佇列無法列舉</h3>
+<p>7 條管線的佇列全部是 <code>Channel.CreateUnbounded&lt;PipelineJob&gt;</code>，介面只有 <code>EnqueueAsync</code>／<code>DequeueAllAsync</code>，而 <code>Channel&lt;T&gt;</code> <strong>讀取即消耗</strong>、無法非破壞式列舉。所以待處理清單<strong>一律由各實體的狀態欄位推導</strong>。</p>
+<p><strong>也刻意不用 <code>Channel.Reader.Count</code></strong> ——它與 DB 狀態的落差是雙向且結構性的：出列瞬間 job 已離開 channel 但 Processor 還沒把 DB 寫成「處理中」（少算）；<code>CancelAsync</code> 已把 DB 改成「已取消」但 job 仍躺在 channel 裡（多算）；重啟後 channel 歸零而 DB 仍是「處理中」（少算一整批）。<strong>卡片數字必須等於頁面列數</strong>，這只有靠 DB 才做得到（已用測試釘住）。</p>
+<h3 id="③-其實現有機制已支援但有一條管線是例外">③ 其實現有機制已支援，但有一條管線是例外</h3>
+<p>「取消還在排隊的工作」不是從佇列移除，而是把 DB 狀態改成「已取消」、由 Processor 出列時跳過。6/7 條管線的 Processor 早就有這道檢查——<strong>會議紀錄管線沒有</strong>。</p>
+<p>追查後這條管線共有四個缺陷：</p>
+<div class="tw"><table><thead><tr><th>缺陷</th><th>後果</th></tr></thead><tbody><tr><td><code>MeetingMinutesProcessor</code> 出列後<strong>不檢查狀態</strong></td><td>「改 DB 狀態來取消」對它<strong>完全無效</strong>——出列後照跑，還會付一次 LLM token</td></tr><tr><td>沒有「已取消」狀態常數，<code>MarkCancelledAsync</code> 寫的是<strong>「失敗」</strong></td><td>使用者按取消卻看到「失敗」，且與真失敗無法區分</td></tr><tr><td>完全沒有 Cancel 服務方法</td><td>連 <code>TryCancel(PipelineNames.MeetingMinutes, …)</code> 都沒有任何呼叫者</td></tr><tr><td>排隊時寫 <code>MinutesStatusTranscribed = "轉錄完成"</code>，而 <code>RecoverPendingAsync</code> <strong>只撈「產生中」</strong></td><td><strong>排隊中的工作重啟後永久遺失、無人補救</strong>；且該值同時代表「排隊中」與「入列失敗的孤兒」，分不出來</td></tr></tbody></table></div>
+<p>另外 <code>EmbeddingIndex</code> 管線的 <code>MarkCancelledAsync</code> 與 Processor 檢查都已存在，<strong>只缺 Service 層入口</strong>。</p>
+<p>儀表板的「處理管線狀態分布」則只有 4 條——蒸餾、嵌入索引、會議紀錄三條管線的積壓從來看不到。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="一會議紀錄管線四個缺陷先做本批風險最高">一、會議紀錄管線四個缺陷（先做，本批風險最高）</h3>
+<ul><li><code>MeetingAdapterModel</code>：新增 <code>MinutesStatusQueued = "排隊中"</code>、<code>MinutesStatusCancelled = "已取消"</code>，<strong>並同時補進 <code>MinutesStatusOptions</code></strong>。</li></ul>
+<p>⚠️ 這第二步不是形式：<code>MeetingService.ValidateBusinessRulesAsync</code> 會用該清單驗證 <code>MinutesStatus</code>，漏補會讓處於新狀態的會議<strong>一改標題就被擋下</strong>，訊息還是「會議紀錄狀態 不是有效的選項。」——使用者完全無法把它連結到管線改動。已加反射測試釘死。</p>
+<ul><li><code>TranscriptionProcessor</code>：排隊時寫入值由「轉錄完成」改為「排隊中」。</li><li><code>MeetingMinutesProcessor</code>：開頭補「已取消則跳過」，寫法對齊 <code>CleaningProcessor</code>。</li><li><code>MeetingMinutesBackgroundService</code>：新增 <code>RecoverableMinutesStatuses = [排隊中, 產生中, 轉錄完成]</code>；<code>MarkCancelledAsync</code> 的守門加「排隊中」、目標狀態由「失敗」改為「已取消」。</li></ul>
+<p><strong>「轉錄完成」是刻意永久保留的</strong>：①收容升版前停在該值的既有資料 ②收容入列失敗的孤兒（<code>TryEnqueueMeetingMinutesAsync</code> 入列失敗只記 warning）。兩者的前置條件（轉錄已成功）都已滿足，重新入列安全且正確。仍<strong>刻意不撈「轉錄中」</strong>——那是轉錄管線的狀態。</p>
+<ul><li><code>MeetingViewView</code>：輪詢的 <code>hasActive</code> 加「排隊中」。<strong>漏這一步會讓輪詢在管線中途停掉</strong>（該處註解自己就寫了這件事，1.0.21 修過同類 bug）。</li><li><code>MeetingService</code>：建構式加 <code>IPipelineCancellationRegistry</code>，新增 <code>CancelMinutesAsync</code>。</li></ul>
+<h3 id="二embeddingindex-取消入口">二、<code>EmbeddingIndex</code> 取消入口</h3>
+<p><code>KnowledgeSourceService.CancelEmbeddingIndexAsync</code>，同構於 <code>CancelCleaningAsync</code>。建構式不動（registry 早已注入）。 <strong>不做 <code>RetryEmbeddingIndexAsync</code></strong>：<code>TriggerEmbeddingIndexAsync</code> 只擋 Pending/Processing，「已取消」可直接重新觸發，既有 UI 已有按鈕。</p>
+<h3 id="三查詢與取消服務刻意讀寫分離">三、查詢與取消服務（刻意讀寫分離）</h3>
+<ul><li><code>PipelineJobQueryService</code>（讀）：只依賴 <code>BackendDBContext</code>。<code>GetPendingJobsAsync()</code> 走 <strong>5 次往返、依序 await</strong>（⚠️ 單一 DbContext 非執行緒安全）：3 個實體表各一次 ＋ <code>KnowledgeSource</code> 一次撈三欄後在記憶體 fan-out ＋ <code>Meeting</code> 一次。</li></ul>
+<p><strong>列模型＝(管線, 紀錄)</strong>：<code>KnowledgeSource</code> 同時承載三條管線，做成一列一紀錄會讓同一筆被算三次或被合併掉。 <code>IsProcessing</code> 由服務端算好——跨管線的狀態字面值並不同構，不讓 UI 自己比對字串。</p>
+<ul><li><code>PipelineJobCancelService</code>（寫）：注入 6 支既有 Service，<strong>只做 switch 分派、不重寫取消語意</strong>（<code>CleanTrackingHelper.Clean</code> ＋ 團隊權控 ＋ <code>TryCancel</code> fall-through 全部沿用）。未知管線回傳失敗、<strong>不擲例外</strong>。</li><li><strong>為何拆讀寫</strong>：<code>DashboardService</code> 要吃摘要，而它是<strong>每位使用者</strong>開首頁都會建的；讓它依賴含 6 支 Service 的胖物件會讓 DI 每次多建一堆物件，也讓測試從 trivial 變成要先組出五、六個相依物件。</li></ul>
+<h3 id="四儀表板">四、儀表板</h3>
+<ul><li>管理者專區新增第 5 張卡「待處理背景工作」（可點進 <code>/pipeline-jobs</code>，副標分開顯示等待中／處理中）。</li></ul>
+<p><strong>刻意不套 <code>.dashboard-card-warning</code></strong>：有背景工作在跑是正常狀態，天天亮黃框會稀釋既有兩張黃卡（索引紅燈、資料不一致）「黃＝需要你處理」的語意。</p>
+<ul><li>「處理管線狀態分布」4 條 → <strong>7 條</strong>。既有第 4 條標題「知識來源」改為「<strong>知識來源清洗</strong>」，與新增的「知識來源蒸餾」「知識來源索引」共用前綴，讓讀者看出這是同一批紀錄的三個階段。</li></ul>
+<p>⚠️ <code>Meeting.MinutesStatus</code> 是 <code>string?</code> 而 <code>StatusBreakdown</code> 的 <code>Expression&lt;Func&lt;T,string&gt;&gt;</code> 不可空 → 用 <code>?? MinutesStatusNone</code>（EF 譯 <code>COALESCE</code>）。寫成 <code>x.MinutesStatus!</code> 會編譯通過，但執行時產生一條 <code>Status</code> 為 null 的分布列（畫面出現無標籤橫條）。</p>
+<h3 id="五pipeline-jobs-頁面">五、<code>/pipeline-jobs</code> 頁面</h3>
+<p>adminOnly 診斷頁，依既有豁免規則<strong>只動 <code>Menu.json</code> ＋ <code>MenuIconTests.AllowedLeafIcons</code></strong>，不加權限常數也不動權限樹（會打亂位置索引）。</p>
+<p><strong>⚠️ 輪詢防護③刻意偏離</strong>：慣例要求「沒有進行中項目就完全不打 DB」，但<strong>本頁的內容就是進行中項目</strong>——列空時不打 DB 就永遠發現不了新到的工作，頁面直接變死頁。保留防護①（<code>isPolling</code>）②（對話窗開啟不重載），③改為每 tick 無條件重載。成立條件：查詢是 5 次 <code>AsNoTracking</code> 投影、payload 隨在飛工作量而非全庫大小成長，且只有管理員能開此頁。已在速查登記為<strong>唯一合法例外</strong>。</p>
+<p>也<strong>刻意不做</strong>狀態轉換 toast：本頁的列完成即消失，這本身就是訊號；替別人的工作彈「已完成」只是噪音。</p>
+<p>逐列以 <code>cancellingKeys</code>（<code>管線:Id</code>）防重入——同一筆知識來源會出現在三條管線，只用 Id 會互相干擾。</p>
+<h2 id="測試" class="t3">測試</h2>
+<p>735 → <strong>758</strong>（+23，全綠）。</p>
+<div class="tw"><table><thead><tr><th>檔案</th><th>筆數</th><th>關鍵</th></tr></thead><tbody><tr><td><code>PipelineJobQueryServiceTests</code></td><td>8</td><td><strong><code>GetSummary_TotalEqualsPendingJobsCount</code></strong>：卡片數字＝頁面列數這個核心不變量。另 <code>CoversAllSevenPipelines</code>（反射比對 <code>PipelineNames</code>，讓「漏掉某條管線」不可能再回歸）、<code>KnowledgeSourceWithThreeActiveColumns_ProducesThreeRows</code>、<code>ExcludesTerminalStatuses</code>（逐一列出每條管線的終態字面值——它們不同構，用「Contains(完成)」之類的啟發式會漏）</td></tr><tr><td><code>MeetingMinutesCancellationTests</code></td><td>9</td><td><strong><code>Processor_WhenMinutesStatusCancelled_SkipsWithoutTouchingStatus</code></strong>（使用者指定必備）。另 <code>MinutesStatusOptions_ContainsEveryMinutesStatusConstant</code> 反射守死上述 Options 陷阱、<code>RecoverableMinutesStatuses_…</code> 守重啟遺失</td></tr><tr><td><code>PipelineJobCancelServiceTests</code></td><td>3</td><td>分派表完整性（原始碼掃描）＋兩條管線不得分派到相同呼叫 ＋ 未知管線不擲例外</td></tr><tr><td><code>KnowledgeSourceServiceTests</code>（追加）</td><td>3</td><td>EmbeddingIndex 取消三態，<strong>關鍵斷言是「另外兩欄沒被動到」</strong></td></tr></tbody></table></div>
+<h3 id="已實證的兩件事">已實證的兩件事</h3>
+<ol><li><strong><code>Processor_WhenMinutesStatusCancelled_SkipsWithoutTouchingStatus</code> 確實會紅。</strong> 暫時移除守門後，狀態變成「失敗」（重試迴圈吞掉 <code>generationService: null!</code> 的 NRE 並寫入終態）——證明沒有守門時 Processor 真的會繼續往下跑（實際情境就是繼續呼叫 LLM），而測試抓得到。</li><li><strong><code>PipelineJobCancelServiceTests</code> 的分派檢查是原始碼文字層的守門</strong>，不是行為驗證。要用反射真的呼叫每一條分支，得先建出 6 支 Service（<code>MediaTranscriptionService</code> 一支就有 10 個相依），成本遠高於它能多抓到的東西。它保證「新增管線常數卻忘記加 case」會紅燈，但「case 接到正確方法」是由 <code>KnowledgeSourceServiceTests</code> 那三條欄位斷言負責。已寫進測試註解，避免日後誤判覆蓋率。</li></ol>
+<h2 id="影響與相容性" class="t4">影響與相容性</h2>
+<ul><li><strong>既有停在「轉錄完成」的會議資料不會自動變成「排隊中」</strong>，但 <code>RecoverableMinutesStatuses</code> 永久保留該值，所以它們在下次重啟時會被正常收容並重新入列——這反而修好了先前的孤兒。</li><li>會議紀錄被取消時，狀態由「失敗」改為「已取消」。若有既有報表以 <code>MinutesStatus == "失敗"</code> 統計失敗率，數字會變得<strong>更準確</strong>（先前混入了使用者主動取消）。</li><li>儀表板管理者專區由 4 卡變 5 卡；管線分布由 4 條變 7 條（<code>GetDashboardAsync</code> 的往返數 4 → 7，每次都是 <code>GroupBy</code> 計數）。</li><li>「知識來源」這個分布標題改為「知識來源清洗」（已確認無測試斷言此字串）。</li><li>無資料庫 migration（<code>Meeting.MinutesStatus</code> 是無約束的 <code>string?</code>）、無 API 合約變更。</li></ul>
+<h2 id="本次刻意不做" class="t5">本次刻意不做</h2>
+<ul><li><strong>批次取消</strong>：<code>TryCancel</code> 回 false 會 fall-through 直接標記，而實際處理仍在跑、完成時會覆寫回終態；「全部取消」會在最可能有一堆處理中的時刻把這個窗口乘上 N。而收益極小——每條管線 <code>SingleReader</code> ＋ 同步 await，<strong>全系統最多同時 7 列是「處理中」</strong>。安全形狀是「全部取消<strong>等待中</strong>」（不進 <code>TryCancel</code> 分支、零競態），記入 backlog。</li><li><strong>不修 5 支既有 Cancel 的 fall-through 競態</strong>：那是已上線的共同語意，動它等於一次改 7 條管線的行為。本次只確保新寫的 2 支與既有 5 支同構。</li><li><strong>列模型不加「可否取消」欄位</strong>：本頁只列等待中／處理中，定義上都可取消，永遠 true 是死欄位。</li></ul>
+<h2 id="版本" class="t6">版本</h2>
+<ul><li><code>appsettings.json</code> <code>SystemVersion</code>：<code>1.0.77</code> → <code>1.0.78</code>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l3" href="#先確認的技術前提佇列無法列舉">先確認的技術前提：佇列無法列舉</a><a class="l3" href="#③-其實現有機制已支援但有一條管線是例外">③ 其實現有機制已支援，但有一條管線是例外</a><a class="l2" href="#變更">變更</a><a class="l3" href="#一會議紀錄管線四個缺陷先做本批風險最高">一、會議紀錄管線四個缺陷（先做，本批風險最高）</a><a class="l3" href="#二embeddingindex-取消入口">二、EmbeddingIndex 取消入口</a><a class="l3" href="#三查詢與取消服務刻意讀寫分離">三、查詢與取消服務（刻意讀寫分離）</a><a class="l3" href="#四儀表板">四、儀表板</a><a class="l3" href="#五pipeline-jobs-頁面">五、/pipeline-jobs 頁面</a><a class="l2" href="#測試">測試</a><a class="l3" href="#已實證的兩件事">已實證的兩件事</a><a class="l2" href="#影響與相容性">影響與相容性</a><a class="l2" href="#本次刻意不做">本次刻意不做</a><a class="l2" href="#版本">版本</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-26-待處理背景工作頁與會議紀錄管線修正.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

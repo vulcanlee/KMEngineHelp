@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>音訊轉錄：下載來源影片自動轉碼為 H.264（0.2.116）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>音訊轉錄：下載來源影片自動轉碼為 H.264（0.2.116）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-23</li><li>版本：0.2.115 → 0.2.116</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>「音訊轉錄」頁面的「下載來源檔案」按鈕（0.2.115）會提供 yt-dlp／抖音助手保留的<strong>原始影片</strong>下載。但小紅書、抖音等平台的影片常以 <strong>HEVC/H.265</strong>（或 VP9、AV1）編碼，Windows 內建播放器需另購「HEVC 視訊延伸模組」才能播放。本次新增：下載並保留原始影片後，自動將<strong>非「H.264 + MP4」</strong>的影片重新編碼為 <strong>H.264（libx264）+ AAC、MP4 容器</strong>，下載到的來源影片即可在一般 Windows 播放器直接播放。</p>
+<h2 id="內容" class="t2">內容</h2>
+<ul><li><strong>轉碼範圍</strong>：只要不是「H.264 編碼且 MP4 容器」就轉（涵蓋 HEVC、VP9、AV1，以及 mkv／webm 等容器）；</li></ul>
+<p>已是 H.264 MP4 則跳過、不重編，避免畫質損失與多餘耗時。</p>
+<ul><li><strong>原檔處理</strong>：轉碼成功後<strong>取代原檔</strong>（不保留未轉碼版本），<code>OriginalMediaRelativePath</code> 改指向轉碼後的 <code>.mp4</code>；</li></ul>
+<p>下載檔名與 MIME 由副檔名推斷（<code>.mp4</code> → <code>video/mp4</code>），下載服務無需改動。</p>
+<ul><li><strong>適用來源</strong>：於背景下載完成後在單一中央接點處理，同時涵蓋 yt-dlp（YouTube／小紅書）與抖音兩條路徑。</li><li><strong>失敗策略</strong>：轉碼屬加值，沿用「原始影片保留失敗不中斷」哲學——任何例外只記 <code>LogWarning</code> 並保留原檔，</li></ul>
+<p>轉錄主流程照常完成。</p>
+<h2 id="實作" class="t3">實作</h2>
+<ul><li>新增 <code>VideoTranscoder</code>（<code>Business/Services/Transcription/VideoTranscoder.cs</code>）：</li></ul>
+<p>以 <code>ffmpeg -i</code> 解析 stderr 探測視訊編碼（不依賴 ffprobe），需轉碼時以 <code>-c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart</code> 輸出 MP4； 抽出純函式 <code>NeedsTranscode(extension, videoCodec)</code> 供單元測試。</p>
+<ul><li><code>TranscriptionProcessor.DownloadFromUrlAsync</code>：取得下載結果後、寫入紀錄前，若有保留原始影片即呼叫</li></ul>
+<p><code>VideoTranscoder.EnsurePlayableAsync</code>，並以轉碼後路徑回算 <code>OriginalMediaRelativePath</code>。</p>
+<ul><li>測試：<code>VideoTranscoderTests</code> 驗證 <code>NeedsTranscode</code> 的容器／編碼判斷（h264 mp4 跳過、HEVC／VP9／非 mp4 轉碼、無視訊串流不轉）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#內容">內容</a><a class="l2" href="#實作">實作</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-23-下載來源影片轉碼H264.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

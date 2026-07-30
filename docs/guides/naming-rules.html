@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識庫命名規範與範例｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>知識庫命名規範與範例</h1><p class="sub">規定「上傳前的檔案、素材紀錄、知識來源、團隊、分類、提示詞、清洗設定檔、知識頁、評測樣本」的命名格式，並說明每一條規則背後的系統行為。這不是格式偏好，是系統行為的直接約束——命名錯了，權控會漏、AI 會答錯型號、評測基線會靜默失效。</p></header><div class="docwrap"><main><ul><li>文件用途：規定「上傳前的檔案、素材紀錄、知識來源、團隊、分類、提示詞、清洗設定檔、知識頁、評測樣本」的命名格式，並說明每一條規則背後的系統行為。<strong>這不是格式偏好，是系統行為的直接約束</strong>——命名錯了，權控會漏、AI 會答錯型號、評測基線會靜默失效。</li><li>主要讀者：<strong>所有會在系統裡建立資料的人</strong>（知識庫管理者、各部門承辦、導入顧問）</li><li>文件版本：1.0</li><li>建立日期：2026/07/30</li><li>更新日期：2026/07/30</li><li>對應系統版本：1.0.107（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p><strong>先讀這個</strong>：本文只講「名字該怎麼取」。畫面在哪、按鈕怎麼按，看 <a href="../../docs/guides/setup-guide.html">基礎設定指南</a> 與 <a href="../../docs/guides/complete-manual.html">完整操作手冊</a>；欄位裡的<strong>內容</strong>（分類詞庫怎麼想、提示詞怎麼寫）看 <a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南</a>。</p>
+<p><strong>一頁版</strong>：<a href="../../docs/guides/naming-cheatsheet.html">知識庫命名規範－速查卡</a>（可列印，發給每一個會建資料的人）。</p></blockquote>
+<h2 id="與既有文件的分工" class="t1">與既有文件的分工</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>它負責</th><th>本文不重複</th></tr></thead><tbody><tr><td><a href="../../docs/guides/setup-guide.html">基礎設定指南</a></td><td>團隊／分類／角色／使用者<strong>頁面怎麼操作</strong>、設定順序、權限樹</td><td>操作步驟</td></tr><tr><td><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南</a></td><td>分類詞庫怎麼設計、提示詞內容怎麼寫</td><td>內容設計方法</td></tr><tr><td><a href="../../docs/strategy/multi-tenant-planning.html">多客戶、多客製、多型號的知識庫規劃分析</a></td><td>多客戶／多型號情境下<strong>為什麼</strong>要這樣切（含檢索機制推導 F1～F13）</td><td>機制推導</td></tr><tr><td><a href="../../docs/guides/import-guide.html">資料匯入指南</a></td><td>支援格式、大小上限、匯入管道</td><td>格式與上限</td></tr><tr><td><strong>本文</strong></td><td><strong>每一種物件的名字長什麼樣</strong>、正反例、改名的後果</td><td>—</td></tr></tbody></table></div>
+<hr>
+<h2 id="一為什麼在這套系統裡命名是硬規範" class="t2">一、為什麼在這套系統裡，命名是硬規範</h2>
+<h3 id="11-名字有四個消費者不只有你">1.1 名字有四個消費者，不只有你</h3>
+<p>大多數人取名字時只想到「我以後找得到」。但在這套系統裡，同一個名字會被四種不同的東西讀取，四者要求不一樣：</p>
+<div class="tw"><table><thead><tr><th>消費者</th><th>它怎麼用名字</th><th>對名字的要求</th></tr></thead><tbody><tr><td><strong>人</strong></td><td>在清單頁打關鍵字搜尋、在下拉選單裡挑</td><td>前面幾個字就要能分辨</td></tr><tr><td><strong>AI（回答問題時）</strong></td><td>知識來源標題會<strong>原文貼進 AI 看到的參考資料前面</strong>，格式是 <code>【來源：{標題}｜{層}｜{章節}】</code></td><td><strong>單獨一行看得懂</strong>，不能依賴上下文</td></tr><tr><td><strong>評測</strong></td><td>檢索品質評測用「期望命中的知識來源標題」<strong>逐字比對</strong>來算分數</td><td><strong>上線後不要改</strong></td></tr><tr><td><strong>權控與篩選</strong></td><td>團隊／分類是以<strong>名稱字串</strong>存在每一筆紀錄上做比對</td><td><strong>一次訂對，不要事後改</strong></td></tr></tbody></table></div>
+<p>第二項是最容易被忽略、代價最大的一項。如果你有五個知識來源都叫「佈署手冊」，AI 拿到的參考資料前面就會出現五段一樣的「【來源：佈署手冊】」——它無從分辨哪一段是哪個客戶、哪個型號的，於是它會<strong>混著答</strong>。這種錯誤不會報錯，只會給你一個看起來很有自信的錯答案。</p>
+<h3 id="12-十件會讓你改不動的事">1.2 十件會讓你「改不動」的事</h3>
+<p>以下每一條都已對系統實際行為確認。<strong>看不懂細節沒關係，只要記住右邊那一欄。</strong></p>
+<div class="tw"><table><thead><tr><th>#</th><th>系統實際行為</th><th>對你的意義</th></tr></thead><tbody><tr><td>N1</td><td>分類與團隊是以<strong>名稱字串</strong>存在每一筆紀錄上，不是用編號連結</td><td><strong>改分類／團隊的名稱，不會回頭改已經建好的紀錄</strong>。舊紀錄上留的還是舊名字，於是篩選找不到它、團隊權控也可能因此失準</td></tr><tr><td>N2</td><td>刪除分類／團隊時，系統<strong>不會檢查有沒有被使用</strong></td><td>刪掉不會被擋，紀錄上的字串還在。已知還會出現「刪掉的專案分類重啟後復活」</td></tr><tr><td>N3</td><td>知識來源標題會<strong>原文進入 AI 的參考資料前綴</strong></td><td>標題人看不懂，AI 就分不清客戶與型號</td></tr><tr><td>N4</td><td>檢索品質評測以<strong>知識來源標題逐字比對</strong>當正確答案</td><td>改了標題，既有評測分數會莫名下降，而且<strong>不會有任何錯誤訊息</strong></td></tr><tr><td>N5</td><td>提示詞有 <strong>20 個系統保留名稱</strong>，比對是<strong>逐字精確</strong>（連空白與大小寫都不寬鬆）</td><td>名稱差一個空白＝你的設定<strong>靜默不生效</strong>；不小心撞到保留名稱＝<strong>你改到了系統行為</strong></td></tr><tr><td>N6</td><td>素材清單的搜尋範圍包含<strong>上傳時的原始檔名</strong></td><td>上傳前的檔名是唯一的「檔案級」搜尋線索，值得訂規則</td></tr><tr><td>N7</td><td>知識來源清單的搜尋<strong>只吃標題與描述</strong>（不吃檔名）</td><td>盒子標題必須自足</td></tr><tr><td>N8</td><td>知識頁（Wiki）標題是 <code>[[雙括號連結]]</code> 的比對鍵</td><td>同一個概念用兩種寫法＝連結斷掉，兩頁各自孤立</td></tr><tr><td>N9</td><td>關鍵字比對<strong>會把連字號當分隔符切開</strong>（<code>EPS-3000</code> 會被切成 <code>EPS</code> 與 <code>3000</code>）、<strong>中文不斷詞</strong>；而且章節標題<strong>不會併進內容區塊</strong></td><td>型號的書寫方式有規約，見 §四</td></tr><tr><td>N10</td><td>標題的長度限制<strong>各處不一致</strong>（有的限 200 字、有的沒設限）</td><td>不要依賴系統幫你擋，自己守 §二 的建議長度</td></tr></tbody></table></div>
+<blockquote><p>N1 與 N4 合起來就是本文最重要的一句話：<strong>知識庫的名字，比你想像的更接近「資料庫的主鍵」。</strong> 上線前多花兩小時訂規則，比上線後花兩週補救便宜得多。</p></blockquote>
+<h3 id="13-好消息兩件你不用擔心的事">1.3 好消息：兩件你不用擔心的事</h3>
+<ul><li><strong>前綴重疊是安全的</strong>。系統做的是「精確成員比對」，所以有「業務」這個團隊時，不會誤中「業務二部」。名稱可以共用前綴。</li><li><strong>標籤的頭尾空白會自動去掉</strong>，重複的標籤也會自動去重。手滑多打一個空白不會壞事。</li></ul>
+<hr>
+<h2 id="二命名總表速查" class="t3">二、命名總表（速查）</h2>
+<p>「可否事後改」欄位是本表最重要的一欄。</p>
+<div class="tw"><table><thead><tr><th>物件</th><th>建議格式</th><th>系統長度上限</th><th>建議長度</th><th>可否事後改</th><th>改了會壞什麼</th></tr></thead><tbody><tr><td>上傳前的原始檔名</td><td><code>{YYYYMMDD}_{對象}_{文件族}_{版次}.{ext}</code></td><td>依作業系統</td><td>≤80 字元</td><td>✅ 上傳前可隨意改</td><td>上傳後不影響系統，但清單搜尋就找不到新名字</td></tr><tr><td>影音轉逐字稿標題</td><td><code>{主題}｜{場合或原始文件}｜{日期}</code></td><td>未設限</td><td><strong>≤60 字</strong></td><td>⚠️ 可改，但會影響追溯</td><td>無立即損壞</td></tr><tr><td>文件轉文字標題</td><td>同上</td><td>未設限</td><td><strong>≤60 字</strong></td><td>⚠️ 同上</td><td>無立即損壞</td></tr><tr><td>圖片解讀標題</td><td><code>圖片｜{對象與內容}｜{日期}</code></td><td>部分路徑 200 字</td><td><strong>≤60 字</strong></td><td>⚠️ 同上</td><td>無立即損壞</td></tr><tr><td>會議紀錄標題</td><td><code>{會議類型}｜{主題}｜{日期}</code></td><td>未設限</td><td><strong>≤60 字</strong></td><td>⚠️ 同上</td><td>無立即損壞</td></tr><tr><td><strong>知識來源（盒子）標題</strong></td><td><code>{範圍}｜{對象}｜{版本或期間}｜{文件族}</code></td><td>未設限</td><td><strong>≤60 字</strong></td><td>❌ <strong>上線後不要改</strong></td><td>AI 的參考資料前綴變了、<strong>檢索評測基線靜默失效</strong>（N3／N4）</td></tr><tr><td>團隊名稱</td><td>組織或客戶的實際稱法，2～8 字</td><td>100 字</td><td>2～8 字</td><td>❌ <strong>不要改</strong></td><td>既有紀錄上的舊團隊字串不會更新 → <strong>權控失準</strong>（N1）</td></tr><tr><td>團隊代號</td><td>大寫英數，<code>ENG</code>／<code>PUR</code></td><td>50 字</td><td>2～6 字</td><td>⚠️ 可改（僅供辨識）</td><td>影響不大</td></tr><tr><td>知識庫分類</td><td>單一維度、2～6 字</td><td>100 字</td><td>2～6 字</td><td>❌ <strong>不要改</strong></td><td>既有紀錄的舊分類字串不會更新 → <strong>篩選找不到</strong>（N1）</td></tr><tr><td>專案分類</td><td>同上（<strong>另一份獨立主檔</strong>）</td><td>100 字</td><td>2～6 字</td><td>❌ 不要改</td><td>同上</td></tr><tr><td>提示詞名稱</td><td>自訂一律加 <code>自訂-</code> 前綴</td><td>100 字</td><td>≤20 字</td><td>⚠️ 可改，但<strong>不可撞保留字</strong></td><td>撞到保留名稱＝改到系統行為；改掉保留名稱＝設定靜默失效（N5）</td></tr><tr><td>清洗設定檔名稱</td><td><code>{適用範圍}-{強度或特性}</code></td><td>100 字</td><td>≤20 字</td><td>✅ 可改</td><td>無</td></tr><tr><td>知識頁（Wiki）標題</td><td>單一標準名詞，不帶版本與括號</td><td>未設限</td><td>≤20 字</td><td>⚠️ 審核時就要正規化</td><td>改了會讓 <code>[[連結]]</code> 斷鏈（N8）</td></tr><tr><td>檢索／黃金評測樣本標題</td><td><code>{部門}-{情境}-{編號}</code></td><td>未設限</td><td>≤30 字</td><td>✅ 可改</td><td>無（但樣本裡的<strong>期望來源標題</strong>必須跟著盒子）</td></tr></tbody></table></div>
+<blockquote><p><strong>關於「建議長度 ≤60 字」</strong>：這不是系統限制，是實務限制。知識來源標題會整段貼進 AI 的參考資料，太長會擠掉真正的內容；而且清單頁與下拉選單會截斷，看不到後半段。</p></blockquote>
+<hr>
+<h2 id="三逐物件的命名規則" class="t4">三、逐物件的命名規則</h2>
+<p>以下範例統一使用一家虛構製造業公司「<strong>眾宇精密機電</strong>」（工業電源模組 <code>EPS-3000</code>／<code>EPS-5000</code> 系列與機構件代工），與 <a href="../../docs/guides/department-playbook.html">企業實戰情境劇本</a> 是同一家公司。請自行代換成你們的實際名稱。</p>
+<h3 id="31-上傳前的原始檔名">3.1 上傳前的原始檔名</h3>
+<p><strong>格式</strong></p>
+<pre><code>{YYYYMMDD}_{對象}_{文件族}_{版次}.{副檔名}</code></pre>
+<ul><li>日期放最前面，檔案總管按名稱排序就等於按時序排序。</li><li>用<strong>半形底線</strong> <code>_</code> 分段（不要用空白，空白在下載連結與腳本裡容易出問題）。</li><li>版次沒有就省略，不要留空的底線。</li></ul>
+<p><strong>正例</strong></p>
+<pre><code>20260311_EPS-3000_機構公差規範_RevC.pdf
+20260408_EPS-3000_二次樣品審圖會議_錄音.m4a
+20260415_精鋼金屬_供應商評鑑報告_2026H1.xlsx
+20251120_SMT一線_錫膏印刷作業標準_v4.docx</code></pre>
+<p><strong>反例與原因</strong></p>
+<div class="tw"><table><thead><tr><th>反例</th><th>為什麼會出事</th></tr></thead><tbody><tr><td><code>規範.pdf</code>、<code>掃描件 (3).pdf</code>、<code>新增資料夾/文件1.docx</code></td><td>上傳後只剩這個名字可搜尋（N6），等於沒有線索</td></tr><tr><td><code>最新版_規範_final_真的最終版.pdf</code></td><td>三個月後沒人知道哪個是最新的。版本靠系統的版本鏈與日期，不靠形容詞</td></tr><tr><td><code>EPS3000規範.pdf</code></td><td>型號少了連字號，跟文件內的 <code>EPS-3000</code> 寫法不一致，日後搜尋兩邊撈不到同一批</td></tr><tr><td><code>2026-03-11 EPS-3000 公差 (張工提供).pdf</code></td><td>含空白與括號；「張工提供」是過程資訊，不是內容資訊</td></tr></tbody></table></div>
+<blockquote><p><strong>這一節為什麼重要</strong>：檔案實際存進系統時會改成一組亂數編號，但<strong>原始檔名會被保留下來，而且素材清單的搜尋吃得到它</strong>。這是你唯一能從「檔案」這一層找回東西的線索。</p></blockquote>
+<h3 id="32-素材紀錄標題影音文件圖片會議四型">3.2 素材紀錄標題（影音／文件／圖片／會議四型）</h3>
+<p>素材是「知識來源盒子」的成員。它的標題要回答一件事：<strong>這是哪一份原始資料的哪一部分？</strong></p>
+<p><strong>格式</strong></p>
+<pre><code>{文件族或主題}｜{原始文件或場合}｜{日期或版次}</code></pre>
+<p><strong>正例</strong></p>
+<pre><code>設計規範｜EPS-3000 機構公差規範 Rev.C｜2026-03-11
+審圖會議｜EPS-3000 二次樣品審查｜2026-04-08
+圖片｜EPS-3000 散熱片標註圖 3 之 2｜2026-04-08
+供應商評鑑｜精鋼金屬 2026 上半年｜2026-04-15
+作業標準｜SMT 一線錫膏印刷 v4｜2025-11-20</code></pre>
+<p><strong>反例與原因</strong></p>
+<div class="tw"><table><thead><tr><th>反例</th><th>為什麼會出事</th></tr></thead><tbody><tr><td><code>會議錄音</code>、<code>規範</code>、<code>圖片1</code></td><td>十筆之後完全無法分辨。<strong>這是實務上最常見的錯誤</strong></td></tr><tr><td><code>張經理提供的那份</code></td><td>依賴只有你知道的上下文；張經理離職後這筆資料等於消失</td></tr><tr><td><code>EPS-3000 散熱片標註圖 3 之 2（含王工手寫註記，未經確認，僅供參考）</code></td><td>括號裡的免責聲明應該寫在<strong>描述欄位</strong>，不是標題。標題要短到能在清單裡一眼掃過</td></tr></tbody></table></div>
+<blockquote><p>圖片素材建議一律以「圖片｜」開頭。原因很實際：圖片解讀的產出是文字，混在文件素材裡時，前綴能讓你一眼知道它的原始形態是圖，判讀可信度時會需要這個資訊。</p></blockquote>
+<h3 id="33-知識來源盒子標題--最重要的一項">3.3 知識來源（盒子）標題 —— 最重要的一項</h3>
+<p>這是全系統唯一會<strong>原文進入 AI 視野</strong>的名字（N3），也是檢索評測的比對鍵（N4）。<strong>只有這一項值得你花一個下午討論。</strong></p>
+<p><strong>格式</strong></p>
+<pre><code>{範圍}｜{對象}｜{版本或期間}｜{文件族}</code></pre>
+<p>四段、用<strong>全形分隔號 <code>｜</code></strong>、每段 2～12 字、總長 ≤60 字。四段都要有，沒有的填「全公司」「不分版」這類明確值，<strong>不要留空</strong>。</p>
+<div class="tw"><table><thead><tr><th>段</th><th>放什麼</th><th>取值範例</th></tr></thead><tbody><tr><td>範圍</td><td>這批知識屬於誰／哪個邊界</td><td>客戶名／產品線／廠區／<code>全公司</code>／<code>標準版</code></td></tr><tr><td>對象</td><td>具體的系統、型號系列、設備或流程</td><td><code>EPS-3000 系列</code>／<code>SMT 一線</code>／<code>ISO 9001</code></td></tr><tr><td>版本或期間</td><td>版次或適用期間</td><td><code>Rev.C</code>／<code>v3</code>／<code>2026</code>／<code>2024-2026</code>／<code>不分版</code></td></tr><tr><td>文件族</td><td>這盒裝的是哪一類文件</td><td><code>設計規範與公差</code>／<code>故障排除</code>／<code>評鑑與交期紀錄</code></td></tr></tbody></table></div>
+<p><strong>正例</strong></p>
+<pre><code>眾宇｜EPS-3000 系列｜Rev.C｜設計規範與公差
+眾宇｜EPS-3000 系列｜Rev.C｜審圖決議與失效案例
+眾宇｜SMT 一線｜2026｜作業標準與異常處置
+供應商｜精鋼金屬｜2024-2026｜評鑑與交期紀錄
+全公司｜ISO 9001｜2026 版｜稽核不符合與矯正
+客戶 A｜EPS-5000 客製｜v2｜客製差異說明</code></pre>
+<p><strong>反例與原因</strong></p>
+<div class="tw"><table><thead><tr><th>反例</th><th>為什麼會出事</th></tr></thead><tbody><tr><td><code>設計規範</code></td><td>AI 拿到十段前綴都是「【來源：設計規範】」，<strong>無法分辨型號，於是混著答</strong>。這是本文開頭那個問題的具體長相</td></tr><tr><td><code>EPS-3000</code></td><td>只有對象，沒說是規範、會議還是客訴，AI 無法判斷這段內容的權威性</td></tr><tr><td><code>眾宇-EPS3000-RevC-規範</code></td><td>用半形連字號分段。連字號在關鍵字比對時會被當分隔符切開（N9），而且視覺上跟型號本身的連字號混淆</td></tr><tr><td><code>眾宇｜EPS-3000 系列｜Rev.C｜設計規範與公差（含 2026 年 4 月審圖會議決議與王工補充說明）</code></td><td>超過 60 字，貼進 AI 參考資料時會擠掉真正的內容</td></tr><tr><td><code>第一批</code>、<code>測試用</code>、<code>暫定</code></td><td>三個月後這盒還在，而且<strong>沒人敢刪</strong>（不確定裡面有沒有正式資料）</td></tr></tbody></table></div>
+<p><strong>一盒該裝多少？</strong> 判準是「<strong>會不會一起失效</strong>」：同一份規範改版時要一起重新清洗的東西，放同一盒；生命週期不同的東西分盒。會議紀錄與規範本文通常該分盒——規範改版時會議紀錄不需要跟著重跑。細節見 <a href="../../docs/strategy/multi-tenant-planning.html">多客戶多型號規劃分析 §3.5、§3.7</a>。</p>
+<p>⚠️ <strong>還有一個規模上的判準</strong>：一盒的成員建議控制在 <strong>5～15 個</strong>。太多會讓清洗時內容被模型輸出上限<strong>靜默截斷</strong>（狀態仍是「已清洗」卻少了一大段）。判斷方法與實測上限的步驟見 <a href="../../docs/guides/source-scale-limits.html">知識來源分盒與規模上限指南</a>。</p>
+<p><strong>同一文件族要分多盒時，序號加在「文件族」那一段的後面</strong>，不要改前三段：</p>
+<pre><code>眾宇｜迴焊爐 RF-8｜不分版｜設備手冊之一 安裝與參數
+眾宇｜迴焊爐 RF-8｜不分版｜設備手冊之二 故障排除</code></pre>
+<p>理由：前三段（範圍／對象／版本）是給人與 AI 辨識「這是誰的、哪個型號、哪一版」用的，動了會讓同一批知識看起來像不同對象的。另外，<strong>序號要對應內容主題，不要用來表達「第一批匯入／第二批匯入」</strong>——那是過程資訊，三個月後沒有意義。</p>
+<blockquote><p><strong>與既有規範的關係</strong>：<a href="../../docs/strategy/multi-tenant-planning.html">多客戶多型號規劃分析 §3.3</a> 訂的格式是 <code>{客戶}｜{系統}｜{大版本}｜{文件族}</code>。本文的格式與它<strong>完全相容</strong>——「客戶」只是「範圍」的一種取值。多客戶情境請直接用那份的寫法，非多客戶情境用本文的通用版。</p></blockquote>
+<h3 id="34-團隊">3.4 團隊</h3>
+<p>團隊是系統<strong>唯一的硬權限</strong>（沒有團隊＝公開；有團隊＝必須有交集才看得到）。所以團隊命名的判準不是組織圖，而是「<strong>誰不該看到什麼</strong>」。</p>
+<p><strong>規則</strong></p>
+<ul><li>用組織或客戶的<strong>實際稱法</strong>，2～8 字，不加修飾語。</li><li>代號用<strong>大寫英數</strong>，2～6 字（選填，有填則必須唯一）。</li><li><strong>一次訂對</strong>。改名不會回寫既有紀錄（N1），權控會因此失準。</li></ul>
+<p><strong>正例</strong></p>
+<div class="tw"><table><thead><tr><th>名稱</th><th>代號</th><th>說明</th></tr></thead><tbody><tr><td>研發工程</td><td><code>ENG</code></td><td></td></tr><tr><td>採購</td><td><code>PUR</code></td><td></td></tr><tr><td>製造</td><td><code>MFG</code></td><td></td></tr><tr><td>品保</td><td><code>QA</code></td><td></td></tr><tr><td>客服業務</td><td><code>CS</code></td><td></td></tr><tr><td>人資行政</td><td><code>HR</code></td><td></td></tr><tr><td>客戶 A</td><td><code>CUSA</code></td><td>客戶會登入時才需要，這是資安紅線</td></tr></tbody></table></div>
+<p><strong>反例與原因</strong></p>
+<div class="tw"><table><thead><tr><th>反例</th><th>為什麼會出事</th></tr></thead><tbody><tr><td><code>王經理的組</code></td><td>人一走，團隊名就沒有意義，但已經寫在幾百筆紀錄上（N1）</td></tr><tr><td><code>新產品專案</code></td><td>專案會結束。結束後這個團隊要留還是刪？刪了紀錄上的字串還在（N2）</td></tr><tr><td><code>研發工程部第二科機構組</code></td><td>太長，下拉選單看不完；而且組織一改就作廢</td></tr><tr><td><code>暫時</code>、<code>測試團隊</code></td><td>測試資料會留下來，而且會被誤當正式資料</td></tr></tbody></table></div>
+<h3 id="35-知識庫分類">3.5 知識庫分類</h3>
+<p><strong>分類不控權限，只做歸類與篩選。</strong> 而且有一個關鍵限制：<strong>問答時多選分類是「或」不是「且」</strong>——同時選「客戶 A」和「佈署文件」，得到的是兩者的<strong>聯集</strong>（範圍反而變大），不是交集。</p>
+<p>因此：</p>
+<blockquote><p><strong>分類只能承擔一個維度。</strong> 建議這個維度就是「<strong>文件用途</strong>」，客戶／型號／環境等維度交給知識來源盒子（§3.3）承擔。</p></blockquote>
+<p><strong>規則</strong></p>
+<ul><li>只放<strong>單一維度</strong>，控制在 <strong>10 個以內</strong>（超過 20 個之後，貼標籤的人會開始猜、開始不一致）。</li><li>每個分類 2～6 字。</li><li><strong>描述欄位必寫「什麼算／什麼不算」的邊界句</strong>——分類清單的搜尋吃描述欄位，而且這句話是日後所有人判斷「該貼哪個標」的唯一依據。</li></ul>
+<p><strong>正例（製造業，8 個）</strong></p>
+<div class="tw"><table><thead><tr><th>分類名稱</th><th>描述（邊界句）</th></tr></thead><tbody><tr><td>設計規範</td><td>算：圖學、公差、材質、電氣規格等設計依據。不算：個案的審圖決議（歸「審查決議」）</td></tr><tr><td>審查決議</td><td>算：審圖／設計審查會議的結論與待辦。不算：規範本文</td></tr><tr><td>作業標準</td><td>算：現場照著做的步驟與參數。不算：異常處置（歸「異常與矯正」）</td></tr><tr><td>異常與矯正</td><td>算：不符合、客訴、8D、矯正預防措施。不算：例行點檢紀錄</td></tr><tr><td>供應商</td><td>算：評鑑、報價、交期、品質異常。不算：合約條款（歸「合約與法務」）</td></tr><tr><td>合約與法務</td><td>算：合約、NDA、保固條款。不算：報價單</td></tr><tr><td>教育訓練</td><td>算：教材、訓練紀錄、新人手冊</td></tr><tr><td>客戶服務</td><td>算：客訴處理、技術支援問答、FAQ</td></tr></tbody></table></div>
+<p><strong>反例與原因</strong></p>
+<div class="tw"><table><thead><tr><th>反例</th><th>為什麼會出事</th></tr></thead><tbody><tr><td>同時建 <code>客戶A</code>／<code>客戶B</code>／<code>佈署</code>／<code>維運</code>／<code>SQLServer</code>／<code>Windows</code></td><td>多維度混在一份分類裡。多選＝聯集，<strong>篩選範圍反而變大，而且畫面不會提示你</strong>。這是最常踩、而且踩了不會自己發現的坑</td></tr><tr><td><code>其他</code>、<code>雜項</code>、<code>未分類</code></td><td>三個月後這一類會裝一半的資料，等於沒分類</td></tr><tr><td>建了 35 個分類</td><td>貼標籤的人開始猜，同一種文件被貼成三種標，篩選不再可靠</td></tr><tr><td><code>重要</code>、<code>急件</code></td><td>這是狀態不是分類，而且沒有客觀邊界</td></tr></tbody></table></div>
+<blockquote><p><strong>專案分類是另一份獨立主檔</strong>（餵給專案／工作／會議三個畫面），與知識庫分類資料互不影響。兩份的命名<strong>不要互抄</strong>——知識庫分類放「文件用途」，專案分類放「專案性質」（如 <code>客戶專案</code>／<code>內部專案</code>／<code>維運</code>）。細節見 <a href="../../docs/guides/setup-guide.html">基礎設定指南 §五</a>。</p></blockquote>
+<h3 id="36-提示詞名稱--有-20-個保留字">3.6 提示詞名稱 —— 有 20 個保留字</h3>
+<p>系統有 20 個<strong>保留名稱</strong>。當提示詞清單裡出現這些名字時，系統會拿它去<strong>覆蓋對應的內建行為</strong>。比對是<strong>逐字精確</strong>的（大小寫與空白都不寬鬆）。</p>
+<p>這造成兩個方向的風險：</p>
+<ul><li><strong>想覆蓋卻沒生效</strong>：名稱多一個空白、用了半形連字號、寫成 <code>清洗–去重</code>（不同的破折號）→ 系統當它是普通提示詞，<strong>你的設定靜默不生效</strong>，畫面不會報錯。</li><li><strong>不想覆蓋卻覆蓋了</strong>：自訂提示詞不小心取名 <code>清洗-摘要</code> → 你改到了全系統的清洗行為。</li></ul>
+<p><strong>20 個保留名稱（逐字，不要改動任何字元）</strong></p>
+<div class="tw"><table><thead><tr><th>分類</th><th>保留名稱</th></tr></thead><tbody><tr><td>清洗管線（5）</td><td><code>清洗-去重</code>、<code>清洗-遮罩</code>、<code>清洗-分類</code>、<code>清洗-摘要</code>、<code>清洗-信心</code></td></tr><tr><td>一般對話（4）</td><td><code>對話-系統</code>、<code>對話-簡潔</code>、<code>對話-標準</code>、<code>對話-詳細</code></td></tr><tr><td>知識庫問答（2）</td><td><code>知識庫-系統</code>、<code>知識庫-查詢改寫</code></td></tr><tr><td>知識蒸餾（1）</td><td><code>蒸餾-生成</code></td></tr><tr><td>知識圖譜（5）</td><td><code>圖譜-三元組抽取</code>、<code>圖譜-社群摘要</code>、<code>圖譜-全域map</code>、<code>圖譜-全域reduce</code>、<code>圖譜-別名建議</code></td></tr><tr><td>會議（1）</td><td><code>會議-紀錄生成</code></td></tr><tr><td>文件（1）</td><td><code>文件-PDF轉Markdown</code></td></tr><tr><td>轉錄（1）</td><td><code>轉錄-提示</code></td></tr></tbody></table></div>
+<p><strong>規則</strong></p>
+<ul><li><strong>自訂提示詞一律加 <code>自訂-</code> 前綴</strong>，例：<code>自訂-審圖重點摘要</code>、<code>自訂-供應商評鑑判讀</code>、<code>自訂-機構圖標註解讀</code>。這樣永遠不會誤撞保留字。</li><li>要覆蓋系統行為時，<strong>從上表複製貼上</strong>，不要手打。</li><li>名稱要說明「用在哪個場景」，不是「用什麼技巧」。<code>自訂-審圖重點摘要</code> 好；<code>自訂-三段式CoT提示v2</code> 不好（半年後沒人知道它該用在哪）。</li></ul>
+<h3 id="37-清洗設定檔名稱">3.7 清洗設定檔名稱</h3>
+<p><strong>格式</strong>：<code>{適用範圍}-{強度或特性}</code></p>
+<p><strong>正例</strong>：<code>工程規範-嚴格遮罩</code>、<code>會議紀錄-寬鬆去重</code>、<code>供應商合約-最高遮罩</code>、<code>教育訓練-標準</code></p>
+<p><strong>反例</strong>：<code>設定檔1</code>、<code>測試</code>、<code>新的</code>、<code>王工的設定</code></p>
+<blockquote><p>多數情況<strong>不需要建設定檔</strong>——五段提示詞留空就是用系統預設。只有當某一類素材確實需要不同處理方式（例如合約類要更嚴的遮罩）才建。詳見 <a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定使用指南</a>。</p></blockquote>
+<h3 id="38-知識頁wiki標題">3.8 知識頁（Wiki）標題</h3>
+<p>知識頁是蒸餾自動產生的，但標題是 <code>[[雙括號連結]]</code> 的<strong>比對鍵</strong>（N8）——同一個概念用兩種寫法，兩頁就各自孤立、互相連不到。所以<strong>審核知識頁時要順手正規化標題</strong>。</p>
+<p><strong>規則</strong></p>
+<ul><li>用<strong>單一標準名詞</strong>。組織內同一個概念只能有一種寫法。</li><li><strong>不帶版本</strong>（<code>散熱片公差</code> 而非 <code>散熱片公差 Rev.C</code>）——版本由系統的版次欄位承載。</li><li><strong>不帶括號補語</strong>（<code>錫膏印刷</code> 而非 <code>錫膏印刷（SMT 一線）</code>）。</li><li>同義詞<strong>不要靠改標題統一</strong>，交給知識圖譜的「別名合併」處理（查 <code>EPS-3000</code> 等同查 <code>EPS3000</code>）。見 <a href="../../docs/guides/knowledge-graph.html">知識圖譜使用指南</a>。</li></ul>
+<div class="tw"><table><thead><tr><th>好</th><th>不好</th><th>原因</th></tr></thead><tbody><tr><td><code>散熱片公差</code></td><td><code>散熱片公差 Rev.C</code>、<code>散熱片之公差要求</code></td><td>帶版本／贅字，同概念會分裂成多頁</td></tr><tr><td><code>錫膏印刷</code></td><td><code>錫膏印刷（SMT 一線）</code>、<code>錫膏印刷作業</code></td><td>括號補語與贅字造成斷鏈</td></tr><tr><td><code>精鋼金屬</code></td><td><code>精鋼金屬股份有限公司</code>、<code>精鋼</code></td><td>三種寫法會變三頁。挑一種，其餘設成別名</td></tr></tbody></table></div>
+<h3 id="39-評測樣本標題">3.9 評測樣本標題</h3>
+<p><strong>格式</strong>：<code>{部門}-{情境}-{編號}</code></p>
+<p><strong>正例</strong>：<code>工程-公差查詢-01</code>、<code>採購-替代料-03</code>、<code>製造-故障排除-07</code>、<code>越權測試-客戶A-01</code></p>
+<p><strong>關鍵規則</strong>：樣本裡的「<strong>期望命中的知識來源標題</strong>」必須<strong>逐字複製</strong>盒子標題（N4）。手打會打錯，打錯了評測分數會莫名偏低，而且<strong>不會有錯誤訊息</strong>。請從知識來源清單複製貼上。</p>
+<hr>
+<h2 id="四型號版本日期的書寫規約" class="t5">四、型號、版本、日期的書寫規約</h2>
+<p>這一節不只管名字，也管<strong>文件內容</strong>的寫法。原因是關鍵字比對<strong>會把連字號當分隔符切開</strong>、<strong>中文不斷詞</strong>，而且章節標題<strong>不會併進內容區塊</strong>（N9）。</p>
+<div class="tw"><table><thead><tr><th>對象</th><th>規約</th><th>為什麼</th></tr></thead><tbody><tr><td><strong>型號</strong></td><td>全文統一一種寫法（建議帶連字號 <code>EPS-3000</code>）；型號與中文之間留一個<strong>半形空白</strong>（<code>EPS-3000 散熱片</code>）</td><td>兩種寫法並存＝搜尋撈不到同一批。留空白讓關鍵字切詞切得乾淨</td></tr><tr><td><strong>型號（重要）</strong></td><td>在文件的<strong>每一個主要段落</strong>至少完整出現一次，不要只寫在標題或第一段</td><td>章節標題不會併進內容區塊，長文件的後半段可能<strong>完全不含型號字樣</strong>，於是問答時鎖不到它</td></tr><tr><td><strong>版次</strong></td><td>全公司統一用 <code>Rev.C</code> 或 <code>v3</code> <strong>二選一，不要混用</strong></td><td>混用時搜尋要試兩次</td></tr><tr><td><strong>日期</strong></td><td>文件內容與標題用 <code>YYYY-MM-DD</code>；檔名用 <code>YYYYMMDD</code></td><td>標題用連字號好讀；檔名不用連字號，避免與分段底線混淆</td></tr><tr><td><strong>期間</strong></td><td><code>2024-2026</code>、<code>2026H1</code>、<code>2026Q3</code></td><td>固定寫法才搜得到</td></tr><tr><td><strong>英數大小寫</strong></td><td>固定一種寫法，<strong>不要依賴系統忽略大小寫</strong></td><td>不同資料庫的比對行為不完全一致，統一寫法最安全</td></tr></tbody></table></div>
+<blockquote><p>完整的型號辨識機制與四種強弱做法，見 <a href="../../docs/strategy/multi-tenant-planning.html">多客戶多型號規劃分析 §4</a>。<strong>單靠在問句裡打型號是不可靠的</strong>——要可靠鎖定型號，得用問答頁的「限定知識來源」硬篩選。</p></blockquote>
+<hr>
+<h2 id="五更新與改版時怎麼命名" class="t6">五、更新與改版時怎麼命名</h2>
+<p>系統對素材有<strong>版本鏈</strong>（第 1 版、第 2 版…，清單只顯示最新版，舊版從「版本歷史」查）。所以：</p>
+<div class="tw"><table><thead><tr><th>情況</th><th>怎麼做</th></tr></thead><tbody><tr><td>同一份文件出新版（規範 Rev.C → Rev.D）</td><td><strong>上傳新版，用版本鏈接續</strong>。系統內的<strong>素材標題可以更新版次</strong>（它不是評測比對鍵）；<strong>檔名一定要帶新版次</strong></td></tr><tr><td>知識來源盒子的內容有變動</td><td><strong>不要改盒子標題</strong>（N3／N4）。盒子標題裡的版本段是「大版本」，小改版不動它</td></tr><tr><td>大版本升級（v3 → v4），內容大幅不同</td><td><strong>開新盒子</strong>（<code>眾宇｜MES｜v4｜佈署與環境建置</code>），舊盒子保留。不要在同一盒裡混兩個大版本</td></tr><tr><td>素材更新後</td><td><strong>一定要重新清洗 → 重新蒸餾 → 重建索引</strong>。系統會標記「內容已變更」，但<strong>過時是靜默的</strong>——不主動看 <code>/data-consistency</code> 不會有人告訴你</td></tr></tbody></table></div>
+<blockquote><p><strong>標題不要塞版本序號</strong>（<code>規範_第3版</code>）。版本由系統的版本鏈承載，塞在標題裡會出現「第 3 版的第 2 版」這種荒謬狀況。<strong>唯一例外是檔名</strong>——檔名是給人在系統外辨識用的，要帶版次。</p></blockquote>
+<hr>
+<h2 id="六不要放進標題的東西" class="t7">六、不要放進標題的東西</h2>
+<div class="tw"><table><thead><tr><th>不要放</th><th>原因</th></tr></thead><tbody><tr><td><strong>個資與機密</strong>（身分證號、電話、報價金額、薪資）</td><td><strong>遮罩只作用於內容，不作用於標題</strong>。標題會出現在清單、下拉選單，以及 AI 的參考資料前綴——等於繞過遮罩</td></tr><tr><td>無意義流水號（<code>DOC-00473</code>）</td><td>除非這個編號在公司裡真的通行，否則沒人記得</td></tr><tr><td>只有自己懂的縮寫（<code>ZY-3K-GC-RC</code>）</td><td>三個月後連你自己也要想一下</td></tr><tr><td>完整檔案路徑（<code>D:\共用\研發\2026\規範\...</code>）</td><td>路徑會變，而且佔滿長度預算</td></tr><tr><td>過程資訊（<code>張工提供</code>、<code>待確認</code>、<code>從舊系統轉來的</code>）</td><td>這些屬於描述欄位。標題只放「這是什麼」</td></tr><tr><td>形容詞版本（<code>最新</code>、<code>final</code>、<code>真的最終版</code>）</td><td>版本靠版本鏈與日期，不靠形容詞</td></tr><tr><td>表情符號與特殊符號（<code>★</code>、<code>※</code>、<code>#</code>、<code>%</code>、<code>&amp;</code>）</td><td>影響搜尋與連結，且在不同畫面顯示不一致</td></tr></tbody></table></div>
+<hr>
+<h2 id="七上線前自我檢查12-條" class="t8">七、上線前自我檢查（12 條）</h2>
+<p>在匯入第一批正式資料<strong>之前</strong>逐條確認。前面沒做好，後面會白費。</p>
+<ul class="check"><li><span class="box">☐</span>1. 分類詞庫已定案，<strong>只有一個維度</strong>（建議「文件用途」），<strong>10 個以內</strong>，每個都寫了「什麼算／什麼不算」的邊界句。</li><li><span class="box">☐</span>2. 客戶／型號／環境等維度<strong>沒有</strong>放進分類，而是放進知識來源盒子的標題。</li><li><span class="box">☐</span>3. 團隊清單已定案，每個團隊都能回答「誰不該看到什麼」，沒有以人名或暫時性專案命名。</li><li><span class="box">☐</span>4. 知識來源盒子的命名格式已寫成一句話，發給所有會建資料的人（可直接發 <a href="../../docs/guides/naming-cheatsheet.html">速查卡</a>）。</li><li><span class="box">☐</span>5. 隨機抽三個規劃中的盒子標題，<strong>遮住其他資訊單獨念一遍</strong>——如果你自己都要想一下才知道是什麼，AI 也分不出來。</li><li><span class="box">☐</span>6. 全公司的型號寫法已統一（帶不帶連字號、與中文之間有無空白），並寫進文件撰寫規範。</li><li><span class="box">☐</span>7. 版次寫法已統一（<code>Rev.C</code> 或 <code>v3</code>，二選一）。</li><li><span class="box">☐</span>8. 上傳前的檔名規則已公告，且負責上傳的人知道<strong>原始檔名會被保留而且搜尋得到</strong>。</li><li><span class="box">☐</span>9. 所有自訂提示詞都有 <code>自訂-</code> 前綴；要覆蓋系統行為的提示詞名稱是<strong>從 §3.6 表格複製</strong>的，不是手打的。</li><li><span class="box">☐</span>10. 沒有任何名稱含「測試」「暫定」「第一批」——這些會留下來，而且會被誤當正式資料。</li><li><span class="box">☐</span>11. 標題裡沒有個資、報價金額或其他機密（<strong>標題不經遮罩</strong>）。</li><li><span class="box">☐</span>12. 已指定一個人負責維護這份命名規範，並且知道：<strong>分類、團隊、盒子標題上線後改名的代價很高</strong>（N1／N3／N4）。</li></ul>
+<blockquote><p><strong>如果第 12 條的答案是「還沒有人負責」</strong>，先解決這件事再匯入資料。命名規範沒有人守，三個月後就會回到「規範.pdf」的狀態。</p></blockquote>
+<hr>
+<h2 id="八相關文件" class="t1">八、相關文件</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>用途</th></tr></thead><tbody><tr><td><a href="../../docs/guides/naming-cheatsheet.html">知識庫命名規範－速查卡</a></td><td><strong>一頁可列印版</strong>，發給每一個會建資料的人</td></tr><tr><td><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南</a></td><td>分類詞庫怎麼設計、提示詞內容怎麼寫</td></tr><tr><td><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本</a></td><td>各部門實際怎麼準備資料與操作，本文的命名範例出自同一家虛構公司</td></tr><tr><td><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊／分類／角色／使用者</a></td><td>這些設定的<strong>頁面操作步驟</strong></td></tr><tr><td><a href="../../docs/strategy/multi-tenant-planning.html">多客戶、多客製、多型號的知識庫規劃分析</a></td><td>多客戶／多型號情境的完整推導，含檢索機制與型號辨識的四種做法</td></tr><tr><td><a href="../../docs/guides/import-guide.html">資料匯入指南：音訊／影片、文件、圖片</a></td><td>支援格式、大小上限、批次上傳</td></tr><tr><td><a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定使用指南</a></td><td>盒子怎麼建、清洗設定檔怎麼設</td></tr><tr><td><a href="../../docs/guides/wiki-review.html">知識頁審核與 Wiki 頁管理指南</a></td><td>知識頁標題正規化的操作位置</td></tr><tr><td><a href="../../docs/guides/knowledge-graph.html">知識圖譜（Graph RAG）使用指南</a></td><td>別名合併（同義詞不靠改標題解決）</td></tr><tr><td><a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a></td><td>評測樣本與「期望命中的知識來源標題」</td></tr></tbody></table></div>
+<hr>
+<blockquote><p>返回 <a href="../../docs/guides/guides-index.html">guides 目錄索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：匯入正式資料前，要先訂好命名與分類詞庫</li><li>導入顧問：我要幫客戶規劃知識該怎麼切</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#與既有文件的分工">與既有文件的分工</a><a class="l2" href="#一為什麼在這套系統裡命名是硬規範">一、為什麼在這套系統裡，命名是硬規範</a><a class="l3" href="#11-名字有四個消費者不只有你">1.1 名字有四個消費者，不只有你</a><a class="l3" href="#12-十件會讓你改不動的事">1.2 十件會讓你「改不動」的事</a><a class="l3" href="#13-好消息兩件你不用擔心的事">1.3 好消息：兩件你不用擔心的事</a><a class="l2" href="#二命名總表速查">二、命名總表（速查）</a><a class="l2" href="#三逐物件的命名規則">三、逐物件的命名規則</a><a class="l3" href="#31-上傳前的原始檔名">3.1 上傳前的原始檔名</a><a class="l3" href="#32-素材紀錄標題影音文件圖片會議四型">3.2 素材紀錄標題（影音／文件／圖片／會議四型）</a><a class="l3" href="#33-知識來源盒子標題--最重要的一項">3.3 知識來源（盒子）標題 —— 最重要的一項</a><a class="l3" href="#34-團隊">3.4 團隊</a><a class="l3" href="#35-知識庫分類">3.5 知識庫分類</a><a class="l3" href="#36-提示詞名稱--有-20-個保留字">3.6 提示詞名稱 —— 有 20 個保留字</a><a class="l3" href="#37-清洗設定檔名稱">3.7 清洗設定檔名稱</a><a class="l3" href="#38-知識頁wiki標題">3.8 知識頁（Wiki）標題</a><a class="l3" href="#39-評測樣本標題">3.9 評測樣本標題</a><a class="l2" href="#四型號版本日期的書寫規約">四、型號、版本、日期的書寫規約</a><a class="l2" href="#五更新與改版時怎麼命名">五、更新與改版時怎麼命名</a><a class="l2" href="#六不要放進標題的東西">六、不要放進標題的東西</a><a class="l2" href="#七上線前自我檢查12-條">七、上線前自我檢查（12 條）</a><a class="l2" href="#八相關文件">八、相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/知識庫命名規範與範例.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

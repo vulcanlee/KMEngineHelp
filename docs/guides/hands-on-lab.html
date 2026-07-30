@@ -1,0 +1,1053 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>實作練習手冊（Hands-on Lab：親手建起你的知識庫）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>實作練習手冊（Hands-on Lab：親手建起你的知識庫）</h1><p class="sub">按表操課、邊做邊學的實作練習手冊。它不是「讀完就懂」的參考書，而是「跟著做就會」的實驗室講義。你只要照著本文一步一步輸入指定的資料、按下指定的按鈕、觀察畫面出現的結果，做到最後，就會親手把一套「乾淨、去敏、可被自然語言問答、附出處、受團隊權控」的知識庫從零建立起來，並徹底理解每個畫面在做什麼、為什麼這樣設計。</p></header><div class="docwrap"><main><ul><li>文件用途：<strong>按表操課、邊做邊學</strong>的實作練習手冊。它不是「讀完就懂」的參考書，而是「跟著做就會」的實驗室講義。你只要照著本文一步一步輸入指定的資料、按下指定的按鈕、觀察畫面出現的結果，做到最後，就會親手把一套「乾淨、去敏、可被自然語言問答、附出處、受團隊權控」的知識庫從零建立起來，並徹底理解每個畫面在做什麼、為什麼這樣設計。</li><li>主要讀者：第一次接觸本系統的操作人員、知識庫管理者、新進工程師、導入顧問。<strong>完全沒用過也沒關係</strong>——本手冊假設你只會開瀏覽器。</li><li>練習情境：以一家虛構公司「<strong>鼎峰系統整合股份有限公司</strong>」的「<strong>第一系統開發部</strong>」為背景，貫穿全文。</li><li>文件版本：3.0（新增「第 13 章　知識圖譜審核與全域問答」與素材 A6，原第 13～19 章順移為 14～20 章；順手修正兩處失效的小節引用）</li><li>建立日期：2026/06/27</li><li>更新日期：2026/07/29</li><li>對應系統版本：1.0.100（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p><strong>本手冊與參考型手冊的關係</strong>：《<a href="../../docs/guides/beginner-guide.html">新手完整操作指南</a>》與《<a href="../../docs/guides/complete-manual.html">完整操作手冊</a>》是<strong>參考型</strong>（查欄位、查流程、查 FAQ）；本手冊是<strong>練習型</strong>（虛擬情境、實際資料、按表操課）。兩者搭配最佳：先用本手冊「做一遍」，日後用參考型手冊「查一查」。深入單一主題時，本文會連結到對應的專屬指南。</p></blockquote>
+<hr>
+<h2 id="系統介紹這是一套什麼系統為你解決什麼" class="t1">系統介紹：這是一套什麼系統、為你解決什麼？</h2>
+<blockquote><p>在開始動手之前，先用幾分鐘認識這套系統——你正在使用的是什麼、它要解決什麼問題、提供哪些功能、最終帶來什麼價值。看完這一節，你就能對「為什麼要用它」一目了然。</p></blockquote>
+<h3 id="這是一套什麼系統">這是一套什麼系統</h3>
+<p><strong>一句話</strong>：這是一套「<strong>知識萃取與知識庫</strong>」系統——把組織裡零散、難用的素材（會議錄音、教學影片、PDF／Office 文件、現場照片），自動煉成「<strong>乾淨、去敏、可被自然語言問答、附出處、且受團隊權限控管</strong>」的知識資產。</p>
+<p><strong>再講清楚一點</strong>：你的組織每天都在產生知識——一場客戶會議、一次故障排除、一份系統架構文件、一張錯誤訊息截圖。但這些知識通常散在錄音檔、硬碟、某個人的腦袋裡，<strong>找不到、不敢共享、不知道可不可信、也沒有權限邊界</strong>。這套系統把「<strong>匯入素材 → 聚合主題 → 清洗去敏 → 蒸餾成知識 → 建立索引 → 自然語言問答</strong>」整條生產線打通，讓知識從「散落的原料」變成「<strong>隨問隨答、可追溯出處、只給該看的人看</strong>」的可信知識庫。</p>
+<h3 id="這套系統為誰而生">這套系統為誰而生</h3>
+<p>凡是「知識需要被永久保存、需要被快速查詢、且需要權限控管」的團隊都適用，例如：</p>
+<ul><li><strong>系統維運／部署團隊</strong>：安裝部署 SOP、故障排除經驗、作業系統與硬體問題的解法。</li><li><strong>軟體開發團隊</strong>：客戶會議紀錄、需求討論、系統架構設計、安裝與操作手冊。</li><li><strong>客服、人資、業務等知識密集單位</strong>：標準應答、流程規範、合約與高敏感資料。</li></ul>
+<p>特別適合「<strong>老手經驗難傳承、新人上手慢、敏感資料不敢共享</strong>」的組織——讓知識不再綁在某幾個資深員工身上。</p>
+<h3 id="它要解決的問題與痛點">它要解決的問題與痛點</h3>
+<div class="tw"><table><thead><tr><th>你現在可能這樣做</th><th>造成的痛點</th><th>這套系統怎麼解</th></tr></thead><tbody><tr><td>知識存在共用資料夾、Line 群組、口頭問人</td><td>找不到、靠運氣，人一離職知識就消失</td><td>集中匯入並煉成可被自然語言問答的知識庫</td></tr><tr><td>內容含個資／機密，乾脆不分享或人工塗黑</td><td>不敢用、塗不乾淨會外洩</td><td>清洗階段<strong>自動遮罩</strong>敏感資訊，且「遮罩失敗＝整筆失敗」</td></tr><tr><td>AI 給的答案不知道依據在哪</td><td>不敢信、無法稽核、責任不清</td><td>每個答案都<strong>附出處</strong>，可一路鑽取回原始檔</td></tr><tr><td>用資料夾權限硬切誰能看什麼</td><td>容易給錯、難維護</td><td>以<strong>團隊</strong>控管，非管理員只看得到公開或自己團隊的內容</td></tr><tr><td>重要知識只在資深員工腦袋裡</td><td>新人一直問、同樣的問題重複發生</td><td>知識永久保存、可被檢索，新人自己查得到</td></tr></tbody></table></div>
+<h3 id="這套系統提供哪些功能一覽表">這套系統提供哪些功能（一覽表）</h3>
+<blockquote><p>以下依現行左側選單的<strong>群組</strong>排列（對應系統 1.0.100，共 8 組）。「專案協作」群組的專案管理／工作任務屬一般專案協作，本手冊不逐頁涵蓋；但<strong>會議管理自 1.0.20 起已成為第四條匯入管道</strong>（上傳錄音自動產生會議紀錄與待辦），故於第 7 章專章練習。</p></blockquote>
+<div class="tw"><table><thead><tr><th>群組</th><th>功能畫面（路由）</th><th>它幫你做什麼</th></tr></thead><tbody><tr><td>首頁</td><td>統計儀表板（<code>/App</code>）</td><td>由選單「首頁」進入，總覽各類資料量、滿意度與近 30 天 Token 用量</td></tr><tr><td>資料匯入</td><td>音訊／影片轉錄（<code>/media-transcription</code>）</td><td>把錄音、影片自動轉成逐字稿</td></tr><tr><td>資料匯入</td><td>文件轉文字（<code>/document-extraction</code>）</td><td>把 PDF／Word／Excel／PPT／圖片轉成乾淨 Markdown（支援批次上傳壓縮檔）</td></tr><tr><td>資料匯入</td><td>圖片解讀（<code>/image-recognition</code>）</td><td>用視覺 AI 把圖片（截圖、照片）解讀成文字（支援批次上傳壓縮檔）</td></tr><tr><td>知識庫</td><td>知識來源加工（<code>/knowledge-sources</code>）</td><td>把多筆素材聚合成主題，並清洗、蒸餾、建立索引、對話</td></tr><tr><td>知識庫</td><td>清洗品質評測（<code>/golden-samples</code>）</td><td>量化「清洗乾不乾淨」，校準自動放行門檻</td></tr><tr><td>知識庫</td><td>知識頁審核（<code>/knowledge-distillation</code>）</td><td>把乾淨內容煉成「一概念一頁、互相連結」的 Wiki 頁</td></tr><tr><td>知識庫</td><td>AI 知識問答（<code>/knowledge-base-chat</code>）</td><td>用自然語言跨整庫提問，得到附出處、受權控的答案（含滿意度回饋、下載 PDF）；<strong>「查詢模式」可切「一般（精準檢索）／全域（社群摘要）」</strong></td></tr><tr><td>知識庫</td><td>檢索品質評測（<code>/rag-evaluation</code>）</td><td>量化「找得到／找得準／不外洩」，防止越權洩漏（含四個圖檢索指標）</td></tr><tr><td>知識庫</td><td>知識百科（<code>/knowledge-wiki</code>）</td><td>一般讀者閱讀蒸餾後 Wiki 概念頁，<code>[[概念]]</code> 可點擊導覽</td></tr><tr><td>知識庫</td><td>知識圖譜審核（<code>/knowledge-graph-review</code>）</td><td>審核 AI 從已核可 Wiki 頁抽出的「實體—關係—實體」三元組、維護實體別名、瀏覽圖譜鄰域、重建社群摘要（1.0.83～1.0.96）</td></tr><tr><td>系統管理</td><td>使用者管理 / 角色管理（<code>/myusers</code>、<code>/roleviews</code>）</td><td>建立帳號、指派角色、決定可見選單與預設團隊</td></tr><tr><td>系統管理</td><td>系統健康監控（<code>/system-health</code>）</td><td>管理員巡檢系統與各依賴是否正常、看最後 100 筆日誌</td></tr><tr><td>系統管理</td><td>檢索診斷與調校 / 資料一致性巡檢 / 日誌等級切換（<code>/rag-diagnostics</code>、<code>/data-consistency</code>、<code>/log-settings</code>）</td><td>管理員校準檢索門檻、清理孤兒／過時資料、切換日誌等級切換</td></tr><tr><td>系統管理</td><td>問答稽核明細（<code>/chat-logs</code>）</td><td>管理員查閱每輪問答全文與滿意度回饋</td></tr><tr><td>系統管理</td><td>Token 用量明細（<code>/token-usage</code>）</td><td>管理員檢視 LLM token 用量與成本（數值採緊湊表示 1.00K／2.78M）</td></tr><tr><td>系統管理</td><td>日誌下載（<code>/log-download</code>）</td><td>管理員選時間區間打包下載系統日誌 zip（區間上限 31 天）</td></tr><tr><td>專案協作</td><td>會議管理（<code>/meeting</code>）</td><td>管理會議；<strong>上傳錄音自動轉錄並由 AI 產生會議紀錄與待辦草稿</strong>（1.0.20）</td></tr><tr><td>基礎資料設定</td><td>知識庫分類（<code>/categories</code>）</td><td>建立<strong>知識庫</strong>主題標籤，方便日後篩選與檢索</td></tr><tr><td>基礎資料設定</td><td>專案分類（<code>/work-categories</code>）</td><td>建立<strong>專案／工作／會議</strong>專用的分類標籤（1.0.18 新增，與知識庫分類獨立）</td></tr><tr><td>基礎資料設定</td><td>團隊管理（<code>/teams</code>）</td><td>建立組織分群，同時定義「誰看得到什麼」的權限範圍</td></tr><tr><td>基礎資料設定</td><td>AI 提示詞（<code>/prompts</code>）</td><td>集中管理送給 AI 的指令（含全域清洗五步）</td></tr><tr><td>基礎資料設定</td><td>清洗規則設定（<code>/cleaning-profiles</code>）</td><td>把「怎麼去重/遮罩/分類/摘要」打包成可重複套用的配方</td></tr><tr><td>統計報表</td><td>Token 用量統計／AI 回答滿意度／問答使用統計／檢索品質統計／內容清點統計（<code>/reports/…</code> 5 頁）</td><td>管理員儀表：用量/滿意度/行為/檢索品質/內容清點，可下載 PDF 報表</td></tr></tbody></table></div>
+<h3 id="它如何確保知識可信賴">它如何確保知識「可信賴」</h3>
+<p>系統把知識當成生產線一站一站煉，並內建兩道品質把關與兩條安全鐵則：</p>
+<pre><code>匯入素材 → 聚合主題 → 清洗(去敏/結構化) → 蒸餾(煉成Wiki) → 索引 → 自然語言問答
+                          │                                          │
+                  清洗品質評測（量清洗品質）               檢索品質評測（量檢索品質、越權=0）</code></pre>
+<ul><li><strong>不變量一・團隊權控</strong>：非管理員只看得到「公開（無團隊）」或「與自己團隊有交集」的內容；連問答檢索也即時驗證權限，<strong>你無權看的，問答也絕不會吐給你</strong>。</li><li><strong>不變量二・遮罩失敗＝整筆清洗失敗</strong>：寧可重跑，也不讓沒遮乾淨的敏感內容流向下游。安全永遠優先。</li></ul>
+<h3 id="它最終帶給你的價值">它最終帶給你的價值</h3>
+<ul><li><strong>找得到</strong>：散落各處的知識集中可檢索，新人不用再到處問人。</li><li><strong>可信任</strong>：每個答案附出處、可追溯回原始檔，敢用、能稽核。</li><li><strong>不外洩</strong>：自動去敏＋團隊權控，敏感資料只給該看的人。</li><li><strong>可量測</strong>：清洗與檢索品質都能用評測量出來，績效不是口號。</li><li><strong>可傳承</strong>：知識永久保存，老手的經驗變成全公司的資產。</li></ul>
+<blockquote><p>想看「以一家公司的真實情境，這些痛點與成效具體長什麼樣」，請見 <strong>第 1 章</strong>；想直接開始動手，請接著讀 <strong>第 0 章</strong>。</p></blockquote>
+<hr>
+<h2 id="第-0-章-如何使用本手冊請先讀這-3-分鐘" class="t2">第 0 章　如何使用本手冊（請先讀這 3 分鐘）</h2>
+<h3 id="01-這份手冊能帶你做到什麼">0.1 這份手冊能帶你做到什麼</h3>
+<p>讀完並照做完本手冊，你會親手完成：</p>
+<ol><li>把系統的<strong>基礎資料</strong>（團隊、分類、角色、使用者、提示詞、清洗規則設定）依正確順序建好。</li><li>用<strong>四條匯入管線</strong>（影音轉逐字稿、文件轉文字、圖片解讀，以及會議錄音自動產生 AI 會議紀錄）把素材變成文字。</li><li>把素材聚合成<strong>知識來源</strong>，跑<strong>清洗</strong>（去敏、結構化）、<strong>蒸餾</strong>（煉成 Wiki 頁）、<strong>索引</strong>。</li><li>用<strong>AI 知識問答</strong>對整個知識庫提問，得到附出處、且只回你有權看的答案。</li><li>用<strong>清洗品質評測</strong>與 <strong>檢索品質評測</strong>量化品質，確認「清洗乾不乾淨、檢索準不準、會不會外洩」。</li><li>親眼看見<strong>團隊權控</strong>造成的「不同人看到不同資料」，並學會用團隊、分類、關鍵字快速篩選。</li></ol>
+<h3 id="02-前置假設很重要">0.2 前置假設（很重要）</h3>
+<ul><li>本手冊假設<strong>系統已由工程師安裝設定完成</strong>，你能在這台電腦上用瀏覽器打開它（例如網址 <code>http://localhost:5080</code>）。安裝細節不在本手冊範圍，需要時見《<a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊</a>》。</li><li>你打開系統時，<strong>資料庫是全新的預設狀態</strong>：除了內建的管理帳號 <code>support</code> 之外，沒有任何團隊、分類、角色、使用者或資料。<strong>本手冊要做的，就是把這些一筆一筆建起來。</strong></li><li>你不需要任何程式基礎，只要會打字、會用滑鼠點選下拉選單。</li></ul>
+<h3 id="03-按表操課的閱讀約定">0.3 按表操課的閱讀約定</h3>
+<p>本手冊用幾個固定標記幫你分辨「要動手做什麼」：</p>
+<div class="tw"><table><thead><tr><th>標記</th><th>意義</th></tr></thead><tbody><tr><td>👉 <strong>動手做</strong></td><td>這是你現在要實際操作的步驟，請照做。</td></tr><tr><td>✅ <strong>你會看到</strong></td><td>操作後預期出現的結果，用來核對你有沒有做對。</td></tr><tr><td>🧩 <strong>欄位說明</strong></td><td>該畫面每個欄位的意義、怎麼填、要不要填、舉例。</td></tr><tr><td>💡 <strong>為什麼這樣設計</strong></td><td>解釋這個畫面/欄位要解決什麼問題，幫你「理解」而非死記。</td></tr><tr><td>🔑 <strong>需要金鑰／工具</strong></td><td>此步驟需要 OpenAI 金鑰或外部工具才能跑出完整效果。</td></tr><tr><td>🟢 <strong>無金鑰替代路徑</strong></td><td>沒有金鑰或工具時，照這條也能把練習走完。</td></tr><tr><td>⚠️ <strong>常見錯誤</strong></td><td>容易踩的雷與如何修正。</td></tr></tbody></table></div>
+<h3 id="04-每個畫面的固定說明結構">0.4 每個畫面的固定說明結構</h3>
+<p>為了讓你「不只會操作，還懂設計」，本手冊對<strong>主線實作頁</strong>盡量採用同一套結構；首頁、導覽型頁面與進階維運頁會依用途精簡，不保證每一頁都有完整六段：</p>
+<ol><li><strong>這個畫面是做什麼用的</strong>（用途、解決什麼問題、提供什麼服務）。</li><li><strong>欄位說明</strong>（每個欄位的意義／如何輸入／舉例／是否必填）。</li><li><strong>本情境要輸入的實際值</strong>（照抄即可）。</li><li><strong>逐步操作</strong>（👉 動手做）。</li><li><strong>預期結果</strong>（✅ 你會看到）與如何驗證。</li><li><strong>常見錯誤與修正</strong>（⚠️）。</li></ol>
+<h3 id="05-關於無金鑰替代路徑">0.5 關於「無金鑰替代路徑」</h3>
+<p>本系統的部分能力需要外部資源才能發揮完整效果：</p>
+<ul><li><strong>影音轉逐字稿</strong>、<strong>圖片解讀</strong>：需要 OpenAI <strong>API 金鑰</strong>（呼叫雲端模型）。</li><li><strong>文件轉文字</strong>：<strong>PDF</strong> 走 LLM（出貨設定 <code>PdfUseLlm=true</code>，需金鑰；無金鑰會自動降級成 markitdown、不會失敗）；<strong>PDF 以外</strong>的格式一律走本機 markitdown、不需金鑰。</li><li><strong>文件轉文字</strong>：需要本機工具 <strong>markitdown</strong>（不需金鑰）。</li><li><strong>清洗的 LLM 步驟</strong>（去重／遮罩／分類／摘要／信心）、<strong>蒸餾</strong>、<strong>問答</strong>：需要金鑰。</li><li><strong>索引</strong>：需要設定好<strong>嵌入端點</strong>（雲端金鑰或地端模型）。</li></ul>
+<p>如果你手邊<strong>沒有金鑰</strong>，仍然可以把整套流程練習一遍——只是某些步驟的 AI 產出會以「彙整＋繁體化」代替，或需要你手動貼上我們提供的範例結果。凡是會用到金鑰／工具的步驟，本手冊都會同時給你一條 🟢 <strong>無金鑰替代路徑</strong>。建議第一次先用無金鑰路徑把「操作流程」走熟，日後有金鑰再回來體驗完整 AI 效果。</p>
+<blockquote><p>⚠️ <strong>能力邊界要先講清楚</strong>：無金鑰路徑能讓你練習建檔、標籤、權控、聚合與部分狀態操作，但不等於已驗證 LLM 遮罩／摘要、AI 蒸餾、向量嵌入或完整 RAG 問答。需要 AI 或嵌入的驗收項目，若環境未就緒，請標記為「待完整環境補驗」，不要把手動貼上的範例當成系統實際產出。</p></blockquote>
+<h3 id="06-開始前環境就緒檢查先決定你走哪條路">0.6 開始前環境就緒檢查（先決定你走哪條路）</h3>
+<p>請先用 <code>support</code> 登入，完成下表再進入第 4 章。建議使用<strong>全新或專用練習資料庫</strong>；不要在正式環境建立本手冊的虛構帳號與資料。</p>
+<div class="tw"><table><thead><tr><th>檢查項目</th><th>怎麼檢查</th><th>完整 AI 路徑</th><th>無金鑰路徑</th><th>通過條件／處置</th></tr></thead><tbody><tr><td>系統版本</td><td>登入後查看系統顯示版本</td><td>必要</td><td>必要</td><td>顯示與本手冊標頭「對應系統版本」一致（撰稿時為 <code>1.0.100</code>）；差距太大時先確認有沒有更新版手冊</td></tr><tr><td>練習資料庫</td><td>向安裝人員確認，或檢查清單是否已有正式資料</td><td>必要</td><td>必要</td><td>使用空白／專用資料庫；不是就停止建立虛構資料</td></tr><tr><td><code>support</code> 登入</td><td>用內建管理帳號登入並看到管理選單</td><td>必要</td><td>必要</td><td>可進入 <code>/system-health</code>；否則先處理帳密與權限</td></tr><tr><td>ffmpeg／yt-dlp</td><td><code>/system-health</code> 查看外部工具檢查</td><td>影音路徑必要</td><td>可略過</td><td>要練影音轉錄時為正常；否則改走文件替代路徑</td></tr><tr><td>markitdown</td><td><code>/system-health</code> 查看外部工具檢查</td><td>必要</td><td>必要</td><td>文件轉文字工具正常；否則無法走本手冊的主要替代路徑</td></tr><tr><td>LLM／轉錄金鑰</td><td>由安裝人員確認設定；以短素材做低成本測試</td><td>必要</td><td>不需要</td><td>未設定就使用附錄文字，不宣稱完成 AI 驗收</td></tr><tr><td>嵌入端點</td><td><code>/system-health</code> 或 <code>/rag-diagnostics</code> 查看嵌入警告</td><td>RAG 必要</td><td>可略過</td><td>完整路徑不得顯示「語意檢索停用」；未設定只能驗證關鍵字退化路徑</td></tr><tr><td>MCP 端點／憑證（選練第 16 章）</td><td>向管理員確認 <code>/mcp</code> 已啟用，並取得 JWT 或 <code>X-API-Key</code></td><td>選練必要</td><td>可只驗連通/列表</td><td>要練第 16 章時需憑證；未取得則跳過，或只驗 <code>knowledge_ping</code> 連通與列表權控</td></tr><tr><td>練習素材包</td><td>確認可取得 <code>docs/guides/lab-samples/</code> 資料夾（隨文件庫散布）</td><td>建議</td><td>建議</td><td>有現成檔（docx/pdf/xlsx/pptx/png/mp3/txt）直接上傳；沒有也可依附錄 B 自製</td></tr></tbody></table></div>
+<p><strong>選定練習模式</strong>：</p>
+<ul><li><strong>模式 A・完整 AI</strong>：上述必要項目皆通過，目標是完成全章與全部完訓驗收。</li><li><strong>模式 B・無金鑰／工具不完整</strong>：依各章綠色替代路徑操作；凡涉及 LLM、蒸餾、嵌入、RAG 的結果，在完訓表標記「待補驗」。</li></ul>
+<p>✅ <strong>本節通過條件</strong>：你已寫下所選模式，確認資料庫可供練習，並知道哪幾項需要安裝人員協助。若任一項不確定，先停在這裡，不要在可能的正式資料庫繼續。</p>
+<hr>
+<h2 id="第-1-章-這個系統要解決什麼問題先懂價值再動手" class="t3">第 1 章　這個系統要解決什麼問題（先懂價值，再動手）</h2>
+<h3 id="11-一句話定位">1.1 一句話定位</h3>
+<blockquote><p><strong>把零散的素材（會議錄音、教學影片、PDF／Office 文件、現場照片），變成「乾淨、去敏、可被自然語言問答、附出處、且受團隊權限控管」的知識資產。</strong></p></blockquote>
+<h3 id="12-鼎峰公司沒有這套系統時的痛點">1.2 鼎峰公司「沒有這套系統」時的痛點</h3>
+<p>想像鼎峰第一系統開發部的日常：</p>
+<ul><li>王小明（運維工程師）去客戶端裝好系統、處理過一次「Windows Server 半夜記憶體爆掉」的故障，解法記在他自己的筆記本裡。<strong>三個月後同樣問題在另一個客戶又發生，新來的同事完全不知道怎麼處理，只能再打電話問王小明。</strong></li><li>李四（開發工程師）跟客戶開了需求訪談會，錄了 90 分鐘的錄音。<strong>會後沒人想重聽，三週後大家對「客戶到底要不要那個匯出功能」各說各話。</strong></li><li>客戶的維護合約、SLA、報價單散在業務的信箱與硬碟裡，<strong>工程師要查「這個客戶的保固到什麼時候」得四處問人。</strong></li></ul>
+<p>這些痛點的共同點是：<strong>知識存在某個人的腦袋或某個檔案夾裡，找不到、不敢共享、無法信任、也沒有權限邊界。</strong></p>
+<h3 id="13-以往大家怎麼土法煉鋼">1.3 以往大家怎麼「土法煉鋼」</h3>
+<div class="tw"><table><thead><tr><th>痛點</th><th>以往的克難做法</th><th>問題</th></tr></thead><tbody><tr><td>找不到知識</td><td>共用資料夾、Line 群組爬樓、口頭問人</td><td>慢、靠運氣、人走了知識就消失</td></tr><tr><td>內容含個資/機密</td><td>乾脆不分享，或人工塗黑</td><td>不敢用、塗不乾淨會外洩</td></tr><tr><td>不知答案可不可信</td><td>憑印象、再問一次原作者</td><td>無法稽核、責任不清</td></tr><tr><td>不同人不該看同樣東西</td><td>用資料夾權限硬切，常出錯</td><td>容易給錯、難維護</td></tr></tbody></table></div>
+<h3 id="14-有了這套系統工作方式怎麼改變">1.4 有了這套系統，工作方式怎麼改變</h3>
+<div class="tw"><table><thead><tr><th>情境</th><th>新做法</th><th>帶來的改變</th></tr></thead><tbody><tr><td>故障排除</td><td>把故障處理筆記匯入→清洗→蒸餾→索引</td><td>新人直接「問知識庫」就拿到附出處的解法</td></tr><tr><td>需求會議</td><td>錄音轉逐字稿→清洗成「決議／待辦／負責人」</td><td>三秒查到當初的決議，附原始逐字稿出處</td></tr><tr><td>合約查詢</td><td>合約文件匯入並標上「業務合約組」團隊</td><td>只有業務看得到，工程師查不到（權控自動生效）</td></tr></tbody></table></div>
+<h3 id="15-績效提升量化的期望值">1.5 績效提升（量化的期望值）</h3>
+<p>導入後，鼎峰第一系統開發部期望達到（以一般知識管理導入經驗為基準的合理預期）：</p>
+<ul><li><strong>找答案的時間</strong>：從「半小時翻檔案＋問人」縮短到「1 分鐘問知識庫」，<strong>查詢效率提升約 10 倍</strong>。</li><li><strong>新人上手週期</strong>：從 1～2 個月縮短到 2～3 週，<strong>約縮短 50%</strong>，因為知識不再綁在資深員工身上。</li><li><strong>重複犯錯／重複求助</strong>：同類問題重複發問<strong>下降 60% 以上</strong>，因為解法已被永久保存且可被檢索。</li><li><strong>敏感資料外洩風險</strong>：因清洗階段強制遮罩、且「遮罩失敗＝整筆清洗失敗」，<strong>外洩風險趨近於 0</strong>。</li></ul>
+<blockquote><p>這些數字是<strong>導入目標與合理預期</strong>，實際成效取決於你餵入多少素材、清洗品質與團隊使用習慣。本手冊會教你用「清洗品質評測」與「檢索品質評測」把品質<strong>量出來</strong>，讓績效不是口號。</p></blockquote>
+<h3 id="16-原料長什麼樣--淬煉後長什麼樣成果預覽">1.6 原料長什麼樣 → 淬煉後長什麼樣（成果預覽）</h3>
+<p>這是整套系統的精髓，先看一眼你最後會煉出什麼：</p>
+<p><strong>【原料】</strong> 一段客戶現場交接的口語逐字稿（雜亂、含敏感資訊）：</p>
+<pre><code>嗯…就是那個客戶 192.168.10.5 那台主機啊，帳號 admin 密碼 P@ssw0rd 那個，
+半夜三點服務就掛掉，啊我看 log 是記憶體不夠，就…就先把那個排程改一下，
+然後重開機就好了啦，啊王先生你記得跟李小姐講一下喔，下個月要去複查。</code></pre>
+<p><strong>【清洗後】</strong> 去敏、結構化的乾淨 Markdown（敏感資訊被遮罩、重點被摘要）：</p>
+<pre><code>## 客戶主機服務半夜中斷處理
+
+- **問題**：客戶主機（IP 已遮罩）每日凌晨服務中斷。
+- **原因**：記憶體不足。
+- **解法**：調整排程後重新開機即恢復。
+- **待辦**：下個月安排複查。</code></pre>
+<p><strong>【蒸餾後】</strong> 煉成「一概念一頁、彼此以 <code>[[連結]]</code> 互連」的 Wiki 實體頁：</p>
+<pre><code># 記憶體不足導致服務中斷
+當主機記憶體耗盡時，服務會被作業系統終止。常見於凌晨批次作業疊加。
+處理方式參見 [[重新開機標準程序]] 與 [[排程調整]]。</code></pre>
+<p><strong>【最終】</strong> 在「AI 知識問答」頁，新人直接問：</p>
+<blockquote><p>「客戶主機半夜服務掛掉怎麼辦？」</p></blockquote>
+<p>系統回答（<strong>附出處、且帳密/IP 不會出現</strong>）：</p>
+<blockquote><p>通常是記憶體不足造成。建議調整批次排程後重新開機即可恢復；並安排後續複查。 〔出處：客戶現場維運交接錄音 → 原始逐字稿〕</p></blockquote>
+<p><strong>這，就是你做完本手冊會親手煉出來的東西。</strong></p>
+<hr>
+<h2 id="第-2-章-知識怎麼被煉出來5-分鐘心智模型" class="t4">第 2 章　知識怎麼被「煉」出來（5 分鐘心智模型）</h2>
+<h3 id="21-六站資料流">2.1 六站資料流</h3>
+<p>整個系統就是一條生產線，素材從左邊進、知識從右邊出：</p>
+<pre><code>  匯入素材            聚合            清洗(去敏/結構化)     蒸餾           索引          問答
+ ─────────          ──────          ──────────────      ──────        ──────       ──────
+ 音訊/影片轉錄 ┐                     去重→遮罩→分類       多個互連       切塊→嵌入     跨來源自然語言問答
+ 文件轉文字    ├─► 知識來源(標團隊)─► →摘要→信心自評  ─► Wiki 實體頁 ─► 寫入向量庫 ─► 附出處、受權控、可鑽取
+ 圖片解讀      ┘   (聚合多筆素材)      產出乾淨 Markdown                 (蒸餾後自動)   回原始檔下載
+                                          │                                            │
+                                    清洗品質評測                                 檢索品質評測
+                                    (量上游清洗品質)                            (量下游檢索品質、越權=0)</code></pre>
+<div class="tw"><table><thead><tr><th>站</th><th>在做什麼</th><th>你會操作的畫面</th></tr></thead><tbody><tr><td>① 匯入</td><td>把素材轉成文字／Markdown／視覺解讀</td><td>影音轉逐字稿、文件轉文字、圖片解讀、會議管理（錄音自動產生會議紀錄）</td></tr><tr><td>② 聚合</td><td>把多筆素材歸成一個主題單位、標上團隊</td><td>知識來源管理</td></tr><tr><td>③ 清洗</td><td>去重、<strong>遮罩敏感資訊</strong>、分類、摘要、信心自評</td><td>知識來源管理（清洗按鈕）</td></tr><tr><td>④ 蒸餾</td><td>煉成一概念一頁、互連的 Wiki 頁</td><td>知識頁審核</td></tr><tr><td>⑤ 索引</td><td>切塊、轉向量、寫入向量庫（蒸餾後自動）</td><td>（自動，需先設嵌入端點）</td></tr><tr><td>⑥ 問答</td><td>跨整庫自然語言提問，附出處</td><td>AI 知識問答</td></tr><tr><td>把關 A</td><td>量「清洗乾不乾淨」</td><td>清洗品質評測</td></tr><tr><td>把關 B</td><td>量「找得到／找得準／不外洩」</td><td>檢索品質評測</td></tr></tbody></table></div>
+<h3 id="22-兩個貫穿全程絕不能違反的不變量">2.2 兩個貫穿全程、絕不能違反的不變量</h3>
+<ol><li><strong>團隊權控</strong>：非管理員只看得到「<strong>未指定團隊（公開）</strong>」或「<strong>與自己角色預設團隊有交集</strong>」的紀錄；<strong>管理員不受限</strong>。這條規則從匯入、知識來源、Wiki 頁一路貫穿到問答出處——<strong>你看不到的內容，問答也絕不會檢索到。</strong></li><li><strong>遮罩失敗＝整筆清洗失敗</strong>：寧可重跑，也不讓沒遮乾淨的敏感內容流向下游。安全永遠優先。</li></ol>
+<blockquote><p>本手冊的「第 15 章 權控與篩選綜合練習」會讓你用不同帳號登入，<strong>親眼驗證</strong>第一條不變量。</p></blockquote>
+<h3 id="23-大多數產物只存檔案不存資料庫">2.3 大多數產物「只存檔案、不存資料庫」</h3>
+<p>逐字稿、萃取的 Markdown、清洗結果、Wiki 頁等內容都<strong>存在伺服器的檔案系統</strong>（例如 <code>C:\temp\KnowledgeExtraction\…</code> 對應子目錄），資料庫只存「相對路徑」與狀態。你操作時不必管檔案在哪，知道「找不到清洗檔時它在檔案系統、不在 DB」即可（這在排錯時有用）。</p>
+<h3 id="24-幾乎所有重工作都是背景作業">2.4 幾乎所有重工作都是「背景作業」</h3>
+<p>三條匯入管線、清洗、蒸餾、索引都是<strong>背景任務</strong>：你按下去之後可以離開，清單會即時顯示「等待中 → 處理中 → 已完成／失敗」。<strong>失敗可重試、處理中可取消</strong>，不必重新整理網頁。</p>
+<hr>
+<h2 id="第-3-章-本次練習的情境總覽你的施工藍圖" class="t5">第 3 章　本次練習的情境總覽（你的施工藍圖）</h2>
+<blockquote><p>這一章是整本手冊的<strong>單一事實來源</strong>。後面每一章要你輸入的資料，都來自這裡的表格。建議你把這章印出來放旁邊，或常常翻回來對照。</p></blockquote>
+<h3 id="31-公司與部門背景">3.1 公司與部門背景</h3>
+<p><strong>鼎峰系統整合股份有限公司</strong>的「<strong>第一系統開發部</strong>」專門替客戶<strong>開發客製系統</strong>，並由工程師<strong>安裝部署到客戶端、長期維護</strong>其在硬體上正常運作。部門有兩大知識域：</p>
+<ul><li><strong>系統維運／部署知識</strong>（運維工程師用）：怎麼安裝部署、怎麼查系統日誌、怎麼排除故障、作業系統與硬體問題怎麼解。</li><li><strong>軟體開發知識</strong>（開發人員用）：客戶會議紀錄、問題追蹤、需求討論、系統架構與設計、安裝 SOP、操作手冊、簡報、合約與維護計畫。</li></ul>
+<p>部門希望把這些散落的知識「永久保存、可被查詢、可被權控」，讓新人能自己學、敏感資料不外洩——這正是要靠本系統達成的目標。</p>
+<h3 id="32-團隊管理建-3-筆運用公開概念">3.2 團隊管理（建 3 筆＋運用「公開」概念）</h3>
+<p>團隊既是<strong>組織分群</strong>，也是<strong>權限範圍</strong>（決定誰看得到貼了此團隊的紀錄）。</p>
+<div class="tw"><table><thead><tr><th>#</th><th>團隊名稱</th><th>代號</th><th>說明</th></tr></thead><tbody><tr><td>1</td><td>運維組</td><td>OPS</td><td>系統維運／部署／故障排除知識的權控範圍</td></tr><tr><td>2</td><td>開發組</td><td>DEV</td><td>軟體開發／需求／架構知識的權控範圍</td></tr><tr><td>3</td><td>業務合約組</td><td>BIZ</td><td>合約、SLA、報價等高敏感資料</td></tr><tr><td>—</td><td>（不建團隊＝公開）</td><td>—</td><td>紀錄的團隊欄位<strong>留空</strong>＝全員可見，用來示範公開知識</td></tr></tbody></table></div>
+<h3 id="33-知識庫分類建-10-筆">3.3 知識庫分類（建 10 筆）</h3>
+<p>分類是<strong>內容主題標籤</strong>，用來篩選與檢索。這一份貼在<strong>知識庫相關紀錄</strong>上（轉錄、文件、圖片、知識來源、Wiki）。</p>
+<div class="tw"><table><thead><tr><th>#</th><th>分類名稱</th><th>用途舉例</th></tr></thead><tbody><tr><td>1</td><td>部署安裝</td><td>安裝 SOP、環境建置</td></tr><tr><td>2</td><td>系統維運</td><td>例行維護、交接</td></tr><tr><td>3</td><td>故障排除</td><td>當機、錯誤排查</td></tr><tr><td>4</td><td>作業系統與硬體</td><td>Windows Server、機房接線</td></tr><tr><td>5</td><td>會議紀錄</td><td>客戶會議、內部會議</td></tr><tr><td>6</td><td>需求討論</td><td>需求訪談、規格確認</td></tr><tr><td>7</td><td>系統架構</td><td>架構設計、技術選型</td></tr><tr><td>8</td><td>合約與維護計畫</td><td>合約、SLA、報價</td></tr><tr><td>9</td><td>操作手冊</td><td>使用手冊、SOP</td></tr><tr><td>10</td><td>教育訓練</td><td>新人訓練、簡報</td></tr></tbody></table></div>
+<h3 id="33b-專案分類建-4-筆1018-起">3.3b 專案分類（建 4 筆，1.0.18 起）</h3>
+<p><strong>這是另一份清單</strong>（<code>/work-categories</code>），專供<strong>專案管理／工作任務／會議管理</strong>使用，與 3.3 的知識庫分類資料完全獨立。第 7 章的會議練習會用到。</p>
+<div class="tw"><table><thead><tr><th>#</th><th>分類名稱</th><th>用途舉例</th></tr></thead><tbody><tr><td>1</td><td>客戶會議</td><td>需求訪談、驗收會議</td></tr><tr><td>2</td><td>內部會議</td><td>週會、技術討論</td></tr><tr><td>3</td><td>導入專案</td><td>客戶端系統導入</td></tr><tr><td>4</td><td>維運交接</td><td>交接、值班安排</td></tr></tbody></table></div>
+<blockquote><p>⚠️ 名稱看起來跟 3.3 有點像沒關係——它們存在不同的地方，不會互相影響。<strong>在知識庫分類建的，會議管理的下拉選不到；反之亦然。</strong></p></blockquote>
+<h3 id="34-角色清單建-4-筆">3.4 角色清單（建 4 筆）</h3>
+<p>角色決定「這個角色的人能看到哪些選單／頁面」與「<strong>預設屬於哪些團隊</strong>（決定能看到哪些團隊的紀錄）」。</p>
+<div class="tw"><table><thead><tr><th>#</th><th>角色名稱</th><th>預設團隊</th><th>權限重點</th><th>指派給</th></tr></thead><tbody><tr><td>1</td><td>知識管理員</td><td>運維組＋開發組＋業務合約組</td><td>全部頁面，<strong>含「知識審核」</strong></td><td>張經理</td></tr><tr><td>2</td><td>運維工程師</td><td>運維組</td><td>匯入三管線、知識來源、問答、評測</td><td>王小明</td></tr><tr><td>3</td><td>開發工程師</td><td>開發組</td><td>匯入三管線、知識來源、問答</td><td>李四</td></tr><tr><td>4</td><td>業務專員</td><td>業務合約組</td><td>知識來源、問答</td><td>陳美玲</td></tr></tbody></table></div>
+<h3 id="35-使用者清單建-4-筆加上內建的-support-共-5-個帳號">3.5 使用者清單（建 4 筆，加上內建的 support 共 5 個帳號）</h3>
+<div class="tw"><table><thead><tr><th>#</th><th>帳號</th><th>姓名</th><th>角色</th><th>管理員</th><th>在練習中的任務</th></tr></thead><tbody><tr><td>0</td><td>support</td><td>support</td><td>預設角色</td><td>✅（內建）</td><td>建立全部基礎資料；示範「管理員看得到全部」</td></tr><tr><td>1</td><td>zhang</td><td>張經理</td><td>知識管理員</td><td>✗</td><td>示範「預設團隊含三組＝看得到全部團隊紀錄」、審核</td></tr><tr><td>2</td><td>wang</td><td>王小明</td><td>運維工程師</td><td>✗</td><td>輸入 5 筆運維紀錄</td></tr><tr><td>3</td><td>lisi</td><td>李四</td><td>開發工程師</td><td>✗</td><td>輸入 3 筆開發紀錄</td></tr><tr><td>4</td><td>chen</td><td>陳美玲</td><td>業務專員</td><td>✗</td><td>示範跨組敏感資料隔離（只看得到合約那筆）</td></tr></tbody></table></div>
+<blockquote><p>💡 <strong>為什麼 support 不直接拿來日常用？</strong> <code>support</code> 的密碼由設定檔控制、每次啟動會被重設、介面也改不了，所以它只適合「開機建基礎資料」。日常操作請用你建立的具名帳號（張經理／王小明／李四／陳美玲）。</p></blockquote>
+<h3 id="36-待輸入的知識紀錄總表核心注意團隊欄造成的可見性差異">3.6 待輸入的知識紀錄總表（核心：注意「團隊」欄造成的可見性差異）</h3>
+<div class="tw"><table><thead><tr><th>#</th><th>紀錄標題</th><th>由誰輸入</th><th>匯入管線</th><th>分類</th><th>團隊</th></tr></thead><tbody><tr><td>A1</td><td>客戶A-ERP系統部署安裝SOP</td><td>王小明</td><td>文件轉文字</td><td>部署安裝、操作手冊</td><td>運維組</td></tr><tr><td>A2</td><td>WindowsServer記憶體不足故障排除筆記</td><td>王小明</td><td>文件轉文字</td><td>故障排除、作業系統與硬體</td><td>運維組</td></tr><tr><td>A3</td><td>機房接線與錯誤訊息截圖</td><td>王小明</td><td>圖片解讀</td><td>作業系統與硬體</td><td>運維組</td></tr><tr><td>A4</td><td>客戶現場維運交接錄音</td><td>王小明</td><td>影音轉逐字稿</td><td>系統維運</td><td>運維組</td></tr><tr><td>A5</td><td>每月例行維護檢查清單</td><td>王小明</td><td>文件轉文字</td><td>系統維運、操作手冊</td><td>運維組</td></tr><tr><td>B1</td><td>客戶A需求訪談會議錄音</td><td>李四</td><td>影音轉逐字稿</td><td>會議紀錄、需求討論</td><td>開發組</td></tr><tr><td>B2</td><td>客戶A系統架構設計說明</td><td>李四</td><td>文件轉文字</td><td>系統架構</td><td>開發組</td></tr><tr><td>B3</td><td>客戶A維護合約與SLA</td><td>李四</td><td>文件轉文字</td><td>合約與維護計畫</td><td><strong>業務合約組</strong></td></tr><tr><td>P1</td><td>公司內部開發環境建置指南</td><td>張經理</td><td>文件轉文字</td><td>教育訓練、操作手冊</td><td><strong>（留空＝公開）</strong></td></tr></tbody></table></div>
+<blockquote><p>💡 <strong>這張表是整個權控示範的關鍵</strong>：注意 B3 雖然是李四（開發組）輸入的，但團隊標成「業務合約組」，所以<strong>連李四自己之後都看不到 B3</strong>（除非他的角色預設團隊含業務合約組）。P1 團隊留空，所以<strong>每個人都看得到</strong>。第 15 章會帶你逐一驗證。</p></blockquote>
+<h3 id="37-預期可見性結果第-15-章會逐一驗證">3.7 預期可見性結果（第 15 章會逐一驗證）</h3>
+<div class="tw"><table><thead><tr><th>登入者</th><th>看得到的紀錄</th><th>看不到的</th></tr></thead><tbody><tr><td>王小明（運維組）</td><td>A1–A5（運維組）＋ P1（公開）</td><td>B1、B2（開發組）、B3（業務合約組）</td></tr><tr><td>李四（開發組）</td><td>B1、B2（開發組）＋ P1（公開）</td><td>A1–A5（運維組）、<strong>B3（業務合約組）</strong></td></tr><tr><td>陳美玲（業務合約組）</td><td>B3（業務合約組）＋ P1（公開）</td><td>A1–A5、B1、B2</td></tr><tr><td>張經理（預設團隊含三組）</td><td>A1–A5、B1、B2、B3、P1（<strong>全部</strong>）</td><td>—</td></tr><tr><td>support（管理員）</td><td><strong>全部</strong>（不受權控）</td><td>—</td></tr></tbody></table></div>
+<h3 id="38-清洗規則設定建-2-筆選配第-3-筆">3.8 清洗規則設定（建 2 筆，選配第 3 筆）</h3>
+<div class="tw"><table><thead><tr><th>#</th><th>設定檔名稱</th><th>摘要重點</th><th>遮罩重點</th></tr></thead><tbody><tr><td>1</td><td>運維配方</td><td>摘要分「問題／原因／解法」</td><td>遮罩客戶 IP、帳號密碼、序號</td></tr><tr><td>2</td><td>會議配方</td><td>摘要分「決議／待辦／負責人」</td><td>遮罩與會人名（保留職稱）</td></tr><tr><td>3（選配）</td><td>高敏感合約配方</td><td>摘要分「合約方／金額／期限／條款」</td><td>強遮罩金額、個資、統一編號</td></tr></tbody></table></div>
+<h3 id="39-ai-提示詞清洗五步全域互動提示詞">3.9 AI 提示詞（清洗五步全域＋互動提示詞）</h3>
+<div class="tw"><table><thead><tr><th>#</th><th>提示詞名稱</th><th>用途</th></tr></thead><tbody><tr><td>1</td><td>清洗-去重</td><td>合併重複段落與雜訊（全域清洗第 1 步）</td></tr><tr><td>2</td><td>清洗-遮罩</td><td>遮罩個資與機密（全域清洗第 2 步）</td></tr><tr><td>3</td><td>清洗-分類</td><td>建議 1–5 個分類標籤（全域清洗第 3 步）</td></tr><tr><td>4</td><td>清洗-摘要</td><td>產出重點摘要與關鍵實體（全域清洗第 4 步）</td></tr><tr><td>5</td><td>清洗-信心</td><td>輸出 0~1 的信心分數（全域清洗第 5 步）</td></tr><tr><td>6</td><td>問答-條列步驟</td><td>互動用：以條列步驟回答並附風險提醒</td></tr><tr><td>7</td><td>問答-表格比較</td><td>互動用：以表格列出比較</td></tr></tbody></table></div>
+<h3 id="310-評測樣本清洗品質評測檢索品質評測各建-2-筆">3.10 評測樣本（清洗品質評測、檢索品質評測各建 2 筆）</h3>
+<div class="tw"><table><thead><tr><th>類型</th><th>#</th><th>樣本名稱</th><th>重點</th></tr></thead><tbody><tr><td>清洗品質評測</td><td>G1</td><td>運維交接清洗樣本</td><td>客戶 IP/帳密應遮罩；須保留「重新開機」步驟</td></tr><tr><td>清洗品質評測</td><td>G2</td><td>需求會議清洗樣本</td><td>與會人名應遮罩；須保留「決議」</td></tr><tr><td>檢索品質評測</td><td>R1</td><td>部署前檢查查詢</td><td>問句「ERP 部署前要檢查什麼？」期望命中 A1</td></tr><tr><td>檢索品質評測</td><td>R2</td><td>越權洩漏測試</td><td>模擬開發組使用者問運維內容，期望越權＝0</td></tr></tbody></table></div>
+<h3 id="311-練習的建議順序與本手冊章節一致">3.11 練習的建議順序（與本手冊章節一致）</h3>
+<pre><code>第4章 登入
+  ↓
+第5章 基礎資料：團隊→分類→專案分類→角色→使用者→提示詞→清洗設定檔（用 support 建）
+  ↓
+第6章 匯入素材：王小明登入匯入 A1–A5；李四登入匯入 B1–B3；張經理匯入 P1
+  ↓
+第7章 會議 AI 自動化：李四上傳會議錄音 → AI 會議紀錄 → 待辦轉工作項目
+  ↓
+第8章 知識來源：聚合 → 清洗（選配方）→ 審核
+  ↓
+第9章 清洗品質評測（量清洗品質）
+  ↓
+第10章 蒸餾（含 10.1 知識百科）→ 第11章 索引（自動）
+  ↓
+第12章 AI 知識問答（含滿意度回饋）→ 第13章 知識圖譜審核與全域問答 → 第14章 檢索品質評測
+  ↓
+第15章 權控與篩選綜合練習（換帳號驗證可見性）
+  ↓
+第16章 MCP：外部 AI Agent 查詢知識庫（換憑證＝換身分）
+  ↓
+第17章 知識更新練習 → 第18章 一條龍回顧
+  ↓
+第19章 管理員維運與觀測頁（support）→ 第20章 FAQ</code></pre>
+<hr>
+<h2 id="第-4-章-登入系統" class="t6">第 4 章　登入系統</h2>
+<h3 id="41-這個畫面是做什麼用的">4.1 這個畫面是做什麼用的</h3>
+<p>登入頁（路由 <code>/Auths/Login</code>，未登入時系統會自動導向此頁）是系統的安全入口。它要解決的問題是：<strong>確認你是誰、擋掉機器人自動嘗試</strong>。所以除了帳號密碼，還多了一個<strong>驗證碼</strong>——這是用來防止程式自動暴力試密碼的。</p>
+<h3 id="42-畫面長什麼樣">4.2 畫面長什麼樣</h3>
+<p>打開系統網址後，你會看到一個科技神秘風的「智庫引擎」登入卡片（品牌徽章寫著「智庫引擎 · 企業知識」）：</p>
+<pre><code>┌────────────────────── 智庫引擎 · 企業知識 ──────────────────────┐
+│  IDENTITY VERIFICATION                                           │
+│  身分核驗                                                         │
+│  請完成身分驗證以連線至知識核心。                                 │
+│                                                                  │
+│   帳號    [ 請輸入帳號            ]                               │
+│   密碼    [ 請輸入密碼            ]                               │
+│   驗證碼  [ 請輸入右側驗證碼 ]   〔 7 3 0 6 〕  ← 隨機 4 位數字   │
+│   ☐ 記住我                         🔒 端對端加密連線             │
+│                                                                  │
+│              [        登入系統        ]                          │
+│  ───────────────────── 或 ─────────────────────                 │
+│              [    使用 Google 登入    ]  ← 若有設定 OAuth 才出現 │
+└──────────────────────────────────────────────────────────────┘</code></pre>
+<blockquote><p>💡 <strong>關於 Google 登入</strong>：若系統設定了 Google OAuth，登入卡片下方會出現「使用 Google 登入」。首次以 Google 登入的新帳號會停在「帳號待審核」頁（<code>/Auths/Pending</code>），需由管理員啟用並指派權限後才能使用。本手冊練習一律用內建 <code>support</code> 帳密登入，不需要 Google。</p></blockquote>
+<h3 id="43--欄位說明">4.3 🧩 欄位說明</h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>意義</th><th>如何輸入</th><th>必填</th></tr></thead><tbody><tr><td>帳號</td><td>你的登入帳號</td><td>例如第一次用內建的 <code>support</code></td><td>✅</td></tr><tr><td>密碼</td><td>登入密碼</td><td>內建帳號密碼為 <code>1qaz@WSX</code></td><td>✅</td></tr><tr><td>驗證碼</td><td>防自動登入的隨機 <strong>4 位數字</strong></td><td>照著右側顯示的數字一字不差地輸入</td><td>✅</td></tr><tr><td>記住我</td><td>勾選後在這台電腦保持登入較久</td><td>自己的電腦才勾，公用電腦別勾</td><td>—</td></tr></tbody></table></div>
+<blockquote><p>💡 <strong>為什麼要驗證碼</strong>：驗證碼是系統每次隨機產生的 4 位數，需要<strong>完全比對</strong>才能通過。它讓「程式自動猜密碼」變得不可行，是基本的資安防護。</p></blockquote>
+<h3 id="44--動手做第一次用內建管理帳號登入">4.4 👉 動手做：第一次用內建管理帳號登入</h3>
+<ol><li>在「帳號」輸入 <code>support</code>。</li><li>在「密碼」輸入 <code>1qaz@WSX</code>。</li><li>看右側的 4 位數字，原樣輸入到「驗證碼」（例如畫面顯示 <code>7306</code> 就輸入 <code>7306</code>）。</li><li>按 <strong>「登入系統」</strong>。</li></ol>
+<p>✅ <strong>你會看到</strong>：成功登入並直接進入「AI 知識問答」頁（路由會變成 <code>/knowledge-base-chat</code>），左側出現選單。因為 <code>support</code> 是管理員，<strong>你會看到全部選單</strong>。想看統計儀表板，點選選單「首頁」（<code>/App</code>）。</p>
+<h3 id="45--常見錯誤與修正">4.5 ⚠️ 常見錯誤與修正</h3>
+<div class="tw"><table><thead><tr><th>你看到的訊息</th><th>原因</th><th>怎麼修正</th></tr></thead><tbody><tr><td>「請輸入帳號」</td><td>帳號沒填</td><td>補上帳號</td></tr><tr><td>「請輸入密碼」</td><td>密碼沒填</td><td>補上密碼</td></tr><tr><td>「請輸入驗證碼」</td><td>驗證碼沒填</td><td>補上右側那 4 位數</td></tr><tr><td>「驗證碼錯誤」</td><td>驗證碼打錯（或看錯數字）</td><td>重新對照右側數字輸入；若看不清楚，重新整理頁面會換一組</td></tr><tr><td>「身分驗證失敗，請重新確認帳號與密碼。」</td><td>帳號或密碼錯</td><td>確認大小寫；內建帳密為 <code>support</code> / <code>1qaz@WSX</code></td></tr></tbody></table></div>
+<blockquote><p>💡 <strong>小提醒</strong>：驗證碼每次頁面載入都會重新產生。如果你試了幾次失敗，記得<strong>每次都要重看一次右側的新數字</strong>，不要沿用舊的。</p></blockquote>
+<hr>
+<h2 id="第-5-章-建立基礎資料用-support-帳號請依序完成" class="t7">第 5 章　建立基礎資料（用 support 帳號，請依序完成）</h2>
+<blockquote><p>🔑 本章全部用 <code>support</code>（管理員）登入操作，因為建立角色、使用者這些動作需要管理權限。</p></blockquote>
+<p><strong>順序非常重要：團隊 → 分類 → 專案分類 → 角色 → 使用者 → 提示詞 →（選配）清洗規則設定。</strong> 為什麼？因為「角色」要勾選團隊、「使用者」要指派角色，所以團隊和角色必須先存在。</p>
+<blockquote><p>🧭 <strong>這些畫面在左側選單哪裡</strong>：本章的七個畫面分屬兩個群組——</p>
+<ul><li><strong>「基礎資料設定」群組</strong>：團隊管理、知識庫分類、<strong>專案分類</strong>、AI 提示詞、清洗規則設定。</li><li><strong>「系統管理」群組（僅管理員可見）</strong>：使用者管理、角色管理 —— 注意這一組是<strong>三層選單</strong>，路徑是「<strong>系統管理 → 權限管理 → 使用者管理／角色管理</strong>」，要多點一層。</li></ul>
+<p>也就是說，建立團隊/分類要展開「基礎資料設定」，建立角色/使用者要展開「系統管理 → 權限管理」。用 <code>support</code>（管理員）登入才看得到「系統管理」群組。</p></blockquote>
+<h3 id="50-所有清單頁的共同操作">5.0 所有清單頁的共同操作</h3>
+<p>本章這幾個畫面都是「清單頁」，操作邏輯一樣，先學會這套就通用：</p>
+<ul><li>右上工具列：<strong>新增（➕）</strong>開表單、<strong>重新整理（🔄）</strong>重載、<strong>搜尋框</strong>（輸入關鍵字後按 🔍；按 ❌ 清空）。</li><li>每一列右側有 <strong>「修改」</strong> 與 <strong>「刪除」</strong> 兩個動作鈕。</li><li>💡 <strong>編輯安全機制</strong>：系統會先<strong>複製一份</strong>再讓你改，按存檔才寫回；刪除一定會跳<strong>確認對話框</strong>。所以你可以放心點開來看，不會手滑改壞。</li></ul>
+<hr>
+<h3 id="51-團隊管理-teams">5.1 團隊管理 <code>/teams</code></h3>
+<p><strong>這個畫面做什麼</strong>：建立組織分群，同時定義<strong>權限範圍</strong>——日後一筆紀錄貼上某團隊，就只有「該團隊成員（角色預設團隊含此團隊）」和管理員看得到。</p>
+<p>🧩 <strong>欄位說明</strong></p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>意義</th><th>如何輸入</th><th>必填</th></tr></thead><tbody><tr><td>名稱</td><td>顯示名稱，紀錄上的「團隊」標籤用此名稱<strong>精確比對</strong></td><td>例如「運維組」。<strong>命名後不要隨意改名</strong>（標籤是字串比對，改名會對不上舊紀錄）</td><td>✅</td></tr><tr><td>團隊代號</td><td>團隊短代號（選填）</td><td>例如「OPS」</td><td>—</td></tr><tr><td>說明（Description）</td><td>用途備註</td><td>自由文字</td><td>—</td></tr><tr><td>啟用狀態</td><td>是否啟用</td><td>預設啟用</td><td>預設✅</td></tr></tbody></table></div>
+<p>👉 <strong>動手做</strong>：依序新增下列 3 筆團隊（左上「新增」→填欄位→存檔，重複 3 次）：</p>
+<div class="tw"><table><thead><tr><th>團隊名稱</th><th>代號</th><th>說明</th></tr></thead><tbody><tr><td>運維組</td><td>OPS</td><td>系統維運／部署／故障知識</td></tr><tr><td>開發組</td><td>DEV</td><td>軟體開發／需求／架構知識</td></tr><tr><td>業務合約組</td><td>BIZ</td><td>合約、SLA、報價等高敏感資料</td></tr></tbody></table></div>
+<p>✅ <strong>你會看到</strong>：清單出現 3 列團隊。</p>
+<blockquote><p>💡 <strong>為什麼不建「公開」這個團隊？</strong> 因為「公開」不是一個團隊，而是「<strong>團隊欄位留空</strong>」的狀態。留空＝沒貼任何團隊＝所有人都看得到。所以我們<strong>故意不建</strong>公開團隊，後面 P1 紀錄會把團隊留空來示範。</p></blockquote>
+<p>⚠️ <strong>常見錯誤</strong>：團隊名稱打錯字（例如「運維組」打成「維運組」），日後紀錄貼的團隊就會對不上、角色也選錯。建議直接從上表複製貼上。</p>
+<hr>
+<h3 id="52-知識庫分類-categories">5.2 知識庫分類 <code>/categories</code></h3>
+<p><strong>這個畫面做什麼</strong>：建立<strong>內容主題標籤</strong>，用來在各種紀錄上分類、之後方便篩選與檢索。分類<strong>不</strong>影響權限（權限只看團隊），純粹是主題標籤。</p>
+<p>🧩 <strong>欄位說明</strong></p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>意義</th><th>如何輸入</th><th>必填</th></tr></thead><tbody><tr><td>名稱</td><td>主題標籤名稱，用此名稱<strong>精確比對</strong></td><td>例如「部署安裝」</td><td>✅</td></tr><tr><td>說明（Description）</td><td>用途說明</td><td>自由文字</td><td>—</td></tr><tr><td>啟用狀態</td><td>是否啟用</td><td>預設啟用</td><td>預設✅</td></tr></tbody></table></div>
+<p>👉 <strong>動手做</strong>：新增下列 10 筆分類：</p>
+<p><code>部署安裝</code>、<code>系統維運</code>、<code>故障排除</code>、<code>作業系統與硬體</code>、<code>會議紀錄</code>、<code>需求討論</code>、<code>系統架構</code>、<code>合約與維護計畫</code>、<code>操作手冊</code>、<code>教育訓練</code></p>
+<p>✅ <strong>你會看到</strong>：清單出現 10 列分類。</p>
+<blockquote><p>💡 <strong>為什麼一次建這麼多？</strong> 因為後面每筆紀錄都要貼 1～2 個分類，先把調色盤備齊，後續操作就順。分類可以隨時再增補。</p></blockquote>
+<hr>
+<h3 id="52b-專案分類-work-categories1018-起">5.2b 專案分類 <code>/work-categories</code>（1.0.18 起）</h3>
+<p><strong>這個畫面做什麼</strong>：跟 5.2 長得一模一樣，但<strong>服務對象不同</strong>——它是專案管理、工作任務、會議管理的分類下拉來源。1.0.18 之前這兩者共用一份清單，拆開之後兩邊的語彙各自乾淨。</p>
+<p>🧩 <strong>欄位說明</strong>：與 5.2 完全相同（分類名稱／說明／啟用）。</p>
+<p>👉 <strong>動手做</strong>：在「基礎資料設定」群組點「專案分類」，新增下列 4 筆：</p>
+<p><code>客戶會議</code>、<code>內部會議</code>、<code>導入專案</code>、<code>維運交接</code></p>
+<p>✅ <strong>你會看到</strong>：清單出現 4 列專案分類。回到 5.2 的知識庫分類看一眼——<strong>那 10 筆還在，這 4 筆沒有跑過去</strong>，兩份是獨立的。</p>
+<blockquote><p>💡 <strong>從舊版升級的人不用手動補</strong>：系統第一次啟動時會自動掃描既有專案／工作／會議用過的分類值，把缺的補進這份清單，既有紀錄的標籤一個字都不會變。這裡建的 4 筆是給第 7 章的會議練習用的。</p></blockquote>
+<blockquote><p>⚠️ <strong>最常踩的雷</strong>：在 5.2 的知識庫分類建了「客戶會議」，然後到會議管理的分類下拉裡找不到——因為建錯地方了。<strong>專案／工作／會議一律看這一頁。</strong></p></blockquote>
+<hr>
+<h3 id="53-角色管理-roleviews">5.3 角色管理 <code>/roleviews</code></h3>
+<p><strong>這個畫面做什麼</strong>：角色決定兩件事——①<strong>這個角色的人能看到哪些選單／頁面</strong>（權限樹），②<strong>這個角色預設屬於哪些團隊</strong>（決定能看到哪些團隊的紀錄）。它是「權限」與「可見資料範圍」的核心。</p>
+<p>🧩 <strong>欄位說明</strong></p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>意義</th><th>如何輸入</th><th>必填</th></tr></thead><tbody><tr><td>名稱（Name）</td><td>角色顯示名稱</td><td>例如「運維工程師」</td><td>✅</td></tr><tr><td>預設團隊（DefaultTeams）</td><td>此角色預設隸屬的團隊（<strong>決定可見的團隊紀錄</strong>）</td><td>多選下拉；<strong>要看得到貼某團隊的紀錄，這裡就要含該團隊</strong></td><td>—</td></tr><tr><td>角色項目（權限樹）</td><td>勾選此角色可見的選單／頁面</td><td>在權限樹中按群組逐項勾選；<strong>沒勾的頁面該角色看不到</strong></td><td>✅</td></tr></tbody></table></div>
+<blockquote><p>💡 <strong>多選下拉怎麼操作</strong>：點開「預設團隊」下拉，會列出你剛建的團隊，<strong>逐一點選</strong>要加入的（可複選），選錯點 ✕ 移除。下拉支援打字搜尋。 💡 <strong>權限樹是什麼</strong>：它把所有頁面按群組列成可勾選的樹。勾了，這個角色登入後左側才看得到對應選單。</p></blockquote>
+<blockquote><p>⚠️⚠️ <strong>這裡最容易卡住：權限樹上的名稱與左側選單不一樣！</strong></p>
+<p>權限樹的項目名稱<strong>刻意保留舊名</strong>（因為那些字串寫在每個角色的資料裡，一改所有既有角色就會掉權限）。所以你在選單看到「知識百科」，在權限樹要找的是「<strong>知識瀏覽</strong>」。下表是本章會用到的對照，<strong>照左欄找不到就看右欄</strong>：</p>
+<div class="tw"><table><thead><tr><th>你以為要找（選單名）</th><th>權限樹上實際的名稱</th></tr></thead><tbody><tr><td>影音轉逐字稿</td><td><strong>音訊轉錄</strong></td></tr><tr><td>文件轉文字</td><td><strong>文件萃取</strong></td></tr><tr><td>圖片解讀</td><td><strong>圖片清單</strong></td></tr><tr><td>知識來源加工</td><td><strong>知識來源管理清單</strong></td></tr><tr><td>清洗品質評測</td><td><strong>黃金評測</strong></td></tr><tr><td>檢索品質評測</td><td><strong>RAG評測</strong></td></tr><tr><td>知識頁審核</td><td><strong>知識蒸餾</strong></td></tr><tr><td>AI 知識問答</td><td><strong>知識庫問答</strong></td></tr><tr><td>知識百科</td><td><strong>知識瀏覽</strong></td></tr><tr><td>知識圖譜審核</td><td><strong>知識圖譜審核</strong>（<strong>同名</strong>，1.0.84 新增、沒有舊名包袱）</td></tr><tr><td>工作任務</td><td><strong>工作項目</strong></td></tr><tr><td>會議管理</td><td><strong>會議項目</strong></td></tr><tr><td>專案管理</td><td><strong>專案項目</strong></td></tr><tr><td>知識庫分類</td><td><strong>分類清單</strong></td></tr><tr><td>團隊管理</td><td><strong>團隊清單</strong></td></tr><tr><td>AI 提示詞</td><td><strong>提示詞清單</strong></td></tr><tr><td>清洗規則設定</td><td><strong>清洗設定檔</strong></td></tr></tbody></table></div>
+<p><strong>群組名也不一樣</strong>：權限樹的群組是「專案協作功能／資料匯入功能／<strong>清洗與蒸餾功能</strong>（＝選單的「知識庫」）／系統管理功能／<strong>資料定義功能</strong>（＝選單的「基礎資料設定」）／統計報表功能」。</p>
+<p>另外有兩個項目<strong>不對應任何選單</strong>，它們是「動作權限」：<strong><code>知識審核</code></strong>（核准/退回知識來源）與 <strong><code>蒸餾審核</code></strong>（核准/退回 Wiki 頁）。第 12 章要練審核就必須勾這兩個。<strong><code>蒸餾審核</code> 同時也是第 13 章核可三元組的必要條件。</strong></p>
+<p>完整對照見 <a href="../../docs/guides/complete-manual.html#%E9%81%B8%E5%96%AE%E5%90%8D%E8%88%87%E6%AC%8A%E9%99%90%E6%A8%B9%E5%90%8D%E5%B0%8D%E7%85%A7%E8%A1%A8">完整操作手冊 §3.1</a>。</p></blockquote>
+<p>👉 <strong>動手做</strong>：新增下列 4 個角色。每個角色：填名稱 → 在「預設團隊」多選對應團隊 → 在權限樹勾選對應頁面 → 存檔。</p>
+<p><strong>下表的「權限樹要勾的」已經是權限樹上的實際名稱</strong>，照著找就對了：</p>
+<div class="tw"><table><thead><tr><th>角色名稱</th><th>預設團隊（多選）</th><th>權限樹要勾的（實際名稱）</th></tr></thead><tbody><tr><td>知識管理員</td><td>運維組、開發組、業務合約組</td><td><strong>全部勾</strong>（務必含 <code>知識審核</code>、<code>蒸餾審核</code>——第 12 章才能核准/退回；也要含 <code>知識圖譜審核</code>，第 13 章才進得去）</td></tr><tr><td>運維工程師</td><td>運維組</td><td><code>首頁</code>、<code>音訊轉錄</code>、<code>文件萃取</code>、<code>圖片清單</code>、<code>會議項目</code>、<code>知識來源管理清單</code>、<code>知識庫問答</code>、<code>黃金評測</code>、<code>RAG評測</code></td></tr><tr><td>開發工程師</td><td>開發組</td><td><code>首頁</code>、<code>音訊轉錄</code>、<code>文件萃取</code>、<code>圖片清單</code>、<code>會議項目</code>、<code>工作項目</code>、<code>知識來源管理清單</code>、<code>知識庫問答</code></td></tr><tr><td>業務專員</td><td>業務合約組</td><td><code>首頁</code>、<code>知識來源管理清單</code>、<code>知識庫問答</code></td></tr></tbody></table></div>
+<p>✅ <strong>你會看到</strong>：清單出現 4 個角色。</p>
+<blockquote><p>💡 <strong>設計重點</strong>：注意「知識管理員」的預設團隊<strong>同時含三組</strong>，這就是為什麼第 15 章張經理登入時能看到全部團隊的紀錄——因為「能看到某團隊紀錄」的條件是「角色預設團隊<strong>與紀錄團隊有交集</strong>」，他三組都含，自然全包。 💡 <strong>權限樹勾選沒有絕對標準答案</strong>：你可以多勾幾頁沒關係，重點是「該角色要用到的頁面要勾到」。若某人登入後發現少了某個選單，回到這裡補勾即可（見 ⚠️）。</p></blockquote>
+<p>⚠️ <strong>常見錯誤</strong>：忘了勾某頁權限 → 該角色登入後左側看不到那個選單。修正：用 support 回到 <code>/roleviews</code>，編輯該角色，補勾後存檔，請對方重新登入。</p>
+<hr>
+<h3 id="54-使用者管理-myusers">5.4 使用者管理 <code>/myusers</code></h3>
+<p><strong>這個畫面做什麼</strong>：建立可登入的帳號，並<strong>指派角色</strong>（角色帶來可見選單與預設團隊）。</p>
+<p>🧩 <strong>欄位說明</strong>（表單標題為「使用者維護」）</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>意義</th><th>如何輸入</th><th>必填</th></tr></thead><tbody><tr><td>帳號（Account）</td><td>登入帳號，須唯一</td><td>英數字，例如 <code>wang</code></td><td>✅</td></tr><tr><td>密碼（Password）</td><td>登入密碼</td><td><strong>新帳號必填</strong>；編輯既有帳號時<strong>留白＝不變更</strong></td><td>新帳號✅</td></tr><tr><td>名稱（Name）</td><td>顯示姓名</td><td>例如「王小明」</td><td>✅</td></tr><tr><td>Email</td><td>電子郵件（選填）</td><td>例如 <code>wang@dingfeng.com</code></td><td>—</td></tr><tr><td>角色（RoleViewId）</td><td>指派<strong>一個</strong>角色</td><td>從下拉選一個（決定可見選單與預設團隊）</td><td>建議✅</td></tr><tr><td>啟用（Status）</td><td>帳號是否啟用</td><td>預設啟用；停用後無法登入</td><td>預設✅</td></tr><tr><td>管理員（IsAdmin）</td><td>管理員<strong>不受團隊權控</strong>、看得到全部</td><td><strong>一般使用者請勿勾</strong>；本練習這 4 位都不勾</td><td>預設✗</td></tr></tbody></table></div>
+<p>👉 <strong>動手做</strong>：新增下列 4 個使用者（密碼自訂，本手冊以 <code>Pass@1234</code> 示範；請記住你設的密碼）：</p>
+<div class="tw"><table><thead><tr><th>帳號</th><th>密碼</th><th>名稱</th><th>角色</th><th>管理員</th></tr></thead><tbody><tr><td>zhang</td><td>Pass@1234</td><td>張經理</td><td>知識管理員</td><td>不勾</td></tr><tr><td>wang</td><td>Pass@1234</td><td>王小明</td><td>運維工程師</td><td>不勾</td></tr><tr><td>lisi</td><td>Pass@1234</td><td>李四</td><td>開發工程師</td><td>不勾</td></tr><tr><td>chen</td><td>Pass@1234</td><td>陳美玲</td><td>業務專員</td><td>不勾</td></tr></tbody></table></div>
+<p>✅ <strong>你會看到</strong>：使用者清單共 5 列（含內建 support）。「管理員」欄只有 support 是「是」，其餘 4 位是「否」。</p>
+<blockquote><p>💡 <strong>為什麼這 4 位都不勾管理員？</strong> 因為本手冊的核心教學就是「<strong>團隊權控</strong>」。如果勾了管理員，他們就不受權控、全部看得到，就示範不出「不同人看到不同資料」了。所以一定要保持不勾。</p></blockquote>
+<p>⚠️ <strong>常見錯誤</strong>：</p>
+<ul><li>角色忘了選 → 該使用者登入後幾乎什麼選單都沒有。修正：編輯該使用者補上角色。</li><li>帳號重複 → 系統會擋下並提示。換一個唯一帳號。</li></ul>
+<hr>
+<h3 id="55-ai-提示詞-prompts">5.5 AI 提示詞 <code>/prompts</code></h3>
+<p><strong>這個畫面做什麼</strong>：集中管理要送給 LLM 的提示詞。其中<strong>名稱叫 <code>清洗-去重 / 清洗-遮罩 / 清洗-分類 / 清洗-摘要 / 清洗-信心</code> 且啟用</strong>的項目，會自動成為「<strong>全域清洗提示詞</strong>」（在你沒套用清洗規則設定時生效）。其他名稱的提示詞，可在問答等畫面當「預先寫好的提示詞」直接套用。</p>
+<p>🧩 <strong>欄位說明</strong></p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>意義</th><th>如何輸入</th><th>必填</th></tr></thead><tbody><tr><td>名稱</td><td>識別名稱；清洗用途請用約定名稱</td><td>清洗五步請<strong>精確</strong>用 <code>清洗-去重</code> 等名稱</td><td>✅</td></tr><tr><td>提示詞本文（Content）</td><td>實際送給 LLM 的指示文字</td><td>用清楚的中文指令描述要做什麼</td><td>✅</td></tr><tr><td>說明（Description）</td><td>用途備註</td><td>自由文字</td><td>—</td></tr><tr><td>啟用狀態</td><td>是否生效</td><td>停用則不被採用</td><td>預設✅</td></tr></tbody></table></div>
+<blockquote><p>💡 <strong>提示詞解析順序（四層，越前面越優先）</strong>：單次操作指定 → 清洗規則設定 → 此處的全域 DB 提示詞 → <code>appsettings.json</code> → 程式內建 fallback。所以你在這裡建的「清洗-XX」會蓋過程式內建預設。</p></blockquote>
+<p>👉 <strong>動手做（清洗五步全域提示詞，名稱要一字不差）</strong>：</p>
+<div class="tw"><table><thead><tr><th>名稱</th><th>提示詞本文（可照抄並自行加強）</th></tr></thead><tbody><tr><td>清洗-去重</td><td>請移除重複、口語贅字與雜訊段落，保留完整語意，輸出整理後的繁體中文。</td></tr><tr><td>清洗-遮罩</td><td>請遮罩所有個資與機密：姓名、電話、Email、身分證、客戶 IP 位址、帳號、密碼、序號。遮罩處以「（已遮罩）」標示，<strong>不得保留原值</strong>。</td></tr><tr><td>清洗-分類</td><td>請依內容建議 1~5 個主題分類標籤，僅輸出標籤。</td></tr><tr><td>清洗-摘要</td><td>請輸出 100~200 字的重點摘要，並列出關鍵實體（人、事、時、地、物）。</td></tr><tr><td>清洗-信心</td><td>請依清洗品質輸出 0~1 之間的信心分數，1 表示完全可信。</td></tr></tbody></table></div>
+<p>👉 <strong>動手做（互動用提示詞，問答練習會用到）</strong>：</p>
+<div class="tw"><table><thead><tr><th>名稱</th><th>提示詞本文</th></tr></thead><tbody><tr><td>問答-條列步驟</td><td>請以條列的步驟回答，並在最後附上「風險提醒」一段。</td></tr><tr><td>問答-表格比較</td><td>若問題涉及多個選項或項目，請用 Markdown 表格列出比較。</td></tr></tbody></table></div>
+<p>✅ <strong>你會看到</strong>：AI 提示詞共 7 列，五個「清洗-」開頭的已啟用。</p>
+<blockquote><p>💡 <strong>沒有金鑰也要建嗎？</strong> 建議建。沒金鑰時清洗會略過 LLM 步驟，這些提示詞暫時用不到；但一旦你補上金鑰，它們立刻生效，不用重做。</p></blockquote>
+<hr>
+<h3 id="56-清洗規則設定-cleaning-profiles選配但本練習建議做">5.6 清洗規則設定 <code>/cleaning-profiles</code>（選配，但本練習建議做）</h3>
+<p><strong>這個畫面做什麼</strong>：把「要怎麼去重／遮罩／分類／摘要／評信心」打包成一組<strong>可重複套用的命名配方</strong>。清洗知識來源時可以直接選用某個配方，針對不同類型素材用不同清洗策略。<strong>任一段留空＝該步驟改用系統預設。</strong></p>
+<p>🧩 <strong>欄位說明</strong></p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>意義</th><th>如何輸入</th><th>必填</th></tr></thead><tbody><tr><td>名稱（Name）</td><td>設定檔顯示名稱</td><td>例如「運維配方」</td><td>✅</td></tr><tr><td>描述（Description）</td><td>用途</td><td>自由文字</td><td>—</td></tr><tr><td>啟用狀態（IsEnabled）</td><td>是否可被選用（畫面是「啟用/停用」開關）</td><td>預設啟用</td><td>預設✅</td></tr><tr><td>去重提示詞（DedupePrompt）</td><td>如何合併重複/雜訊</td><td>留空＝系統預設</td><td>—</td></tr><tr><td>遮罩提示詞（MaskPrompt）</td><td>要遮哪些敏感資訊</td><td>留空＝系統預設</td><td>—</td></tr><tr><td>分類提示詞（ClassifyPrompt）</td><td>依哪些面向分類</td><td>留空＝系統預設</td><td>—</td></tr><tr><td>摘要提示詞（SummaryPrompt）</td><td>摘要格式與重點</td><td>留空＝系統預設</td><td>—</td></tr><tr><td>信心自評提示詞（ConfidencePrompt）</td><td>如何自評信心分數</td><td>留空＝系統預設</td><td>—</td></tr></tbody></table></div>
+<blockquote><p>💡 畫面上會有提示：「以下五段提示詞留空時，該步驟改用系統內建預設。」所以你只需要填「想跟預設不一樣」的那幾段即可。</p></blockquote>
+<p>👉 <strong>動手做</strong>：建立 2 個設定檔（第 3 個選配）。下表只填關鍵兩段，其餘留空：</p>
+<p><strong>設定檔 1：運維配方</strong></p>
+<ul><li>描述：<code>給維運/故障/部署類素材使用</code></li><li>遮罩提示詞：<code>請遮罩客戶 IP 位址、主機帳號、密碼、產品序號，遮罩處標示（已遮罩）。</code></li><li>摘要提示詞：<code>請將內容整理成三段：『問題』『原因』『解法』，每段條列重點。</code></li><li>其餘留空。</li></ul>
+<p><strong>設定檔 2：會議配方</strong></p>
+<ul><li>描述：<code>給客戶會議/需求訪談類素材使用</code></li><li>遮罩提示詞：<code>請遮罩與會者姓名與個人電話，保留其職稱。</code></li><li>摘要提示詞：<code>請將內容整理成三段：『決議』『待辦』『負責人』，每段條列。</code></li><li>其餘留空。</li></ul>
+<p><strong>（選配）設定檔 3：高敏感合約配方</strong></p>
+<ul><li>描述：<code>給合約/SLA/報價類高敏感素材使用</code></li><li>遮罩提示詞：<code>請強遮罩金額、統一編號、個人身分證、銀行帳號與聯絡資訊。</code></li><li>摘要提示詞：<code>請整理成『合約方／金額／期限／重點條款』四項。</code></li><li>其餘留空。</li></ul>
+<p>✅ <strong>你會看到</strong>：清洗規則設定清單出現 2（或 3）筆。</p>
+<blockquote><p>💡 <strong>為什麼要建兩個以上？</strong> 因為第 8 章清洗時，你會分別對「運維素材」選「運維配方」、對「會議素材」選「會議配方」，<strong>親眼比較同一套素材用不同配方，摘要結構會不同</strong>（一個是問題/原因/解法，一個是決議/待辦/負責人）。這就是配方存在的價值。</p></blockquote>
+<hr>
+<h3 id="57-基礎資料檢查點">5.7 基礎資料檢查點</h3>
+<p>做到這裡，請確認（用 support 逐頁看一眼）：</p>
+<ul><li>團隊 3 筆：運維組、開發組、業務合約組</li><li>分類 10 筆</li><li>角色 4 筆，且各自的預設團隊與權限樹有設</li><li>使用者 5 個（含 support），4 位具名帳號<strong>都沒勾管理員</strong></li><li>提示詞 7 筆（5 個清洗 + 2 個問答）</li><li>清洗規則設定 2～3 筆</li></ul>
+<p>全部打勾，就可以進入第 6 章開始匯入素材了。</p>
+<hr>
+<h2 id="第-6-章-匯入素材三條管線" class="t8">第 6 章　匯入素材（三條管線）</h2>
+<p>從這一章開始要<strong>換帳號</strong>了。基礎資料用 support 建好後，接下來模擬真實情境——讓<strong>王小明、李四、張經理各自登入</strong>輸入自己的紀錄。這樣才能在第 15 章看到權控效果。</p>
+<p>三條匯入管線的共同點：都是「清單頁 → 新增 → 背景處理」。匯入後是<strong>背景作業</strong>，清單會即時顯示狀態與進度，<strong>失敗可重試、處理中可取消</strong>。三者都有<strong>分類（多選）</strong>與<strong>團隊（多選，決定可見範圍）</strong>兩個標籤欄位。</p>
+<blockquote><p>💡 <strong>多選標籤怎麼填</strong>：在分類／團隊下拉中勾選多個；<strong>團隊留空＝公開（無團隊）</strong>。本練習除了 P1 之外都要記得選團隊。</p></blockquote>
+<h3 id="60-準備可複製的練習素材">6.0 準備可複製的練習素材</h3>
+<p>本手冊把每筆紀錄的內容都寫在<strong>附錄 B（可複製素材彙整）</strong>。你有三種做法：</p>
+<ul><li><strong>做法 0（推薦）・直接用現成素材包</strong>：<code>docs/guides/lab-samples/</code> 已備妥全部核心素材的成品檔——A1 docx、A2 pdf、A3 png、A4 mp3、A5 xlsx、B1 mp3、B2 pptx、B3 pdf、P1 docx（檔名＝紀錄標題，內容以附錄 B 為骨幹、關鍵事實逐字一致），另有多份擴充素材與批次上傳 zip。對照表與使用說明見 <a href="../../docs/guides/lab-samples/lab-samples.html">lab-samples/README.md</a>。</li><li><strong>自製文件</strong>（A1、A2、A5、B2、B3、P1）：把附錄 B 對應內容貼到記事本，<strong>另存成 <code>.txt</code> 或貼進 Word 存成 <code>.docx</code></strong>，就能上傳萃取。<code>.txt</code>/<code>.docx</code> 都是 markitdown 支援的格式。</li><li><strong>音訊/圖片素材</strong>（A4、B1、A3）：用 lab-samples 的 mp3／png 走真實管線；沒有金鑰時見各節的 🟢 無金鑰替代路徑，改用「把逐字稿/圖片解讀文字當文件匯入」（lab-samples\text-fallback\ 有現成 .txt），不需要真的有錄音檔或金鑰。</li></ul>
+<hr>
+<h3 id="61-音訊影片轉錄-media-transcription">6.1 音訊／影片轉錄 <code>/media-transcription</code></h3>
+<p><strong>這個畫面做什麼</strong>：上傳音檔/影片，或貼上影片連結，由 OpenAI 轉錄模型自動產生<strong>逐字稿</strong>。它解決的問題是——會議、交接、教學影片裡的知識，沒人想重聽；轉成文字後才能被清洗、檢索。</p>
+<p>🔑 <strong>需要金鑰／工具</strong>：轉錄需要 <strong>ffmpeg ＋ OpenAI 金鑰</strong>；影片連結另需 <strong>yt-dlp</strong>。</p>
+<p>🧩 <strong>欄位說明</strong></p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>意義</th><th>如何輸入</th><th>必填</th></tr></thead><tbody><tr><td>標題（Title）</td><td>這筆轉錄的名稱</td><td>取有辨識度的名字</td><td>✅</td></tr><tr><td>描述</td><td>補充說明</td><td>自由文字</td><td>—</td></tr><tr><td>來源類型</td><td><code>檔案上傳</code> 或 <code>影片連結</code>（表單最上方先選）</td><td>上傳走檔案、連結走 URL</td><td>✅</td></tr><tr><td>影片網址</td><td>連結來源的影片網址</td><td>來源類型為連結時填（可直接貼整段分享文字）</td><td>連結時✅</td></tr><tr><td>音訊／影片檔案</td><td>要轉錄的音訊/影片檔</td><td>支援 <code>.flac/.m4a/.mp3/.mp4/.mpeg/.mpga/.oga/.ogg/.wav/.webm</code>，單檔上限 <strong>2GB</strong>（1.0.20 起由 1GB 放寬；文件轉文字仍為 1GB）</td><td>上傳時✅</td></tr><tr><td>轉錄語言</td><td>轉錄語言</td><td><code>繁體中文</code>／<code>English</code>／<code>自動偵測</code>（選繁體中文會轉台灣繁體）</td><td>—</td></tr><tr><td>分類 / 團隊</td><td>標籤與權控</td><td>多選</td><td>—</td></tr></tbody></table></div>
+<p><strong>狀態機</strong>：<code>等待中 → 處理中 → 已完成 / 失敗 / 已取消</code>（失敗按該筆「重試轉錄」即可、處理中可「取消轉錄」，不必重整網頁）。完成後可線上<strong>編修逐字稿</strong>、<strong>依提示詞產生</strong>再加工、<strong>檢視/編修產生結果</strong>，也可「下載來源檔案／下載逐字稿」。編修對話窗左側附<strong>「搜尋取代」</strong>按鈕，可一次把逐字稿裡的關鍵字全部替換。</p>
+<h4 id="動手做王小明登入匯入-a4">👉 動手做（王小明登入，匯入 A4）</h4>
+<blockquote><p>先用 support 登出，改用 <code>wang</code> / 你設的密碼登入（記得填驗證碼）。王小明的角色是運維工程師，左側會看到影音轉逐字稿等選單。</p></blockquote>
+<ol><li>進 <code>/media-transcription</code>，按「新增」。</li><li>來源類型選「檔案上傳」，標題填 <code>客戶現場維運交接錄音</code>。</li><li>上傳一段短音檔；💡 建議直接用 <code>lab-samples/audio/客戶現場維運交接錄音.mp3</code>（TTS 合成，台詞＝附錄 B A4 逐字稿，轉錄結果可對答案），也可用手邊任何短音檔練流程。轉錄語言選「繁體中文」。</li><li>分類選「系統維運」，<strong>團隊選「運維組」</strong>。</li><li>存檔，看清單狀態從「等待中」跑到「已完成」。</li></ol>
+<p>✅ <strong>你會看到</strong>：清單新增一列，狀態變「已完成」，可點開看逐字稿。</p>
+<p>🟢 <strong>無金鑰替代路徑（沒有金鑰或不想上傳音檔）</strong>：跳過影音轉逐字稿，改用<strong>文件轉文字</strong>匯入 A4。把附錄 B 的「A4 交接逐字稿」內容存成 <code>客戶現場維運交接錄音.txt</code>，到 <code>/document-extraction</code> 上傳（步驟見 6.2），分類「系統維運」、團隊「運維組」。效果一樣能進入後續清洗流程。<strong>本手冊後續預設你用這條路徑，確保人人跑得完。</strong></p>
+<p>⚠️ <strong>常見錯誤</strong>：上傳後一直「失敗」→ 多半是缺 ffmpeg 或沒填金鑰。對照《<a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊</a>》補齊，或直接走無金鑰替代路徑。</p>
+<hr>
+<h3 id="62-文件轉文字-document-extraction">6.2 文件轉文字 <code>/document-extraction</code></h3>
+<p><strong>這個畫面做什麼</strong>：上傳 PDF / Word / Excel / PPT / 純文字，由 <strong>markitdown</strong> 轉成乾淨的 <strong>Markdown</strong>。它解決的問題是——格式各異的文件無法直接被檢索；轉成統一的 Markdown 後才好處理。</p>
+<p>🔑 <strong>需要工具（但不需金鑰）</strong>：文件轉文字只需本機的 <strong>markitdown</strong>，<strong>不需要 OpenAI 金鑰</strong>。所以這是無金鑰讀者的主力管線。</p>
+<p>🧩 <strong>欄位說明</strong></p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>意義</th><th>如何輸入</th><th>必填</th></tr></thead><tbody><tr><td>標題（Title）</td><td>文件名稱</td><td>自由文字</td><td>✅</td></tr><tr><td>描述</td><td>補充說明</td><td>自由文字</td><td>—</td></tr><tr><td>檔案</td><td>要萃取的文件</td><td>支援 <code>.pdf/.docx/.doc/.pptx/.ppt/.xlsx/.xls/.csv/.txt/.md/.json/.xml/.html/.htm/.yaml/.yml/.epub/.zip</code> 及常見圖片格式，單檔上限 1GB</td><td>✅</td></tr><tr><td>分類 / 團隊</td><td>標籤與權控</td><td>多選</td><td>—</td></tr></tbody></table></div>
+<p><strong>狀態機</strong>：<code>等待中 → 處理中 → 已完成 / 失敗 / 已取消</code>。完成後得到 Markdown，可「檢視/編修 Markdown」（編修對話窗附<strong>搜尋取代</strong>）、下載 Markdown、依提示詞產生、檢視/編修產生結果。</p>
+<blockquote><p>💡 <strong>批次上傳壓縮檔</strong>：工具列有「<strong>批次上傳壓縮檔</strong>」按鈕，上傳一個 <code>.zip</code>，系統會為裡面每個支援的檔案各建立一筆記錄（標題取自檔名），一次匯入整包文件。不支援的檔案與巢狀壓縮檔會被略過。</p></blockquote>
+<h4 id="動手做王小明登入匯入-a1a2a5">👉 動手做（王小明登入，匯入 A1、A2、A5）</h4>
+<p>對下列每一筆：先用附錄 B 內容存成同名 <code>.txt</code> 或 <code>.docx</code>，再到 <code>/document-extraction</code>「新增」→ 上傳 → 填標題 → 選分類/團隊 → 存檔。</p>
+<div class="tw"><table><thead><tr><th>標題</th><th>分類（多選）</th><th>團隊</th></tr></thead><tbody><tr><td>客戶A-ERP系統部署安裝SOP</td><td>部署安裝、操作手冊</td><td>運維組</td></tr><tr><td>WindowsServer記憶體不足故障排除筆記</td><td>故障排除、作業系統與硬體</td><td>運維組</td></tr><tr><td>每月例行維護檢查清單</td><td>系統維運、操作手冊</td><td>運維組</td></tr></tbody></table></div>
+<p>✅ <strong>你會看到</strong>：王小明的文件轉文字清單出現 3 筆（加上 6.1 用替代路徑匯入的 A4，運維素材就齊了）。每筆狀態「已完成」，點開可看轉好的 Markdown。</p>
+<blockquote><p>💡 <strong>「依提示詞產生」是什麼</strong>：完成後畫面有個「依提示詞產生」功能，可用「產生來源」切換以「使用萃取文字（Markdown）」或「送原始檔案到 LLM」為輸入，再讓 LLM 加工（例如改寫成 SOP）。這需要金鑰，屬進階；本練習可略過。</p></blockquote>
+<h4 id="動手做李四登入匯入-b2b3">👉 動手做（李四登入，匯入 B2、B3）</h4>
+<blockquote><p>用 <code>lisi</code> 登入。李四是開發工程師。</p></blockquote>
+<div class="tw"><table><thead><tr><th>標題</th><th>分類</th><th>團隊</th><th>備註</th></tr></thead><tbody><tr><td>客戶A系統架構設計說明</td><td>系統架構</td><td>開發組</td><td>一般開發素材</td></tr><tr><td>客戶A維護合約與SLA</td><td>合約與維護計畫</td><td><strong>業務合約組</strong></td><td>⚠️ 團隊故意設成「業務合約組」</td></tr></tbody></table></div>
+<blockquote><p>💡 <strong>B3 的玄機</strong>：李四雖然輸入了 B3，但他把團隊設成「業務合約組」（不是開發組）。李四的角色預設團隊只有「開發組」，所以<strong>存檔之後，B3 會從李四自己的清單消失</strong>——因為他無權看業務合約組的紀錄！這是刻意的教學設計，第 15 章會驗證。如果你想先看到這個效果，存完 B3 後重新整理清單，會發現 B3 不見了（只有 support 或張經理看得到）。</p></blockquote>
+<h4 id="動手做張經理登入匯入-p1-公開紀錄">👉 動手做（張經理登入，匯入 P1 公開紀錄）</h4>
+<blockquote><p>用 <code>zhang</code> 登入。</p></blockquote>
+<div class="tw"><table><thead><tr><th>標題</th><th>分類</th><th>團隊</th></tr></thead><tbody><tr><td>公司內部開發環境建置指南</td><td>教育訓練、操作手冊</td><td><strong>（留空，不選任何團隊）</strong></td></tr></tbody></table></div>
+<p>✅ <strong>你會看到</strong>：P1 因為團隊留空，<strong>之後王小明、李四、陳美玲登入都看得到</strong>。</p>
+<p>🟢 <strong>無金鑰替代路徑</strong>：文件轉文字本來就不需金鑰，這節人人可做。唯一前提是伺服器裝了 markitdown（由安裝人員負責）。若連 markitdown 都沒有，最後手段是把內容直接當作「已完成的逐字稿」由管理員協助匯入——但正常情況不需要。</p>
+<p>⚠️ <strong>常見錯誤</strong>：上傳後「失敗」且訊息提到不支援的格式 → 換成 <code>.txt</code>、<code>.docx</code>、<code>.pdf</code> 等支援格式。畫面會顯示可上傳的副檔名清單。</p>
+<hr>
+<h3 id="63-圖片解讀-image-recognition">6.3 圖片解讀 <code>/image-recognition</code></h3>
+<p><strong>這個畫面做什麼</strong>：上傳圖片，由<strong>視覺 LLM</strong>解讀出文字描述（例如看懂一張錯誤訊息截圖、一張機房接線照片在講什麼）。它解決的問題是——圖片裡的資訊無法被文字檢索；解讀成文字後就能納入知識庫。</p>
+<p>🔑 <strong>需要金鑰</strong>：圖片解讀需要<strong>視覺模型金鑰</strong>；圖片上限約 50MB。</p>
+<p>🧩 <strong>欄位說明</strong></p>
+<div class="tw"><table><thead><tr><th>欄位（畫面標籤）</th><th>意義</th><th>如何輸入</th><th>必填</th></tr></thead><tbody><tr><td>標題</td><td>圖片名稱</td><td>自由文字</td><td>✅</td></tr><tr><td>描述</td><td>補充說明</td><td>自由文字</td><td>—</td></tr><tr><td>分類 / 團隊</td><td>標籤與權控</td><td>多選</td><td>—</td></tr><tr><td>圖片檔案</td><td>要解讀的圖片</td><td>上傳圖片檔</td><td>✅</td></tr></tbody></table></div>
+<blockquote><p>⚠️⚠️ <strong>新增表單裡「沒有」解讀提示詞欄位，而且存檔後不會自動開始解讀。</strong> 這是本章最容易卡住的一步——提示詞是在<strong>存檔之後</strong>、另一個視窗裡選的。詳細步驟見下方動手做。</p></blockquote>
+<p><strong>狀態機</strong>：<code>未解讀 → 等待中 → 處理中 → 已完成 / 失敗 / 已取消</code>。解讀文字只保留最新一筆，重新解讀即覆寫。</p>
+<blockquote><p>💡 <strong>批次上傳壓縮檔</strong>：工具列同樣有「<strong>批次上傳壓縮檔</strong>」，上傳一個 <code>.zip</code> 會為裡面每張支援圖片各建立一筆「未解讀」記錄（標題取自原始檔名），上限 <strong>500 張／解壓後 2GB</strong>。<strong>解讀一律要於建立後自行觸發</strong>（一筆一筆按「解讀圖片」）。</p></blockquote>
+<h4 id="動手做王小明登入匯入-a3">👉 動手做（王小明登入，匯入 A3）</h4>
+<p><strong>這一節分兩段：先建檔，再觸發解讀。</strong></p>
+<p><strong>第一段：建檔</strong></p>
+<ol><li>進 <code>/image-recognition</code>，按「新增」，標題 <code>機房接線與錯誤訊息截圖</code>。</li><li>上傳一張圖片；💡 建議直接用 <code>lab-samples/images/機房接線與錯誤訊息截圖.png</code>（機櫃橘燈＋「Network cable unplugged」示意截圖，AI 解讀結果可與附錄 B 對照），也可用任何截圖練流程。</li><li>分類選「作業系統與硬體」，團隊選「運維組」，存檔。</li></ol>
+<p>✅ <strong>你會看到</strong>：清單多一列，狀態是「<strong>未解讀</strong>」——<strong>不是「已完成」，也不會自己開始跑</strong>。這是正常的，繼續第二段。</p>
+<p><strong>第二段：觸發解讀</strong></p>
+<ol><li>在剛建立的那一列按「<strong>解讀圖片</strong>」→ 跳出「解讀圖片：機房接線與錯誤訊息截圖」視窗。</li><li>在「<strong>選擇提示詞</strong>」下拉挑一個，或直接在「<strong>提示詞內容（可自行調整）</strong>」框內填入：</li></ol>
+<p><code>請描述圖片中的錯誤訊息或硬體接線狀況，並列出可能的問題。</code></p>
+<blockquote><p><strong>提示詞是必填</strong>。兩者都留空按下去會被擋，訊息是 <code>請先選擇或輸入提示詞。</code></p></blockquote>
+<ol><li>按視窗的「<strong>解讀</strong>」。</li></ol>
+<p>✅ <strong>你會看到</strong>：狀態從「未解讀」轉為「等待中」→「處理中」→「已完成」，點開可看 AI 解讀出的文字。</p>
+<p>🟢 <strong>無金鑰替代路徑</strong>：把附錄 B 的「A3 圖片解讀文字」存成 <code>機房接線與錯誤訊息截圖.txt</code>，改用文件轉文字（6.2）匯入，分類「作業系統與硬體」、團隊「運維組」。後續流程完全一致。</p>
+<p>⚠️ <strong>常見錯誤</strong>：圖片太大（&gt;50MB）或非影像格式 → 換較小的常見圖片格式。</p>
+<hr>
+<h3 id="64-匯入檢查點">6.4 匯入檢查點</h3>
+<p>到這裡，9 筆素材應該都進系統了（無金鑰讀者全部走文件轉文字）。請確認：</p>
+<ul><li>王小明清單可見：A1、A2、A4、A5（A3 圖片或其替代）共 5 筆運維素材，<strong>團隊都是運維組</strong>。</li><li>李四清單可見：B1（見下方提醒）、B2，<strong>團隊開發組</strong>；B3 已「消失」（被權控擋住，正常）。</li><li>張經理清單可見：P1（公開）。</li></ul>
+<blockquote><p>💡 <strong>B1（需求訪談會議錄音）放哪做？</strong> 比照 A4：有金鑰用影音轉逐字稿（可直接上傳 <code>lab-samples/audio/客戶A需求訪談會議錄音.mp3</code>，雙人對話 TTS 合成）、無金鑰用文件轉文字匯入附錄 B 的「B1 需求訪談逐字稿」（<code>lab-samples/text-fallback/</code> 有現成 .txt），由<strong>李四</strong>操作，分類「會議紀錄、需求討論」、團隊「開發組」。</p></blockquote>
+<p><strong>第 6 章驗收卡</strong></p>
+<div class="tw"><table><thead><tr><th>驗收項目</th><th>可觀察證據</th><th>通過條件</th><th>未通過先做什麼</th></tr></thead><tbody><tr><td>A1–A5</td><td>王小明可在對應匯入清單找到 5 筆</td><td>全部完成，團隊皆為運維組</td><td>看該列錯誤訊息；工具／金鑰未就緒就改走文件替代路徑</td></tr><tr><td>B1–B2</td><td>李四可見兩筆開發素材</td><td>全部完成，團隊皆為開發組</td><td>核對登入帳號、處理狀態與團隊</td></tr><tr><td>B3</td><td>李四建檔後看不到，具業務合約組權限者可見</td><td>符合團隊權控預期</td><td>若李四仍看得到，檢查 B3 團隊及角色預設團隊</td></tr><tr><td>P1</td><td>王小明、李四與張經理皆可見</td><td>團隊留空，作為公開素材</td><td>若有人看不到，確認不是誤選團隊且紀錄已完成</td></tr></tbody></table></div>
+<blockquote><p>請在進入第 7 章前把未通過項目處理完。後續「管理成員」只會列出你有權限且狀態已完成的素材，前一章的錯誤會在這裡變成「找不到成員」。</p></blockquote>
+<hr>
+<h2 id="第-7-章-會議-ai-自動化-meeting第四條匯入管道1020-新增" class="t1">第 7 章　會議 AI 自動化 <code>/meeting</code>（第四條匯入管道，1.0.20 新增）</h2>
+<p><strong>這個畫面做什麼</strong>：前一章的三條管線，你都要自己挑檔、自己填標題、自己貼分類團隊。這一章不用——在會議管理上按「上傳錄音」，系統會<strong>自動</strong>建轉錄紀錄（繼承這場會議的分類與團隊）、<strong>自動</strong>轉錄、<strong>自動</strong>用 AI 寫出會議紀錄，還<strong>自動</strong>從逐字稿抓出待辦草稿。你只要審一遍、勾選確認。</p>
+<p><strong>它解決什麼痛點</strong>：開完會最耗人的不是開會，是「誰去整理紀錄」跟「會後待辦有沒有人記得」。這一章就是把這兩件事外包給系統。</p>
+<p>🔑 <strong>需要金鑰／工具</strong>：與第 6 章影音轉逐字稿相同（<strong>OpenAI 金鑰</strong>＋ ffmpeg）。無金鑰讀者請看本章最後的「無金鑰替代路徑」，仍可完成後續章節。</p>
+<blockquote><p>🧭 <strong>選單位置</strong>：左側「<strong>專案協作</strong>」群組 →「會議管理」。注意它<strong>不在</strong>「資料匯入」群組——這是它容易被忽略的原因。</p></blockquote>
+<h3 id="71-建立一筆會議管理">7.1 建立一筆會議管理</h3>
+<p>👉 <strong>動手做</strong>：用 <strong><code>lisi</code>（李四，開發組）</strong> 登入，進 <code>/meeting</code> → 「新增」，填：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>值</th></tr></thead><tbody><tr><td>標題</td><td><code>客戶A-需求訪談會議</code></td></tr><tr><td>說明</td><td><code>客戶A 第一次需求訪談，確認系統範圍與交付時程</code></td></tr><tr><td>會議形式</td><td><code>線上</code></td></tr><tr><td>主持人</td><td><code>李四</code></td></tr><tr><td>地點</td><td><code>Teams 線上會議室</code></td></tr><tr><td>紀錄人</td><td><code>李四</code></td></tr><tr><td>開始／結束日期</td><td>任選近期日期</td></tr><tr><td>所屬專案</td><td><strong>留空</strong>（1.0.19 起為選填，這裡刻意示範不掛專案也能用）</td></tr><tr><td>分類</td><td><code>客戶會議</code></td></tr><tr><td>團隊</td><td><code>開發組</code></td></tr></tbody></table></div>
+<p>✅ <strong>你會看到</strong>：清單多一列，「會議紀錄狀態」欄是空的。</p>
+<blockquote><p>⚠️ <strong>不要在清單上找「會議形式／主持人／地點」這三欄</strong> —— 會議清單已精簡為 8 欄（標題／摘要／會議紀錄狀態／開始日期／所屬專案／分類／團隊／操作），這三欄<strong>已移到編輯視窗</strong>。要確認有沒有填對，<strong>按該列的「修改」開編輯視窗看</strong>。（欄位標籤是「會議形式」「<strong>地點／會議連結</strong>」「主持人」。）</p></blockquote>
+<blockquote><p>⚠️ <strong>分類下拉找不到「客戶會議」？</strong> 你可能建到 5.2 的知識庫分類去了。這三頁看的是 <strong>5.2b 專案分類</strong>（<code>/work-categories</code>）。回去補建即可。</p></blockquote>
+<h3 id="72-上傳錄音觀察狀態流轉">7.2 上傳錄音，觀察狀態流轉</h3>
+<p>👉 <strong>動手做</strong>：在剛建的那一列按「<strong>上傳錄音</strong>」。</p>
+<p>✅ <strong>你會看到</strong>：對話窗列出<strong>支援格式與單檔上限 2GB</strong>，並說明接下來會經過哪四個階段。按「選擇檔案」時，檔案選擇器<strong>只列得出支援的格式</strong>。</p>
+<p>👉 <strong>動手做</strong>：選 <code>lab-samples/audio/客戶A需求訪談會議錄音.mp3</code> → 送出。</p>
+<blockquote><p>💡 <strong>想要更豐富的待辦對照？</strong> 本章主線用「需求訪談會議」（B1 錄音）。若想體驗一場<strong>含明確決議與 3 個帶負責人、期限的行動項目</strong>的會議，另建一場會議（標題例如 <code>客戶A-上線前專案週會</code>、分類「客戶會議」、團隊「開發組」），改上傳 <code>lab-samples/audio/客戶A上線前專案週會錄音.mp3</code>（M1）。它的逐字稿刻意讓 AI 能抽出「王小明 6/25 前完成記憶體擴充、李四 6/27 前交付測試報告、陳美玲 6/24 前確認續約條款」三筆待辦，7.4 轉工作任務與 7.7 納入知識來源都更有感。無金鑰讀者用同名 <code>text-fallback/客戶A上線前專案週會錄音.txt</code>。</p></blockquote>
+<p>✅ <strong>你會看到</strong>：「會議紀錄狀態」欄依序變化：</p>
+<pre><code>轉錄中  →  轉錄完成  →  產生中  →  已產生</code></pre>
+<p><strong>不要按重新整理</strong>——清單每 5 秒會自己更新（1.0.21 起）。整段約需數分鐘（視錄音長度與網路），期間可以離開頁面去做別的事。</p>
+<p>✅ <strong>你會看到</strong>：狀態變成「已產生」的當下，<strong>右下角跳出一則通知</strong>，告訴你可以「檢視會議紀錄」或開「待辦確認」。這就是你該回來的訊號。</p>
+<blockquote><p>💡 <strong>輪詢很省</strong>：只有清單上存在進行中的項目時才會去查資料庫；全部跑完就自動停了，不會一直空轉。開著任何對話窗時也會暫停，不會打斷你打字。</p></blockquote>
+<blockquote><p>💡 <strong>順手驗證一件事</strong>：轉到 <code>/media-transcription</code>，你會看到系統<strong>自動</strong>幫你建的那筆轉錄紀錄，分類是「客戶會議」、團隊是「開發組」——<strong>跟會議一模一樣，你一個字都沒填</strong>。這就是「繼承」。</p></blockquote>
+<blockquote><p>💡 <strong>跟第 6 章的影音轉逐字稿差在哪？</strong> 從 <code>/media-transcription</code> 自己上傳的音訊，轉錄完就停了；只有走會議這條路，才會<strong>接著自動產生 AI 會議紀錄</strong>。兩條路互不干擾。</p></blockquote>
+<h3 id="73-檢視並編修-ai-會議紀錄">7.3 檢視並編修 AI 會議紀錄</h3>
+<p>👉 <strong>動手做</strong>：狀態變「已產生」後，按該列的「<strong>檢視會議紀錄</strong>」。</p>
+<p>✅ <strong>你會看到</strong>：一份 Markdown 會議紀錄（通常含摘要、討論重點、決議、待辦）。試著改一兩句話（例如把某個人名改對）再存回。</p>
+<p>⚠️ <strong>常見錯誤</strong>：狀態卡在「產生中」很久 → 多半是金鑰未設定或 LLM 逾時。到第 19 章的系統健康監控看看，或直接看該筆的錯誤訊息。</p>
+<blockquote><p>💡 <strong>如果 AI 沒照格式回應</strong>：系統會<strong>降級</strong>把整份回應原封不動存成會議紀錄（狀態仍是「已產生」），摘要類欄位則留空。看到這種結果不是壞掉，是安全網生效了——人工整理一下即可。</p></blockquote>
+<h3 id="74-待辦確認把-ai-抓到的行動項目變成工作任務">7.4 待辦確認：把 AI 抓到的行動項目變成工作任務</h3>
+<p>👉 <strong>動手做</strong>：按該列的「<strong>待辦確認</strong>」。</p>
+<p>✅ <strong>你會看到</strong>：一份 AI 從逐字稿抓出來的待辦草稿清單（標題／負責人／期限）。</p>
+<p>👉 <strong>動手做</strong>：<strong>逐筆檢查</strong>，挑其中 <strong>2 筆</strong>你認可的勾選（可以順手修標題或負責人），按確定。</p>
+<p>✅ <strong>你會看到</strong>：提示建立成功。轉到 <code>/Task</code>，那 2 筆工作任務已經在了。</p>
+<blockquote><p>💡 <strong>為什麼不自動建？</strong> 因為 AI 會把閒聊誤判成待辦——「那個下次再說吧」很容易被抓成一條行動項目。<strong>一定要人看過</strong>，這是刻意的設計。</p></blockquote>
+<p>👉 <strong>驗證繼承與編輯</strong>：打開剛建立的工作任務，確認四件事——</p>
+<ul><li><strong>團隊是「開發組」、分類是「客戶會議」</strong>：跟會議一致，你沒有手動填過（繼承）</li><li><strong>標題是你改過的版本</strong>、<strong>負責人是李四</strong>、<strong>狀態是「進行中」</strong>：你的編輯確實生效了</li></ul>
+<blockquote><p>⚠️ <strong>如果你用的是 1.0.20</strong>：標題／負責人／狀態會是 AI 原本的值，不是你改的——那一版的就地編輯會在送出時被丟棄（服務層只收索引、草稿一律從資料庫重讀）。這是缺陷，<strong>1.0.21 已修正</strong>。</p></blockquote>
+<p>👉 <strong>驗證「來源會議」追溯（1.0.24 起）</strong>：在剛打開的工作任務編輯窗，找到唯讀欄位「<strong>來源會議</strong>」。</p>
+<p>✅ <strong>你會看到</strong>：欄位顯示這場會議的<strong>目前標題</strong>（不是建立當下的快照）。點它會跳到 <code>/meeting</code> 並自動開啟該會議——工作任務永遠找得到它從哪場會議來的。</p>
+<blockquote><p>💡 <strong>試個小實驗</strong>：回 <code>/meeting</code> 把會議標題改一個字存檔，再回來看工作任務的「來源會議」——它會即時反映<strong>新標題</strong>（依 <code>SourceMeetingId</code> 軟參照即時解析，不是寫死的字串）。若會議被刪或你無權存取，欄位會顯示「（來源會議已移除或無權存取）」。</p></blockquote>
+<blockquote><p>💡 <strong>再按一次「待辦確認」</strong>：已經建立過的那兩列「建立狀態」會變成「<strong>已建立</strong>」且整列停用，不會重複建。可以放心重開。</p></blockquote>
+<h3 id="75-摘要為什麼沒變只填空白的設計">7.5 摘要為什麼沒變？——「只填空白」的設計</h3>
+<p>👉 <strong>動手做</strong>：回 <code>/meeting</code> 看那一列的「摘要」欄。</p>
+<ul><li>如果你在 7.1 <strong>沒填</strong>摘要 → 現在應該有 AI 產生的內容了。</li><li>如果你<strong>填了</strong> → 它<strong>還是你原本打的字</strong>，沒有被蓋掉。</li></ul>
+<p><strong>這不是故障。</strong> 自動產生時只會填<strong>原本空白</strong>的「摘要／決議事項／出席者」三個欄位。自動觸發的當下沒有人在現場，系統沒辦法跳視窗問你「要不要覆寫」，所以它選最安全的做法：<strong>絕不弄丟任何人工輸入</strong>。</p>
+<p>👉 <strong>動手做（體驗覆寫路徑）</strong>：先編輯這筆會議，在「摘要」隨便打幾個字存檔；然後按該列的「<strong>套用 AI 結果</strong>」。</p>
+<p>✅ <strong>你會看到</strong>：跳出<strong>確認視窗</strong>。確認後，摘要／決議事項／出席者三欄才被 AI 的版本覆寫。</p>
+<blockquote><p>💡 <strong>記住這條分工</strong>：自動＝只填空白、不問人；手動「套用 AI 結果」＝會覆寫、但一定先問你。</p></blockquote>
+<h3 id="76-無金鑰替代路徑">7.6 無金鑰替代路徑</h3>
+<p>沒有 OpenAI 金鑰時，7.2–7.5 無法自動執行。改為：</p>
+<ol><li>7.1 照做（建立會議管理，含會議形式／地點／主持人；這三欄在編輯視窗裡填）——<strong>這部分不需要金鑰</strong>。</li><li>手動在會議的「摘要」「決議事項」「出席者」填入附錄 B「B1 需求訪談逐字稿」整理出的內容。</li><li>手動到 <code>/Task</code> 建 2 筆工作任務，團隊選「開發組」、分類選「客戶會議」，模擬待辦轉工作的結果。</li><li>驗收卡中屬 AI 的項目標記「<strong>待補驗</strong>」。</li></ol>
+<h3 id="77-把會議紀錄納入知識來源第四型素材1025-新增">7.7 把會議紀錄納入知識來源（第四型素材，1.0.25 新增）</h3>
+<p>到這裡會議紀錄還只是協作資料。以前要讓它能被問答，得把 7.2 那筆<strong>逐字稿</strong>加進知識來源；<strong>1.0.25 起</strong>你可以直接把<strong>已產生的 AI 會議紀錄</strong>（摘要／決議／行動項目那份高訊號內容）當成第四型素材加入——不必再回頭撿低訊號的逐字稿。</p>
+<p>👉 <strong>動手做</strong>：用能存取「開發組」的帳號（如 <code>lisi</code> 或管理員）進 <code>/knowledge-sources</code>（左側「<strong>知識庫</strong>」群組 →「知識來源加工」）。挑一個練習用的知識來源（建議<strong>另建</strong>一個如 <code>客戶A-會議紀錄</code>，勿併入第 8 章的三個核心來源，以免破壞完訓的 5／2／1 驗收），按該列的「<strong>管理成員</strong>」。</p>
+<p>👉 <strong>動手做</strong>：在對話窗右側「<strong>加入素材（僅顯示已完成）</strong>」區，把素材型別下拉切到第四個選項「<strong>會議紀錄</strong>」。</p>
+<p>✅ <strong>你會看到</strong>：清單<strong>只列出「會議紀錄狀態＝已產生」的會議</strong>（還沒產生紀錄的、或你無權存取團隊的都不會出現）。找到 7.1 那場會議，按「<strong>加入</strong>」，它會變成「<strong>已加入</strong>」。</p>
+<blockquote><p>💡 <strong>加進去的是「紀錄」不是「逐字稿」</strong>：聚合器對會議型素材索引的是 <code>Meeting.GeneratedContentRelativePath</code>（AI 會議紀錄），彙整時標頭是 <code>## 會議紀錄：{標題}</code>。所以後續清洗、蒸餾、問答與「對原始來源對話」看到的是<strong>結構化會議紀錄</strong>，而非冗長逐字稿。</p></blockquote>
+<p>👉 <strong>動手做</strong>：對這個知識來源跑一次清洗（第 8 章的做法），到「對原始來源對話」確認彙整內容含 <code>## 會議紀錄：{標題}</code> 且本文是摘要／決議／行動項目。</p>
+<blockquote><p>⚠️ <strong>選不到你的會議？</strong> 三個原因：①該會議「會議紀錄狀態」還不是「已產生」（回 7.2 等它跑完）；②它屬於你沒有交集的團隊（換有權帳號或管理員）；③你切錯素材型別（要選第四個「會議紀錄」，不是「影音轉逐字稿」）。</p></blockquote>
+<p><strong>第 7 章驗收卡</strong></p>
+<div class="tw"><table><thead><tr><th>驗收項目</th><th>可觀察證據</th><th>通過條件</th><th>未通過先做什麼</th></tr></thead><tbody><tr><td>會議建檔</td><td><code>/meeting</code> 出現「客戶A-需求訪談會議」</td><td><strong>開「修改」視窗</strong>確認會議形式／地點／會議連結／主持人有值（這三欄不在清單上）；清單上的分類為「客戶會議」</td><td>分類選不到 → 確認建在 <code>/work-categories</code> 而非 <code>/categories</code></td></tr><tr><td>狀態流轉</td><td>「會議紀錄狀態」欄</td><td>最終顯示「<strong>已產生</strong>」</td><td>卡「轉錄中」查 ffmpeg／金鑰；卡「產生中」查金鑰與該筆錯誤訊息</td></tr><tr><td>自動繼承</td><td><code>/media-transcription</code> 出現系統自動建的轉錄紀錄</td><td>分類「客戶會議」、團隊「開發組」，與會議一致</td><td>若團隊不符，確認會議本身的團隊是否填對</td></tr><tr><td>會議紀錄</td><td>「檢視會議紀錄」有 Markdown 內容且可編修存回</td><td>內容與錄音主題相符</td><td>內容是一整段未結構化文字＝降級，人工整理即可</td></tr><tr><td>自動更新</td><td>上傳後<strong>不按重新整理</strong></td><td>狀態欄自己跑完四階段</td><td>若完全不動，確認頁面沒有開著對話窗（開啟時輪詢會暫停）</td></tr><tr><td>完成通知</td><td>狀態轉為「已產生」的當下</td><td>右下角跳出通知並告知下一步</td><td>沒跳＝可能你在期間離開了本頁</td></tr><tr><td>待辦轉工作</td><td><code>/Task</code> 出現勾選建立的 2 筆工作</td><td>團隊「開發組」、分類「客戶會議」皆自動繼承</td><td>未繼承時確認是從「待辦確認」建立，而非自己新增</td></tr><tr><td><strong>編輯生效</strong></td><td>建出來的工作標題／負責人／狀態</td><td>是你在對話窗<strong>改過的值</strong>，不是 AI 原值</td><td>若仍是 AI 原值，確認系統版本為 1.0.21 以上（1.0.20 會丟棄編輯）</td></tr><tr><td>建立狀態欄</td><td>待辦確認對話窗最右欄</td><td>未建顯示「待建立」、已建顯示「已建立」且整列停用</td><td>出現空白格＝版本過舊</td></tr><tr><td>只填空白</td><td>已填過的摘要在自動產生後未被更動</td><td>人工輸入完整保留</td><td>若被覆寫，確認不是自己按了「套用 AI 結果」</td></tr><tr><td>覆寫路徑</td><td>按「套用 AI 結果」會跳確認視窗</td><td>確認後三欄才更新</td><td>沒跳視窗＝按錯鈕</td></tr><tr><td><strong>來源會議追溯</strong></td><td>工作任務編輯窗「來源會議」欄（1.0.24）</td><td>顯示會議目前標題、可點擊跳回 <code>/meeting</code></td><td>顯示「已移除或無權存取」＝會議被刪或團隊無交集</td></tr><tr><td><strong>會議紀錄納入知識來源</strong></td><td><code>/knowledge-sources</code> 管理成員素材型別選「會議紀錄」（1.0.25）</td><td>只列「已產生」的會議、可加入且變「已加入」</td><td>選不到＝紀錄未產生／團隊無權／切錯素材型別</td></tr></tbody></table></div>
+<blockquote><p>💡 <strong>這一章的產出可以進知識庫了</strong>。工作任務仍是協作資料；會議紀錄則有兩條入庫路：①（1.0.25 起，推薦）7.7 直接把<strong>已產生的 AI 會議紀錄</strong>當第四型素材加入知識來源；②（傳統）把 7.2 自動建立的<strong>逐字稿</strong>加進知識來源。兩者都接著跑知識庫——正是下一章要做的事。</p></blockquote>
+<hr>
+<h2 id="第-8-章-知識來源管理-knowledge-sources知識庫的核心" class="t2">第 8 章　知識來源管理 <code>/knowledge-sources</code>（知識庫的核心）</h2>
+<p><strong>這個畫面做什麼</strong>：這是整套系統的<strong>主舞台</strong>。前面匯入的素材還只是「零件」；知識來源負責把多筆零件<strong>聚合成一個主題單位</strong>，再對它做<strong>清洗 → 蒸餾 → 索引 → 問答</strong>。它也是團隊權控的關鍵——知識來源標的團隊，會一路繼承到下游的 Wiki 頁與問答出處。</p>
+<h3 id="81-建立知識來源">8.1 建立知識來源</h3>
+<p>🧩 <strong>欄位說明</strong></p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>意義</th><th>如何輸入</th><th>必填</th></tr></thead><tbody><tr><td>標題（Title）</td><td>主題名稱</td><td>例如「客戶A-運維知識」</td><td>✅</td></tr><tr><td>說明（Description）</td><td>主題概述</td><td>自由文字</td><td>—</td></tr><tr><td>分類（Categories）</td><td>主題標籤</td><td>多選</td><td>—</td></tr><tr><td>團隊（Teams）</td><td><strong>權控</strong>：誰能看到此來源及其下游</td><td>多選；留空＝公開</td><td>建議✅</td></tr></tbody></table></div>
+<p>清單上還有一排<strong>唯讀狀態欄</strong>（系統自動維護，給你掌握進度）：清洗狀態、清洗進度%、信心分數、蒸餾狀態、索引狀態、更新時間。</p>
+<h4 id="動手做王小明登入建立運維知識來源">👉 動手做（王小明登入，建立運維知識來源）</h4>
+<ol><li>進 <code>/knowledge-sources</code>，按「新增」。</li><li>標題 <code>客戶A-運維知識</code>，分類選「系統維運、故障排除、部署安裝」，<strong>團隊選「運維組」</strong>，存檔。</li></ol>
+<p>✅ <strong>你會看到</strong>：清單新增一列，清洗狀態顯示「草稿」、成員數 0。</p>
+<h4 id="動手做李四登入建立需求知識來源">👉 動手做（李四登入，建立需求知識來源）</h4>
+<p>標題 <code>客戶A-需求與架構</code>，分類「需求討論、系統架構」，團隊「開發組」，存檔。</p>
+<h4 id="動手做陳美玲登入建立合約知識來源">👉 動手做（陳美玲登入，建立合約知識來源）</h4>
+<p>標題 <code>客戶A-合約與SLA知識</code>，分類「合約與維護計畫」，團隊「業務合約組」，存檔。這筆來源用來承接 B3，讓第 17 章的合約改版能沿完整生產線驗證。</p>
+<blockquote><p>💡 <strong>設計重點</strong>：知識來源的團隊決定了「最終問答時誰查得到」。王小明這個來源標運維組，所以日後只有運維組與管理員能在問答檢索到它的內容。</p></blockquote>
+<h3 id="82-管理成員">8.2 管理成員</h3>
+<p>按某筆知識來源的 <strong>「管理成員」</strong>，把第 6 章匯入的素材加進來。對話窗分兩欄：左邊「已加入成員」、右邊「可加入的素材」（可搜尋／篩選／排序／分頁），每個成員可上移/下移/移除。</p>
+<p><strong>硬性限制（重要）</strong>：</p>
+<ul><li>只能加入<strong>狀態為「已完成」</strong>的素材。</li><li>受<strong>團隊權控</strong>——你看得到的素材才能加。</li><li>同一筆素材不可重複加入。</li></ul>
+<blockquote><p>💡 <strong>想加更多料？</strong> <code>lab-samples/documents/擴充-*</code> 有 17 份擴充素材（維護報告、巡檢紀錄、需求規格書、報價單、跨團隊外包合約、值班日誌…，含批次上傳 zip），可在<strong>完訓後</strong>匯入練批次上傳與更豐富的知識來源。注意：主線練習期間<strong>請勿</strong>把擴充素材加入本章三個核心來源——19.9 完訓矩陣以成員數 <strong>5／2／1</strong> 驗收；要練加料請另建選練來源。詳見 <a href="../../docs/guides/lab-samples/lab-samples.html">lab-samples/README.md</a>。</p></blockquote>
+<h4 id="動手做王小明把-a1a5-加入客戶a-運維知識">👉 動手做（王小明：把 A1–A5 加入「客戶A-運維知識」）</h4>
+<ol><li>在「客戶A-運維知識」按「管理成員」。</li><li>從右欄把 A1、A2、A3、A4、A5 逐一加入左欄。</li><li>用上移/下移調整順序（建議：部署SOP → 維護清單 → 故障排除 → 交接 → 截圖），順序會影響清洗後的閱讀順序。</li><li>關閉對話窗。</li></ol>
+<p>✅ <strong>你會看到</strong>：該知識來源「成員數」變成 5。</p>
+<h4 id="動手做李四把-b1b2-加入客戶a-需求與架構">👉 動手做（李四：把 B1、B2 加入「客戶A-需求與架構」）</h4>
+<p>把 B1（需求訪談）、B2（架構設計）加入。成員數變 2。</p>
+<blockquote><p>💡 <strong>為什麼 B3 不加進來？</strong> B3 是業務合約組的紀錄，李四看不到，所以在管理成員的右欄根本不會出現 B3——這就是「受團隊權控」的硬性限制在保護敏感資料。</p></blockquote>
+<h4 id="動手做陳美玲把-b3-加入客戶a-合約與sla知識">👉 動手做（陳美玲：把 B3 加入「客戶A-合約與SLA知識」）</h4>
+<p>用 <code>chen</code> 登入，在「客戶A-合約與SLA知識」按「管理成員」，加入 B3。成員數變 1。王小明與李四不應看到這筆來源或 B3。</p>
+<h3 id="83-清洗產出乾淨知識-重點比較不同配方">8.3 清洗（產出乾淨知識）— 重點：比較不同配方</h3>
+<p><strong>清洗在做什麼</strong>：系統在背景對聚合後的內容依序做 <strong>去重 → 遮罩 → 分類 → 摘要 → 信心自評</strong>，產出單一乾淨的 Markdown。然後依<strong>信心分數</strong>自動決定：</p>
+<ul><li>信心 <code>≥ 門檻（預設 0.70）</code> → 狀態「<strong>已清洗</strong>」（自動放行）。</li><li>信心 <code>&lt; 門檻</code> → 狀態「<strong>待審核</strong>」，要人工核准。</li></ul>
+<p><strong>清洗狀態機</strong>：<code>草稿 → 等待中 → 處理中 → 已清洗 / 待審核 / 失敗 / 已取消</code>（待審核經人工處理後轉「已清洗」或「已退回」）。</p>
+<p>清單上對應的動作鈕（依狀態出現）：<strong>清洗</strong>、<strong>取消清洗</strong>、<strong>重試清洗</strong>、<strong>檢視清洗結果</strong>、<strong>核准</strong>、<strong>退回</strong>。</p>
+<h4 id="動手做王小明用運維配方清洗運維知識">👉 動手做（王小明：用「運維配方」清洗運維知識）</h4>
+<ol><li>在「客戶A-運維知識」按 <strong>「清洗」</strong>。</li><li>在跳出的對話窗選擇清洗規則設定 <strong>「運維配方」</strong>（也可選「預設／全域」）。</li><li>確認送出，看狀態跑「等待中 → 處理中」。</li><li>完成後按 <strong>「檢視清洗結果」</strong> 看產出。</li></ol>
+<p>✅ <strong>你會看到</strong>：清洗結果的摘要會分成 <strong>「問題／原因／解法」</strong> 三段（因為運維配方這樣指定），且客戶 IP、帳密被遮罩成「（已遮罩）」。</p>
+<h4 id="動手做李四用會議配方清洗需求知識比較差異">👉 動手做（李四：用「會議配方」清洗需求知識，比較差異）</h4>
+<p>對「客戶A-需求與架構」按清洗，選 <strong>「會議配方」</strong>。完成後檢視結果。</p>
+<p>✅ <strong>你會看到</strong>：這次摘要分成 <strong>「決議／待辦／負責人」</strong> 三段——<strong>同樣的清洗動作，選不同配方，產出的結構就不同</strong>。這就是清洗規則設定的價值。</p>
+<p><strong>合約來源（供第 17 章使用）</strong>：用 <code>chen</code> 對「客戶A-合約與SLA知識」執行清洗；若第 5 章建立了「高敏感合約配方」就選它，否則使用預設／全域設定。完整 AI 模式下，檢視結果確認統編、金額及聯絡資訊依提示詞處理；無金鑰模式只驗證聚合與狀態流程。</p>
+<blockquote><p>💡 <strong>想更直接地比較？</strong> 你可以對同一個知識來源「重試清洗」並改選另一個配方，前後檢視結果，會看到摘要結構隨配方改變。</p></blockquote>
+<p>🟢 <strong>無金鑰時的清洗</strong>：沒有金鑰時，清洗只會做「彙整＋繁體化」，<strong>會跳過 LLM 的去重/遮罩/分類/摘要</strong>並在結果中標註「已略過 LLM 步驟」。流程、狀態機、審核機制都照常運作，你仍能練到全部操作；只是看不到 AI 遮罩/摘要的實際效果。<strong>安全鐵則：遮罩失敗＝整筆清洗失敗</strong>（系統寧可讓它失敗也不放行沒遮乾淨的內容）。</p>
+<p>⚠️ <strong>常見錯誤</strong>：清洗結果找不到檔案 → 清洗結果<strong>只存檔案不存 DB</strong>（預設在 <code>C:\temp\KnowledgeExtraction\CleanedSource\{年}\…</code>）。在畫面按「檢視清洗結果」即可，不必去翻檔案。</p>
+<h3 id="84-人工審核核准--退回信心不足時">8.4 人工審核：核准 / 退回（信心不足時）</h3>
+<p>當清洗結果信心低於門檻，狀態會是「<strong>待審核</strong>」。這時要由具「<strong>知識審核</strong>」權限的人（我們的張經理＝知識管理員）處理。</p>
+<h4 id="動手做張經理登入模擬審核">👉 動手做（張經理登入，模擬審核）</h4>
+<blockquote><p>若你的清洗結果信心高（≥0.70）而自動變「已清洗」，本節以閱讀與確認權限為主即可。<strong>不要為了製造待審核情境而在共用環境臨時修改門檻</strong>；門檻調整會影響其他清洗作業。</p></blockquote>
+<ol><li>用 <code>zhang</code> 登入（他能看到全部團隊的來源）。</li><li>找到狀態「待審核」的來源，按 <strong>「核准」</strong>（或 <strong>「退回」</strong> 並填退回理由）。</li></ol>
+<p>✅ <strong>你會看到</strong>：核准後狀態轉「已清洗」；退回後狀態轉「已退回」，可修正後重清。</p>
+<blockquote><p>💡 <strong>為什麼要人工關卡</strong>：信心低代表 AI 自己也不太確定（可能遮罩/摘要品質有疑慮）。讓人把關，避免品質不穩的知識直接流入問答。</p></blockquote>
+<h3 id="85-單一來源的-ai-對話">8.5 單一來源的 AI 對話</h3>
+<p>每筆知識來源都能開 <strong>「AI 對話」</strong>（清單動作鈕是個下拉，有「對清洗後內容對話」與「對原始來源對話」兩個選項），用 ChatGPT 風格、多輪、串流的方式，<strong>只針對這一筆來源</strong>提問。可切換回答詳簡（簡潔／標準／詳細）、檢視參考資料、逐則複製原始 Markdown。</p>
+<h4 id="動手做王小明對運維知識來源對話">👉 動手做（王小明：對運維知識來源對話）</h4>
+<ol><li>在「客戶A-運維知識」按 AI 對話下拉，選「對清洗後內容對話」。</li><li>問：<code>這份維運知識裡，主機半夜中斷的處理步驟是什麼？</code></li></ol>
+<p>✅ <strong>你會看到</strong>：AI 根據這筆來源的清洗內容回答，且不會吐出被遮罩的帳密/IP。</p>
+<blockquote><p>💡 <strong>這跟第 12 章的「AI 知識問答」差在哪？</strong> 這裡是<strong>單一來源</strong>的對話（只看這一筆）；第 12 章是<strong>跨整個知識庫</strong>的問答（看你有權限的全部來源、且附跨來源出處）。</p></blockquote>
+<p>🟢 <strong>無金鑰</strong>：AI 對話需要金鑰，沒有就略過本節，流程不受影響。</p>
+<p><strong>第 8 章驗收卡</strong></p>
+<ul><li><strong>前置條件</strong>：第 6 章驗收卡全部通過，且登入者具來源與素材的團隊權限。</li><li><strong>證據與通過條件</strong>：「客戶A-運維知識」有 A1–A5 共 5 名成員；「客戶A-需求與架構」有 B1–B2 共 2 名成員；「客戶A-合約與SLA知識」有 B3 共 1 名成員。完整 AI 模式下清洗結果須有配方指定結構，且 A4 的 IP、帳號與密碼不可原樣出現。</li><li><strong>失敗下一步</strong>：成員缺漏先回第 6 章查狀態／團隊；清洗失敗先讀錯誤訊息與 <code>/system-health</code>，不要只反覆按重試；無金鑰模式看到「已略過 LLM 步驟」屬預期，但遮罩與摘要驗收必須標記「待補驗」。</li></ul>
+<hr>
+<h2 id="第-9-章-清洗品質評測-golden-samples量清洗乾不乾淨" class="t3">第 9 章　清洗品質評測 <code>/golden-samples</code>（量「清洗乾不乾淨」）</h2>
+<p><strong>這個畫面做什麼</strong>：它是清洗的「<strong>單元測試</strong>」。你給一段代表性的髒資料，並寫下「清洗後<strong>不該出現</strong>什麼（敏感字）、<strong>必須留下</strong>什麼（關鍵字）」，系統用目前的清洗提示詞跑一遍，算出<strong>遮罩召回率、分類 F1、摘要涵蓋率</strong>等指標，還會<strong>建議自動放行的信心門檻</strong>。它解決的問題是——清洗品質不能靠感覺，要能被量出來、被校準。</p>
+<p>📌 <strong>評測用哪些紀錄</strong>：評的是<strong>每筆黃金樣本自己貼的「原始輸入文字」</strong>＋你標的標準答案，<strong>不會去讀「知識來源加工」的任何紀錄</strong>。「評測此筆」＝該筆；「評測全部」＝<strong>目前頁面</strong>所有黃金樣本。它只量測、不改變系統——沒有黃金樣本時，清洗／搜尋照常運作、結果一樣。</p>
+<p>🧩 <strong>欄位說明</strong></p>
+<blockquote><p>⚠️⚠️ <strong>多值欄位一律「一行一項」，絕對不要用分號或逗號。</strong> 畫面上這四個欄位的標籤都明寫「（每行一項）」，系統<strong>唯一</strong>認得的分隔符是<strong>換行</strong>。若你把 <code>192.168.10.5;admin;P@ssw0rd</code> 填成一行，系統會把整串當成<strong>一個</strong>詞去比對 → 永遠不會命中 → <strong>遮罩召回率恆為 0</strong>，你會誤以為清洗壞了。第 14 章的「越權洩漏＝0」安全驗收也會被同樣的錯誤誤判。</p></blockquote>
+<div class="tw"><table><thead><tr><th>欄位（畫面標籤）</th><th>意義</th><th>如何輸入</th><th>必填</th></tr></thead><tbody><tr><td>標題</td><td>樣本名稱</td><td>自由文字</td><td>✅</td></tr><tr><td>輸入文字</td><td>要餵入清洗管線的髒資料</td><td>貼一段代表性內容</td><td>—</td></tr><tr><td>預期遮罩詞（每行一項）</td><td>清洗後<strong>不該出現</strong>的敏感字</td><td><strong>一行一個</strong>（見下方動手做的範例）</td><td>—</td></tr><tr><td>必保留詞（每行一項）</td><td>清洗後<strong>必須留下</strong>的關鍵字</td><td><strong>一行一個</strong></td><td>—</td></tr><tr><td>預期分類（每行一項）</td><td>期望被分到的分類</td><td><strong>一行一個</strong></td><td>—</td></tr><tr><td>預期摘要實體（每行一項）</td><td>摘要該提到的關鍵實體</td><td><strong>一行一個</strong></td><td>—</td></tr><tr><td>人工標記通過</td><td>你（人）認定此結果可否接受</td><td>勾選；供門檻校準</td><td>—</td></tr></tbody></table></div>
+<blockquote><p>💡 畫面上有 <strong>「載入種子」</strong> 按鈕，會幫你帶入內建範例樣本，新手可先按它看看標準長相，再自己改。</p></blockquote>
+<h4 id="動手做張經理登入建立-2-筆黃金樣本">👉 動手做（張經理登入，建立 2 筆黃金樣本）</h4>
+<p><strong>G1：運維交接清洗樣本</strong></p>
+<ul><li>原始輸入文字（貼附錄 B 的 A4 髒逐字稿即可）：含「<code>192.168.10.5</code>、帳號 <code>admin</code>、密碼 <code>P@ssw0rd</code>、重新開機、記憶體不足」。</li><li>預期遮罩詞（<strong>每行一個，共 3 行</strong>）：</li></ul>
+<pre><code>  192.168.10.5
+  admin
+  P@ssw0rd</code></pre>
+<ul><li>必保留詞（<strong>每行一個</strong>）：</li></ul>
+<pre><code>  重新開機
+  記憶體不足</code></pre>
+<ul><li>預期分類（<strong>每行一個</strong>）：</li></ul>
+<pre><code>  系統維運
+  故障排除</code></pre>
+<ul><li>預期摘要實體（<strong>每行一個</strong>）：</li></ul>
+<pre><code>  記憶體
+  重新開機
+  複查</code></pre>
+<p><strong>G2：需求會議清洗樣本</strong></p>
+<ul><li>原始輸入文字（貼附錄 B 的 B1 片段）：含與會人名與一條決議。</li><li>預期遮罩詞（<strong>每行一個</strong>，示範人名/電話）：</li></ul>
+<pre><code>  王大同
+  0912345678</code></pre>
+<ul><li>必保留字串：<code>決議;匯出功能</code></li><li>預期分類：<code>會議紀錄;需求討論</code></li></ul>
+<p>按每筆的 <strong>「評測」</strong>（或上方「評測全部」）。</p>
+<p>✅ <strong>你會看到</strong>：每筆樣本算出指標——<strong>遮罩召回率、分類 F1、摘要涵蓋率</strong>，並給出<strong>建議自動放行門檻</strong>。參考標準：遮罩召回 ≥ 0.98、F1 ≥ 0.70。</p>
+<blockquote><p>💡 <strong>建議門檻怎麼用</strong>：它只是<strong>參考值</strong>。要真的讓門檻生效，需改 <code>appsettings.json</code> 的 <code>SystemSettings.Cleaning.ConfidenceThreshold</code>（預設 0.70）。把門檻調高，更多清洗結果會落到「待審核」（人工把關更嚴）；調低則更多自動放行。</p></blockquote>
+<blockquote><p><strong>不要和 RAG 門檻混淆</strong>：本章的 <code>SystemSettings.Cleaning.ConfidenceThreshold</code> 只決定清洗結果「自動放行或待審核」。第 19 章 檢索診斷與調校的 <code>RejectThreshold</code>／<code>LowConfidenceThreshold</code> 則判斷檢索證據是否足以回答，兩者用途與生效位置完全不同。</p></blockquote>
+<p>🟢 <strong>無金鑰</strong>：沒有金鑰時清洗略過 LLM，遮罩/摘要指標會偏低或為 0，屬正常。你仍可練到「建立樣本→評測→看儀表板」的完整操作。</p>
+<p>⚠️ <strong>常見錯誤</strong>：多值欄位<strong>用分號或逗號分隔</strong>（系統只認換行 → 整串被當成一個詞 → 遮罩召回恆為 0），或詞前後多了空白。<strong>一行一個、不要多空格。</strong></p>
+<p>✅ <strong>第 9 章通過條件</strong>：G1、G2 都能完成評測並留下指標；完整 AI 模式再核對遮罩召回與分類 F1 是否達參考值。未達標時先檢查標準答案是否「一行一項」（最常見的錯就是用了分號），再檢查清洗提示詞；不要直接套用建議門檻來掩蓋品質問題。無金鑰模式只驗收操作與儀表板，品質指標標記「待補驗」。</p>
+<hr>
+<h2 id="第-10-章-知識頁審核-knowledge-distillation煉成-wiki-實體頁" class="t4">第 10 章　知識頁審核 <code>/knowledge-distillation</code>（煉成 Wiki 實體頁）</h2>
+<p><strong>這個畫面做什麼</strong>：把「已清洗」的知識來源，進一步煉成「<strong>一個概念一頁、彼此用 <code>[[連結]]</code> 互連</strong>」的 Wiki 實體頁。它解決的問題是——清洗後雖然乾淨，但仍是「一篇長文」；蒸餾把它拆成可重組、可互連的知識單元，更接近「人腦裡的概念網」。</p>
+<ul><li><strong>觸發</strong>：在知識來源（<strong>已清洗</strong>）按 <strong>「蒸餾」🧪</strong>。系統背景把內容拆成多個概念頁並建立彼此連結。</li><li><strong>檢視/審核</strong>：到 <code>/knowledge-distillation</code> 看、審核、編修 Wiki 頁。</li></ul>
+<p>Wiki 頁欄位（多由系統產生，審核時可編修）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>意義</th></tr></thead><tbody><tr><td>標題（Title）</td><td>概念標題，作為 <code>[[wiki-links]]</code> 的比對鍵</td></tr><tr><td>內容</td><td>Wiki 頁 Markdown（只存檔案，DB 僅存相對路徑）</td></tr><tr><td>引用連結（LinkTitles）</td><td>本頁引用的其他概念標題（供連結圖）</td></tr><tr><td>分類 / 團隊</td><td><strong>繼承自來源</strong>（團隊用於權控）</td></tr><tr><td>信心分數</td><td>LLM 自評 0.0–1.0</td></tr><tr><td>審核狀態（Status）</td><td><code>待審核 / 已完成 / 已退回</code></td></tr></tbody></table></div>
+<p><strong>蒸餾狀態機</strong>（在知識來源上）：<code>待蒸餾 → 等待中 → 處理中 → 已蒸餾 / 失敗 / 已取消</code>。可重蒸餾；蒸餾完成後會<strong>自動連動索引</strong>（見第 11 章）。</p>
+<h4 id="動手做王小明蒸餾運維知識">👉 動手做（王小明：蒸餾運維知識）</h4>
+<ol><li>回 <code>/knowledge-sources</code>，在「客戶A-運維知識」（狀態已清洗）按 <strong>「蒸餾」🧪</strong>。</li><li>等狀態跑到「已蒸餾」。</li><li>用 <code>zhang</code>（知識管理員）登入，到 <code>/knowledge-distillation</code> 檢視蒸餾出的 Wiki 頁，看標題與 <code>[[連結]]</code>，視需要編修，按核准。</li></ol>
+<p>✅ <strong>你會看到</strong>：原本一篇運維長文，被拆成數個概念頁（例如「記憶體不足導致服務中斷」「重新開機標準程序」），彼此以 <code>[[連結]]</code> 互指。</p>
+<blockquote><p>💡 <strong>選不同來源蒸餾，結果不同</strong>：對「客戶A-需求與架構」蒸餾，會煉出偏「需求/架構概念」的 Wiki 頁；對運維來源蒸餾則偏「故障/維運概念」。蒸餾結果的分類與團隊會<strong>繼承來源</strong>，所以權控一路延續。</p></blockquote>
+<p>🟢 <strong>無金鑰</strong>：蒸餾需要金鑰。沒有金鑰可略過第 9–13 章的 AI 產出部分，但仍建議讀過，理解每頁的用途與欄位。</p>
+<p>⚠️ <strong>常見錯誤</strong>：來源還沒「已清洗」就找不到蒸餾鈕 → 蒸餾只對已清洗的來源開放，先完成第 8 章清洗。</p>
+<p>✅ <strong>第 10 章通過條件</strong>：完整 AI 模式下來源狀態為「已蒸餾」，至少有一個已核准概念頁，分類與團隊繼承來源，且 <code>[[概念]]</code> 可在知識百科頁導覽。若狀態失敗，先讀錯誤訊息及健康檢查；無金鑰模式將本章標記「待補驗」。</p>
+<h3 id="101-知識百科-knowledge-wiki一般讀者怎麼讀蒸餾後的-wiki">10.1 知識百科 <code>/knowledge-wiki</code>（一般讀者怎麼讀蒸餾後的 Wiki）</h3>
+<p><strong>這個畫面做什麼</strong>：蒸餾產出的 Wiki 概念頁，除了在 <code>/knowledge-distillation</code> 給知識管理員審核，也提供一個給<strong>一般讀者閱讀</strong>的入口——「知識百科」（選單在「知識庫」群組）。它只列出<strong>已蒸餾（已完成）</strong>的概念頁，讓人像翻百科一樣一頁頁讀，而不必先會問答。</p>
+<p>畫面是<strong>左右兩欄</strong>：</p>
+<ul><li><strong>左欄（概念索引）</strong>：搜尋框「搜尋概念標題」、「依分類篩選」與「依團隊篩選」下拉、依分類分組的概念清單。沒有內容時顯示「尚無已完成的蒸餾知識頁。」；篩選無結果顯示「沒有符合篩選條件的項目。」。</li><li><strong>右欄（閱讀區）</strong>：概念標題、動作列（<strong>複製</strong> / <strong>下載 PDF</strong>）、版本歷史列（<code>v{n}（狀態・日期）</code>）、以及渲染後的 Markdown 內文。內文中的 <code>[[概念]]</code> 可<strong>點擊導覽</strong>到另一個概念頁。未選任何概念時顯示「從左側選擇一個概念開始閱讀；內文中的 [[概念]] 可點擊導覽。」。</li></ul>
+<blockquote><p>🔑 <strong>一樣受團隊權控</strong>：知識百科只會顯示你有權看的概念頁（公開或與你團隊有交集）。無權存取的概念會顯示「查無此概念（待建立或無存取權）」。</p></blockquote>
+<h4 id="動手做張經理瀏覽剛蒸餾的概念">👉 動手做（張經理：瀏覽剛蒸餾的概念）</h4>
+<ol><li>用 <code>zhang</code> 登入，展開「知識庫」群組，進 <code>/knowledge-wiki</code>。</li><li>左欄用「依分類篩選」選「系統維運」，點一個概念（例如「記憶體不足導致服務中斷」）。</li><li>在右欄閱讀內文，點內文裡的 <code>[[連結]]</code> 跳到相關概念；需要時按「下載 PDF」把這頁存成檔。</li></ol>
+<p>✅ <strong>你會看到</strong>：Wiki 概念以百科方式呈現，概念之間可互相跳轉，且只列出你有權限的內容。</p>
+<hr>
+<h2 id="第-11-章-索引嵌入設定讓知識找得到" class="t5">第 11 章　索引／嵌入設定（讓知識「找得到」）</h2>
+<p><strong>這個畫面做什麼</strong>：蒸餾完成後，系統<strong>自動</strong>把內容切塊（chunk）、轉成向量、寫入向量庫，供問答檢索。你<strong>不需要手動操作索引</strong>，只要前置的<strong>嵌入端點</strong>設定好即可。</p>
+<p>前置（由安裝人員在 <code>appsettings.json</code> 設定其一）：</p>
+<ul><li><strong>雲端</strong>：設定嵌入用的 API 金鑰／端點。</li><li><strong>地端</strong>：使用本地嵌入模型（例如 <strong>bge-m3</strong>，向量維度 <strong>1024</strong>）。</li></ul>
+<p><strong>索引狀態機</strong>（在知識來源上）：<code>待索引 → 等待中 → 處理中 → 已索引 / 失敗 / 已取消</code>。索引在蒸餾完成後<strong>自動觸發</strong>；若嵌入端點沒設定，索引會失敗，補設定後可重跑。</p>
+<blockquote><p>💡 <strong>全量重建索引</strong>：知識來源清單工具列有「<strong>全量重建索引</strong>」按鈕（管理員用），可一次把整庫已蒸餾內容重新切塊、重嵌入、重寫向量庫。適用於更換嵌入模型或切塊參數後，讓整庫索引一致。日常不需動它——單筆蒸餾後索引會自動連動。</p></blockquote>
+<blockquote><p>⚠️ <strong>本練習不要按「全量重建索引」</strong>：它是整庫維運操作，可能耗用大量嵌入額度並影響其他使用者。本章只觀察本練習來源的自動索引狀態；單筆失敗時才在確認端點後重跑該來源。</p></blockquote>
+<h4 id="動手做觀察索引狀態">👉 動手做（觀察索引狀態）</h4>
+<ol><li>在 <code>/knowledge-sources</code> 看「客戶A-運維知識」的索引狀態欄。</li><li>若顯示「已索引」，代表它已可被第 12 章問答檢索。</li></ol>
+<p>✅ <strong>你會看到</strong>：蒸餾完成不久，索引狀態自動變「已索引」。</p>
+<p>⚠️ <strong>常見錯誤</strong>：索引一直「失敗」→ 多半是嵌入端點沒設。請安裝人員依《<a href="../../docs/guides/rag-poc-acceptance.html">知識庫 RAG：PoC 執行與驗收指南</a>》設好嵌入端點後，重跑索引。</p>
+<p>✅ <strong>第 11 章通過條件</strong>：完整 AI 模式下「客戶A-運維知識」顯示「已索引」，且第 19 章索引健康不是紅燈。若嵌入未設定，只能驗證關鍵字退化模式，不可把它記為完整 RAG 通過。</p>
+<blockquote><p>完整的嵌入設定逐步與四面向人工檢核，見上述 PoC 指南。</p></blockquote>
+<hr>
+<h2 id="第-12-章-ai-知識問答-knowledge-base-chat跨整庫提問" class="t6">第 12 章　AI 知識問答 <code>/knowledge-base-chat</code>（跨整庫提問）</h2>
+<p><strong>這個畫面做什麼</strong>：用自然語言<strong>跨整個知識庫</strong>提問，得到<strong>附出處、且只回你有權看的內容</strong>的答案。這是整套系統對使用者的「最終價值」——新人不用再翻檔案問人，直接問。</p>
+<p>頁面上方有設定面板，下方是 ChatGPT 風格的對話區。空的時候會提示：「向整個知識庫提問吧！答案會附上出處，並可鑽取回原始素材。」</p>
+<p>🧩 <strong>控制項說明</strong></p>
+<div class="tw"><table><thead><tr><th>控制項</th><th>意義</th><th>怎麼用</th></tr></thead><tbody><tr><td>回答詳簡</td><td>簡潔／標準／詳細</td><td>想要短答案選簡潔，想要完整說明選詳細</td></tr><tr><td>套用既有提示詞</td><td>帶入你在 <code>/prompts</code> 寫好的提示詞</td><td>下拉選「問答-條列步驟」或「問答-表格比較」（帶入後仍可改）</td></tr><tr><td>限定知識來源</td><td>只問指定的幾筆知識來源</td><td>留空＝全部；下拉可多選要問的來源</td></tr><tr><td>限定分類</td><td>只問指定分類的內容</td><td>留空＝全部；下拉可多選分類</td></tr><tr><td>系統提示詞</td><td>自訂這次問答的整體指示</td><td>展開「系統提示詞設定」填寫，可留空（用預設知識庫助理提示詞）</td></tr><tr><td>送出 / 停止</td><td>多輪對話、逐字串流輸出</td><td>在「向知識庫提問…」輸入後按「送出」；串流中可按「停止」</td></tr><tr><td>複製 / 下載 PDF</td><td>複製原始 Markdown、或把回答存成 PDF</td><td>每則回答的動作列有「複製」與「下載 PDF」</td></tr><tr><td>滿意度回饋</td><td>對這則回答按「滿意」👍 或「不滿意」👎</td><td>回饋會寫入紀錄供管理員在「問答稽核明細」查閱；再按一次可取消</td></tr></tbody></table></div>
+<blockquote><p>提示：提示詞、詳簡與限定範圍的變更會套用到<strong>下一則</strong>訊息。答案僅依「檢索到（且你有權存取）」的知識庫內容作答。系統會即時查詢改寫（QueryRewrite）以提高檢索命中。</p></blockquote>
+<h4 id="動手做王小明用預設提示詞提問">👉 動手做（王小明：用預設提示詞提問）</h4>
+<ol><li>用 <code>wang</code> 登入，登入後會直接落在 <code>/knowledge-base-chat</code>。</li><li>「套用既有提示詞」選 <strong>「問答-條列步驟」</strong>。</li><li>詳簡選「標準」。</li><li>問：<code>客戶主機半夜服務中斷要怎麼處理？</code></li></ol>
+<p>✅ <strong>你會看到（預期結果與格式）</strong>：因為套了「問答-條列步驟」提示詞，回答會是<strong>條列步驟＋最後一段「風險提醒」</strong>，並在答案下方附<strong>出處</strong>（指向「客戶A-運維知識」），且<strong>不會出現被遮罩的帳密/IP</strong>。</p>
+<blockquote><p>👍 <strong>順手給個回饋</strong>：在這則回答按「滿意」或「不滿意」。這筆回饋會留存，管理員稍後可在「問答稽核明細」（第 19 章）依滿意度篩選檢視，用來持續改善問答品質。</p></blockquote>
+<h4 id="動手做出處鑽取">👉 動手做（出處鑽取）</h4>
+<p>點答案附的出處 → 可鑽取回「知識來源 → 成員 → 原始檔」，並可下載原始檔。</p>
+<p>✅ <strong>你會看到</strong>：從一句答案，一路追回到當初匯入的原始素材，做到「可追溯、可信任」。</p>
+<h4 id="動手做體驗權控換李四問同樣問題">👉 動手做（體驗權控：換李四問同樣問題）</h4>
+<p>用 <code>lisi</code> 登入，問同一句 <code>客戶主機半夜服務中斷要怎麼處理？</code>。</p>
+<p>✅ <strong>你會看到</strong>：李四（開發組）問<strong>運維</strong>問題，<strong>檢索不到運維組的內容</strong>，所以答案會說查無相關資料或答不出來——因為他無權看運維組的來源。<strong>這就是「團隊權控在每次查詢即時驗證」的鐵證（越權洩漏應為 0）。</strong></p>
+<blockquote><p>💡 <strong>試試不同提示詞的差異</strong>：把提示詞改成「問答-表格比較」，問一個「比較型」問題（例如「部署前檢查和每月維護檢查有什麼不同？」），回答會改用<strong>表格</strong>呈現。這就是預設提示詞如何決定回答格式。</p></blockquote>
+<p>🟢 <strong>無金鑰</strong>：問答需要金鑰（檢索＋生成）。沒有金鑰可略過實際提問，但務必讀懂「出處鑽取」與「權控即時驗證」兩個概念，它們是本系統的核心價值。</p>
+<p>✅ <strong>第 12 章通過條件</strong>：完整 AI 模式下，王小明得到含出處且不含 A4 原始敏感值的回答，出處能一路鑽取至原始素材；李四問同題不得取得運維組內容。若查無資料，依序檢查來源是否已清洗、蒸餾、索引，登入者團隊是否正確，再到第 19 章做試檢索；不要先調低門檻。</p>
+<blockquote><p>怎麼問得到好答案、出處面板細節見《<a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a>》。</p></blockquote>
+<hr>
+<h2 id="第-13-章-知識圖譜審核與全域問答-knowledge-graph-review讓-ai-答得出關聯與綜觀" class="t7">第 13 章　知識圖譜審核與全域問答 <code>/knowledge-graph-review</code>（讓 AI 答得出「關聯」與「綜觀」）</h2>
+<p><strong>這個畫面做什麼</strong>：第 12 章的問答是「找出最像的幾段」。它很會答「A4 提到的分頁檔要設多少」，但有兩類問題它結構上答不好：</p>
+<div class="tw"><table><thead><tr><th>問題類型</th><th>這次練習會遇到的例子</th><th>為什麼一般問答答不好</th></tr></thead><tbody><tr><td><strong>多跳關聯</strong></td><td>「客戶A 的 ERP 主機出問題，會牽動哪些東西？」</td><td>答案要串起「ERP 主機 → 部署於 → WinSvr 2022 → 曾發生 → 記憶體不足中斷」，這條鏈<strong>分散在 A1、A6、A2 三份素材</strong>，沒有任何一段同時提到頭尾</td></tr><tr><td><strong>全域綜觀</strong></td><td>「客戶A 的整體維運風險有哪些？」</td><td>這題沒有「最相關的 5 段」——要看過全部才能歸納。只取前 K 段等於隨機抽樣</td></tr></tbody></table></div>
+<p>本章讓 AI 從<strong>已核可的 Wiki 頁</strong>抽出「<strong>實體—關係—實體</strong>」三元組（例如 <code>客戶A ERP系統 — 部署於 → Windows Server 2022</code>），你人工核可後，它才會納入檢索加分；再把關係緊密的實體分群、每群寫一份「社群摘要」，供「全域」查詢模式使用。</p>
+<p>🔑 <strong>需要金鑰</strong>：本章的抽取、別名建議、社群摘要、全域問答<strong>全部都要 Chat LLM</strong>。</p>
+<p>📌 <strong>前置（最常踩的坑）</strong>：抽取讀的是該來源「<strong>已完成且現行</strong>」的 Wiki 頁——<strong>第 10 章沒把 Wiki 頁核可，這一章抽取會跑完但一條關係都沒有</strong>。動手前先確認第 10 章的 Wiki 頁已是「已完成」。</p>
+<h3 id="131--四個分頁與兩顆全域按鈕">13.1 🧩 四個分頁與兩顆全域按鈕</h3>
+<p>進入路徑：「知識庫 → <strong>知識圖譜審核</strong>」。</p>
+<div class="tw"><table><thead><tr><th>分頁／按鈕</th><th>做什麼</th><th>誰能用</th></tr></thead><tbody><tr><td><strong>三元組審核</strong></td><td>篩選並逐筆<strong>編修／核可／退回</strong>三元組</td><td>管理員或具 <code>蒸餾審核</code></td></tr><tr><td><strong>實體合併</strong></td><td>維護「別名 → 標準名」；可按「LLM 自動建議別名」</td><td><strong>僅管理員</strong></td></tr><tr><td><strong>圖譜瀏覽</strong></td><td>輸入實體名 ＋ 跳數（1～3），看放射狀圖與關係表</td><td>有本頁權限者</td></tr><tr><td><strong>待抽取來源</strong></td><td>列出「已蒸餾但圖譜還是空的」來源，可直接重抽</td><td>有本頁權限者</td></tr><tr><td>頁頂「<strong>重建社群摘要</strong>」</td><td>建立／更新全域問答用的社群摘要</td><td><strong>僅管理員</strong></td></tr></tbody></table></div>
+<p>🧩 <strong>權限</strong>：權限樹要勾 <strong><code>知識圖譜審核</code></strong>——這是全系統少數「選單名＝權限名」完全一致的一項（另一個是「專案分類」）。核可／退回三元組<strong>還要</strong>有 <code>蒸餾審核</code>；「實體合併」與「重建社群摘要」<strong>只有管理員</strong>，勾角色權限也開不出來。第 5 章建的「知識管理員」角色已含 <code>蒸餾審核</code>，本章請補勾 <code>知識圖譜審核</code>。</p>
+<p>💡 <strong>為什麼要人工核可</strong>：LLM 抽關係會出錯（把「提到」當成「相依於」、把兩個不相干的名詞連起來）。錯的關係若直接生效，會把錯的內容排到答案前面——<strong>比沒有圖譜更糟</strong>。所以設計成「LLM 提案、人工核可」。</p>
+<h3 id="132--動手做support補權限並匯入新素材-a6">13.2 👉 動手做（support）：補權限並匯入新素材 A6</h3>
+<ol><li>用 <code>support</code> 登入 → 「基礎資料設定 → 角色管理」→ 編輯「<strong>知識管理員</strong>」→ 權限樹的「清洗與蒸餾功能」群組勾上 <strong><code>知識圖譜審核</code></strong> → 儲存。</li><li>到「資料匯入 → 文件轉文字」，用<strong>附錄 B 的 A6</strong>（<code>客戶A-ERP升級評估備忘</code>）建立一筆：貼上內容存成 <code>.txt</code> 上傳，或直接用「依提示詞產生」貼入。</li><li>把 A6 加入「<strong>客戶A-運維知識</strong>」這筆知識來源的成員 → 重新<strong>清洗 → 蒸餾 → 到第 10 章把新產生的 Wiki 頁核可</strong>。</li></ol>
+<p>✅ <strong>你會看到</strong>：「客戶A-運維知識」的成員數由 5 變 6，蒸餾後多出幾個新概念頁。</p>
+<p>💡 <strong>為什麼要多加 A6</strong>：A6 刻意混用了同一個東西的三種寫法（<code>客戶A ERP</code>／<code>客戶A 企業資源規劃系統</code>／<code>ERP 主機</code>，以及 <code>Windows Server 2022</code>／<code>WinSvr 2022</code>），供 13.5 練實體合併；它同時提到 A2 的「記憶體不足導致服務中斷」與 A5 的「每月例行維護檢查清單」，成為跨素材的<strong>橋接實體</strong>，供 13.6 練 2 跳瀏覽。沒有它，圖譜會是幾座互不相連的小島，看不出多跳的價值。</p>
+<p>⚠️ <strong>常見錯誤</strong>：忘記重新蒸餾就直接抽取 → 抽到的是舊 Wiki 頁，A6 的內容不在裡面。</p>
+<h3 id="133--動手做張經理-zhang抽取三元組">13.3 👉 動手做（張經理 <code>zhang</code>）：抽取三元組</h3>
+<ol><li>用 <code>zhang</code> 登入 → 「知識庫 → 知識來源加工」。</li><li>對「<strong>客戶A-運維知識</strong>」按「<strong>抽取／重抽三元組</strong>」（圖示 hub）。</li></ol>
+<p>✅ <strong>你會看到</strong>：該列的「<strong>圖譜</strong>」欄依序變化 <code>待抽取 → 等待中 → 處理中（含 %）→ 已抽取</code>，完成時彈出通知。</p>
+<p>💡 <strong>為什麼用 zhang</strong>：抽取要通過<strong>團隊權控</strong>，而「知識管理員」的預設團隊同時含三組（見 13.1 引用的第 5 章設計），所以他操作得動三筆來源。</p>
+<p>⚠️ <strong>常見錯誤與修正</strong></p>
+<div class="tw"><table><thead><tr><th>症狀</th><th>原因</th><th>修正</th></tr></thead><tbody><tr><td>找不到「抽取／重抽三元組」按鈕</td><td>該來源不是「已蒸餾」</td><td>先完成第 10 章的蒸餾</td></tr><tr><td>狀態變「失敗」</td><td>多半是金鑰未設定或 LLM 逾時</td><td>先看該列錯誤訊息，再到第 19 章的系統健康監控看「大語言模型可用性」。<strong>不要連按重抽</strong>（每次都花錢）</td></tr><tr><td>狀態「已抽取」但三元組是 0 筆</td><td><strong>Wiki 頁還沒核可</strong></td><td>回第 10 章核可 Wiki 頁，再重抽</td></tr></tbody></table></div>
+<h3 id="134--動手做zhang三元組審核">13.4 👉 動手做（zhang）：三元組審核</h3>
+<ol><li>進「知識庫 → <strong>知識圖譜審核</strong>」→「<strong>三元組審核</strong>」分頁（狀態篩選預設「待審核」）。</li><li>找出至少 <strong>3 筆語意正確</strong>的三元組（例如 <code>客戶A ERP系統 — 部署於 → Windows Server 2022</code>），逐筆按「<strong>核可</strong>」。</li><li><strong>故意挑 1 筆明顯錯誤</strong>的（例如把不相干的兩個名詞連起來），按「<strong>退回</strong>」並在理由填「關係不成立，非事實」。</li><li>挑 1 筆關係詞不精確的，按「<strong>編修</strong>」把「關係」改得更準（例如「提到」改成「相依於」），儲存。</li></ol>
+<p>✅ <strong>你會看到</strong>：狀態由「待審核」轉為「已完成」或「已退回」；把篩選切到「已完成」能看到你核可的那幾筆。</p>
+<p>💡 <strong>只有「已完成」的三元組會進檢索加分</strong>。「待審核」與「已退回」完全不影響檢索——這是刻意的治理設計。</p>
+<p>⚠️ <strong>重抽是安全的</strong>：去重鍵是「主詞｜關係｜受詞」，<strong>絕不覆蓋你已核可／已退回的判斷</strong>。所以抽壞了、素材更新了，都可以放心重抽。</p>
+<h3 id="135--動手做support實體合併別名審核">13.5 👉 動手做（support）：實體合併（別名審核）</h3>
+<ol><li>用 <code>support</code> 登入（<strong>這個分頁只有管理員看得到</strong>）→ 進「知識圖譜審核」→「<strong>實體合併</strong>」分頁。</li><li>按「<strong>LLM 自動建議別名</strong>」→ 看狀態列由「生成中…」變成「待審核 N 筆」。</li><li>逐筆看「<strong>信心</strong>」欄：把 <code>客戶A ERP → 客戶A 企業資源規劃系統</code>、<code>ERP 主機 → 客戶A 企業資源規劃系統</code>、<code>WinSvr 2022 → Windows Server 2022</code> 這類<strong>正確</strong>的按「核可」；把明顯不同物的按「退回」。</li><li>手動補一筆：上方「新增別名」填 <code>客戶A ERP系統</code> → <code>客戶A 企業資源規劃系統</code> → 按「<strong>送出（待審核）</strong>」→ 再核可它。</li></ol>
+<p>✅ <strong>你會看到</strong>：核可後這些變體在圖譜瀏覽與檢索都被視為<strong>同一個實體</strong>。</p>
+<p>💡 <strong>別名會傳遞</strong>：<code>A→B</code> 與 <code>B→C</code> 都核可時，A、B、C 收斂為同一實體。所以核可前想清楚——把「同名不同物」誤併，會讓兩批無關的知識黏在一起（發現誤併就把那筆別名退回）。</p>
+<p>⚠️ <strong>別名是全域治理</strong>：別名表沒有團隊欄位，只影響「哪些名字算同一個實體」，<strong>不會放寬任何人的可見範圍</strong>。核可別名後檢索即時生效，但要讓<strong>社群</strong>也套用合併，需再按一次 13.7 的「重建社群摘要」。</p>
+<h3 id="136--動手做zhang圖譜瀏覽親眼看到多跳的價值">13.6 👉 動手做（zhang）：圖譜瀏覽（親眼看到多跳的價值）</h3>
+<ol><li>進「<strong>圖譜瀏覽</strong>」分頁，輸入 <code>客戶A 企業資源規劃系統</code>（或你核可過的任一實體名），跳數選 <strong>1</strong>，按「查詢」。</li><li>記下「共 N 個實體、M 條關係」。</li><li>跳數改 <strong>2</strong> 再查一次，再改 <strong>3</strong> 查一次。</li></ol>
+<p>✅ <strong>你會看到</strong>：查詢的實體是中央的藍色大點，第 1 跳綠色、第 2 跳以上黃色，依跳數排在同心圓上；下方表格列出「主詞／關係／受詞／跳數」。<strong>跳數從 1 加到 2 時，會出現 A1 完全沒提到、但透過 A6 連過去的節點</strong>（例如 A2 的「記憶體不足導致服務中斷」）——這就是多跳在做的事。</p>
+<p>💡 別名已解析：輸入 <code>ERP 主機</code> 也應該查到同一組結果（前提是 13.5 那筆別名已核可）。</p>
+<p>⚠️ <strong>兩個邊界</strong>：跳數<strong>只能 1～3</strong>；節點數達 <strong>100</strong> 個時會明確顯示「⚠️ 鄰域節點已達上限 100 個而停止擴展，以下結果並不完整。請縮小跳數。」——它<strong>不會靜默截斷</strong>。若顯示「查無實體」，三種可能：名字打錯、三元組還沒核可、或那些關係你沒權限看。</p>
+<h3 id="137--動手做support待抽取來源--重建社群摘要">13.7 👉 動手做（support）：待抽取來源 ＋ 重建社群摘要</h3>
+<ol><li>進「<strong>待抽取來源</strong>」分頁 → 按「重新整理」。這裡列出「已蒸餾、但圖譜還沒東西」的來源。找到「<strong>客戶A-合約與SLA知識</strong>」按「<strong>抽取／重抽</strong>」。</li><li>回頁頂，按「<strong>重建社群摘要</strong>」。</li><li><strong>立刻</strong>切到「系統管理 → 系統監控 → <strong>待處理背景工作</strong>」（<code>/pipeline-jobs</code>）觀察該作業。</li></ol>
+<p>✅ <strong>你會看到</strong>：①待抽取清單處理完會少一列（或顯示綠色「沒有待抽取的來源」）②頁頂狀態列變成「目前 N 個社群，上次建立 …」③<code>/pipeline-jobs</code> 上看得到「社群摘要重建」這筆全域作業，並可取消。</p>
+<p>💡 <strong>為什麼「待抽取來源」要獨立一頁</strong>：三元組審核清單是<strong>三元組導向</strong>的——抽取失敗或抽不出東西的來源因為一條三元組都沒有，<strong>反而完全不會出現在審核清單裡</strong>，而那正是最需要重抽的。</p>
+<p>⚠️ <strong>成本與取消</strong>：社群摘要重建是<strong>每個社群一次 LLM</strong>。按取消<strong>不會立刻停</strong>——單次 LLM 呼叫進行中無法中斷，取消只在呼叫之間生效，所以按了還看到它跑幾十秒是正常的。另外清單上限 50 筆、無分頁；進行中的來源刻意不列（它已經在跑了）。</p>
+<h3 id="138--動手做王小明-wang--李四-lisi全域問答與越權0">13.8 👉 動手做（王小明 <code>wang</code> → 李四 <code>lisi</code>）：全域問答與越權＝0</h3>
+<ol><li>用 <code>wang</code> 登入 → 「AI 知識問答」→ 展開「系統提示詞設定」→ 「<strong>查詢模式</strong>」選「<strong>全域（社群摘要）</strong>」。</li><li>問：<code>客戶A 的整體維運風險有哪些？</code></li><li>換 <code>lisi</code>（開發組）登入，問<strong>同一題</strong>。</li></ol>
+<p>✅ <strong>你會看到</strong>：</p>
+<ul><li><code>wang</code>：得到一段<strong>綜觀式歸納</strong>的答案，而且<strong>沒有出處面板、沒有相似度</strong>——改為顯示取用了幾個社群。</li><li><code>lisi</code>：取不到運維組的社群內容（答案不會出現客戶A 的維運風險）。</li></ul>
+<p>💡 <strong>為什麼沒有出處不是壞了</strong>：社群摘要是「跨多筆來源歸納後的產物」，本來就沒有對應到某一段原文的位置。要追出處就把模式切回「一般」再問一次具體問題。</p>
+<p>💡 <strong>社群摘要的權控比一般紀錄更嚴</strong>：採<strong>子集判定</strong>——社群涵蓋來源的團隊聯集必須是你的團隊的子集，或該社群完全公開。理由是一份摘要混了多筆來源的知識，其中任一筆你無權看，整份就不能給。（其餘紀錄都是「有交集即可」。）</p>
+<p>⚠️ <strong>常見錯誤與修正</strong></p>
+<div class="tw"><table><thead><tr><th>症狀</th><th>原因</th><th>修正</th></tr></thead><tbody><tr><td>全域模式說「沒有可用社群」</td><td>13.7 的「重建社群摘要」沒做或失敗</td><td>用 support 重建一次，看狀態列有沒有社群數</td></tr><tr><td>全域答案很空泛</td><td>社群數太少（核可的三元組不足）</td><td>回 13.4 多核可幾筆，重建社群摘要</td></tr><tr><td>想用「限定分類／限定團隊」縮小範圍</td><td><strong>全域模式不套這些篩選</strong></td><td>需要縮範圍請用「一般」模式</td></tr></tbody></table></div>
+<h3 id="139--無金鑰替代路徑">13.9 🟢 無金鑰替代路徑</h3>
+<p>本章的 LLM 步驟（抽取、別名建議、社群摘要、全域問答）<strong>全部需要金鑰</strong>。沒有金鑰時仍可完成三件有價值的事：</p>
+<ol><li>用 <code>zhang</code> 與 <code>support</code> 各進一次「知識圖譜審核」，<strong>驗證權控差異</strong>——<code>zhang</code> 看不到「實體合併」分頁，<code>support</code> 看得到。這是本章可驗證的資安不變量。</li><li>讀懂 13.4 的觀念：<strong>LLM 抽的東西不會直接影響檢索，要人工核可</strong>。</li><li>讀懂 13.8 的觀念：<strong>全域問答沒有出處是設計，不是缺陷</strong>；社群摘要採更嚴的子集權控。</li></ol>
+<p>其餘項目在完訓矩陣標「待補驗」。</p>
+<h3 id="1310--第-13-章通過條件">13.10 ✅ 第 13 章通過條件</h3>
+<ol><li>「客戶A-運維知識」的「圖譜」欄為「<strong>已抽取</strong>」。</li><li>三元組審核清單中，至少 <strong>3 筆為「已完成」</strong>、<strong>1 筆為「已退回」</strong>。</li><li>圖譜瀏覽在<strong>跳數 2</strong> 時，看得到跳數 1 時沒出現的跨素材節點。</li><li>頁頂社群摘要狀態列顯示社群數（不是「—」）。</li><li><code>wang</code> 用全域模式得到答案且<strong>畫面上沒有出處面板</strong>；<code>lisi</code> 問同題<strong>取不到運維組內容</strong>。⚠️ <strong>任一越權可見即為安全失敗</strong>——請保留帳號、頁面與問句，交由管理員／開發人員調查，不要以刪資料掩蓋。</li></ol>
+<blockquote><p>圖檢索怎麼加分、7 個參數哪些可線上熱調、四個圖指標怎麼看、成本與已知限制，見《<a href="../../docs/guides/knowledge-graph.html">知識圖譜（Graph RAG）使用指南</a>》。</p></blockquote>
+<hr>
+<h2 id="第-14-章-檢索品質評測-rag-evaluation量找得到找得準不外洩" class="t8">第 14 章　檢索品質評測 <code>/rag-evaluation</code>（量「找得到／找得準／不外洩」）</h2>
+<p><strong>這個畫面做什麼</strong>：清洗品質評測管「上游清洗」，檢索品質評測管「<strong>下游檢索</strong>」。你給一批問句與「應該被檢索到的來源」，系統跑混合檢索，算出 <strong>P@k／R@k／NDCG／MRR</strong> 與延遲，並特別標示<strong>越權洩漏（應為 0）</strong>。它解決的問題是——問答準不準、會不會洩漏，要能被量化、被回歸測試。</p>
+<p>📌 <strong>評測用哪些紀錄</strong>：評的是<strong>你建立的每筆「問句樣本」</strong>。按「評測」時把問句送進混合檢索，打的是<strong>整個已索引知識庫</strong>（所有已索引內容），並依<strong>該樣本模擬的團隊權限</strong>（評測團隊／模擬管理員）過濾——<strong>不是某一筆來源、也不是「未索引的清單列」，而是「全部已索引內容（權限範圍內）」</strong>。需先完成「清洗 → 蒸餾 → 索引」；整個過程<strong>純檢索、不經 LLM 生成</strong>，只把指標寫回樣本，不改索引或實際問答。</p>
+<p>🧩 <strong>欄位說明</strong></p>
+<blockquote><p>⚠️ 這三個多值欄位同樣是<strong>一行一項</strong>（畫面標籤已明寫），用分號會讓「越權洩漏＝0」的安全驗收失去意義。</p></blockquote>
+<div class="tw"><table><thead><tr><th>欄位（畫面標籤）</th><th>意義</th><th>如何輸入</th><th>必填</th></tr></thead><tbody><tr><td>標題</td><td>樣本名稱</td><td>自由文字</td><td>✅</td></tr><tr><td>問句</td><td>要送入檢索的問題</td><td>例如「退款要幾天？」</td><td>✅</td></tr><tr><td>期望命中來源（每行一個知識來源標題）</td><td>應被檢索到的知識來源標題</td><td><strong>一行一個</strong>；須與「知識來源加工」的標題一致。比對<strong>不分大小寫</strong>，但全形/半形、空白、錯字會判為未命中</td><td>—</td></tr><tr><td>期望錨點（每行一項，選填；用於出處正確率）</td><td>應命中的章節/條款錨點</td><td><strong>一行一個</strong></td><td>—</td></tr><tr><td>模擬團隊（每行一項，空＝公開使用者）</td><td>模擬使用者的團隊</td><td><strong>一行一個</strong>；<strong>越權測試用</strong></td><td>—</td></tr><tr><td>模擬管理員</td><td>是否模擬為不受權控的管理員</td><td>勾選</td><td>—</td></tr></tbody></table></div>
+<blockquote><p>💡 畫面同樣有 <strong>「載入種子」</strong> 可帶入範例樣本。</p></blockquote>
+<h4 id="動手做張經理建立-2-筆-rag-樣本">👉 動手做（張經理：建立 2 筆 RAG 樣本）</h4>
+<p><strong>R1：部署前檢查查詢</strong></p>
+<ul><li>問句：<code>ERP 部署前要檢查什麼？</code></li><li>期望命中來源：<code>客戶A-運維知識</code></li><li>評測團隊：<code>運維組</code>（模擬運維人員）</li></ul>
+<p><strong>R2：越權洩漏測試（最重要）</strong></p>
+<ul><li>問句：<code>客戶主機半夜中斷怎麼處理？</code>（這是運維內容）</li><li>期望命中來源：留空</li><li>評測團隊：<code>開發組</code>（<strong>模擬開發組使用者去問運維內容</strong>）</li><li>模擬管理員：不勾</li></ul>
+<p>按每筆「評測」。</p>
+<p>✅ <strong>你會看到</strong>：</p>
+<ul><li>R1：能命中「客戶A-運維知識」，P@k／R@k 等指標有數值。</li><li>R2：因為模擬的是開發組、問運維內容，<strong>越權洩漏數應為 0</strong>（以紅色標示越權，0 才安全）；檢索不到運維內容才是正確結果。</li></ul>
+<blockquote><p>💡 <strong>這就是回歸防線</strong>：把這些樣本留著，日後改了清洗/索引/權控邏輯，重跑一次就知道「有沒有改壞、有沒有開始洩漏」。</p></blockquote>
+<p>🟢 <strong>無金鑰</strong>：檢索需要嵌入端點。若未設，指標會跑不出來；仍可練到「建立樣本→評測→看儀表板」的操作與越權概念。</p>
+<p>✅ <strong>第 14 章通過條件</strong>：R1 能命中「客戶A-運維知識」並產生檢索指標；R2 的越權洩漏為 <code>0</code>。R1 失敗先查索引健康與期望來源標題是否完全一致；R2 非 0 視為安全驗收失敗，停止把該環境當成可交付狀態並交由管理員／開發人員調查。</p>
+<blockquote><p>撰寫準則與指標細節見《<a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a>》。</p></blockquote>
+<hr>
+<h2 id="第-15-章-權控與篩選綜合練習親眼驗證不同人看到不同資料" class="t1">第 15 章　權控與篩選綜合練習（親眼驗證「不同人看到不同資料」）</h2>
+<p>這一章是本手冊的<strong>高潮</strong>。前面你已經以不同身分輸入了帶不同團隊的紀錄，現在要<strong>輪流登入</strong>，親眼驗證第 3 章 §3.7 那張可見性表。</p>
+<h3 id="151-逐一登入驗證可見性">15.1 逐一登入驗證可見性</h3>
+<p>對每個帳號，登入後到 <code>/knowledge-sources</code>（或任一含資料的清單頁），對照預期：</p>
+<div class="tw"><table><thead><tr><th>👉 登入</th><th>到知識來源/匯入清單看</th><th>✅ 應該看到</th><th>✅ 應該看不到</th></tr></thead><tbody><tr><td><code>wang</code> 王小明</td><td>運維相關</td><td>A1–A5、P1（公開）</td><td>B1、B2、B3</td></tr><tr><td><code>lisi</code> 李四</td><td>開發相關</td><td>B1、B2、P1（公開）</td><td>A1–A5、<strong>B3</strong></td></tr><tr><td><code>chen</code> 陳美玲</td><td>合約相關</td><td><strong>B3</strong>、P1（公開）</td><td>A1–A5、B1、B2</td></tr><tr><td><code>zhang</code> 張經理</td><td>全部</td><td>A1–A5、B1、B2、B3、P1</td><td>（無，全看得到）</td></tr><tr><td><code>support</code></td><td>全部</td><td>全部（不受權控）</td><td>（無）</td></tr></tbody></table></div>
+<blockquote><p>💡 <strong>重點觀察</strong>：</p>
+<ul><li>李四自己輸入了 B3，卻看不到 B3——因為 B3 團隊是「業務合約組」，而李四角色預設團隊只有「開發組」。<strong>輸入者不等於有權看。</strong></li><li>陳美玲什麼都沒輸入，卻看得到 B3——因為她角色預設團隊是「業務合約組」，與 B3 團隊有交集。</li><li>大家都看得到 P1——因為 P1 團隊留空＝公開。</li><li>張經理看得到全部團隊紀錄，但他<strong>不是管理員</strong>（IsAdmin=否），純粹因為他角色的預設團隊「同時含三組」。這證明「看得到」靠的是<strong>團隊交集</strong>，不一定要管理員。</li></ul></blockquote>
+<p>⚠️ <strong>如果結果跟預期不符</strong>，依序檢查：</p>
+<ol><li>該紀錄的「團隊」欄是不是貼對了？（用 support 開該筆確認）</li><li>該使用者的「角色」是不是指派對了？</li><li>該角色的「預設團隊」是不是含對應團隊？</li><li>是不是不小心把某人勾成了管理員（那他會全看得到）？</li></ol>
+<h3 id="152-用團隊與分類篩選">15.2 用團隊與分類篩選</h3>
+<p>知識來源清單上方有 <strong>「分類過濾」</strong> 與 <strong>「團隊過濾」</strong> 兩個多選下拉，以及搜尋框。</p>
+<h4 id="動手做張經理用篩選快速找資料">👉 動手做（張經理：用篩選快速找資料）</h4>
+<ol><li>用 <code>zhang</code> 登入（他看得到全部，最適合練篩選）。</li><li>「團隊過濾」選「運維組」→ 清單只剩運維組的來源。</li><li>再加「分類過濾」選「故障排除」→ 進一步縮到故障排除主題。</li><li>清空過濾，恢復全部。</li></ol>
+<p>✅ <strong>你會看到</strong>：團隊＋分類像兩道篩子，快速把大量紀錄縮到你要的範圍。</p>
+<h3 id="153-關鍵字搜尋">15.3 關鍵字搜尋</h3>
+<h4 id="動手做">👉 動手做</h4>
+<p>在搜尋框輸入 <code>記憶體</code>（或 <code>合約</code>、<code>架構</code>），按 🔍。</p>
+<p>✅ <strong>你會看到</strong>：清單只剩標題/內容含該關鍵字的紀錄。按 ❌ 清空搜尋恢復。</p>
+<blockquote><p>💡 <strong>篩選 vs 搜尋差在哪</strong>：篩選是「用既有標籤（團隊/分類）精確縮小」；搜尋是「用任意關鍵字模糊找」。兩者可疊加使用。</p></blockquote>
+<p>✅ <strong>第 15 章通過條件</strong>：五個帳號的可見／不可見結果全部符合表格，P1 對所有人公開，B3 只對業務合約組、張經理與管理員可見。任一越權可見都屬安全失敗；先保存帳號、頁面與紀錄名稱，再按本節四步順序核對，不以刪除資料掩蓋問題。</p>
+<hr>
+<h2 id="第-16-章-mcp-server讓外部-ai-agent-查詢知識庫-mcp" class="t2">第 16 章　MCP Server：讓外部 AI Agent 查詢知識庫 <code>/mcp</code></h2>
+<p><strong>這個畫面做什麼</strong>：前 15 章都在「網頁裡」操作知識庫。本章把同一座知識庫<strong>對外</strong>開放給外部 AI 助手（Claude、Codex 等）。系統提供一個 MCP（Model Context Protocol）端點 <code>/mcp</code>，任何支援 MCP 的 AI 工具連上後，就能把「查詢鼎峰知識庫」當成內建能力。它解決的問題是——讓工程師在自己慣用的 AI 工具裡直接問公司知識，而<strong>團隊權控與網頁完全一致</strong>：換一個人的憑證，就換成那個人能看的範圍。這正是第 15 章「不同人看到不同資料」在外部 Agent 上的延續。</p>
+<p>📌 <strong>五個工具</strong>：<code>knowledge_ask</code>（問答，含出處）、<code>knowledge_search</code>（檢索片段）、<code>knowledge_list_sources</code>（列出可見來源）、<code>knowledge_get_document</code>（取單一來源全文）、<code>knowledge_ping</code>（連通性檢查）。</p>
+<p>🔑 <strong>需要金鑰／工具</strong>：一個支援 MCP 的用戶端（本章以 <strong>Claude Code CLI</strong> 示範，Codex 亦可）；一組<strong>憑證</strong>；且已完成<strong>第 11 章（索引）與第 12 章（可問答）</strong>——問答/檢索工具需要嵌入索引。</p>
+<h4 id="前置取得憑證兩種擇一">👉 前置：取得憑證（兩種擇一）</h4>
+<ul><li><strong>JWT</strong>：呼叫既有登入端點（<code>POST /api/Auth/...</code>，實際路徑見系統管理員）以帳密換取 token，之後帶 <code>Authorization: Bearer &lt;JWT&gt;</code>。到期需重新換發。</li><li><strong>API Key</strong>（M2M 整合）：系統管理員於 <code>/mcp-api-keys</code>（系統管理 → MCP 金鑰管理）網頁新增一把金鑰（自動產生）並對映到某個帳號（例如對映 <code>wang</code>），呼叫端帶專用標頭 <code>X-API-Key: &lt;金鑰&gt;</code>。可即時啟用/停用，撤銷＝停用或刪除該金鑰（存資料庫，1.0.9 起）。</li></ul>
+<blockquote><p>💡 <strong>為什麼憑證＝身分</strong>：MCP 端點沿用系統既有認證，解析出「你是誰、屬哪些團隊」後，所有查詢都在<strong>檢索層</strong>套團隊權控——和你在 <code>/knowledge-base-chat</code> 看到的一模一樣。</p></blockquote>
+<h4 id="動手做用-claude-code-cli分三種身分各連一次">👉 動手做（用 Claude Code CLI，分三種身分各連一次）</h4>
+<ol><li><strong>連通（先確認連得上）</strong>：以任一有效憑證新增伺服器並列出工具：</li></ol>
+<pre><code>   claude mcp add --transport http dingfeng https://&lt;你的主機&gt;/mcp --header "Authorization: Bearer &lt;JWT&gt;"
+   claude mcp list</code></pre>
+<p>呼叫 <code>knowledge_ping</code> → 應回 <code>KnowledgeExtraction MCP server is alive.</code>。</p>
+<ol><li><strong>王小明（<code>wang</code>，運維組非管理員）問答</strong>：用 <code>wang</code> 的憑證呼叫 <code>knowledge_ask</code>，問「機房 UPS 與備援的巡檢重點？」→ 應得<strong>含出處</strong>的答案（來自運維組 A 系列來源）。</li><li><strong>李四（<code>lisi</code>，開發組）越權測試</strong>：用 <code>lisi</code> 的憑證問<strong>同一題運維內容</strong> → 應「查無依據」（<code>confidence: Insufficient</code>、<code>sources: []</code>）；再用 <code>lisi</code> 對某筆運維來源 Id 呼叫 <code>knowledge_get_document</code> → 應回 <code>{ "error": "unavailable" }</code>（不洩漏該來源是否存在）。</li><li><strong>管理員（<code>support</code>）對照</strong>：用 <code>support</code> 的憑證呼叫 <code>knowledge_list_sources</code> → 應看到<strong>全部</strong>來源（含業務合約組 B3「客戶A-合約與SLA」）；同一呼叫由 <code>lisi</code> 執行則看不到 B3。</li></ol>
+<p>✅ <strong>你會看到</strong>：同一個問題／同一個列表工具，<code>wang</code>／<code>lisi</code>／<code>support</code> 得到<strong>不同的可見範圍</strong>，且與第 15 章網頁驗證的結果完全一致。越權內容永遠不會出現在回傳裡。</p>
+<p>🟢 <strong>無金鑰</strong>（嵌入端點未設定）：<code>knowledge_ask</code>／<code>knowledge_search</code> 需要嵌入，此時無法驗；但仍可完整驗證 <strong><code>knowledge_ping</code> 連通</strong> 與 <strong><code>knowledge_list_sources</code> 的權控</strong>（列表不需嵌入）——<code>wang</code> 只列運維組＋公開、<code>lisi</code> 列不到 B3、<code>support</code> 全列。問答/檢索類指標標「□ 待補驗」。</p>
+<p>⚠️ <strong>常見錯誤</strong>：</p>
+<ul><li>憑證放錯標頭——<strong>JWT 用 <code>Authorization: Bearer</code>、API Key 用 <code>X-API-Key</code></strong>，別互換。</li><li>回 401：JWT 過期或無效（重新換發）／API Key 與設定不符。</li><li>連得上但問答查無：先確認已完成第 11 章索引、且該憑證對映的帳號團隊正確（用 <code>support</code> 對照同題應答得出）。</li></ul>
+<p>✅ <strong>第 16 章通過條件</strong>：<code>knowledge_ping</code> 連通；<code>wang</code> 取得運維組答案且附出處，<code>lisi</code> 問同題查無依據、取運維全文回 <code>unavailable</code>，<code>support</code> 於 <code>knowledge_list_sources</code> 看到含 B3 的完整清單——<strong>越權洩漏＝0</strong>。無金鑰模式下至少 <code>knowledge_ping</code> 通、且 <code>knowledge_list_sources</code> 三帳號權控正確，其餘標「待補驗」。任一越權可見都屬安全失敗。</p>
+<blockquote><p>各家 AI 工具（Codex、Claude Code/Desktop、Cursor、VS Code）的逐步設定、五工具參數與回傳範例、日誌與稽核運維，見《<a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a>》；技術規格見《<a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a>》。</p></blockquote>
+<hr>
+<h2 id="第-17-章-知識更新練習文件改版了知識庫怎麼跟著更新" class="t3">第 17 章　知識更新練習（文件改版了，知識庫怎麼跟著更新）</h2>
+<p>真實世界裡，文件會改版——合約續約、SOP 更新、架構調整。這時「原料、清洗結果、蒸餾出的 Wiki、索引」都要跟著更新。本章教你怎麼做。</p>
+<h3 id="171-情境客戶-a-的維護合約續約了b3-改版">17.1 情境：客戶 A 的維護合約續約了（B3 改版）</h3>
+<h4 id="動手做-1">👉 動手做</h4>
+<ol><li><strong>更新原料</strong>：用 <code>chen</code>（或 <code>zhang</code>／<code>support</code>）到 <code>/document-extraction</code>，找到「客戶A維護合約與SLA」。李四建檔後已因團隊權控失去存取權，不能用 <code>lisi</code> 執行本章。</li><li>做法一（<strong>推薦</strong>）：對該筆按 <strong>「上傳新版本」</strong>，上傳改版檔案。系統會建立<strong>素材版本鏈</strong>——版本欄變成 <code>v2</code>，舊版標示「<strong>（已被取代）</strong>」，可按「<strong>版本歷史</strong>」查看各版本與 as-of 時序。這是保留歷史又最語意清楚的做法。</li><li>做法二：<strong>重新匯入</strong>新版檔案為另一筆新素材（標題加 <code>v2</code>）。較不推薦，因為版本關係不會被系統串起來。</li><li><strong>更新成員</strong>：到 <code>/knowledge-sources</code> 的「客戶A-合約與SLA知識」。採做法一（上傳新版本）時，來源會沿著版本鏈指向最新版本，通常確認一下即可；採做法二時，需按「管理成員」把舊素材移除、加入新的 v2 素材。</li><li><strong>重新清洗</strong>：對該來源按 <strong>「重試清洗」</strong>（或「清洗」），重新產出乾淨內容。</li><li><strong>重新蒸餾</strong>：清洗完成後按 <strong>「蒸餾」🧪</strong>（可重蒸餾），Wiki 頁會重煉。</li><li><strong>索引自動更新</strong>：蒸餾完成後索引自動重跑，狀態回到「已索引」。</li><li><strong>驗證</strong>：到 <code>/knowledge-base-chat</code> 問與合約有關的問題，確認答到的是新版內容、出處指向 v2。</li></ol>
+<p>✅ <strong>你會看到</strong>：知識庫的答案隨著原料更新而更新，且舊出處可被新出處取代。</p>
+<blockquote><p>💡 <strong>設計重點</strong>：因為「清洗結果、Wiki 頁只存檔案、DB 存路徑與狀態」，重跑清洗/蒸餾會產生新的檔案版本；索引在蒸餾後自動連動，所以你<strong>只要從『更新原料』開始，沿著生產線重跑一次</strong>，下游就會全部刷新。 💡 <strong>要不要保留舊版？</strong> 視稽核需求。要留歷史就用「新增 v2」；不需要就直接更新同一筆。合約這類高敏感、需稽核的，建議留歷史。</p></blockquote>
+<h3 id="172-只是小修不想全部重跑">17.2 只是小修，不想全部重跑？</h3>
+<p>若只是清洗結果的文字要微調（例如補一句話），可用「<strong>檢視清洗結果</strong>」裡的<strong>線上編修</strong>直接改存；但要注意：<strong>手動改過清洗結果後，若再重跑清洗會被覆蓋</strong>。蒸餾頁的 Wiki 也同理可線上編修。小修建議直接編修，大改才從原料重跑。</p>
+<hr>
+<h2 id="第-18-章-完整一條龍回顧把所有畫面串起來" class="t4">第 18 章　完整一條龍回顧（把所有畫面串起來）</h2>
+<p>恭喜你走到這裡！回顧一下你親手完成的這條生產線（以「客戶 A 運維知識」為例）：</p>
+<pre><code>1. support 建基礎資料：團隊3 / 分類10 / 專案分類4 / 角色4 / 使用者5 / 提示詞7 / 清洗設定檔2
+        ↓
+2. 王小明匯入 A1–A5（文件/音訊/圖片，標團隊「運維組」）
+        ↓
+2b. 李四在會議記錄上傳錄音 → 自動轉錄 → AI 產生會議紀錄 → 勾選待辦建成工作項目
+        ↓
+3. 王小明建知識來源「客戶A-運維知識」→ 管理成員加入 A1–A5
+        ↓
+4. 三筆來源分別聚合運維、需求與合約素材；按「清洗」套用合適配方
+        ↓
+5.（信心不足時）張經理到知識來源「核准/退回」
+        ↓
+6. 清洗品質評測 G1/G2 量清洗品質、看建議門檻
+        ↓
+7. 按「蒸餾」🧪 → 張經理在知識頁審核頁審核 Wiki 頁
+        ↓
+8. 索引自動完成（已索引）
+        ↓
+9. 王小明在「AI 知識問答」用「問答-條列步驟」提問 → 得到附出處、去敏的答案
+        ↓
+10. 檢索品質評測 R1/R2 量檢索品質與越權（越權=0）
+        ↓
+11. 換帳號驗證權控、用團隊/分類/關鍵字篩選
+        ↓
+12. 合約改版時，從『更新原料』沿線重跑刷新下游
+        ↓
+13. 對外開放：外部 AI Agent 透過 MCP `/mcp` 查詢，換 wang/lisi/support 憑證再驗一次「換憑證＝換可見範圍」</code></pre>
+<p><strong>最終你得到</strong>：一份乾淨、去敏、可被自然語言問答、附出處、受團隊權控、且品質可量測的知識資產——而且你完全理解每一站在做什麼、為什麼。你也看到同一座知識庫如何<strong>安全地對外</strong>開放給外部 AI Agent（MCP），權控一致不外洩。</p>
+<hr>
+<h2 id="第-19-章-管理員維運與觀測頁用-support-登入" class="t5">第 19 章　管理員維運與觀測頁（用 support 登入）</h2>
+<blockquote><p>🔑 本章畫面分屬「<strong>系統管理</strong>」與「<strong>統計報表</strong>」兩個群組、<strong>僅管理員可見</strong>。請用 <code>support</code> 登入操作。本章只做觀察、自檢與試檢索；不執行批次清理、批次重跑、套用 RAG 門檻或提高日誌量。</p></blockquote>
+<h3 id="191-系統健康監控-system-health重點實作">19.1 系統健康監控 <code>/system-health</code>（重點實作）</h3>
+<p><strong>這個畫面做什麼</strong>：一眼看出系統與各依賴（資料庫、金鑰、嵌入端點、外部工具…）是否正常，並附<strong>最後 100 筆日誌</strong>，是排錯的第一站。</p>
+<p>畫面內容：頂部顯示「最後檢查時間」與<strong>健康分數 <code>{分數}%</code></strong>＋狀態文字（<strong>正常／警示／異常</strong>）；「<strong>檢查項目</strong>」逐項列出名稱、類別・權重、狀態與佐證（失敗會附訊息）；下方「<strong>最後 100 筆日誌紀錄</strong>」。</p>
+<h4 id="動手做-2">👉 動手做</h4>
+<ol><li>用 <code>support</code> 登入，展開「系統管理」→ 進 <code>/system-health</code>。</li><li>看整體分數與各檢查項目；若某項「異常/警示」，讀它的佐證與失敗訊息。</li><li>往下看最後 100 筆日誌，對照剛才練習時的操作。</li></ol>
+<p>✅ <strong>你會看到</strong>：一頁掌握系統健康；金鑰或嵌入端點沒設時，對應項目會標示異常，指引你補設定。</p>
+<h3 id="192-問答稽核明細-chat-logs重點實作">19.2 問答稽核明細 <code>/chat-logs</code>（重點實作）</h3>
+<p><strong>這個畫面做什麼</strong>：留存「AI 知識問答」與「知識來源 AI 對話」<strong>每一輪的提示詞與回覆全文</strong>，並記錄使用者剛才按的<strong>滿意度</strong>，供管理員稽核與改善問答品質。</p>
+<p>篩選器：<code>帳號或姓名</code>、<code>起始日</code>／<code>結束日</code>、來源（<strong>全部來源／AI 知識問答／知識來源 AI 對話／MCP Server 問答</strong>）、滿意度（<strong>全部滿意度／滿意／不滿意／未回饋</strong>），按「查詢」。表格欄位：時間、帳號、姓名、來源出處、信心、topScore、滿意度、操作（<strong>查看全文</strong>）。<strong>一列＝一輪問答</strong>。</p>
+<blockquote><p>💡 <strong>另有一頁「完整對話紀錄」<code>/chat-sessions</code></strong>（系統管理 → AI 與整合），那裡<strong>一列＝一整段對話（多輪）</strong>，可看整段脈絡與當時套用的限定條件。兩頁分工：要看<strong>送進 LLM 的完整提示詞、信心、topScore、滿意度、以及 MCP 呼叫</strong>用本頁；要<strong>還原某人一整串怎麼問的</strong>用 <code>/chat-sessions</code>。</p></blockquote>
+<h4 id="動手做-3">👉 動手做</h4>
+<ol><li>進 <code>/chat-logs</code>。</li><li>把「滿意度」篩選成「不滿意」，按「查詢」，找出讀者覺得不好的回答。</li><li>按某列「查看全文」，在「聊天全文（提示詞與回覆）」對話窗檢視完整提示詞與回覆。</li></ol>
+<p>✅ <strong>你會看到</strong>：你在第 12 章按的滿意/不滿意，會出現在這裡；由此可回溯是提示詞、檢索還是內容的問題。</p>
+<h3 id="193-token-用量-token-usage重點實作">19.3 Token 用量 <code>/token-usage</code>（重點實作）</h3>
+<p><strong>這個畫面做什麼</strong>：記錄每次呼叫大語言模型的 <strong>token 用量</strong>（哪個作業/畫面、哪個模型、哪個使用者、輸入/輸出/快取/推理各類 token），讓成本透明可控。</p>
+<p>畫面：上方可依帳號關鍵字、<strong>使用者下拉</strong>（第一項是特殊項 <code>（系統自動）</code>＝帳號與姓名皆空的紀錄）、日期、作業、型別、模型篩選查詢；「篩選範圍合計」顯示輸入/輸出/快取/推理/合計（<strong>是整個篩選結果的合計，不是只算當前頁</strong>）；表格逐列列出每次呼叫，可按「詳細」看完整分組。<strong>數值採緊湊表示法</strong>（例如 <code>1.00K</code>、<code>2.78M</code>），<strong>滑鼠移到數字上會顯示精確值</strong>。</p>
+<p>畫面上共 <strong>5 個頁籤</strong>：<code>依使用者（N）</code>／<code>依作業（N）</code>／<code>依模型（N）</code>／<code>依型別（N）</code>（統計範圍同樣是全部篩選結果），以及最右邊的 <code>明細（N）</code>——逐筆表格就在這個頁籤內（1.0.80 起；之前固定顯示在頁籤區下方）。右上還有「<strong>下載 PDF 報表</strong>」（檔名 <code>Token用量報表_{時間戳}.pdf</code>，內含合計、四維度統計與<strong>不分頁的完整明細</strong>）。</p>
+<p>首頁統計儀表板也有「最近 30 天 Token 用量」5 張卡片（送出／接收／推理／快取／合計）。</p>
+<h4 id="動手做-4">👉 動手做</h4>
+<ol><li>進 <code>/token-usage</code>。</li><li>用日期或模型篩選查詢，看「篩選範圍合計」與各列用量。</li><li>把滑鼠移到某個緊湊數字（如 <code>2.78M</code>）上，確認 tooltip 顯示精確數字。</li></ol>
+<p>✅ <strong>你會看到</strong>：一頁掌握 LLM 花費；配合首頁儀表板即可追蹤近 30 天成本趨勢。</p>
+<h3 id="194-檢索診斷與調校-rag-diagnostics安全觀察式驗收">19.4 檢索診斷與調校 <code>/rag-diagnostics</code>（安全觀察式驗收）</h3>
+<p><strong>這個畫面做什麼</strong>：用既有問答稽核資料觀察 topScore 分佈、目前／建議門檻與索引健康，也能做不呼叫 LLM 的試檢索。這裡的 <code>RejectThreshold</code>／<code>LowConfidenceThreshold</code> 是<strong>問答檢索門檻</strong>，不是第 9 章的清洗信心門檻。</p>
+<h4 id="動手做只讀與試檢索">👉 動手做（只讀與試檢索）</h4>
+<ol><li>進 <code>/rag-diagnostics</code>，記下目前生效的 <code>RejectThreshold</code> 與 <code>LowConfidenceThreshold</code>；<strong>不要按「套用」或「套用建議值」</strong>。</li><li>按「重新自檢」，閱讀紅／黃／藍提示；查看索引健康中「客戶A-運維知識」的狀態與片段數。</li><li>在「試檢索」輸入 <code>客戶主機半夜服務中斷</code> 執行。（<strong>試檢索只有「問句」與「as-of 時點」兩個輸入，沒有團隊模擬</strong>——它是以你目前登入的身分（管理員）檢索。要驗證團隊權控請改用第 14 章的檢索品質評測，那裡才有「模擬團隊」。）</li><li>記錄是否命中「客戶A-運維知識」、最高分數與融合分；本動作只做檢索，不呼叫 LLM。</li></ol>
+<p>✅ <strong>通過條件</strong>：完整 AI 模式下來源索引健康不是紅燈，試檢索能命中正確來源；無金鑰／無嵌入模式若顯示語意檢索停用，記錄為「關鍵字退化、待補驗」。若未命中，先處理索引、團隊與內容，再考慮調參。</p>
+<blockquote><p>⚠️ <strong>不要在練習中套用門檻</strong>：頁面套用後下一則問答立即生效，會影響其他使用者。應先累積足夠樣本、查看模擬結果並依正式變更流程核准。</p></blockquote>
+<h3 id="195-資料一致性巡檢-data-consistency只巡檢不清理">19.5 資料一致性巡檢 <code>/data-consistency</code>（只巡檢、不清理）</h3>
+<ol><li>進 <code>/data-consistency</code>，記錄「孤兒成員」與「過時來源」數量。</li><li>若列出項目，只閱讀來源、原因與建議動作，不按批次按鈕。</li><li>對照第 17 章改版練習：若 B3 所屬來源顯示過時，確認系統確實偵測到「上游已改、下游尚未刷新」。</li></ol>
+<p>✅ <strong>通過條件</strong>：你能說明每筆異常的上游與下游關係；沒有異常也是有效結果。若要處理，先確認範圍、備份、維護時段與 AI 成本，再由管理員另行執行。</p>
+<blockquote><p>⚠️ <strong>本手冊不要求點擊</strong>「清除所有孤兒成員」或「重新清洗所有過時來源」。前者會刪除關聯，後者會觸發批次 AI 作業並可能連動蒸餾與索引。</p></blockquote>
+<h3 id="196-日誌等級切換-log-settings確認目前值不切換">19.6 日誌等級切換 <code>/log-settings</code>（確認目前值，不切換）</h3>
+<ol><li>進 <code>/log-settings</code>，記下畫面顯示的「目前最低等級」。</li><li>確認頁面列出 <code>Trace</code>、<code>Debug</code>、<code>Information</code>、<code>Warning</code>、<code>Error</code> 選項，但不要在本練習切換。</li></ol>
+<p>✅ <strong>通過條件</strong>：能讀到目前值，且知道執行期切換會立即生效、重啟後回到 <code>nlog.config</code> 預設。只有在具體故障的短暫診斷期間才提高詳細度，完成後必須回復 <code>Information</code>，避免日誌量與敏感診斷資料增加。</p>
+<h3 id="197-日誌下載-log-download小範圍動手做1012-新增">19.7 日誌下載 <code>/log-download</code>（小範圍動手做，1.0.12 新增）</h3>
+<p><strong>這個畫面做什麼</strong>：管理員選「起始時間～結束時間」，系統把這段期間的日誌合併成單一 <code>.log</code>、打包 zip 下載——把日誌交給支援人員排查時不必再登入伺服器翻資料夾。</p>
+<h4 id="動手做-5">👉 動手做</h4>
+<ol><li>進 <code>/log-download</code>（「系統管理 &gt; 日誌下載」），確認預設區間為「最近一小時」。</li><li>用「<strong>快速區間</strong>」下拉選「最近30分鐘」（1.0.13 新增），觀察兩個時間欄位自動以現在時間回推帶入；若要涵蓋更早的操作時段，再手動微調起始時間，按「下載」。</li><li>解壓 zip，打開裡面的 <code>.log</code>，確認能找到剛才操作留下的紀錄（依時間排序、例外堆疊完整保留）。</li></ol>
+<p>⚠️ <strong>限制</strong>：區間上限 <strong>31 天</strong>；合併後超過 <strong>200 MB</strong> 會顯示「選取範圍的日誌量過大，請縮小時間區間。」；起始晚於結束或未選時間都會被擋下。日誌每日輪替、保留 30 天。</p>
+<p>✅ <strong>你會看到</strong>：zip 檔名為 <code>logs_{起}-{訖}.zip</code>（時間各到分）；就算選了沒有日誌的區間，也會下載到空的日誌檔（代表「查過了、真的沒有」）。</p>
+<h3 id="198-統計報表五頁-reports觀察式驗收">19.8 統計報表五頁 <code>/reports/…</code>（觀察式驗收）</h3>
+<p><strong>這些畫面做什麼</strong>：Sidebar 獨立群組「<strong>統計報表</strong>」五頁管理儀表——Token 用量統計、AI 回答滿意度、問答使用統計、檢索品質統計、內容清點統計。共通操作：進頁即以<strong>近 30 天</strong>預設區間自動查詢；可用日期＋團隊多選篩選；每頁都有「下載 PDF 報表」。</p>
+<h4 id="動手做-6">👉 動手做</h4>
+<ol><li>依序開五頁，確認各頁進入後已自動帶出近 30 天資料。</li><li>在「AI 回答滿意度」找到你在第 12 章按過的 👍/👎（滿意率與每日趨勢應有紀錄）。</li><li>在「問答使用統計」確認練習期間的問答筆數，並觀察是否有「被封鎖（查無依據）」筆數。</li><li>在「檢索品質統計」對照 19.4 學到的 topScore 觀念，看平均 TopScore、命中率與 TopScore 分桶。</li><li>在「內容清點統計」用「團隊＝運維」或分類篩選，對照第 6 章匯入的素材筆數（依媒體型別/狀態/團隊/分類）。</li><li>任選一頁按「<strong>下載 PDF 報表</strong>」，確認取得 <code>統計報表_…_{時間戳}.pdf</code>。</li></ol>
+<p>✅ <strong>通過條件</strong>：五頁皆有資料且與你的練習操作對得上；PDF 可下載開啟。無金鑰模式下與 AI 相關的數字（token、滿意度）可能為空，記錄為「依環境註記」即可。</p>
+<h3 id="199-完訓成果矩陣">19.9 完訓成果矩陣</h3>
+<p>請在交付練習結果前逐項打勾；「待補驗」只適用於一開始已選模式 B 的 AI／嵌入項目。</p>
+<div class="tw"><table><thead><tr><th>項目</th><th>驗收證據</th><th>完整 AI 模式</th><th>無金鑰模式</th></tr></thead><tbody><tr><td>基礎資料</td><td>團隊 3、分類 10、角色 4、使用者 4＋support、提示詞 7</td><td>□ 通過</td><td>□ 通過</td></tr><tr><td>A1–A5</td><td>王小明可見 5 筆已完成運維素材</td><td>□ 通過</td><td>□ 通過（可全走文件）</td></tr><tr><td>B1–B3、P1</td><td>B1–B2 開發、B3 合約、P1 公開，權控符合預期</td><td>□ 通過</td><td>□ 通過</td></tr><tr><td>知識來源</td><td>運維來源 5 名、需求來源 2 名、合約來源 1 名成員</td><td>□ 通過</td><td>□ 通過</td></tr><tr><td>清洗</td><td>配方結構正確，A4 敏感值未原樣出現</td><td>□ 通過</td><td>□ 待補驗</td></tr><tr><td>清洗品質評測</td><td>G1／G2 有指標，標準答案與分隔正確</td><td>□ 通過</td><td>□ 操作通過／品質待補驗</td></tr><tr><td>蒸餾與 Wiki</td><td>已蒸餾、至少一頁核准、團隊繼承、連結可導覽</td><td>□ 通過</td><td>□ 待補驗</td></tr><tr><td>索引</td><td>運維來源已索引，診斷頁非紅燈</td><td>□ 通過</td><td>□ 待補驗</td></tr><tr><td>問答與出處</td><td>王小明答到正確內容，可鑽取原始檔，不洩漏敏感值</td><td>□ 通過</td><td>□ 待補驗</td></tr><tr><td>知識圖譜（第 13 章）</td><td>運維來源「圖譜」欄＝已抽取；≥3 筆三元組已完成、1 筆已退回；圖譜瀏覽 2 跳看得到跨素材節點；社群摘要狀態列有社群數</td><td>□ 通過</td><td>□ 權控差異通過／其餘待補驗</td></tr><tr><td>全域問答（第 13 章）</td><td>wang 全域模式有答案且<strong>無出處面板</strong>；lisi 問同題取不到運維組內容（<strong>越權＝0</strong>）</td><td>□ 通過</td><td>□ 待補驗</td></tr><tr><td>檢索品質評測</td><td>R1 命中；R2 越權洩漏為 0</td><td>□ 通過</td><td>□ 待補驗</td></tr><tr><td>帳號權控</td><td>wang／lisi／chen／zhang／support 結果符合第 15 章</td><td>□ 通過</td><td>□ 通過</td></tr><tr><td>MCP 對外查詢（選練，第 16 章）</td><td><code>knowledge_ping</code> 連通；wang/lisi/support 憑證的權控結果同第 15 章、越權＝0</td><td>□ 通過</td><td>□ 連通/列表權控通過，問答待補驗</td></tr><tr><td>維運觀察</td><td>健康、聊天紀錄、Token、RAG 自檢、一致性、日誌目前值、日誌下載 zip、五張統計報表皆有紀錄</td><td>□ 通過</td><td>□ 通過／依環境註記</td></tr></tbody></table></div>
+<h3 id="1910-重跑與清理練習資料原則">19.10 重跑與清理練習資料原則</h3>
+<ul><li><strong>重跑前先辨識環境</strong>：只在全新或專用練習資料庫重建整套資料；共用／正式環境不得用本手冊虛構資料做重置測試。</li><li><strong>優先修正單筆</strong>：匯入、清洗、蒸餾或索引失敗時，先讀錯誤並只重試該筆，不用批次重跑掩蓋根因。</li><li><strong>刪除要沿依賴反向處理</strong>：先確認問答／評測證據是否要保留，再處理下游索引、Wiki、來源成員與上游素材；不確定時交由管理員依資料生命週期指南處理。</li><li><strong>整庫重置交給安裝人員</strong>：資料庫與檔案產物分開保存，不能只刪資料庫或只刪 <code>C:\temp\KnowledgeExtraction</code>。重置前要備份並確認所有使用者已停止操作。</li></ul>
+<hr>
+<h2 id="第-20-章-faq常見問答持續擴充" class="t6">第 20 章　FAQ（常見問答，持續擴充）</h2>
+<blockquote><p>依主題分區。遇到問題先用瀏覽器 Ctrl+F 搜尋關鍵字。</p></blockquote>
+<h3 id="a-安裝啟動與環境">A. 安裝、啟動與環境</h3>
+<p><strong>Q. 我打不開系統網頁怎麼辦？</strong> A. 確認安裝人員已啟動程式、且你用對網址（例如 <code>http://localhost:5080</code>）。本手冊假設系統已安裝啟動；安裝細節見《使用者安裝與操作手冊》。</p>
+<p><strong>Q. 執行檔一開就閃退、說缺少框架？</strong> A. 多半是沒裝 .NET 10 ASP.NET Core Runtime。請安裝人員處理。</p>
+<p><strong>Q. 啟動說 HTTPS/憑證錯誤？</strong> A. 本機建議只綁 HTTP；要 HTTPS 走憑證或反向代理。屬安裝設定，非操作層面。</p>
+<p><strong>Q. 連接埠被占用？</strong> A. 換一個埠啟動（例如 <code>--urls "http://localhost:8081"</code>），由安裝人員調整。</p>
+<h3 id="b-登入與帳號">B. 登入與帳號</h3>
+<p><strong>Q. 一直「驗證碼錯誤」？</strong> A. 驗證碼是隨機 4 位數、每次載入會換。請每次都重看右側的新數字，不要沿用舊的。</p>
+<p><strong>Q. 「身分驗證失敗，請重新確認帳號與密碼」？</strong> A. 檢查帳密大小寫。內建管理帳號是 <code>support</code> / <code>1qaz@WSX</code>；具名帳號用你在第 5.4 節設定的密碼。</p>
+<p><strong>Q. 忘記某個具名帳號的密碼？</strong> A. 用 <code>support</code> 登入到 <code>/myusers</code>，編輯該帳號，在密碼欄填新密碼存檔（留空則不變更）。</p>
+<p><strong>Q. support 可以拿來日常用嗎？</strong> A. 不建議。它密碼由設定檔控制、每次啟動重設、介面改不了，只適合開機建基礎資料。日常請用具名帳號。</p>
+<p><strong>Q. 「記住我」要不要勾？</strong> A. 自己的電腦可勾，保持登入較久；公用電腦請勿勾。</p>
+<h3 id="c-權限角色與團隊">C. 權限、角色與團隊</h3>
+<p><strong>Q. 登入後左側看不到某些選單？</strong> A. 該角色沒勾那頁權限。用 support 到 <code>/roleviews</code> 編輯角色，補勾權限後請對方重新登入。</p>
+<p><strong>Q. 看不到別人/別組輸入的紀錄？</strong> A. 這是<strong>正常的團隊權控</strong>：非管理員只看得到「公開（無團隊）」或「與自己角色預設團隊有交集」的紀錄。要看到某團隊紀錄，角色的預設團隊就要含該團隊。</p>
+<p><strong>Q. 我自己輸入的紀錄，怎麼自己看不到了？</strong> A. 你把它的團隊標成了你無權的團隊（像本手冊的 B3）。輸入者≠有權看。請管理員或有權者協助，或調整該紀錄團隊。</p>
+<p><strong>Q. 為什麼張經理不是管理員卻看得到全部？</strong> A. 因為他角色的「預設團隊」同時含三組，與每筆紀錄都有交集。「看得到」靠團隊交集，不一定要管理員。</p>
+<p><strong>Q. 管理員（IsAdmin）跟「預設團隊含全部」有何不同？</strong> A. 管理員<strong>完全不受權控</strong>（連未來新增的團隊也照看）；「預設團隊含全部」只是目前剛好交集到所有現有團隊，未來新團隊的紀錄他不會自動看到。本練習刻意用後者來示範權控。</p>
+<p><strong>Q. 改了團隊名稱，舊紀錄就對不上了？</strong> A. 團隊/分類是<strong>字串精確比對</strong>，命名後別隨意改名。真要改，舊紀錄的標籤也要一起更新。</p>
+<h3 id="d-匯入素材">D. 匯入素材</h3>
+<p><strong>Q. 沒有 OpenAI 金鑰，還能練嗎？</strong> A. 能。文件轉文字不需金鑰，是無金鑰主力管線。音訊/圖片改走「無金鑰替代路徑」（把逐字稿/解讀文字當文件匯入）。見第 6 章各節 🟢。</p>
+<p><strong>Q. 轉錄/影片連結下載一直失敗？</strong> A. 多半缺 ffmpeg/yt-dlp 或沒填路徑/金鑰，或格式/大小超限。請安裝人員補齊，或走無金鑰替代路徑。</p>
+<p><strong>Q. 文件轉文字失敗、說格式不支援？</strong> A. 換成畫面顯示的支援副檔名（如 .txt/.docx/.pdf）。</p>
+<p><strong>Q. 圖片解讀失敗？</strong> A. 確認有視覺模型金鑰、圖片不超過約 50MB、是常見影像格式；或走無金鑰替代路徑。</p>
+<p><strong>Q. 素材標籤（分類/團隊）填錯了怎麼改？</strong> A. 在對應清單頁編輯該筆，重選分類/團隊存檔即可。</p>
+<h3 id="e-知識來源與清洗">E. 知識來源與清洗</h3>
+<p><strong>Q. 管理成員時，找不到我想加的素材？</strong> A. 三個原因：①素材還沒「已完成」；②素材團隊你無權看；③已加入過。確認後再試。</p>
+<p><strong>Q. 清洗後找不到結果檔案？</strong> A. 清洗結果<strong>只存檔案不存 DB</strong>（預設 <code>C:\temp\KnowledgeExtraction\CleanedSource\{年}\</code>）。直接按「檢視清洗結果」看即可。</p>
+<p><strong>Q. 清洗結果沒有遮罩/摘要/分類？</strong> A. 多半沒設金鑰，LLM 步驟被略過（只做彙整＋繁體化）。補金鑰後「重試清洗」。</p>
+<p><strong>Q. 選不同清洗規則設定，差在哪？</strong> A. 差在五段提示詞。例如「運維配方」摘要分『問題/原因/解法』、「會議配方」分『決議/待辦/負責人』。可對同一來源重試清洗換配方比較。</p>
+<p><strong>Q. 為什麼有的清洗完是「已清洗」、有的是「待審核」？</strong> A. 看信心分數：≥門檻（預設0.70）自動「已清洗」；低於門檻落「待審核」，要人工核准/退回。</p>
+<p><strong>Q. 「遮罩失敗＝整筆清洗失敗」是什麼意思？</strong> A. 安全設計。寧可整筆失敗，也不放行沒遮乾淨的敏感內容。先讀錯誤訊息，檢查金鑰、遮罩提示詞與輸入內容，修正根因後再重試；不要只反覆重跑。</p>
+<p><strong>Q. 核准/退回按鈕是灰的/沒看到？</strong> A. 需要「知識審核」權限（本練習給知識管理員＝張經理）。用有權帳號操作。</p>
+<h3 id="f-蒸餾索引">F. 蒸餾、索引</h3>
+<p><strong>Q. 找不到「蒸餾」按鈕？</strong> A. 蒸餾只對「已清洗」的來源開放。先完成清洗。</p>
+<p><strong>Q. 蒸餾完了，問答還是查不到？</strong> A. 多半是索引沒成功（嵌入端點沒設）。看來源的「索引狀態」，失敗的話請安裝人員設好嵌入端點後重跑。</p>
+<p><strong>Q. 可以重蒸餾嗎？</strong> A. 可以。重蒸餾後 Wiki 頁重煉、索引自動連動更新。</p>
+<p><strong>Q. Wiki 頁的 <code>[[連結]]</code> 是做什麼的？</strong> A. 它把概念頁互相連起來，形成知識網。標題就是連結的比對鍵。</p>
+<h3 id="g-ai-知識問答">G. AI 知識問答</h3>
+<p><strong>Q. 問答答非所問、或漏掉內容？</strong> A. 確認對應來源已「清洗→蒸餾→索引」三狀態皆完成；可用 檢索品質評測定位是檢索問題還是內容問題。</p>
+<p><strong>Q. 答案會不會洩漏我無權看的內容？</strong> A. 不會。每次查詢即時驗證權限，非管理員檢索不到無權內容（越權應為 0）。</p>
+<p><strong>Q. 怎麼讓答案變成步驟/表格格式？</strong> A. 在「套用既有提示詞」選你寫好的「問答-條列步驟」或「問答-表格比較」。提示詞決定回答格式。</p>
+<p><strong>Q. 出處怎麼看、怎麼追原始檔？</strong> A. 答案下方附出處，點它可鑽取「知識來源→成員→原始檔」並下載原始檔。</p>
+<p><strong>Q. 詳簡切換有什麼用？</strong> A. 簡潔給短答案、詳細給完整說明。依需求切換，套用到下一則訊息。</p>
+<h3 id="h-評測黃金--rag">H. 評測（黃金 / RAG）</h3>
+<p><strong>Q. 清洗品質評測和 檢索品質評測差在哪？</strong> A. 清洗品質評測量「上游清洗乾不乾淨」；檢索品質評測量「下游檢索找得到/找得準/不外洩」。一前一後形成完整把關鏈。</p>
+<p><strong>Q. 指標多少算好？</strong> A. 參考：清洗品質評測遮罩召回 ≥0.98、分類 F1 ≥0.70；檢索品質評測看 P@k/R@k/NDCG/MRR 越高越好，<strong>越權洩漏一定要 0</strong>。</p>
+<p><strong>Q. 「載入種子」是什麼？</strong> A. 一鍵帶入內建範例樣本，方便新手看標準長相再改成自己的。</p>
+<p><strong>Q. 建議門檻怎麼真正生效？</strong> A. 改 <code>appsettings.json</code> 的 <code>SystemSettings.Cleaning.ConfidenceThreshold</code>（預設 0.70）。屬設定層，請安裝人員協助。</p>
+<p><strong>Q. 檢索品質評測的越權測試怎麼設？</strong> A. 設「評測團隊」為某一組、問另一組才有的內容、不勾模擬管理員；結果越權洩漏應為 0。</p>
+<h3 id="i-資料更新與維運">I. 資料更新與維運</h3>
+<p><strong>Q. 文件改版了，知識庫怎麼更新？</strong> A. 從「更新原料」沿生產線重跑：更新素材→管理成員換新版→重試清洗→重蒸餾→索引自動更新→問答驗證。見第 17 章。</p>
+<p><strong>Q. 小修清洗結果一定要重跑嗎？</strong> A. 不用。可用「檢視清洗結果」線上編修直接改存；但之後若重跑清洗會被覆蓋。</p>
+<p><strong>Q. 各種產物存在哪？</strong> A. 逐字稿、萃取 Markdown、清洗結果、Wiki 都存檔案系統（<code>C:\temp\KnowledgeExtraction\…</code>），DB 只存相對路徑。</p>
+<p><strong>Q. 想看詳細錯誤/日誌？</strong> A. 日誌在 <code>C:\temp\Logs\</code>；管理員可開 <code>/system-health</code> 看系統健康與最近紀錄。</p>
+<p><strong>Q. 背景作業卡住或想取消？</strong> A. 處理中的匯入/清洗/蒸餾/索引都可「取消」；失敗的可「重試」，不必重整網頁。</p>
+<h3 id="j-知識圖譜與全域問答第-13-章">J. 知識圖譜與全域問答（第 13 章）</h3>
+<p><strong>Q. 抽取跑完顯示「已抽取」，但三元組是 0 筆？</strong> A. 幾乎都是<strong>該來源的 Wiki 頁還沒核可</strong>——抽取讀的是「已完成且現行」的 Wiki 頁。回第 10 章把 Wiki 頁核可，再重抽。</p>
+<p><strong>Q. 找不到「抽取／重抽三元組」按鈕？</strong> A. 該來源還不是「已蒸餾」狀態。先完成第 10 章。</p>
+<p><strong>Q. 我核可了三元組，但問答結果看起來沒變？</strong> A. 三個原因依序查：①兩端實體必須錨定到<strong>現行</strong>的 Wiki 頁；②圖分是<strong>加分項</strong>（權重預設 0.2），原本排名差距大時可能不足以改變順序；③管理員可到「檢索診斷與調校」確認 <code>GraphWeight</code> 的<strong>實際生效值</strong>不是 0（那一頁的值可覆寫 appsettings，所以看 appsettings 不準）。</p>
+<p><strong>Q. 重抽三元組會不會蓋掉我審核過的結果？</strong> A. <strong>不會。</strong> 去重鍵是「主詞｜關係｜受詞」，已核可與已退回的判斷原樣保留。素材更新、抽壞了都可以放心重抽。</p>
+<p><strong>Q. 全域模式的答案沒有出處面板，是壞了嗎？</strong> A. 不是，設計如此。社群摘要是跨多筆來源歸納後的產物，本來就沒有對應到某一段原文的位置；改為顯示取用社群數。要出處請把查詢模式切回「一般」再問一次具體問題。</p>
+<p><strong>Q. 全域模式說「沒有可用社群」？</strong> A. 管理員要先在「知識圖譜審核」頁頂按「重建社群摘要」（13.7）。這是部署後最常漏掉的一步。</p>
+<p><strong>Q. 我用 zhang 登入，看不到「實體合併」分頁？</strong> A. 正常。該分頁與「重建社群摘要」按鈕是<strong>程式寫死僅管理員</strong>，勾任何角色權限都開不出來。用 <code>support</code> 操作。</p>
+<p><strong>Q. 我勾了 <code>知識圖譜審核</code>，卻不能核可三元組？</strong> A. 那是兩種不同權限：進頁面要 <code>知識圖譜審核</code>，<strong>核可／退回還要 <code>蒸餾審核</code></strong>（或管理員身分）。</p>
+<p><strong>Q. 圖譜瀏覽說「查無實體」？</strong> A. 三種可能：名字打錯、那些三元組還在「待審核」、或那些關係屬於你沒權限的團隊。</p>
+<p><strong>Q. 按了取消，作業為什麼還在跑？</strong> A. 單次 LLM 呼叫進行中無法中斷，取消只在<strong>呼叫之間</strong>生效。社群摘要重建是「每群一次 LLM」，要等當前那一群跑完。</p>
+<h3 id="k-其他">K. 其他</h3>
+<p><strong>Q. 我把資料建錯了，可以全部重來嗎？</strong> A. 可逐筆刪除重建（刪除有確認）。要整庫重置請洽安裝人員（涉及資料庫與檔案）。</p>
+<p><strong>Q. 這份手冊建的資料是「玩具資料」，正式上線要怎麼規劃？</strong> A. 把虛擬情境換成你真實的團隊/分類/角色/使用者即可。建議先用本手冊把流程練熟，再規劃正式分類與團隊架構。</p>
+<p><strong>Q. 選單裡「系統管理」群組那些管理員頁（Token 用量、問答稽核明細、系統健康監控、檢索診斷與調校、資料一致性巡檢、日誌等級切換）是做什麼的？</strong> A. 都是管理員專用的觀測/維運頁，見第 19 章：前三頁有動手練習，後三頁（檢索診斷與調校／資料一致性／日誌等級切換）是需要時再用的進階工具，並指向專屬指南。</p>
+<p><strong>Q. Token 用量明細頁的數字為什麼是 <code>2.78M</code> 這種寫法？</strong> A. 那是緊湊數字表示法（1.00K＝一千、2.78M＝約兩百七十八萬），方便快速判讀。把滑鼠移到數字上會顯示精確數值。</p>
+<p><strong>Q. 還想更深入某個主題？</strong> A. 見文末「延伸閱讀」，每個主題都有專屬指南。</p>
+<hr>
+<h2 id="附錄-a-待輸入資料總清單速查" class="t7">附錄 A　待輸入資料總清單（速查）</h2>
+<blockquote><p>此表是第 5、6、7 章所有要輸入資料的彙整，方便你一邊建一邊打勾。</p></blockquote>
+<p><strong>團隊（3）</strong>：運維組(OPS)、開發組(DEV)、業務合約組(BIZ) <strong>分類（10）</strong>：部署安裝、系統維運、故障排除、作業系統與硬體、會議紀錄、需求討論、系統架構、合約與維護計畫、操作手冊、教育訓練 <strong>專案分類（4）</strong>：客戶會議、內部會議、導入專案、維運交接（建在 <code>/work-categories</code>，與上方知識庫分類獨立） <strong>角色（4）</strong>：知識管理員(三組/全權限)、運維工程師(運維組)、開發工程師(開發組)、業務專員(業務合約組) <strong>使用者（4＋support）</strong>：zhang/張經理/知識管理員、wang/王小明/運維工程師、lisi/李四/開發工程師、chen/陳美玲/業務專員（皆不勾管理員） <strong>提示詞（7）</strong>：清洗-去重、清洗-遮罩、清洗-分類、清洗-摘要、清洗-信心、問答-條列步驟、問答-表格比較 <strong>清洗規則設定（2~3）</strong>：運維配方、會議配方、(選配)高敏感合約配方 <strong>知識紀錄（9＋1）</strong>：A1–A5（王小明/運維組）、B1–B2（李四/開發組）、B3（李四輸入/業務合約組）、P1（張經理/公開）；<strong>A6（第 13 章知識圖譜練習用，support/運維組，選練）</strong> <strong>知識來源（3）</strong>：客戶A-運維知識(運維組)、客戶A-需求與架構(開發組)、客戶A-合約與SLA知識(業務合約組) <strong>會議管理（1，第 7 章）</strong>：客戶A-需求訪談會議（李四/開發組/分類「客戶會議」/線上/主持人李四）。<strong>選練</strong>：另建客戶A-上線前專案週會，改上傳 M1 錄音（待辦更豐富）。 <strong>工作任務（2，第 7 章由待辦草稿勾選建立）</strong>：繼承會議的團隊「開發組」與分類「客戶會議」；工作編輯窗可見「來源會議」欄回溯（1.0.24）。 <strong>會議紀錄納入知識來源（第 7.7 節，1.0.25 選練）</strong>：另建練習來源「客戶A-會議紀錄」，於「管理成員」素材型別選「會議紀錄」加入已產生的會議（勿併入上方 3 個核心來源）。 <strong>清洗品質評測（2）</strong>：G1 運維交接、G2 需求會議 <strong>檢索品質評測（2）</strong>：R1 部署前檢查、R2 越權洩漏測試 <strong>知識圖譜（第 13 章，需金鑰）</strong>：至少 3 筆三元組核可 ＋ 1 筆退回；3~4 筆實體別名核可；社群摘要重建 1 次</p>
+<hr>
+<h2 id="附錄-b-可複製素材彙整" class="t8">附錄 B　可複製素材彙整</h2>
+<blockquote><p>把下列內容貼到記事本另存 <code>.txt</code>（或貼進 Word 存 <code>.docx</code>），即可在第 6 章文件轉文字上傳。檔名建議與紀錄標題一致。</p>
+<p>💡 <strong>不想手動另存？</strong> <code>docs/guides/lab-samples/</code> 已備妥每一塊對應的成品檔（docx／pdf／xlsx／pptx／png／mp3，關鍵事實與本附錄逐字一致），以及多份擴充素材與批次上傳 zip，詳見 <a href="../../docs/guides/lab-samples/lab-samples.html">lab-samples/README.md</a>。本附錄仍是內容的權威版本，供對照與自製。</p></blockquote>
+<h3 id="a1客戶a-erp系統部署安裝sop">A1：客戶A-ERP系統部署安裝SOP</h3>
+<pre><code># 客戶A ERP 系統部署安裝 SOP
+
+## 前置檢查
+1. 確認伺服器作業系統為 Windows Server 2019 以上。
+2. 確認已安裝 .NET 執行環境與資料庫。
+3. 確認防火牆已開放應用程式所需連接埠。
+4. 確認備援磁碟空間足夠（建議 100GB 以上）。
+
+## 安裝步驟
+1. 解壓部署包到 D:\App。
+2. 設定連線字串與授權金鑰。
+3. 執行資料庫初始化指令。
+4. 啟動服務並確認登入頁可開啟。
+
+## 安裝後驗證
+- 以測試帳號登入，確認主要功能可運作。
+- 檢查系統日誌無錯誤。</code></pre>
+<h3 id="a2windowsserver記憶體不足故障排除筆記">A2：WindowsServer記憶體不足故障排除筆記</h3>
+<pre><code># Windows Server 記憶體不足故障排除
+
+## 症狀
+服務在凌晨批次作業期間中斷，事件檢視器出現記憶體不足錯誤。
+
+## 排查
+1. 用工作管理員/效能監視器觀察記憶體用量曲線。
+2. 檢查是否有批次作業同時段疊加。
+3. 檢查應用程式是否有記憶體洩漏。
+
+## 解法
+1. 將大型批次排程錯開時段。
+2. 增加實體記憶體或調整虛擬記憶體。
+3. 套用後重新開機，觀察一週。</code></pre>
+<h3 id="a3機房接線與錯誤訊息截圖圖片解讀文字供無金鑰替代">A3：機房接線與錯誤訊息截圖（圖片解讀文字，供無金鑰替代）</h3>
+<pre><code># 機房接線與錯誤訊息截圖解讀
+
+畫面顯示伺服器網路指示燈為橘色，表示連線異常。
+螢幕錯誤訊息為「Network cable unplugged」。
+機櫃後方網路線未完全插入交換器埠。
+
+建議處理：
+1. 重新插拔網路線確認卡榫到位。
+2. 更換疑似損壞的網路線。
+3. 確認交換器埠狀態正常。</code></pre>
+<h3 id="a4客戶現場維運交接錄音逐字稿含敏感資訊供清洗練習">A4：客戶現場維運交接錄音（逐字稿，含敏感資訊供清洗練習）</h3>
+<pre><code>客戶現場維運交接逐字稿
+
+嗯…就是那個客戶 192.168.10.5 那台主機啊，帳號 admin 密碼 P@ssw0rd 那個，
+半夜三點服務就掛掉，啊我看 log 是記憶體不夠，就先把那個排程改一下，
+然後重新開機就好了啦。對了序號 SN-20231005-001 那台要特別注意。
+啊王先生你記得跟李小姐講一下喔，下個月要去複查。</code></pre>
+<h3 id="a5每月例行維護檢查清單">A5：每月例行維護檢查清單</h3>
+<pre><code># 每月例行維護檢查清單
+
+1. 檢查磁碟剩餘空間（&lt; 20% 需處理）。
+2. 檢查系統與應用程式日誌有無錯誤。
+3. 確認資料庫備份成功且可還原。
+4. 檢查 Windows 更新狀態。
+5. 確認防毒定義檔為最新。
+6. 測試主要功能可正常運作。
+7. 記錄本月異常事件與處理結果。</code></pre>
+<h3 id="a6客戶a-erp升級評估備忘供第-13-章知識圖譜練習">A6：客戶A-ERP升級評估備忘（供第 13 章知識圖譜練習）</h3>
+<p>分類「部署與安裝」、團隊「運維組」，走「文件轉文字」管線（純文字、<strong>不需金鑰</strong>）。</p>
+<blockquote><p><strong>這份素材是為知識圖譜量身寫的</strong>，兩個刻意的設計：①同一個東西給了三種寫法（<code>客戶A ERP</code>／<code>客戶A 企業資源規劃系統</code>／<code>ERP 主機</code>，以及 <code>Windows Server 2022</code>／<code>WinSvr 2022</code>），供 13.5 練實體合併；②它同時提到 A2 的故障現象與 A5 的檢查清單，成為 A1↔A2↔A5 之間的<strong>橋接實體</strong>，讓 13.6 的 2 跳瀏覽看得到跨素材關聯。沒有它，圖譜會是幾座互不相連的小島。</p></blockquote>
+<pre><code># 客戶A ERP 升級評估備忘
+
+## 現況
+客戶A 企業資源規劃系統（內部簡稱「客戶A ERP」）目前部署於 Windows Server 2022，
+ERP 主機與報表模組同機共用，由運維組負責維護。
+
+## 風險
+WinSvr 2022 上的 ERP 主機曾因記憶體不足導致服務中斷，排除步驟與運維紀錄所載相同。
+報表模組屬於系統架構設計說明所列的主要模組之一，升級時需一併評估相依性。
+
+## 建議
+1. 升級前先依「每月例行維護檢查清單」確認分頁檔與磁碟空間設定。
+2. 報表模組改為獨立主機，避免與 ERP 主機競爭記憶體。
+3. 升級窗口安排在月結後，避開報表尖峰。</code></pre>
+<h3 id="b1客戶a需求訪談會議錄音逐字稿">B1：客戶A需求訪談會議錄音（逐字稿）</h3>
+<pre><code>客戶A 需求訪談會議逐字稿
+
+出席：客戶端 王大同 經理（電話 0912345678）、本公司 李四。
+王大同：我們希望系統能把每月報表自動匯出成 Excel。
+李四：了解，匯出功能我們可以做。格式有指定嗎？
+王大同：照現有報表格式就好。另外希望有權限分級。
+決議：本期先做「報表匯出 Excel」與「權限分級」兩項。
+待辦：李四下週提出規格書；王大同提供現有報表範本。</code></pre>
+<h3 id="m1客戶a上線前專案週會錄音逐字稿供第-7-章會議-ai-自動化選練">M1：客戶A上線前專案週會錄音（逐字稿，供第 7 章會議 AI 自動化選練）</h3>
+<blockquote><p>供第 7 章 7.2 的替代場次（含明確決議與 3 個帶負責人、期限的行動項目，方便對照 AI 抽出的待辦）。有金鑰用影音轉逐字稿上傳 <code>lab-samples/audio/客戶A上線前專案週會錄音.mp3</code>；無金鑰用同名 <code>lab-samples/text-fallback/客戶A上線前專案週會錄音.txt</code>。</p></blockquote>
+<pre><code>客戶A 系統上線前專案週會逐字稿
+
+出席：張經理（主持）、王小明（運維組）、李四（開發組）、陳美玲（業務合約組）。
+張經理：客戶A 系統上線前專案週會開始，今天確認上線前三件事。
+王小明：正式機 192.168.10.5 記憶體已到貨，我負責六月二十五日前完成擴充與重開驗證。
+李四：報表匯出模組與權限分級已完成，我負責六月二十七日前交付測試報告。
+陳美玲：客戶A 維護合約續約金額新台幣三十八萬，我負責六月二十四日前確認 SLA 續約條款。
+決議：系統正式上線日訂在六月三十日；權限分級本期一併上線。
+行動項目：王小明六月二十五日前完成記憶體擴充；李四六月二十七日前交付測試報告；陳美玲六月二十四日前確認續約條款。</code></pre>
+<h3 id="b2客戶a系統架構設計說明">B2：客戶A系統架構設計說明</h3>
+<pre><code># 客戶A 系統架構設計說明
+
+## 整體架構
+採前後端分離：前端 Web、後端 API、關聯式資料庫。
+
+## 主要模組
+- 使用者與權限模組
+- 報表與匯出模組
+- 整合介接模組
+
+## 技術選型理由
+- 後端採成熟框架，利於維護與交接。
+- 資料庫採關聯式，符合報表查詢需求。
+
+## 設計注意事項
+- 匯出大型報表須考慮非同步處理避免逾時。
+- 權限分級需與客戶現有組織架構對應。</code></pre>
+<h3 id="b3客戶a維護合約與sla高敏感示範權控與遮罩">B3：客戶A維護合約與SLA（高敏感，示範權控與遮罩）</h3>
+<pre><code># 客戶A 維護合約與 SLA
+
+合約方：鼎峰系統整合股份有限公司（統編 12345678）與 客戶A 公司。
+合約金額：年度維護費 新台幣 480,000 元整。
+合約期間：2026/01/01 至 2026/12/31。
+服務水準（SLA）：
+- 一般問題：4 小時內回應，1 個工作日內處理。
+- 嚴重故障：1 小時內回應，4 小時內到場。
+聯絡窗口：業務 陳美玲。</code></pre>
+<h3 id="p1公司內部開發環境建置指南公開知識">P1：公司內部開發環境建置指南（公開知識）</h3>
+<pre><code># 公司內部開發環境建置指南
+
+## 適用對象
+新進開發人員。
+
+## 建置步驟
+1. 安裝開發工具與 SDK。
+2. 由主管申請程式碼倉庫權限。
+3. 複製專案並依 README 還原相依套件。
+4. 設定本機資料庫與連線字串。
+5. 執行專案確認可在本機啟動。
+
+## 常見問題
+- 套件還原失敗：確認來源設定與網路。
+- 本機啟動失敗：確認連接埠未被占用。</code></pre>
+<hr>
+<h2 id="附錄-c-名詞速覽最小集" class="t1">附錄 C　名詞速覽（最小集）</h2>
+<div class="tw"><table><thead><tr><th>名詞</th><th>一句話解釋</th></tr></thead><tbody><tr><td>知識來源</td><td>把多筆素材聚合成的主題單位，是清洗/蒸餾/問答的主體</td></tr><tr><td>清洗</td><td>去重→遮罩→分類→摘要→信心自評，產出乾淨 Markdown</td></tr><tr><td>蒸餾</td><td>把清洗內容煉成一概念一頁、互連的 Wiki 實體頁</td></tr><tr><td>索引</td><td>把內容切塊轉向量寫入向量庫，供檢索（蒸餾後自動）</td></tr><tr><td>團隊權控</td><td>非管理員只看公開或角色預設團隊有交集的紀錄</td></tr><tr><td>信心分數</td><td>LLM 自評 0~1，決定清洗結果自動放行或待審核</td></tr><tr><td>清洗品質評測</td><td>量上游清洗品質的單元測試</td></tr><tr><td>檢索品質評測</td><td>量下游檢索品質與權控合規（越權=0）</td></tr><tr><td>實體</td><td>知識圖譜裡的一個名詞（人／組織／產品／系統／概念）</td></tr><tr><td>三元組</td><td>「實體—關係—實體」一組，圖譜的最小單位；<strong>人工核可後才進檢索加分</strong></td></tr><tr><td>實體別名</td><td>「別名 → 標準名」對照，核可後變體視為同一實體（全域治理、僅管理員）</td></tr><tr><td>社群摘要</td><td>關係緊密的一群實體，系統替每群寫的摘要；「全域問答」拿它來答</td></tr><tr><td>跳數</td><td>沿關係往外走幾步（1～3）；2 跳才找得到「A 透過 B 連到 C」</td></tr><tr><td>圖分</td><td>混合檢索的第三路分數；權重 <code>GraphWeight</code>，設 0 即關閉圖檢索</td></tr></tbody></table></div>
+<blockquote><p>更完整的術語見《<a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a>》§七「名詞速覽」。</p></blockquote>
+<hr>
+<h2 id="延伸閱讀" class="t2">延伸閱讀</h2>
+<ul><li>白話完整入門：<a href="../../docs/guides/beginner-guide.html">新手完整操作指南</a></li><li>總入口參考手冊：<a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li>快速看全貌：<a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a></li><li>安裝/啟動：<a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊</a></li><li>基礎設定深入：<a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊/分類/角色/使用者與提示詞</a></li><li>匯入深入：<a href="../../docs/guides/import-guide.html">資料匯入指南：音訊/影片、文件、圖片</a></li><li>知識來源/清洗規則設定：<a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定使用指南</a></li><li>清洗品質評測：<a href="../../docs/guides/cleaning-eval.html">清洗品質評測使用指南</a></li><li>蒸餾：<a href="../../docs/guides/wiki-review.html">知識頁審核與 Wiki 頁管理指南</a></li><li>問答：<a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li>知識圖譜（第 13 章）：<a href="../../docs/guides/knowledge-graph.html">知識圖譜（Graph RAG）使用指南</a></li><li>檢索品質評測：<a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a></li><li>外部 AI Agent 整合（第 16 章）：<a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a>（技術規格見 <a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a>）</li><li>端到端 PoC：<a href="../../docs/guides/rag-poc-acceptance.html">知識庫 RAG：PoC 執行與驗收指南</a></li><li>健康巡檢：<a href="../../docs/guides/monitoring-health.html">系統監控與健康檢查指南</a></li></ul>
+<blockquote><p>返回 <a href="../../docs/guides/guides-index.html">guides 指南索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：我第一次要把這套知識庫建起來</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li><li><a href="../../docs/guides/import-to-knowledge-flow.html">從客戶匯入到完成知識：操作流程指南</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#系統介紹這是一套什麼系統為你解決什麼">系統介紹：這是一套什麼系統、為你解決什麼？</a><a class="l3" href="#這是一套什麼系統">這是一套什麼系統</a><a class="l3" href="#這套系統為誰而生">這套系統為誰而生</a><a class="l3" href="#它要解決的問題與痛點">它要解決的問題與痛點</a><a class="l3" href="#這套系統提供哪些功能一覽表">這套系統提供哪些功能（一覽表）</a><a class="l3" href="#它如何確保知識可信賴">它如何確保知識「可信賴」</a><a class="l3" href="#它最終帶給你的價值">它最終帶給你的價值</a><a class="l2" href="#第-0-章-如何使用本手冊請先讀這-3-分鐘">第 0 章　如何使用本手冊（請先讀這 3 分鐘）</a><a class="l3" href="#01-這份手冊能帶你做到什麼">0.1 這份手冊能帶你做到什麼</a><a class="l3" href="#02-前置假設很重要">0.2 前置假設（很重要）</a><a class="l3" href="#03-按表操課的閱讀約定">0.3 按表操課的閱讀約定</a><a class="l3" href="#04-每個畫面的固定說明結構">0.4 每個畫面的固定說明結構</a><a class="l3" href="#05-關於無金鑰替代路徑">0.5 關於「無金鑰替代路徑」</a><a class="l3" href="#06-開始前環境就緒檢查先決定你走哪條路">0.6 開始前環境就緒檢查（先決定你走哪條路）</a><a class="l2" href="#第-1-章-這個系統要解決什麼問題先懂價值再動手">第 1 章　這個系統要解決什麼問題（先懂價值，再動手）</a><a class="l3" href="#11-一句話定位">1.1 一句話定位</a><a class="l3" href="#12-鼎峰公司沒有這套系統時的痛點">1.2 鼎峰公司「沒有這套系統」時的痛點</a><a class="l3" href="#13-以往大家怎麼土法煉鋼">1.3 以往大家怎麼「土法煉鋼」</a><a class="l3" href="#14-有了這套系統工作方式怎麼改變">1.4 有了這套系統，工作方式怎麼改變</a><a class="l3" href="#15-績效提升量化的期望值">1.5 績效提升（量化的期望值）</a><a class="l3" href="#16-原料長什麼樣--淬煉後長什麼樣成果預覽">1.6 原料長什麼樣 → 淬煉後長什麼樣（成果預覽）</a><a class="l2" href="#第-2-章-知識怎麼被煉出來5-分鐘心智模型">第 2 章　知識怎麼被「煉」出來（5 分鐘心智模型）</a><a class="l3" href="#21-六站資料流">2.1 六站資料流</a><a class="l3" href="#22-兩個貫穿全程絕不能違反的不變量">2.2 兩個貫穿全程、絕不能違反的不變量</a><a class="l3" href="#23-大多數產物只存檔案不存資料庫">2.3 大多數產物「只存檔案、不存資料庫」</a><a class="l3" href="#24-幾乎所有重工作都是背景作業">2.4 幾乎所有重工作都是「背景作業」</a><a class="l2" href="#第-3-章-本次練習的情境總覽你的施工藍圖">第 3 章　本次練習的情境總覽（你的施工藍圖）</a><a class="l3" href="#31-公司與部門背景">3.1 公司與部門背景</a><a class="l3" href="#32-團隊管理建-3-筆運用公開概念">3.2 團隊管理（建 3 筆＋運用「公開」概念）</a><a class="l3" href="#33-知識庫分類建-10-筆">3.3 知識庫分類（建 10 筆）</a><a class="l3" href="#33b-專案分類建-4-筆1018-起">3.3b 專案分類（建 4 筆，1.0.18 起）</a><a class="l3" href="#34-角色清單建-4-筆">3.4 角色清單（建 4 筆）</a><a class="l3" href="#35-使用者清單建-4-筆加上內建的-support-共-5-個帳號">3.5 使用者清單（建 4 筆，加上內建的 support 共 5 個帳號）</a><a class="l3" href="#36-待輸入的知識紀錄總表核心注意團隊欄造成的可見性差異">3.6 待輸入的知識紀錄總表（核心：注意「團隊」欄造成的可見性差異）</a><a class="l3" href="#37-預期可見性結果第-15-章會逐一驗證">3.7 預期可見性結果（第 15 章會逐一驗證）</a><a class="l3" href="#38-清洗規則設定建-2-筆選配第-3-筆">3.8 清洗規則設定（建 2 筆，選配第 3 筆）</a><a class="l3" href="#39-ai-提示詞清洗五步全域互動提示詞">3.9 AI 提示詞（清洗五步全域＋互動提示詞）</a><a class="l3" href="#310-評測樣本清洗品質評測檢索品質評測各建-2-筆">3.10 評測樣本（清洗品質評測、檢索品質評測各建 2 筆）</a><a class="l3" href="#311-練習的建議順序與本手冊章節一致">3.11 練習的建議順序（與本手冊章節一致）</a><a class="l2" href="#第-4-章-登入系統">第 4 章　登入系統</a><a class="l3" href="#41-這個畫面是做什麼用的">4.1 這個畫面是做什麼用的</a><a class="l3" href="#42-畫面長什麼樣">4.2 畫面長什麼樣</a><a class="l3" href="#43--欄位說明">4.3 🧩 欄位說明</a><a class="l3" href="#44--動手做第一次用內建管理帳號登入">4.4 👉 動手做：第一次用內建管理帳號登入</a><a class="l3" href="#45--常見錯誤與修正">4.5 ⚠️ 常見錯誤與修正</a><a class="l2" href="#第-5-章-建立基礎資料用-support-帳號請依序完成">第 5 章　建立基礎資料（用 support 帳號，請依序完成）</a><a class="l3" href="#50-所有清單頁的共同操作">5.0 所有清單頁的共同操作</a><a class="l3" href="#51-團隊管理-teams">5.1 團隊管理 /teams</a><a class="l3" href="#52-知識庫分類-categories">5.2 知識庫分類 /categories</a><a class="l3" href="#52b-專案分類-work-categories1018-起">5.2b 專案分類 /work-categories（1.0.18 起）</a><a class="l3" href="#53-角色管理-roleviews">5.3 角色管理 /roleviews</a><a class="l3" href="#54-使用者管理-myusers">5.4 使用者管理 /myusers</a><a class="l3" href="#55-ai-提示詞-prompts">5.5 AI 提示詞 /prompts</a><a class="l3" href="#56-清洗規則設定-cleaning-profiles選配但本練習建議做">5.6 清洗規則設定 /cleaning-profiles（選配，但本練習建議做）</a><a class="l3" href="#57-基礎資料檢查點">5.7 基礎資料檢查點</a><a class="l2" href="#第-6-章-匯入素材三條管線">第 6 章　匯入素材（三條管線）</a><a class="l3" href="#60-準備可複製的練習素材">6.0 準備可複製的練習素材</a><a class="l3" href="#61-音訊影片轉錄-media-transcription">6.1 音訊／影片轉錄 /media-transcription</a><a class="l3" href="#62-文件轉文字-document-extraction">6.2 文件轉文字 /document-extraction</a><a class="l3" href="#63-圖片解讀-image-recognition">6.3 圖片解讀 /image-recognition</a><a class="l3" href="#64-匯入檢查點">6.4 匯入檢查點</a><a class="l2" href="#第-7-章-會議-ai-自動化-meeting第四條匯入管道1020-新增">第 7 章　會議 AI 自動化 /meeting（第四條匯入管道，1.0.20 新增）</a><a class="l3" href="#71-建立一筆會議管理">7.1 建立一筆會議管理</a><a class="l3" href="#72-上傳錄音觀察狀態流轉">7.2 上傳錄音，觀察狀態流轉</a><a class="l3" href="#73-檢視並編修-ai-會議紀錄">7.3 檢視並編修 AI 會議紀錄</a><a class="l3" href="#74-待辦確認把-ai-抓到的行動項目變成工作任務">7.4 待辦確認：把 AI 抓到的行動項目變成工作任務</a><a class="l3" href="#75-摘要為什麼沒變只填空白的設計">7.5 摘要為什麼沒變？——「只填空白」的設計</a><a class="l3" href="#76-無金鑰替代路徑">7.6 無金鑰替代路徑</a><a class="l3" href="#77-把會議紀錄納入知識來源第四型素材1025-新增">7.7 把會議紀錄納入知識來源（第四型素材，1.0.25 新增）</a><a class="l2" href="#第-8-章-知識來源管理-knowledge-sources知識庫的核心">第 8 章　知識來源管理 /knowledge-sources（知識庫的核心）</a><a class="l3" href="#81-建立知識來源">8.1 建立知識來源</a><a class="l3" href="#82-管理成員">8.2 管理成員</a><a class="l3" href="#83-清洗產出乾淨知識-重點比較不同配方">8.3 清洗（產出乾淨知識）— 重點：比較不同配方</a><a class="l3" href="#84-人工審核核准--退回信心不足時">8.4 人工審核：核准 / 退回（信心不足時）</a><a class="l3" href="#85-單一來源的-ai-對話">8.5 單一來源的 AI 對話</a><a class="l2" href="#第-9-章-清洗品質評測-golden-samples量清洗乾不乾淨">第 9 章　清洗品質評測 /golden-samples（量「清洗乾不乾淨」）</a><a class="l2" href="#第-10-章-知識頁審核-knowledge-distillation煉成-wiki-實體頁">第 10 章　知識頁審核 /knowledge-distillation（煉成 Wiki 實體頁）</a><a class="l3" href="#101-知識百科-knowledge-wiki一般讀者怎麼讀蒸餾後的-wiki">10.1 知識百科 /knowledge-wiki（一般讀者怎麼讀蒸餾後的 Wiki）</a><a class="l2" href="#第-11-章-索引嵌入設定讓知識找得到">第 11 章　索引／嵌入設定（讓知識「找得到」）</a><a class="l2" href="#第-12-章-ai-知識問答-knowledge-base-chat跨整庫提問">第 12 章　AI 知識問答 /knowledge-base-chat（跨整庫提問）</a><a class="l2" href="#第-13-章-知識圖譜審核與全域問答-knowledge-graph-review讓-ai-答得出關聯與綜觀">第 13 章　知識圖譜審核與全域問答 /knowledge-graph-review（讓 AI 答得出「關聯」與「綜觀」）</a><a class="l3" href="#131--四個分頁與兩顆全域按鈕">13.1 🧩 四個分頁與兩顆全域按鈕</a><a class="l3" href="#132--動手做support補權限並匯入新素材-a6">13.2 👉 動手做（support）：補權限並匯入新素材 A6</a><a class="l3" href="#133--動手做張經理-zhang抽取三元組">13.3 👉 動手做（張經理 zhang）：抽取三元組</a><a class="l3" href="#134--動手做zhang三元組審核">13.4 👉 動手做（zhang）：三元組審核</a><a class="l3" href="#135--動手做support實體合併別名審核">13.5 👉 動手做（support）：實體合併（別名審核）</a><a class="l3" href="#136--動手做zhang圖譜瀏覽親眼看到多跳的價值">13.6 👉 動手做（zhang）：圖譜瀏覽（親眼看到多跳的價值）</a><a class="l3" href="#137--動手做support待抽取來源--重建社群摘要">13.7 👉 動手做（support）：待抽取來源 ＋ 重建社群摘要</a><a class="l3" href="#138--動手做王小明-wang--李四-lisi全域問答與越權0">13.8 👉 動手做（王小明 wang → 李四 lisi）：全域問答與越權＝0</a><a class="l3" href="#139--無金鑰替代路徑">13.9 🟢 無金鑰替代路徑</a><a class="l3" href="#1310--第-13-章通過條件">13.10 ✅ 第 13 章通過條件</a><a class="l2" href="#第-14-章-檢索品質評測-rag-evaluation量找得到找得準不外洩">第 14 章　檢索品質評測 /rag-evaluation（量「找得到／找得準／不外洩」）</a><a class="l2" href="#第-15-章-權控與篩選綜合練習親眼驗證不同人看到不同資料">第 15 章　權控與篩選綜合練習（親眼驗證「不同人看到不同資料」）</a><a class="l3" href="#151-逐一登入驗證可見性">15.1 逐一登入驗證可見性</a><a class="l3" href="#152-用團隊與分類篩選">15.2 用團隊與分類篩選</a><a class="l3" href="#153-關鍵字搜尋">15.3 關鍵字搜尋</a><a class="l2" href="#第-16-章-mcp-server讓外部-ai-agent-查詢知識庫-mcp">第 16 章　MCP Server：讓外部 AI Agent 查詢知識庫 /mcp</a><a class="l2" href="#第-17-章-知識更新練習文件改版了知識庫怎麼跟著更新">第 17 章　知識更新練習（文件改版了，知識庫怎麼跟著更新）</a><a class="l3" href="#171-情境客戶-a-的維護合約續約了b3-改版">17.1 情境：客戶 A 的維護合約續約了（B3 改版）</a><a class="l3" href="#172-只是小修不想全部重跑">17.2 只是小修，不想全部重跑？</a><a class="l2" href="#第-18-章-完整一條龍回顧把所有畫面串起來">第 18 章　完整一條龍回顧（把所有畫面串起來）</a><a class="l2" href="#第-19-章-管理員維運與觀測頁用-support-登入">第 19 章　管理員維運與觀測頁（用 support 登入）</a><a class="l3" href="#191-系統健康監控-system-health重點實作">19.1 系統健康監控 /system-health（重點實作）</a><a class="l3" href="#192-問答稽核明細-chat-logs重點實作">19.2 問答稽核明細 /chat-logs（重點實作）</a><a class="l3" href="#193-token-用量-token-usage重點實作">19.3 Token 用量 /token-usage（重點實作）</a><a class="l3" href="#194-檢索診斷與調校-rag-diagnostics安全觀察式驗收">19.4 檢索診斷與調校 /rag-diagnostics（安全觀察式驗收）</a><a class="l3" href="#195-資料一致性巡檢-data-consistency只巡檢不清理">19.5 資料一致性巡檢 /data-consistency（只巡檢、不清理）</a><a class="l3" href="#196-日誌等級切換-log-settings確認目前值不切換">19.6 日誌等級切換 /log-settings（確認目前值，不切換）</a><a class="l3" href="#197-日誌下載-log-download小範圍動手做1012-新增">19.7 日誌下載 /log-download（小範圍動手做，1.0.12 新增）</a><a class="l3" href="#198-統計報表五頁-reports觀察式驗收">19.8 統計報表五頁 /reports/…（觀察式驗收）</a><a class="l3" href="#199-完訓成果矩陣">19.9 完訓成果矩陣</a><a class="l3" href="#1910-重跑與清理練習資料原則">19.10 重跑與清理練習資料原則</a><a class="l2" href="#第-20-章-faq常見問答持續擴充">第 20 章　FAQ（常見問答，持續擴充）</a><a class="l3" href="#a-安裝啟動與環境">A. 安裝、啟動與環境</a><a class="l3" href="#b-登入與帳號">B. 登入與帳號</a><a class="l3" href="#c-權限角色與團隊">C. 權限、角色與團隊</a><a class="l3" href="#d-匯入素材">D. 匯入素材</a><a class="l3" href="#e-知識來源與清洗">E. 知識來源與清洗</a><a class="l3" href="#f-蒸餾索引">F. 蒸餾、索引</a><a class="l3" href="#g-ai-知識問答">G. AI 知識問答</a><a class="l3" href="#h-評測黃金--rag">H. 評測（黃金 / RAG）</a><a class="l3" href="#i-資料更新與維運">I. 資料更新與維運</a><a class="l3" href="#j-知識圖譜與全域問答第-13-章">J. 知識圖譜與全域問答（第 13 章）</a><a class="l3" href="#k-其他">K. 其他</a><a class="l2" href="#附錄-a-待輸入資料總清單速查">附錄 A　待輸入資料總清單（速查）</a><a class="l2" href="#附錄-b-可複製素材彙整">附錄 B　可複製素材彙整</a><a class="l3" href="#a1客戶a-erp系統部署安裝sop">A1：客戶A-ERP系統部署安裝SOP</a><a class="l3" href="#a2windowsserver記憶體不足故障排除筆記">A2：WindowsServer記憶體不足故障排除筆記</a><a class="l3" href="#a3機房接線與錯誤訊息截圖圖片解讀文字供無金鑰替代">A3：機房接線與錯誤訊息截圖（圖片解讀文字，供無金鑰替代）</a><a class="l3" href="#a4客戶現場維運交接錄音逐字稿含敏感資訊供清洗練習">A4：客戶現場維運交接錄音（逐字稿，含敏感資訊供清洗練習）</a><a class="l3" href="#a5每月例行維護檢查清單">A5：每月例行維護檢查清單</a><a class="l3" href="#a6客戶a-erp升級評估備忘供第-13-章知識圖譜練習">A6：客戶A-ERP升級評估備忘（供第 13 章知識圖譜練習）</a><a class="l3" href="#b1客戶a需求訪談會議錄音逐字稿">B1：客戶A需求訪談會議錄音（逐字稿）</a><a class="l3" href="#m1客戶a上線前專案週會錄音逐字稿供第-7-章會議-ai-自動化選練">M1：客戶A上線前專案週會錄音（逐字稿，供第 7 章會議 AI 自動化選練）</a><a class="l3" href="#b2客戶a系統架構設計說明">B2：客戶A系統架構設計說明</a><a class="l3" href="#b3客戶a維護合約與sla高敏感示範權控與遮罩">B3：客戶A維護合約與SLA（高敏感，示範權控與遮罩）</a><a class="l3" href="#p1公司內部開發環境建置指南公開知識">P1：公司內部開發環境建置指南（公開知識）</a><a class="l2" href="#附錄-c-名詞速覽最小集">附錄 C　名詞速覽（最小集）</a><a class="l2" href="#延伸閱讀">延伸閱讀</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/實作練習手冊-Hands-on Lab.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

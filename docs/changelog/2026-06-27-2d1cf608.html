@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>黃金評測說明強化：指南擴充＋頁面名詞 tooltip（0.2.137）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>黃金評測說明強化：指南擴充＋頁面名詞 tooltip（0.2.137）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-27</li><li>版本：0.2.136 → 0.2.137</li><li>類型：文件 / UI 可理解性改善</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>使用者反映看不懂黃金評測頁面的統計表（遮罩Recall／分類F1／摘要涵蓋／MustKeep／建議門檻／目前門檻／自動清洗率／待審核率／PrecisionVsHuman／RecallVsHuman），也不清楚「按評測此筆系統做了什麼、有什麼用、對系統有沒有影響」。經程式碼追蹤確認：黃金評測是<strong>量測／校準工具</strong>，advisory-only——不改設定、不影響搜尋／RAG、不改變實際清洗結果；唯一生效旋鈕是 <code>appsettings</code> 的 <code>Cleaning.ConfidenceThreshold</code>（人工修改）。</p>
+<h2 id="調整內容" class="t2">調整內容</h2>
+<ul><li><strong>擴充 <code>docs/guides/清洗品質評測使用指南.md</code>（1.0 → 1.1）</strong>：新增「按下評測此筆系統做了什麼（運作原理、5 段 LLM 與提示詞）」、補「最近信心」定義與分類 F1 公式範例、新增「用畫面那筆逐項拆解」完整範例與健康對照組、「看到數字該怎麼調門檻」決策表、「黃金評測對系統有沒有影響」澄清段、樣本數量建議。</li><li><strong><code>GoldenSampleView.razor</code> 加名詞 tooltip（不改邏輯）</strong>：儀表板統計數字與門檻、校準表表頭、資料表欄位標題（人工通過／最近信心／遮罩Recall／分類F1／摘要涵蓋）加上 hover 白話說明，文案與指南一致。沿用既有 AntDesign <code>Tooltip</code>／native <code>title</code>，未新增相依。</li><li>另製作互動式視覺說明（Artifact 網頁，claude.ai 代管，不進版控）：流程圖、指標卡、門檻校準互動。</li></ul>
+<h2 id="驗證" class="t3">驗證</h2>
+<ul><li><code>dotnet build</code> Web 專案成功；<code>dotnet test</code> 367 筆全綠。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 通過（指南與本變更紀錄具 BOM、無亂碼）。</li></ul>
+<h2 id="備註" class="t4">備註</h2>
+<p>僅文件與 UI 說明強化，<strong>未改</strong>黃金評測演算法、清洗門檻邏輯、資料模型或權限；不需 migration、不需權限三處同步。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#調整內容">調整內容</a><a class="l2" href="#驗證">驗證</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-27-黃金評測說明強化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

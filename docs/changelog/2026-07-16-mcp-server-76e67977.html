@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP Server 實作：四知識工具＋JWT/API Key 雙認證＋分級日誌與稽核（1.0.1 → 1.0.6）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>MCP Server 實作：四知識工具＋JWT/API Key 雙認證＋分級日誌與稽核（1.0.1 → 1.0.6）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-16</li><li>版本：1.0.1 → 1.0.6</li><li>類型：新功能（在 <code>KnowledgeExtraction.Web</code> 內嵌 MCP Server，對外 AI Agent 可查詢知識庫）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>讓外部 AI Agent（Claude、Codex、Cursor、VS Code 等支援 MCP 的工具）能以標準協定安全查詢企業知識庫，全面沿用既有團隊權控，並具分級日誌與稽核。設計與使用說明見 <a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a>、<a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a>。</p>
+<h2 id="變更分階段" class="t2">變更（分階段）</h2>
+<h3 id="phase-0骨架102">Phase 0：骨架（1.0.2）</h3>
+<ul><li>加套件 <code>ModelContextProtocol.AspNetCore 1.4.1</code>（HTTP／Streamable HTTP transport）。</li><li><code>ServiceCollectionExtensions.AddApplicationServices()</code> 註冊 <code>AddMcpServer().WithHttpTransport().WithToolsFromAssembly()</code>。</li><li><code>Program.cs</code> 掛 <code>app.MapMcp("/mcp")</code>（後於 Phase 3 改用具名 policy）。</li><li>新增 <code>Web/Mcp/KnowledgePingTool.cs</code>（<code>knowledge_ping</code> 連通診斷）。</li></ul>
+<h3 id="phase-1knowledge_ask103">Phase 1：knowledge_ask（1.0.3）</h3>
+<ul><li>新增 <code>Web/Mcp/KnowledgeAskTool.cs</code>：包 <code>KnowledgeBaseChatService.RetrieveAsync</code>，強型別回傳（context/信心/最高分/出處）、多輪 <code>history</code> 對映、三點式分級日誌。稽核由 <code>RetrieveAsync</code> 自動寫入 <code>KnowledgeBaseQueryAudit</code>（不呼叫 LLM）。</li></ul>
+<h3 id="phase-2searchlistget104">Phase 2：search／list／get（1.0.4）</h3>
+<ul><li><code>KnowledgeSearchTool</code>（<code>IRetrievalService</code> 混合檢索）、<code>KnowledgeListSourcesTool</code>（<code>GetAsync(DataRequest)</code> 分頁、只回 Id/Title/Categories/Teams/Status）、<code>KnowledgeGetDocumentTool</code>（<code>GetCleanedContentAsync</code> 取全文）。</li><li>三工具全部複用<strong>已內建團隊權控</strong>的既有服務、註冊免動（assembly 掃描）。</li><li><code>knowledge_get_document</code> 對「不存在／未清洗／無權」統一回 <code>unavailable</code>（不洩漏來源存在性）。</li></ul>
+<h3 id="phase-3認證-jwt--api-key105">Phase 3：認證 JWT + API Key（1.0.5）</h3>
+<ul><li>新增 <code>Models/Systems/McpSettings.cs</code>（設定型金鑰 <code>Mcp:ApiKeys</code>＝Key/UserId/Name）與 <code>Web/Auth/McpApiKeyAuthenticationHandler.cs</code>（讀 <code>X-API-Key</code>、定時比對、發帶 <code>ClaimTypes.Sid</code> 身分，<code>RecordAccessScopeProvider</code> 沿用不變）。</li><li><code>Program.cs</code>：註冊 <code>McpApiKey</code> scheme；<code>AddAuthorization</code> 加具名 policy <code>McpAccess</code>（Bearer + Cookie + McpApiKey）；<code>MapMcp</code> 改用 <code>McpAccess</code>（<strong>修正 Phase 0 預設 Cookie scheme 導致 JWT 不被認證</strong>）。</li><li><strong>修正</strong>：<code>JwtTokenService</code> 補 <code>ClaimTypes.Sid</code>，使 JWT 非管理員也能解析所屬團隊（原先只見公開，屬欠授權；獨立 commit）。</li></ul>
+<h3 id="phase-4日誌身分補足106">Phase 4：日誌身分補足（1.0.6）</h3>
+<ul><li>新增 <code>Web/Mcp/McpToolLog.cs</code>；4 工具注入 <code>IHttpContextAccessor</code>，日誌情境帶 <code>user=</code>（已認證身分），補足請求層 <code>UseHttpRequestLogging</code> 在認證前擷取造成的 <code>user=anonymous</code> 缺口。</li></ul>
+<h3 id="phase-5文件收尾純文件不升版">Phase 5：文件收尾（純文件，不升版）</h3>
+<ul><li>設計文件／使用說明書狀態改「已實作」，對齊 <code>unavailable</code> 錯誤碼、<code>X-API-Key</code> 標頭、<code>McpAccess</code> policy、<code>knowledge_ping</code> 工具。</li><li>新增本 changelog；更新 <code>docs/README.md</code> 索引。</li></ul>
+<h2 id="已知限制" class="t3">已知限制</h2>
+<ul><li><strong>稽核身分</strong>：MCP 走 HTTP，<code>KnowledgeBaseQueryAudit</code> 的 account/name 為空（<code>currentUserService</code> 為 Blazor 專用）；<code>IsAdmin</code>/<code>Teams</code> 正確，呼叫者 account 由工具日誌 <code>user=</code> 補足。來源以日誌 <code>op=McpAsk/…</code> 區分（未加 Channel 欄位）。</li><li><strong>API Key</strong>：第一版為設定型（撤銷＝移除設定、<code>reloadOnChange</code>）；DB 型金鑰（簽發/撤銷/稽核表）與稽核來源通道欄位列為日後增強（屆時需 Entity + 雙資料庫 migration）。</li><li>未變更 Entity → 本次<strong>無</strong>雙資料庫 migration。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ol><li><code>dotnet test</code> 557 通過（含權控不變量、四工具、認證、<code>LoggingConventionTests</code>）。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠（<code>docs/*.md</code> UTF-8 含 BOM）。</li><li>待人工於本機以真實 MCP client（如 Claude Code CLI、Codex）連 <code>/mcp</code> 走查四工具，並以管理員 vs 非管理員比對權控差異。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更分階段">變更（分階段）</a><a class="l3" href="#phase-0骨架102">Phase 0：骨架（1.0.2）</a><a class="l3" href="#phase-1knowledge_ask103">Phase 1：knowledge_ask（1.0.3）</a><a class="l3" href="#phase-2searchlistget104">Phase 2：search／list／get（1.0.4）</a><a class="l3" href="#phase-3認證-jwt--api-key105">Phase 3：認證 JWT + API Key（1.0.5）</a><a class="l3" href="#phase-4日誌身分補足106">Phase 4：日誌身分補足（1.0.6）</a><a class="l3" href="#phase-5文件收尾純文件不升版">Phase 5：文件收尾（純文件，不升版）</a><a class="l2" href="#已知限制">已知限制</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-16-MCP-Server實作.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

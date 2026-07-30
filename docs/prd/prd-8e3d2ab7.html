@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗規則設定（CleaningProfile）PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>清洗規則設定（CleaningProfile）PRD</h1><p class="sub">定義「清洗規則設定」功能——可重複套用的客製清洗提示詞集合，供知識來源清洗時選用</p></header><div class="docwrap"><main><ul><li>文件用途：定義「清洗規則設定」功能——可重複套用的客製清洗提示詞集合，供知識來源清洗時選用</li><li>主要讀者：產品與開發團隊</li><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.62</li><li>首次實作版本：0.2.103</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026/06/17</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>背景與管線見 <a href="../../docs/prd/prd-a1cd6b20.html">資料清洗與品質保證 PRD</a>、<a href="../../docs/prd/prd-e8b774d3.html">知識來源管理 PRD</a>；不變量見 <a href="../../docs/architecture/dev-conventions.html">開發慣例與限制速查 §1.8.1</a>。</p></blockquote>
+<hr>
+<h2 id="一問題與目標" class="t1">一、問題與目標</h2>
+<p>清洗的五段提示詞（去重／遮罩／分類／摘要／信心）原本只能<strong>全域客製</strong>（「AI 提示詞」啟用 <code>清洗-*</code>），所有知識來源、每次清洗共用同一套，無法針對不同來源用不同策略。</p>
+<p><strong>目標</strong>：提供命名的「清洗規則設定」，清洗時可選擇套用並記在該知識來源（重試沿用），可重複使用；不影響未指定設定檔的既有行為。</p>
+<h2 id="二資料模型" class="t2">二、資料模型</h2>
+<p><code>CleaningProfile</code>（表）：<code>Id</code>、<code>Name</code>(必填、唯一)、<code>Description?</code>、<code>IsEnabled</code>、五段提示詞 <code>DedupePrompt/MaskPrompt/ClassifyPrompt/SummaryPrompt/ConfidencePrompt</code>（皆可空，<strong>空白＝該步驟用系統內建預設</strong>）、<code>CreatedAt</code>、<code>UpdatedAt</code>。</p>
+<p><code>KnowledgeSource</code> 新增 <code>CleaningProfileId</code>(int?, nullable)：<code>null</code> = 用全域 AI 提示詞／內建預設。</p>
+<blockquote><p>雙 provider migration <code>AddCleaningProfile</code>（Sqlite + SqlServer）。</p></blockquote>
+<h2 id="三功能" class="t3">三、功能</h2>
+<ol><li><strong>管理頁</strong> <code>/cleaning-profiles</code>（權限 <code>角色_清洗設定檔</code>，置於「基礎資料設定」群組）：CRUD＋啟用/停用，編輯表單含五段提示詞 TextArea（留空＝用預設）。名稱唯一（忽略大小寫）。</li><li><strong>清洗觸發</strong>（知識來源加工「清洗」鈕）：改為小型對話窗，可選清洗規則設定（含「（預設／全域）」），預設帶入該來源目前設定；確認後寫回 <code>CleaningProfileId</code> 並排入佇列。</li><li><strong>重試清洗</strong>：沿用來源已存的 <code>CleaningProfileId</code>。</li></ol>
+<h2 id="四提示詞套用優先序" class="t4">四、提示詞套用優先序</h2>
+<ul><li>來源<strong>有指定設定檔</strong>：每段「設定檔非空 → 用設定檔；空 → 內建預設」，<strong>略過全域 <code>清洗-*</code></strong>（避免雙重覆寫）。</li><li>來源<strong>未指定（null）</strong>：維持現行邏輯（全域啟用 <code>清洗-*</code> → 內建預設）。</li><li>由 <code>CleaningProcessor</code> 依 <code>source.CleaningProfileId</code> 取啟用中的設定檔，組成 <code>CleaningPromptSet</code> 傳入 <code>CleaningEnhancer.EnhanceAsync(rawBody, overrides, ct)</code>。</li></ul>
+<h2 id="五非目標本版" class="t5">五、非目標（本版）</h2>
+<ul><li>清洗品質評測「指定設定檔評測」（驗證某設定檔指標）：後續延伸，本版評測維持全域/預設。</li><li>清洗觸發時即時編輯提示詞（不存）。</li><li>設定檔不做團隊權控（屬系統層設定，比照 AI 提示詞）。</li></ul>
+<h2 id="六驗收" class="t6">六、驗收</h2>
+<ul><li>管理頁可建立/編輯/停用設定檔；清洗可選設定檔並寫回來源；清洗產出反映所選設定檔（空段用預設）；選「預設/全域」行為同現狀；重試沿用同設定檔；未指定設定檔之既有來源行為不變。</li></ul>
+<h2 id="七0334-現況校正" class="t7">七、0.3.34 現況校正</h2>
+<ul><li>入口 <code>/cleaning-profiles</code>，屬共用基礎資料設定，不套團隊權控；頁面權限仍由角色控制。</li><li>設定檔含去重、遮罩、分類、摘要與信心五段；來源指定後，設定檔非空段優先、空段回內建預設，且不再讀全域 <code>清洗-*</code>。</li><li>未指定設定檔時才走全域 <code>清洗-*</code> → 內建預設；重試沿用來源記錄的設定檔。</li><li>停用設定檔不供新選擇，既有來源關聯需保持可解釋，不得無聲改用另一配方。</li></ul>
+<h2 id="八1049-易用性強化預設範本按鈕欄位說明圖示分類上限" class="t8">八、1.0.49 易用性強化：預設範本按鈕、欄位說明圖示、分類上限</h2>
+<p><strong>背景</strong>：未選任何設定檔（「預設／全域」）時走內建預設，其遮罩範圍廣、去重偏積極，導致知識來源原有內容常在清洗後消失；新使用者也不易掌握如何撰寫不同強度的提示詞。</p>
+<ol><li><strong>三種預設範本按鈕</strong>（管理頁工具列）：一鍵<strong>開啟新增表單並帶入</strong>已填好五段提示詞的範本，供檢視／微調後儲存（不直接寫檔，名稱唯一性仍由 <code>BeforeAddCheckAsync</code> 把關）。保留程度由高到低：</li><li><strong>最大保留（範本）</strong>：幾乎不去重、只遮最高風險機密、分類 5–10 個。</li><li><strong>低度清洗（範本）</strong>：只移除明顯重複與雜訊、僅遮最敏感個資（身分證／金融帳號／密碼／金鑰），其餘保留。</li><li><strong>中度清洗（範本）</strong>：標準去重、遮罩常見個資但保留姓名、分類適中；比全域預設多保留。</li></ol>
+<blockquote><p>範本定義於 <code>CleaningProfilePresets</code>（Web 層工廠，回傳 <code>CleaningProfileAdapterModel</code>）。所有範本遮罩段皆要求「其餘內容原樣輸出」，確保回傳非空（避免遮罩步驟丟例外不寫檔）。</p></blockquote>
+<ol><li><strong>欄位說明圖示</strong>：新增／修改表單每個欄位標籤旁加 Tooltip 說明圖示（<code>LabelTemplate</code> + <code>MaterialIcon</code>），游標移上顯示該欄位用法、留空行為與清洗結果。</li><li><strong>分類上限 5 → 10</strong>：<code>CleaningEnhancer.ParseCategories</code> 保留上限由 5 提高為 10（具名常數 <code>MaxCategories</code>），讓「盡量多分類」的範本能分出更多標籤。全域內建預設分類提示詞維持「1-5 個」，故未指定設定檔的既有行為不變。</li></ol>
+<blockquote><p>本次不變更 Entity 欄位，無資料庫 migration；範本僅是既有五段欄位的預設文字。</p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一問題與目標">一、問題與目標</a><a class="l2" href="#二資料模型">二、資料模型</a><a class="l2" href="#三功能">三、功能</a><a class="l2" href="#四提示詞套用優先序">四、提示詞套用優先序</a><a class="l2" href="#五非目標本版">五、非目標（本版）</a><a class="l2" href="#六驗收">六、驗收</a><a class="l2" href="#七0334-現況校正">七、0.3.34 現況校正</a><a class="l2" href="#八1049-易用性強化預設範本按鈕欄位說明圖示分類上限">八、1.0.49 易用性強化：預設範本按鈕、欄位說明圖示、分類上限</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/清洗設定檔-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

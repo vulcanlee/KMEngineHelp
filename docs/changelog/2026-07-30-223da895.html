@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識傳承方法論、導入實施顧問手冊與五份網頁版（1.0.108 → 1.0.109）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>知識傳承方法論、導入實施顧問手冊與五份網頁版（1.0.108 → 1.0.109）</h1></header><div class="docwrap"><main><ul><li>變更日期：2026/07/30</li><li>版本：1.0.108 → <strong>1.0.109</strong></li><li>性質：<strong>純文件＋一支建置腳本＋版本字串</strong>。無程式邏輯變更、無新表、無 migration、無 UI 變更。</li><li>編碼：Markdown 為 UTF-8（繁體中文，含 BOM）；HTML 為 UTF-8（<strong>不含 BOM</strong>，<code>&lt;!doctype html&gt;</code> 起始）</li></ul>
+<hr>
+<h2 id="一為什麼做" class="t1">一、為什麼做</h2>
+<p>導入前準備文件組的第三階段（收尾）。前兩階段處理的是「怎麼取名」（1.0.107）與「怎麼設定、各部門怎麼操作」（1.0.108），還缺兩層：</p>
+<ol><li><strong>制度層</strong>——誰負責、多久盤點一次、怎麼把老師傅腦裡的東西變成可檢索的知識、怎麼衡量成效。這些不是操作問題，是治理問題。</li><li><strong>顧問層</strong>——實施顧問需要但不宜寫進客戶版的東西（程式層行號、驗收談判要點、客戶刁鑽問題的答法、踩雷急救）。</li></ol>
+<p>另外把四份客戶版與速查卡產出離線網頁版，供對外簡報與列印使用。</p>
+<h2 id="二新增文件" class="t2">二、新增文件</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>讀者</th><th>內容</th></tr></thead><tbody><tr><td><a href="../../docs/strategy/knowledge-transfer-method.html">strategy/知識傳承與經驗累積方法論</a></td><td>決策層、知識治理負責人（<strong>客戶版</strong>）</td><td>知識三種流失與知識庫只解得了第三種＋三個誠實前提＋Owner 制度與三個治理欄位＋週/月/季盤點節奏＋<strong>從口述到可檢索知識的六步流程與八題訪談提綱</strong>＋四個好指標與三個壞指標＋六個反模式＋三種組織阻力＋九十天合理期待</td></tr><tr><td><a href="../../docs/strategy/consultant-handbook.html">strategy/知識庫導入實施顧問手冊</a></td><td>實施顧問、導入 PM（⚠️ <strong>對內</strong>）</td><td>F1～F13 之外的九項程式層事實補充（附行號）＋五段清洗提示詞失敗行為差異＋治理欄位缺口＋<strong>導入訪談 18 問</strong>＋<strong>客戶 15 問與誠實答法</strong>＋依部門差異化驗收門檻與兩個合約談判要點＋十項踩雷急救＋八條糾正話術</td></tr></tbody></table></div>
+<h2 id="三新增網頁版5-份與建置腳本" class="t3">三、新增網頁版（5 份）與建置腳本</h2>
+<div class="tw"><table><thead><tr><th>HTML</th><th>來源 md</th></tr></thead><tbody><tr><td><code>docs/guides/知識庫命名規範-速查卡.html</code></td><td>同名 md</td></tr><tr><td><code>docs/guides/知識庫命名規範與範例.html</code></td><td>同名 md</td></tr><tr><td><code>docs/guides/基礎設定內容設計指南-分類詞庫團隊與提示詞撰寫.html</code></td><td>同名 md</td></tr><tr><td><code>docs/guides/企業實戰情境劇本-依部門的資料準備與操作.html</code></td><td>同名 md</td></tr><tr><td><code>docs/strategy/知識傳承與經驗累積方法論.html</code></td><td>同名 md</td></tr></tbody></table></div>
+<p>新增 <strong><code>scripts/Build-OnboardingDocsHtml.py</code></strong>（自足的 Markdown→HTML 轉換器，不依賴外部套件——環境無 <code>markdown</code> 模組）。</p>
+<p><strong>設計決策</strong></p>
+<div class="tw"><table><thead><tr><th>決策</th><th>理由</th></tr></thead><tbody><tr><td><strong>用腳本產生，不手寫 HTML</strong></td><td>5 份 md 加 5 份 html 手動同步必然會漂移。<strong>md 是唯一來源</strong>，改了 md 就重跑腳本</td></tr><tr><td>沿用 <code>docs/strategy/系統功能與特色清單-20項.html</code> 的 8 色粉彩調色盤與深色模式</td><td>與既有對外 HTML 風格一致</td></tr><tr><td>大字（基準 19px）、左右滿版（<code>max-width:2000px</code> ＋ <code>clamp</code> 內距）、每個 H2 依序輪替一個粉彩主色</td><td>長文件好定位；符合既有網頁版的視覺習慣</td></tr><tr><td>寬表格自帶 <code>overflow-x:auto</code> 包裹</td><td>手機與投影時不會破版</td></tr><tr><td>內含 <code>@media print</code> 規則</td><td>速查卡要能列印；表格與程式碼區塊避免跨頁斷開</td></tr><tr><td><strong>本組 5 份之間的 <code>.md</code> 連結改寫為 <code>.html</code></strong>；指向其他 <code>.md</code> 的連結轉為<strong>不可點擊的樣式化文字</strong>（<code>&lt;span class="docref"&gt;</code>，滑過顯示檔名）</td><td>客戶端拿不到其他 md 檔，留成連結只會變成死連結</td></tr><tr><td>HTML <strong>不加 BOM</strong></td><td><code>scripts/Test-DocsEncoding.ps1</code> 只檢查 <code>*.md</code>；HTML 以 <code>&lt;meta charset="utf-8"&gt;</code> 宣告，加 BOM 反而可能影響部分解析器</td></tr></tbody></table></div>
+<p><strong>重新產生方式</strong></p>
+<pre><code>python scripts/Build-OnboardingDocsHtml.py           # 產生 5 份
+python scripts/Build-OnboardingDocsHtml.py --check   # 只轉換驗證、不寫檔</code></pre>
+<h2 id="四本次新查證到的系統行為" class="t4">四、本次新查證到的系統行為</h2>
+<div class="tw"><table><thead><tr><th>#</th><th>行為</th><th>出處</th><th>意義</th></tr></thead><tbody><tr><td><strong>G1</strong></td><td><code>WikiPage</code> 的 <code>Owner</code> 與 <code>ChangeSummary</code> 可在知識頁治理對話窗手動編輯（<code>UpdateGovernanceAsync(id, owner, changeSummary)</code>，<strong>只有兩個參數</strong>）；但 <strong><code>LastReviewedAt</code> 只在核可時自動寫入</strong></td><td><code>WikiPageService.cs:441</code>；<code>WikiPageView.razor.cs:236</code>；<code>WikiPageView.razor:112-115</code></td><td><strong>「我看過了，內容仍然有效」這個動作沒有專屬按鈕。</strong> 要更新該時間只能讓該頁重新走一次核可流程。此限制已誠實寫入兩份新文件，並提供替代做法（把盤點結論寫進「本版變更摘要」）</td></tr></tbody></table></div>
+<h2 id="五同步更新" class="t5">五、同步更新</h2>
+<ul><li><code>docs/README.md</code>：strategy 區新增 2 筆；guides 區 4 筆補上「另有離線網頁版」；changelog 區新增本篇。</li><li><code>docs/strategy/README.md</code>：新增 2 列。</li><li><code>docs/guides/README.md</code>：4 列補上網頁版連結。</li><li><code>docs/changelog/README.md</code>：新增本篇索引列。</li><li><code>appsettings.json</code> 的 <code>SystemVersion</code>：<code>1.0.108 (2026/07/30)</code> → <code>1.0.109 (2026/07/30)</code>。</li><li>修正 <code>基礎設定內容設計指南</code> §5.4 分類提示詞範本中一句語意不通的規則（原「挑不出貼切的就只輸出『客戶服務』以外最接近的一個」→ 改為「寧少不多：只有明確符合時才給；一個都不明確符合時，只輸出最接近的那一個」）。</li></ul>
+<h2 id="六驗證" class="t6">六、驗證</h2>
+<ul><li><code>pwsh -File scripts/Test-DocsEncoding.ps1</code> 全綠。</li><li><strong>全 <code>docs</code> 目錄的 md 相對連結失效數為 0</strong>（含本次修改的四個索引檔）。</li><li>5 份 HTML：<strong>標籤全部平衡</strong>（<code>table</code>／<code>thead</code>／<code>tbody</code>／<code>tr</code>／<code>blockquote</code>／<code>pre</code>／<code>code</code>／<code>ul</code>／<code>ol</code>／<code>li</code>／<code>h2</code>／<code>h3</code>／<code>p</code>／<code>div</code>／<code>main</code>／<code>body</code>／<code>html</code> 逐一比對開合數量）；<strong>無殘留 Markdown 語法</strong>（行首 <code>|</code>、行首 <code>#</code>、<code>**</code> 僅出現在 <code>&lt;pre&gt;</code> 內的提示詞字面範例）；<strong>無殘留 <code>.md</code> 連結</strong>；表格數 3／18／21／34／11，含 24 處「引言內嵌表格」正確遞迴渲染。</li><li>兩份新 strategy 文件引用的欄位（<code>WikiPage.Owner</code>／<code>ChangeSummary</code>／<code>LastReviewedAt</code>）與報表路由皆已對回程式確認。</li></ul>
+<h2 id="七導入前準備文件組三階段全數完成" class="t7">七、導入前準備文件組（三階段全數完成）</h2>
+<div class="tw"><table><thead><tr><th>階段</th><th>版本</th><th>產出</th></tr></thead><tbody><tr><td>一</td><td>1.0.107</td><td><a href="../../docs/guides/naming-rules.html">知識庫命名規範與範例</a>、<a href="../../docs/guides/naming-cheatsheet.html">速查卡</a></td></tr><tr><td>二</td><td>1.0.108</td><td><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南</a>、<a href="../../docs/guides/department-playbook.html">企業實戰情境劇本</a></td></tr><tr><td>三</td><td><strong>1.0.109</strong></td><td><a href="../../docs/strategy/knowledge-transfer-method.html">知識傳承與經驗累積方法論</a>、<a href="../../docs/strategy/consultant-handbook.html">知識庫導入實施顧問手冊</a>、5 份 HTML、<code>scripts/Build-OnboardingDocsHtml.py</code></td></tr></tbody></table></div>
+<p><strong>建議的使用順序</strong>（給導入顧問）：訪談用顧問手冊 §二 → 客戶規劃期發速查卡與命名規範 → 設定期用基礎設定內容設計指南 → 各部門啟動用情境劇本 → 治理交接用知識傳承方法論。</p>
+<hr>
+<blockquote><p>返回 <a href="../../docs/changelog/readme-436e4418.html">changelog 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一為什麼做">一、為什麼做</a><a class="l2" href="#二新增文件">二、新增文件</a><a class="l2" href="#三新增網頁版5-份與建置腳本">三、新增網頁版（5 份）與建置腳本</a><a class="l2" href="#四本次新查證到的系統行為">四、本次新查證到的系統行為</a><a class="l2" href="#五同步更新">五、同步更新</a><a class="l2" href="#六驗證">六、驗證</a><a class="l2" href="#七導入前準備文件組三階段全數完成">七、導入前準備文件組（三階段全數完成）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-30-知識傳承方法論與顧問手冊及網頁版.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

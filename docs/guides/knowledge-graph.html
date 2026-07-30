@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識圖譜（Graph RAG）使用指南：三元組審核、實體合併、圖譜瀏覽與全域問答｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>知識圖譜（Graph RAG）使用指南：三元組審核、實體合併、圖譜瀏覽與全域問答</h1><p class="sub">說明「知識圖譜」為什麼需要、按下抽取／審核／重建社群摘要時系統實際做了什麼、/knowledge-graph-review 四個分頁與「全域」查詢模式怎麼操作、圖譜如何影響一般問答的檢索分數、權控如何維持越權洩漏＝0、怎麼量測圖有沒有用、成本從哪裡來，以及目前的已知限制——讓使用者與管理員看完即可自行操作與驗收。</p></header><div class="docwrap"><main><ul><li>文件用途：說明「知識圖譜」為什麼需要、按下抽取／審核／重建社群摘要時系統實際做了什麼、<code>/knowledge-graph-review</code> 四個分頁與「全域」查詢模式怎麼操作、圖譜如何影響一般問答的檢索分數、權控如何維持越權洩漏＝0、怎麼量測圖有沒有用、成本從哪裡來，以及目前的已知限制——讓使用者與管理員看完即可自行操作與驗收。</li><li>主要讀者：知識庫管理者、知識維護者（審核三元組）、管理員（實體合併／社群摘要／參數調校）、導入顧問</li><li>文件版本：1.0</li><li>建立日期：2026/07/29</li><li>更新日期：2026/07/29</li><li>對應系統版本：1.0.100（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>相關：上手地圖見 <a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a>；前置（清洗→蒸餾→Wiki 頁核可）見 <a href="../../docs/guides/wiki-review.html">知識頁審核與 Wiki 頁管理指南</a>；一般問答見 <a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a>；檢索原理與參數見 <a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a>；量化見 <a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a>；對外整合見 <a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a>。</p></blockquote>
+<hr>
+<h2 id="一知識圖譜在做什麼為什麼需要" class="t1">一、知識圖譜在做什麼？（為什麼需要）</h2>
+<p>一句話：<strong>除了「找出最相似的段落」，再多記住一件事——實體之間有什麼關係</strong>，好回答那些「答案不在任何單一段落裡」的問題。</p>
+<p>一般的 RAG（向量＋關鍵字混合檢索）本質是「找最像的幾頁」。它很擅長「教育訓練補助上限是多少」這種答案就寫在某一段裡的問題，但有兩類問題它結構上答不好：</p>
+<div class="tw"><table><thead><tr><th>問題類型</th><th>例子</th><th>為什麼一般檢索答不好</th></tr></thead><tbody><tr><td><strong>多跳關聯</strong></td><td>「客戶A 的 ERP 主機出問題，會影響到哪些系統？」</td><td>答案要串起「ERP 主機 → 部署於 → 某台伺服器 → 也跑著 → 報表模組」，這條鏈<strong>分散在三份不同文件</strong>，沒有任何一段同時提到頭尾</td></tr><tr><td><strong>全域綜觀</strong></td><td>「客戶A 的整體維運風險有哪些？」</td><td>這題沒有「最相關的 5 段」——它需要<strong>看過全部內容再歸納</strong>。只取前 K 段等於隨機抽樣</td></tr></tbody></table></div>
+<p>知識圖譜針對這兩類問題各給一條路：<strong>多跳圖檢索</strong>（第一類）與<strong>社群摘要全域問答</strong>（第二類）。</p>
+<p><strong>它是加分項，不是取代品。</strong> 圖檢索是混合檢索的第三路，權重由 <code>GraphWeight</code> 控制；把它設成 0，系統就完全回到 1.0.82 之前的行為，向量與關鍵字兩路照常運作。</p>
+<h3 id="11-四個名詞白話版">1.1 四個名詞（白話版）</h3>
+<div class="tw"><table><thead><tr><th>名詞</th><th>白話</th><th>例子</th></tr></thead><tbody><tr><td><strong>實體</strong>（Entity／節點）</td><td>一個名詞——人、組織、產品、系統、概念</td><td><code>客戶A ERP系統</code>、<code>Windows Server 2022</code></td></tr><tr><td><strong>關係</strong>（Relation）</td><td>連接兩個實體的動詞或述語</td><td><code>部署於</code>、<code>負責維護</code>、<code>相依於</code></td></tr><tr><td><strong>三元組</strong>（Triple）</td><td>「實體—關係—實體」一組，是圖譜的最小單位</td><td><code>客戶A ERP系統 — 部署於 → Windows Server 2022</code></td></tr><tr><td><strong>社群</strong>（Community）</td><td>關係特別緊密的一群實體。系統會替每一群寫一份摘要，全域問答就是拿這些摘要來答</td><td>「客戶A 維運相關」自成一群</td></tr></tbody></table></div>
+<blockquote><p>⚠️ <strong>不要和清洗流程的「關鍵實體」混淆。</strong> 清洗的「摘要」步驟會請 LLM 列出人事時地物「關鍵實體」，那是<strong>一串關鍵詞</strong>、存在清洗結果裡；本文件的「實體」是圖譜的節點，有型別、有錨定的 Wiki 頁、會參與多跳遍歷。兩者是不同機制。</p></blockquote>
+<hr>
+<h2 id="二開始前的前提" class="t2">二、開始前的前提</h2>
+<p>這一章的所有功能都有前置條件，<strong>沒過就一定看不到效果</strong>。建議照表逐項確認：</p>
+<div class="tw"><table><thead><tr><th>#</th><th>前提</th><th>怎麼確認</th><th>不通過的後果</th></tr></thead><tbody><tr><td>1</td><td><strong>已設定 Chat 大語言模型</strong></td><td>「系統管理 → 系統監控 → 系統健康監控」(<code>/system-health</code>) 看 LLM 可用性</td><td>三元組抽取、社群摘要、別名建議、全域問答<strong>全部無法執行</strong>（抽取會被前置守門擋下並顯示應用性錯誤訊息；REST <code>global-ask</code> 回 503）</td></tr><tr><td>2</td><td>知識來源<strong>已清洗</strong></td><td>「知識來源加工」清單的「清洗」欄</td><td>沒有清洗內容就沒有蒸餾</td></tr><tr><td>3</td><td>知識來源<strong>已蒸餾</strong></td><td>同上「蒸餾」欄＝已蒸餾</td><td>「抽取／重抽三元組」按鈕不會出現</td></tr><tr><td>4</td><td><strong>Wiki 頁已核可</strong></td><td>「知識頁審核」把該來源的 Wiki 頁核可</td><td><strong>抽取會跑完但抽不到東西</strong>——抽取讀的是「已完成且現行」的 Wiki 頁。這是最常見的踩雷點</td></tr><tr><td>5</td><td><strong>三元組已核可</strong></td><td>本頁「三元組審核」分頁，狀態＝已完成</td><td>待審核／已退回的三元組<strong>完全不影響檢索</strong>（這是刻意的治理設計）</td></tr><tr><td>6</td><td><code>GraphWeight</code> <strong>大於 0</strong></td><td>管理員在「檢索診斷與調校」(<code>/rag-diagnostics</code>) 看<strong>實際生效值</strong></td><td>設 0＝圖檢索整路關閉，連查詢都不發</td></tr><tr><td>7</td><td><strong>權限</strong></td><td>權限樹勾「知識圖譜審核」</td><td>進不了頁面。核可／退回另需「蒸餾審核」動作權；「實體合併」與「重建社群摘要」<strong>只有管理員</strong>，勾角色權限也沒用</td></tr></tbody></table></div>
+<blockquote><p>💡 <strong>為什麼 appsettings 的值不一定是生效值</strong>：<code>GraphWeight</code>／<code>GraphMaxHops</code>／<code>GraphHopDecay</code> 可以在 <code>/rag-diagnostics</code> 線上覆寫（存在資料庫），覆寫後就以資料庫的值為準。要確認當前實際生效值，一律看那一頁，不要看 <code>appsettings.json</code>。</p></blockquote>
+<hr>
+<h2 id="三三元組是怎麼產生的按下按鈕後系統做了什麼" class="t3">三、三元組是怎麼產生的（按下按鈕後系統做了什麼）</h2>
+<p>按下「抽取／重抽三元組」後，依序發生：</p>
+<ol><li><strong>前置守門</strong>（任一不過就直接擋下，不會白花 LLM 費用）：來源存在 → <strong>團隊權控</strong>（非管理員只能操作無團隊或與自己團隊有交集的來源）→ 蒸餾狀態＝已蒸餾 → Chat LLM 已設定 → 該來源沒有正在進行中的抽取。</li><li><strong>排入佇列</strong>，圖譜狀態變「等待中」。背景服務取出後轉「處理中」並回報百分比。</li><li><strong>讀取內容</strong>：取該來源「<strong>已完成且現行</strong>」的 Wiki 頁內容。這一步決定了「Wiki 頁沒核可就抽不出東西」。</li><li><strong>LLM 抽取</strong>：用提示詞 <code>圖譜-三元組抽取</code> 請 LLM 輸出「主詞／主詞型別／關係／受詞／受詞型別／信心」。</li><li><strong>落地與去重</strong>：建立或重用實體節點（同名收斂），三元組以「<strong>主詞｜關係｜受詞</strong>」為鍵去重。</li><li><strong>狀態一律是「待審核」</strong>，等人工審核。</li></ol>
+<blockquote><p>⚠️ <strong>重抽是安全的。</strong> 去重鍵是「主詞｜關係｜受詞」，而且<strong>絕不覆蓋你已核可或已退回的判斷</strong>——已審核過的三元組會原樣保留。所以抽壞了、來源更新了，放心重抽。</p></blockquote>
+<h3 id="31-圖譜有兩種邊來源不同">3.1 圖譜有兩種邊，來源不同</h3>
+<div class="tw"><table><thead><tr><th>邊的種類</th><th>從哪來</th><th>要不要 LLM</th><th>要不要人工審核</th></tr></thead><tbody><tr><td><strong>概念連結邊</strong>（<code>GraphEdge</code>）</td><td>Wiki 頁內文的 <code>[[標題]]</code> 連結，直接解析成「頁↔頁」的邊</td><td>❌ 不用</td><td>❌ 不用（是內容本身就有的連結）</td></tr><tr><td><strong>三元組邊</strong></td><td>LLM 從 Wiki 頁內容抽出的「實體—關係—實體」</td><td>✅ 要</td><td>✅ <strong>要，核可後才生效</strong></td></tr></tbody></table></div>
+<p>概念連結邊會在蒸餾完成、Wiki 頁核可或編修時<strong>冪等重建</strong>（重跑結果一樣，不會累積重複），不需要你操作。三元組邊才是本頁要審核的東西。</p>
+<blockquote><p>💡 <strong>為什麼要人工審核</strong>：LLM 抽關係會出錯（把「提到」當成「相依於」、把兩個不相干的名詞連起來）。如果錯的關係直接進檢索，它會把錯的內容拉到前面——比沒有圖譜更糟。所以設計成「LLM 提案、人工核可」的治理流程。</p></blockquote>
+<hr>
+<h2 id="四knowledge-graph-review-頁面操作" class="t4">四、<code>/knowledge-graph-review</code> 頁面操作</h2>
+<p><strong>進入</strong>：選單「知識庫 → 知識圖譜審核」。權限樹要勾的是 <strong><code>知識圖譜審核</code></strong>——這是全系統少數「選單顯示名＝權限名」完全一致的一項，不是漏改。</p>
+<p>頁面說明文字寫著「審核由 AI 從蒸餾內容抽取的『實體—關係—實體』三元組；核可後才會納入檢索加分。統計為全庫（依團隊權控過濾）。」</p>
+<h3 id="41-頁頂社群摘要狀態列">4.1 頁頂：社群摘要狀態列</h3>
+<p>灰底橫條，顯示「社群摘要（全域問答用）」目前狀態：</p>
+<div class="tw"><table><thead><tr><th>顯示</th><th>意思</th></tr></thead><tbody><tr><td><code>—</code></td><td>狀態尚未載入</td></tr><tr><td><code>建置中…</code></td><td>正在重建，此時「重建社群摘要」鈕會禁用</td></tr><tr><td><code>目前 N 個社群，上次建立 2026/07/29 14:30</code></td><td>正常。N 就是全域問答可取用的社群總數</td></tr><tr><td><code>（上次錯誤：…）</code></td><td>紅字顯示上次重建失敗原因</td></tr></tbody></table></div>
+<ul><li><strong>「重建社群摘要」按鈕</strong>：<strong>僅管理員可見</strong>。按下後排入全域單例作業（見 §五）。</li><li><strong>「重新整理狀態」按鈕</strong>：所有人可用，重新拉一次狀態。</li></ul>
+<blockquote><p>⚠️ <strong>沒重建過社群摘要 = 全域問答不能用。</strong> 這是部署後最容易漏掉的一步，已列入 <a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a>。</p></blockquote>
+<h3 id="42-分頁一三元組審核">4.2 分頁一：三元組審核</h3>
+<p><strong>篩選列</strong>：狀態下拉（待審核／已完成／已退回／全部）、依團隊過濾（多選）、搜尋「主詞/關係/受詞」（可按 Enter）、搜尋鈕、重新整理鈕。</p>
+<p><strong>表格欄位</strong>：主詞（附型別標籤）、關係、受詞（附型別標籤）、信心、來源、狀態。</p>
+<p><strong>操作按鈕</strong>（需 <code>canReview</code>＝管理員或具「蒸餾審核」權限）：</p>
+<div class="tw"><table><thead><tr><th>按鈕</th><th>出現條件</th><th>作用</th></tr></thead><tbody><tr><td><strong>編修</strong></td><td>有審核權即可（任何狀態）</td><td>開 Modal 可改：主詞、主詞型別、關係、受詞、受詞型別。型別可留空（提示為「如 人/組織/產品/概念」）</td></tr><tr><td><strong>核可</strong></td><td>狀態＝待審核 且有審核權</td><td>狀態轉「已完成」，<strong>開始納入檢索加分</strong></td></tr><tr><td><strong>退回</strong></td><td>同上</td><td>開 Modal 顯示該三元組並可填「退回理由（選填）」，狀態轉「已退回」，永久不進檢索</td></tr></tbody></table></div>
+<blockquote><p>核可／退回／編修任一動作都會<strong>立即讓檢索快取失效</strong>，不必等排程，下一次檢索就反映最新狀態。</p></blockquote>
+<h3 id="43-分頁二實體合併僅管理員可見">4.3 分頁二：實體合併（<strong>僅管理員可見</strong>）</h3>
+<p>維護「別名 → 標準名」對照（頁面例子是「TSMC → 台積電」）。核可後，別名變體在<strong>社群偵測與檢索</strong>都視為同一個實體。</p>
+<p><strong>三個區塊</strong>：</p>
+<ol><li><strong>「LLM 自動建議別名」</strong>（藍底）：顯示「待審核 N 筆，上次建議 時間 新增 M 筆」或「生成中…」或紅字錯誤。按鈕排入全域單例作業（見 §五），生成中會禁用。旁有「重新整理狀態」。</li><li><strong>手動新增別名</strong>（淺灰底）：輸入「別名（如 TSMC）」→「標準名（如 台積電）」→ 按「送出（待審核）」。<strong>手動新增的也要審核</strong>，不會直接生效。</li><li><strong>別名清單</strong>：狀態篩選＋搜尋「別名/標準名」；表格欄位為 別名、標準名、信心、狀態、審核者、退回理由；待審核者有「核可」「退回」（退回可填理由）。</li></ol>
+<p><strong>別名怎麼傳遞</strong>：已核可的別名會做<strong>傳遞閉包</strong>收斂。也就是 <code>A→B</code> 與 <code>B→C</code> 都核可時，<code>A</code>、<code>B</code>、<code>C</code> 會被視為同一個實體。所以核可前要想清楚——把「同名不同物」誤併會讓兩批無關的知識黏在一起（發現誤併就把該筆別名退回）。</p>
+<blockquote><p>⚠️ <strong>別名是全域治理</strong>：別名表沒有團隊欄位，因此<strong>只影響實體的連通性，不會放寬任何人的可見範圍</strong>。也因為是全域的，只有管理員能維護。</p>
+<p>核可別名之後：<strong>檢索即時生效</strong>；但要讓<strong>社群</strong>也套用合併，需要再按一次頁頂的「重建社群摘要」。</p></blockquote>
+<h3 id="44-分頁三圖譜瀏覽">4.4 分頁三：圖譜瀏覽</h3>
+<p>輸入實體名稱、選跳數（<strong>只能 1、2、3</strong>）、按「查詢」。別名會自動解析為同一實體，且<strong>只顯示你有權存取的關係</strong>。</p>
+<p><strong>結果呈現</strong>：</p>
+<ul><li>一張 <strong>SVG 放射狀示意圖</strong>：查詢的實體置中（藍色大圓點），第 1 跳綠色、第 2 跳以上黃色，依跳數分層排在同心圓上，節點名稱標在圓點上方。</li><li>一行統計：「共 N 個實體、M 條關係」。</li><li>一張表格：主詞／關係／受詞／跳數（每頁 20 筆）。</li></ul>
+<p><strong>兩種「沒結果」</strong>：</p>
+<ul><li>查無實體時顯示警示：「查無實體「X」，或該實體目前沒有『已核可且您有權存取』的關係。」——注意這句話同時涵蓋三種情況：名字打錯、三元組還沒核可、或那些關係你沒權限看。</li><li>節點數達 <strong>100 個</strong>上限時顯示：「⚠️ 鄰域節點已達上限 100 個而停止擴展，以下結果並不完整。請縮小跳數。」<strong>不會靜默截斷</strong>。</li></ul>
+<h3 id="45-分頁四待抽取來源">4.5 分頁四：待抽取來源</h3>
+<p>列出「<strong>已蒸餾、但圖譜還沒東西</strong>」的來源（抽取失敗或抽不出三元組者），<strong>只顯示你有權存取的來源</strong>。</p>
+<blockquote><p>💡 <strong>為什麼要獨立一個分頁</strong>：三元組審核清單是「三元組導向」的——抽取失敗或抽不出東西的來源因為一條三元組都沒有，<strong>反而完全不會出現在審核清單裡</strong>，而那正是最需要重抽的。</p></blockquote>
+<p><strong>表格欄位</strong>：知識來源、圖譜狀態（空白時顯示「待抽取」）、三元組數、上次抽取、錯誤訊息。每列有「<strong>抽取／重抽</strong>」按鈕，按下走的是與知識來源加工頁完全相同、已完整守門的重抽流程。</p>
+<p>沒有待抽取來源時顯示綠色訊息：「沒有待抽取的來源——所有已蒸餾的來源都已產出三元組。」</p>
+<blockquote><p>⚠️ <strong>兩個邊界</strong>：①<strong>進行中（等待中／處理中）的來源刻意排除</strong>——它們已經在跑，不需要再按一次。②清單一次最多取 <strong>50 筆</strong>。</p></blockquote>
+<hr>
+<h2 id="五抽取與重建的背景作業怎麼觀測怎麼取消" class="t5">五、抽取與重建的背景作業（怎麼觀測、怎麼取消）</h2>
+<p>圖譜相關共四條作業，性質不同：</p>
+<div class="tw"><table><thead><tr><th>#</th><th>作業</th><th>範圍</th><th>要 LLM</th><th>觸發方式</th><th>在哪觀測</th></tr></thead><tbody><tr><td>A</td><td><strong>三元組抽取</strong></td><td>每筆來源各一</td><td>✅</td><td>蒸餾完成自動觸發；或手動按「抽取／重抽」</td><td>知識來源清單的「圖譜」欄（含百分比）＋「待處理背景工作」</td></tr><tr><td>B</td><td><strong>概念連結邊重建</strong></td><td>每筆來源各一</td><td>❌</td><td>蒸餾完成、Wiki 頁核可／編修時自動冪等重建</td><td>無需觀測（很快、不會失敗成孤兒狀態）</td></tr><tr><td>C</td><td><strong>社群摘要重建</strong></td><td><strong>全域單例</strong></td><td>✅ 每群一次</td><td>管理員按「重建社群摘要」</td><td>「待處理背景工作」</td></tr><tr><td>D</td><td><strong>LLM 別名建議</strong></td><td><strong>全域單例</strong></td><td>✅ 一次</td><td>管理員按「LLM 自動建議別名」</td><td>「待處理背景工作」</td></tr></tbody></table></div>
+<p><strong>A 的狀態機</strong>：<code>待抽取（初始）→ 等待中 → 處理中（含 %）→ 已抽取 ／ 失敗 ／ 已取消</code>。服務重啟時，殘留在「處理中」的會自動改回「等待中」並重新排程，不會卡死。</p>
+<blockquote><p>⚠️ 別把兩組狀態混在一起看：<strong>來源的抽取狀態</strong>是「待抽取／等待中／處理中／已抽取／失敗／已取消」（管線跑到哪了）；<strong>三元組的審核狀態</strong>是「待審核／已完成／已退回」（人審過了沒）。來源顯示「已抽取」只代表管線跑完，裡面的三元組<strong>仍然全是「待審核」</strong>、還沒進檢索。</p></blockquote>
+<p><strong>C 與 D</strong>：以持久化的作業狀態列記錄，因此可觀測、可取消、服務重啟後也能撿回未完成的作業。它們<strong>刻意不列入標準背景管線清單</strong>，而是以作業類型識別。</p>
+<p><strong>在哪看</strong>：「系統管理 → 系統監控 → <strong>待處理背景工作</strong>」(<code>/pipeline-jobs</code>，僅管理員)。可看到積壓與逐筆取消。</p>
+<blockquote><p>⚠️ <strong>取消不是立刻停。</strong> 單次 LLM 呼叫進行中無法中斷，取消只在<strong>呼叫之間</strong>生效——按了取消，會等當前那一次 LLM 回來才真正停下。所以按了取消卻看到它還在跑幾十秒，是正常的。</p>
+<p>⚠️ <strong>多台機器部署時</strong>：記憶體中的「正在建置」旗標只反映<strong>本機</strong>，資料庫的作業狀態列才是全域真相。要判斷「到底有沒有人在跑」，看 <code>/pipeline-jobs</code>。</p></blockquote>
+<hr>
+<h2 id="六全域問答社群摘要" class="t6">六、全域問答（社群摘要）</h2>
+<h3 id="61-在哪切換">6.1 在哪切換</h3>
+<p>在「AI 知識問答」(<code>/knowledge-base-chat</code>) 的設定區，「<strong>查詢模式</strong>」下拉有兩個選項：</p>
+<ul><li><strong>一般（精準檢索）</strong>：預設，走混合檢索（向量＋關鍵字＋圖）。</li><li><strong>全域（社群摘要）</strong>：走社群摘要歸納。</li></ul>
+<h3 id="62-兩種模式怎麼選">6.2 兩種模式怎麼選</h3>
+<div class="tw"><table><thead><tr><th></th><th>一般（精準檢索）</th><th>全域（社群摘要）</th></tr></thead><tbody><tr><td><strong>適合的問題</strong></td><td>具體事實、條款、步驟、數字</td><td>綜觀、趨勢、系統性根因、「整體有哪些…」</td></tr><tr><td><strong>答案依據</strong></td><td>命中的內容片段</td><td>每個社群的摘要</td></tr><tr><td><strong>有出處嗎</strong></td><td>✅ 有出處面板，可鑽取回原始檔</td><td>❌ <strong>沒有出處面板、沒有相似度</strong>，改為顯示取用了幾個社群</td></tr><tr><td><strong>限定來源／分類／團隊篩選</strong></td><td>✅ 有效</td><td>❌ <strong>不套用這些篩選</strong></td></tr><tr><td><strong>成本</strong></td><td>一次問答一次 LLM</td><td><strong>每個你有權存取的社群各一次 LLM</strong>，再彙整一次</td></tr></tbody></table></div>
+<blockquote><p>⚠️ <strong>全域模式沒有出處不是壞了</strong>，是設計如此：社群摘要是「跨多筆來源歸納後的產物」，本來就沒有對應到某一段原文的位置。要追出處請改用一般模式再問一次具體問題。</p></blockquote>
+<h3 id="63-怎麼問">6.3 怎麼問</h3>
+<p>用「整體、綜觀、系統性、趨勢、有哪些風險」這類詞。例如：</p>
+<ul><li>✅ 適合全域：「客戶A 的整體維運風險有哪些？」「這批知識裡反覆出現的系統性問題是什麼？」</li><li>❌ 不適合全域：「客戶A 的 SLA 回應時間是幾小時？」（這題請用一般模式，才有出處可核對）</li></ul>
+<p>若管理員從未重建過社群摘要，系統會<strong>明確告知原因</strong>（不是回一片空白）。</p>
+<hr>
+<h2 id="七圖譜如何影響一般問答的分數" class="t7">七、圖譜如何影響一般問答的分數</h2>
+<p>一般模式的融合分數是三路相加：</p>
+<pre><code>總分 = VectorWeight × 向量分 + KeywordWeight × 關鍵字分 + GraphWeight × 圖分</code></pre>
+<p><strong>圖分怎麼算</strong>（白話版）：</p>
+<ol><li>先由向量與關鍵字兩路命中的 Wiki 頁當作<strong>種子</strong>。</li><li>從種子沿著<strong>概念連結邊</strong>與<strong>已核可的三元組</strong>做廣度優先擴展，最多 <code>GraphMaxHops</code> 跳。</li><li>第 h 跳的傳播強度 = 種子強度 × <code>GraphHopDecay^(h-1)</code>，所以<strong>第 1 跳不衰減</strong>、第 2 跳乘一次衰減，以此類推。</li><li>擴展到的鄰居頁，其現行內容片段獲得圖分加成。</li><li>累計節點數達 <code>GraphMaxNodes</code> 即停止擴展並記錄 log。</li></ol>
+<h3 id="71-七個參數">7.1 七個參數</h3>
+<div class="tw"><table><thead><tr><th>參數</th><th>預設</th><th>作用</th><th>能否線上熱調</th></tr></thead><tbody><tr><td><code>GraphWeight</code></td><td>0.2</td><td>圖分在融合式中的權重。<strong>設 0 = 關閉整條圖檢索路徑</strong></td><td>✅ <code>/rag-diagnostics</code></td></tr><tr><td><code>GraphMaxHops</code></td><td>2</td><td>擴展跳數，範圍 1～3</td><td>✅ <code>/rag-diagnostics</code></td></tr><tr><td><code>GraphHopDecay</code></td><td>0.5</td><td>每多一跳的衰減係數，範圍 0～1</td><td>✅ <code>/rag-diagnostics</code></td></tr><tr><td><code>GraphMaxNodes</code></td><td>200</td><td>單次檢索圖遍歷的節點上限（安全閥）</td><td>❌ 只讀 appsettings，<strong>改了要重啟</strong></td></tr><tr><td><code>GraphGlobalCommunityCap</code></td><td>20</td><td>全域問答一次最多取用幾個社群（<strong>直接決定成本</strong>）</td><td>❌ 需重啟</td></tr><tr><td><code>GraphMaxCommunities</code></td><td>50</td><td>社群重建最多保留幾群（超出者取成員數最大的前 N 群並記 log）</td><td>❌ 需重啟</td></tr><tr><td><code>GraphAliasNameCap</code></td><td>300</td><td>LLM 別名建議一次送出的實體名上限（超出者取出現次數最多者）</td><td>❌ 需重啟</td></tr></tbody></table></div>
+<blockquote><p>⚠️ 後四項<strong>沒有資料庫覆寫路徑</strong>，<code>/rag-diagnostics</code> 上也刻意不提供，只能改 <code>appsettings.json</code> 並重啟服務。填 0 或負數時系統以 1 計（不會靜默停擺）。</p>
+<p>⚠️ <strong><code>GraphMaxHops</code> 預設是 2。</strong> 多跳自 1.0.90 起生效，這會讓 1.0.89 之前建立的檢索評測基線<strong>位移</strong>（找到的東西變多）。升級後應重跑一次評測建立新基線；想完全回到單跳行為就設 1。</p></blockquote>
+<hr>
+<h2 id="八權控如何運作資安關鍵越權洩漏0" class="t8">八、權控如何運作（資安關鍵，越權洩漏＝0）</h2>
+<p>圖譜把「關係」也當成知識來保護。權控不是只在最後過濾一次，而是<strong>四層各自套用</strong>：</p>
+<div class="tw"><table><thead><tr><th>層</th><th>套用的權控</th></tr></thead><tbody><tr><td><strong>邊</strong></td><td>遍歷時每一條邊都檢查團隊可存取性——<strong>而且每一跳都重新檢查</strong>，不能借道無權限的節點繞過去</td></tr><tr><td><strong>節點</strong></td><td>他人團隊的實體節點不會被納入</td></tr><tr><td><strong>三元組</strong></td><td>只有已核可<strong>且</strong>你有權存取的三元組才參與加分</td></tr><tr><td><strong>鄰居內容片段</strong></td><td>擴展到的頁面，其片段仍要通過原本的內容層權控</td></tr></tbody></table></div>
+<p>三個容易誤解的地方：</p>
+<ol><li><strong>他隊的三元組，即使兩端頁面都是公開的，也不會替你加分。</strong> 因為「這兩個東西有關係」這件事本身就是知識，屬於抽出它的那個來源所在團隊。</li><li><strong>社群摘要的權限比一般紀錄更嚴</strong>：採<strong>子集判定</strong>——社群涵蓋來源的團隊聯集必須是你的團隊的子集，或該社群完全是公開內容，你才能取用。理由是一份社群摘要混合了多筆來源的知識，只要其中一筆你無權看，整份摘要就不能給你。</li><li><strong>別名表與作業狀態表沒有團隊欄位</strong>，屬全域管理員治理。別名只改變「哪些名字算同一個實體」，不改變任何人能看到什麼。</li></ol>
+<hr>
+<h2 id="九怎麼量圖到底有沒有用" class="t1">九、怎麼量「圖到底有沒有用」</h2>
+<p>到「檢索品質評測」(<code>/rag-evaluation</code>) 跑評測，看四個圖相關指標：</p>
+<div class="tw"><table><thead><tr><th>指標</th><th>意思</th></tr></thead><tbody><tr><td><strong>圖召回增益</strong>（主指標）</td><td>期望來源中，命中完全來自圖檢索那一路的比例。<strong>這是保守下界</strong>——圖分讓某筆排名上升而擠進 TopK 的效應不計入，所以實際貢獻只會比這個數字高</td></tr><tr><td><strong>圖參與率</strong></td><td>有多少比例的查詢，圖檢索至少貢獻了一點分數</td></tr><tr><td><strong>圖獨有命中</strong></td><td>向量與關鍵字兩路都是 0 分、只有圖路找到的命中數</td></tr><tr><td><strong>平均取用社群數</strong></td><td>全域問答評測時，平均每題取用幾個社群</td></tr></tbody></table></div>
+<p><strong>基線會記錄當時的 <code>GraphWeight</code>／<code>GraphMaxHops</code>／<code>GraphHopDecay</code></strong>。若某個基線是在這些欄位加入之前建立的，會顯示「<strong>未記錄</strong>」而不是 0——因為 0 會謊稱「當時圖是關閉的」。</p>
+<p><strong>全域問答評測模式</strong>：評測樣本可指定走全域模式。這個模式以「關鍵詞涵蓋率」計分，Precision／NDCG／MRR 顯示「—」（那些指標需要排序後的出處清單，全域模式沒有）。</p>
+<blockquote><p>⚠️ 全域評測<strong>會呼叫 LLM</strong>，因此<strong>不是確定性的</strong>（同一份樣本兩次跑分數可能略有差異），成本＝可存取社群數次呼叫，且沒有評測專用節流。關鍵詞比對是子字串比對，不處理同義詞。</p></blockquote>
+<hr>
+<h2 id="十對外整合mcp-與-rest" class="t2">十、對外整合（MCP 與 REST）</h2>
+<h3 id="101-mcp-工具給外部-ai-agent">10.1 MCP 工具（給外部 AI Agent）</h3>
+<div class="tw"><table><thead><tr><th>工具</th><th>說明</th></tr></thead><tbody><tr><td><code>knowledge_graph_neighbors</code></td><td>查某實體的 N 跳鄰域。<strong>純資料庫查詢、不呼叫 LLM</strong>；只回已核可三元組；節點上限 100，達上限回傳 <code>truncated</code> 旗標而<strong>不靜默截斷</strong></td></tr><tr><td><code>knowledge_ask</code> 的 <code>mode=global</code></td><td>走社群摘要。回傳差異：<code>sources</code> 恆為空、<code>topScore</code> 恆為 0，改回 <code>usedCommunities</code>；不套用分類／團隊篩選；<strong>只做 map 不做 reduce</strong>（彙整成一段答案只有 Blazor 聊天頁會做）。無法辨識的 <code>mode</code> 值會明確拋錯，不會靜默當成預設</td></tr></tbody></table></div>
+<p>詳見 <a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a>。</p>
+<h3 id="102-rest-端點給一般-http-呼叫端1096-起">10.2 REST 端點（給一般 HTTP 呼叫端，1.0.96 起）</h3>
+<div class="tw"><table><thead><tr><th>端點</th><th>方法</th><th>說明</th></tr></thead><tbody><tr><td><code>/api/v1/KnowledgeGraph/global-ask</code></td><td>POST</td><td>圖譜全域問答（僅 map）。<strong>LLM 未設定回 503</strong>（服務依賴未備妥，刻意不是 500）</td></tr><tr><td><code>/api/v1/KnowledgeGraph/neighbors?entityName=&amp;maxHops=</code></td><td>GET</td><td>查實體 N 跳鄰域。<code>maxHops</code> 超出 1～3 回 <strong>400</strong>（<strong>刻意不靜默夾住</strong>，與 MCP 的行為不同）；查無實體回 <strong>200 + <code>found=false</code></strong>（查不到不是錯誤）</td></tr></tbody></table></div>
+<ul><li>兩支端點都需 JWT 認證，權控完全交給既有服務，與 MCP 走同一條把關程式碼。</li><li><strong>沒有寫入型端點</strong>——無法透過 REST 新增或核可三元組，這是刻意的非目標。</li><li>成本受 <code>GraphGlobalCommunityCap</code> 控管，<strong>沒有 API 專用節流</strong>。</li></ul>
+<hr>
+<h2 id="十一成本與已知限制" class="t3">十一、成本與已知限制</h2>
+<h3 id="111-llm-成本從哪來">11.1 LLM 成本從哪來</h3>
+<div class="tw"><table><thead><tr><th>動作</th><th>呼叫次數</th><th>受哪個上限控管</th></tr></thead><tbody><tr><td>三元組抽取</td><td>每筆來源一次</td><td>—</td></tr><tr><td>社群摘要重建</td><td><strong>每個社群一次</strong></td><td><code>GraphMaxCommunities</code>（50）</td></tr><tr><td>全域問答（每問一次）</td><td><strong>每個可存取社群一次</strong> ＋ 彙整一次</td><td><code>GraphGlobalCommunityCap</code>（20）</td></tr><tr><td>LLM 別名建議</td><td>一次</td><td><code>GraphAliasNameCap</code>（300，指送出的實體名數）</td></tr></tbody></table></div>
+<blockquote><p>成本最需要留意的是<strong>全域問答</strong>：它不是「一問一答一次 LLM」，而是社群數乘上去。20 個社群的一題全域問答，等於 21 次 LLM 呼叫。</p></blockquote>
+<h3 id="112-已知限制">11.2 已知限制</h3>
+<div class="tw"><table><thead><tr><th>限制</th><th>影響與怎麼繞</th></tr></thead><tbody><tr><td>四個成本閥（<code>GraphMaxNodes</code>／<code>GraphGlobalCommunityCap</code>／<code>GraphMaxCommunities</code>／<code>GraphAliasNameCap</code>）<strong>不支援線上熱調</strong></td><td>改 <code>appsettings.json</code> 後必須重啟服務</td></tr><tr><td>檢索熱路徑雖有行程內快取，<strong>多台機器部署時失效只影響本行程</strong></td><td>有 300 秒絕對逾時兜底，最長 5 分鐘後一致</td></tr><tr><td>REST <code>global-ask</code> <strong>缺 HTTP 層的越權洩漏端到端測試</strong>（服務層已有測試覆蓋）</td><td>上線前建議手動以非管理員帳號驗一次</td></tr><tr><td>REST 端點<strong>沒有專用節流</strong></td><td>成本只靠 <code>GraphGlobalCommunityCap</code> 控管，對外開放時請在前端閘道加限流</td></tr><tr><td>「待抽取來源」清單<strong>上限 50 筆、無分頁</strong></td><td>超過 50 筆時處理完一批再重新整理</td></tr><tr><td>進行中的社群重建／別名生成，<strong>單次 LLM 呼叫無法立即中斷</strong></td><td>取消只在呼叫之間生效</td></tr><tr><td>取消抽取的動作<strong>沿用頁面層級（僅管理員）把關</strong>，未另加團隊權控</td><td>僅管理員能進 <code>/pipeline-jobs</code>，實際上等效</td></tr><tr><td>每次檢索／全域問答仍會<strong>載入全部已核可別名與社群</strong></td><td>已加索引與快取；超大圖時效能仍有優化空間</td></tr><tr><td>REST 端點<strong>無寫入能力</strong></td><td>審核動作只能在網頁上做</td></tr></tbody></table></div>
+<hr>
+<h2 id="十二常見問題faq" class="t4">十二、常見問題（FAQ）</h2>
+<div class="tw"><table><thead><tr><th>問題</th><th>說明</th></tr></thead><tbody><tr><td>抽取跑完了，但一條三元組都沒有</td><td>最常見原因是<strong>該來源的 Wiki 頁還沒核可</strong>——抽取讀的是「已完成且現行」的 Wiki 頁。先到「知識頁審核」核可，再重抽。</td></tr><tr><td>看不到「抽取／重抽三元組」按鈕</td><td>該來源還不是「已蒸餾」狀態。</td></tr><tr><td>抽取狀態是「失敗」</td><td>先看該列的錯誤訊息，再到 <code>/system-health</code> 確認 LLM 可用性。<strong>不要連按重抽</strong>（每次都花錢）。</td></tr><tr><td>核可了三元組，但檢索結果沒變化</td><td>①兩端實體必須錨定到<strong>現行</strong>的 Wiki 頁；②到 <code>/rag-diagnostics</code> 確認 <code>GraphWeight</code> 沒有被覆寫成 0；③圖分是加分項，若原本排名差距很大，加 0.2 權重可能不足以改變順序。</td></tr><tr><td>重抽會不會蓋掉我的審核結果</td><td><strong>不會。</strong> 去重鍵是「主詞｜關係｜受詞」，已核可／已退回的判斷原樣保留。</td></tr><tr><td>全域問答沒有出處，是壞了嗎</td><td>不是，設計如此（見 §6.2）。要出處請改用一般模式。</td></tr><tr><td>全域問答說「沒有可用社群」</td><td>管理員需先在本頁按「重建社群摘要」。</td></tr><tr><td>我看不到「實體合併」分頁</td><td>該分頁<strong>僅管理員</strong>可見，角色權限勾不出來。</td></tr><tr><td>別名核可了但沒生效</td><td>檢索是即時生效的（快取會立即失效，最長 300 秒後全機一致）；但<strong>社群</strong>要再按一次「重建社群摘要」才會套用合併。</td></tr><tr><td>同名不同物被誤併了</td><td>把該筆別名「退回」，然後重建社群摘要。</td></tr><tr><td>查詢延遲變高</td><td>把 <code>GraphMaxHops</code> 調成 1，或降低 <code>GraphMaxNodes</code>（後者需重啟）。</td></tr><tr><td>想完全關掉圖譜功能</td><td><code>/rag-diagnostics</code> 把 <code>GraphWeight</code> 設 0——連圖查詢都不會發出。</td></tr><tr><td>改了 <code>GraphMaxNodes</code> 卻沒反應</td><td>這是四個「只讀 appsettings」的參數之一，<strong>要重啟服務</strong>。</td></tr><tr><td>圖譜瀏覽說「查無實體」</td><td>三種可能：名字打錯、三元組還沒核可、或那些關係你沒有團隊權限。</td></tr><tr><td><code>maxHops=99</code> 為什麼回 400 而不是自動改成 3</td><td>REST 端點刻意<strong>明確拒絕</strong>超界參數，讓呼叫端知道自己傳錯了（MCP 工具則是靜默夾住，兩者行為不同是刻意的）。</td></tr><tr><td>評測基線的圖參數顯示「未記錄」</td><td>那個基線建立於這些欄位加入之前。顯示「未記錄」而不是 0，是為了避免誤以為「當時圖是關閉的」。</td></tr><tr><td>升級後評測分數變了</td><td><code>GraphMaxHops</code> 預設 2（1.0.90 起多跳生效）會讓召回變多、基線位移。請重跑評測建立新基線。</td></tr></tbody></table></div>
+<hr>
+<h2 id="十三延伸閱讀" class="t5">十三、延伸閱讀</h2>
+<p><strong>架構與原理</strong></p>
+<ul><li><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a>｜檢索三路融合、全域問答、圖譜瀏覽的設計細節</li><li><a href="../../docs/architecture/data-model.html">資料模型與資料庫</a>｜圖譜六張表的欄位與 migration</li><li><a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a>｜MCP 工具與 REST 端點的對應關係</li><li><a href="../../docs/security/auth-and-permissions.html">認證授權與權限機制</a>｜權限常數與團隊權控</li></ul>
+<p><strong>策略與規劃</strong></p>
+<ul><li><a href="../../docs/strategy/graph-rag-blueprint.html">Graph RAG 導入分析與實作藍圖</a>｜為什麼要做、怎麼分階段</li><li><a href="../../docs/planning/2026-07-28-graphrag-3db703d7.html">GraphRAG 待辦盤點</a>｜現況、已知破口與刻意不做的項目</li></ul>
+<p><strong>操作</strong></p>
+<ul><li><a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a>｜怎麼量圖有沒有用</li><li><a href="../../docs/guides/monitoring-health.html">系統監控與健康檢查指南</a>｜背景作業觀測與取消</li><li><a href="../../docs/operations/rag-troubleshooting.html">RAG 問題診斷手冊</a>｜症狀→檢查→調整</li><li><a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a>｜各項上限一覽</li></ul>
+<p><strong>練習</strong></p>
+<ul><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊 第 13 章</a>｜照著做一遍：抽取→審核→合併→瀏覽→社群→全域問答</li><li><a href="../../docs/guides/beginner-guide.html">新手完整操作指南 第十二章</a>｜零基礎白話版</li></ul>
+<blockquote><p>返回 <a href="../../docs/guides/guides-index.html">guides 指南索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：我要讓不該看的人看不到</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一知識圖譜在做什麼為什麼需要">一、知識圖譜在做什麼？（為什麼需要）</a><a class="l3" href="#11-四個名詞白話版">1.1 四個名詞（白話版）</a><a class="l2" href="#二開始前的前提">二、開始前的前提</a><a class="l2" href="#三三元組是怎麼產生的按下按鈕後系統做了什麼">三、三元組是怎麼產生的（按下按鈕後系統做了什麼）</a><a class="l3" href="#31-圖譜有兩種邊來源不同">3.1 圖譜有兩種邊，來源不同</a><a class="l2" href="#四knowledge-graph-review-頁面操作">四、/knowledge-graph-review 頁面操作</a><a class="l3" href="#41-頁頂社群摘要狀態列">4.1 頁頂：社群摘要狀態列</a><a class="l3" href="#42-分頁一三元組審核">4.2 分頁一：三元組審核</a><a class="l3" href="#43-分頁二實體合併僅管理員可見">4.3 分頁二：實體合併（僅管理員可見）</a><a class="l3" href="#44-分頁三圖譜瀏覽">4.4 分頁三：圖譜瀏覽</a><a class="l3" href="#45-分頁四待抽取來源">4.5 分頁四：待抽取來源</a><a class="l2" href="#五抽取與重建的背景作業怎麼觀測怎麼取消">五、抽取與重建的背景作業（怎麼觀測、怎麼取消）</a><a class="l2" href="#六全域問答社群摘要">六、全域問答（社群摘要）</a><a class="l3" href="#61-在哪切換">6.1 在哪切換</a><a class="l3" href="#62-兩種模式怎麼選">6.2 兩種模式怎麼選</a><a class="l3" href="#63-怎麼問">6.3 怎麼問</a><a class="l2" href="#七圖譜如何影響一般問答的分數">七、圖譜如何影響一般問答的分數</a><a class="l3" href="#71-七個參數">7.1 七個參數</a><a class="l2" href="#八權控如何運作資安關鍵越權洩漏0">八、權控如何運作（資安關鍵，越權洩漏＝0）</a><a class="l2" href="#九怎麼量圖到底有沒有用">九、怎麼量「圖到底有沒有用」</a><a class="l2" href="#十對外整合mcp-與-rest">十、對外整合（MCP 與 REST）</a><a class="l3" href="#101-mcp-工具給外部-ai-agent">10.1 MCP 工具（給外部 AI Agent）</a><a class="l3" href="#102-rest-端點給一般-http-呼叫端1096-起">10.2 REST 端點（給一般 HTTP 呼叫端，1.0.96 起）</a><a class="l2" href="#十一成本與已知限制">十一、成本與已知限制</a><a class="l3" href="#111-llm-成本從哪來">11.1 LLM 成本從哪來</a><a class="l3" href="#112-已知限制">11.2 已知限制</a><a class="l2" href="#十二常見問題faq">十二、常見問題（FAQ）</a><a class="l2" href="#十三延伸閱讀">十三、延伸閱讀</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/知識圖譜使用指南.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

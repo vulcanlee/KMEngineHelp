@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>真的沒問題嗎？｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 簡報</p><header class="hero"><div class="kicker">簡報</div><h1>真的沒問題嗎？</h1></header><div class="docwrap"><main><hr>
+<p>marp: true title: 真的沒問題嗎？ — AI 工程師的能力、衡量與邊界 author: vulcanlee paginate: true size: 16:9 theme: flagship-light</p>
+<hr>
+<p>&lt;!-- 這份 Markdown 是簡報的「單一真實來源」。 由 scripts/Build-FlagshipDeck.py 產出：</p>
+<ul><li>AI工程師-能力衡量與邊界.pptx（可在 PowerPoint 編輯）</li><li>AI工程師-能力衡量與邊界.html（自包含單檔，離線可放映）</li></ul>
+<p>投影片以單獨一行的 --- 分隔；front matter 與 &lt;style&gt; 會被略過。</p>
+<p>定位：對內／決策層。主軸＝誠實辯證（痛點→事實→風險→能力→分工→結論）。 姊妹簡報：AI槓桿開發-一人團隊的價值與新做法.md（談商業價值，本簡報談「人的能力與如何衡量」）。 數據截至 v0.2.110（2026/06/21）。 --&gt;</p>
+<p>&lt;style&gt; section { font-family: "Microsoft JhengHei", "Noto Sans CJK TC", "PingFang TC", sans-serif; background: #ffffff; color: #1a1a1a; font-size: 26px; } h1 { color: #0ea5a4; font-size: 52px; } h2 { color: #2563eb; } strong { color: #f59e0b; } section.lead h1 { font-size: 60px; } table { font-size: 20px; } &lt;/style&gt;</p>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="真的沒問題嗎">真的沒問題嗎？</h1>
+<p>AI 工程師的<strong>能力、衡量與邊界</strong></p>
+<blockquote><p>從一個「一人 × AI」全棧專案談起。</p></blockquote>
+<hr>
+<h2 id="一個刺激思考的事實" class="t1">一個刺激思考的事實</h2>
+<p>這套企業級系統，<strong>從頭到尾由一個人完成</strong></p>
+<ul><li><strong>需求</strong> → <strong>系統架構</strong> → <strong>前端</strong> → <strong>後端</strong> → <strong>文件</strong></li><li>沒有跨部門會議、沒有交接、沒有排期等待</li><li>工具：AI 代理人（Claude Code 等）＋ 一位指揮者</li></ul>
+<blockquote><p>它能做出來——但這引出一個更難的問題：<strong>這樣，真的沒問題嗎？</strong></p></blockquote>
+<hr>
+<h2 id="先看舊世界一場人的陣形" class="t2">先看舊世界：一場「人的陣形」</h2>
+<p>傳統上，一套產品要上線，需要這些角色各司其職</p>
+<ul><li><strong>產品經理</strong>：訂需求、開規格</li><li><strong>視覺設計師</strong>：介面與體驗</li><li><strong>前端工程師</strong>：刻畫面、串接</li><li><strong>後端工程師</strong>：寫 API、資料庫</li><li><strong>QA 工程師</strong>：測試、抓 bug</li><li><strong>維運工程師</strong>：部署、環境、上線</li></ul>
+<blockquote><p>六種角色，六個行事曆，六套溝通成本。</p></blockquote>
+<hr>
+<h2 id="真正的成本不在寫程式" class="t3">真正的成本，不在寫程式</h2>
+<p>帳面付的是薪水，<strong>真正蒸發的是「人與人之間」</strong></p>
+<ul><li><strong>溝通</strong>：開會、對齊、來回確認</li><li><strong>等待</strong>：等規格、等審查、等別人交付、等排期</li><li><strong>交接</strong>：A 的腦袋搬到 B，每次都漏一點</li><li><strong>重工</strong>：理解落差 → 做錯 → 重做</li></ul>
+<blockquote><p>需求一變動、系統一出問題，就回到這個輪迴——<strong>一個簡單問題，常要 3～7 天</strong>。</p></blockquote>
+<hr>
+<h2 id="對照這個案例做了什麼" class="t4">對照：這個案例做了什麼</h2>
+<p>數字不會說謊（KnowledgeExtraction.AI，2026/06）</p>
+<div class="tw"><table><thead><tr><th>指標</th><th>數量</th></tr></thead><tbody><tr><td>開發天數 / 人力</td><td><strong>20 天 / 1 人</strong></td></tr><tr><td>提交 Commit</td><td><strong>333</strong></td></tr><tr><td>發行版本</td><td><strong>約 101 個</strong>（0.2.10 → 0.2.110）</td></tr><tr><td>原始碼檔案</td><td><strong>437</strong>（.cs + .razor）</td></tr><tr><td>分支合併（--no-ff）</td><td><strong>122 次</strong></td></tr><tr><td>雙資料庫遷移 / 文件同步</td><td>每次模型異動成對產出</td></tr></tbody></table></div>
+<blockquote><p>一個簡單問題從 3～7 天，壓縮到<strong>以分鐘、小時計</strong>。</p></blockquote>
+<hr>
+<h2 id="但是真的沒問題嗎" class="t5">但是——真的沒問題嗎？</h2>
+<p>速度的另一面，是必須誠實面對的風險</p>
+<ul><li><strong>單點依賴（bus factor）</strong>：成敗全繫於一個人，他離開怎麼辦？</li><li><strong>缺乏同儕審查</strong>：沒有第二雙眼睛，盲區誰來抓？</li><li><strong>品質把關</strong>：快，會不會是用品質換來的？</li><li><strong>資安紅線</strong>：權控、遮罩、稽核，誰來獨立驗證？</li><li><strong>可維護性</strong>：產出快，但知識會不會只留在一個人腦中？</li></ul>
+<blockquote><p>不迴避這些問題，才有資格談「如何管理它」。</p></blockquote>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="本簡報不粉飾">本簡報不粉飾</h1>
+<p>用<strong>能力</strong>回答疑慮</p>
+<p>用<strong>衡量</strong>判斷人</p>
+<p>用<strong>分工</strong>劃出邊界</p>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="ai-工程師">AI 工程師</h1>
+<h1 id="究竟需要什麼能力">究竟需要什麼能力？</h1>
+<p>橫跨產品、前後端、資料、維運、文件—— <strong>一個人，憑什麼？</strong></p>
+<hr>
+<h2 id="先破除一個迷思" class="t6">先破除一個迷思</h2>
+<p>AI 工程師的能力，<strong>不是「會寫提示詞」</strong></p>
+<ul><li>提示詞，是入場券，不是護城河</li><li>工具人人買得到，差距不在工具</li><li>真正稀缺的，是<strong>駕馭 AI 的判斷力與紀律</strong></li></ul>
+<blockquote><p>AI 放大的是判斷力與品味；<strong>它放大不了你沒有的東西</strong>。</p></blockquote>
+<hr>
+<h2 id="五個能力維度" class="t7">五個能力維度</h2>
+<p>缺一不可，且彼此相乘</p>
+<div class="tw"><table><thead><tr><th>維度</th><th>本質</th></tr></thead><tbody><tr><td>① 系統性判斷與架構決策</td><td>決定「要什麼、對不對、好不好」</td></tr><tr><td>② 跨領域整合力</td><td>在同一顆大腦裡貫穿全棧</td></tr><tr><td>③ AI 協作與駕馭力</td><td>把 AI 當高速但會犯錯的隊友</td></tr><tr><td>④ 驗證與品質紀律</td><td>用自我把關取代同儕審查</td></tr><tr><td>⑤ 工程紀律與可維護性</td><td>讓速度不留技術債</td></tr></tbody></table></div>
+<blockquote><p>下面，每一個維度都用這個專案的<strong>實證</strong>來對照。</p></blockquote>
+<hr>
+<h2 id="維度-①②判斷力--整合力" class="t8">維度 ①②：判斷力 × 整合力</h2>
+<p>不是寫得快，是<strong>做對的決定、且能貫穿全棧</strong></p>
+<ul><li><strong>① 架構決策</strong>：例——團隊權控不變量的資安設計</li><li>非管理員只見「無團隊（公開）或與自身團隊交集」的紀錄，管理員不受限</li><li>這是<strong>設計判斷</strong>，不是 AI 自動會的</li><li><strong>② 跨領域整合</strong>：Blazor + AntDesign + EF Core 雙資料庫 + LLM</li><li>從 UI 行為、資料模型到背景管線，一人在腦中即時銜接</li></ul>
+<blockquote><p>判斷力決定方向，整合力把方向落地——缺一個，AI 只會更快地做錯。</p></blockquote>
+<hr>
+<h2 id="維度-③④駕馭力--驗證力" class="t1">維度 ③④：駕馭力 × 驗證力</h2>
+<p>AI 會犯錯，<strong>真正的能力是抓得住它的錯</strong></p>
+<ul><li><strong>③ 駕馭 AI</strong>：護欄先行</li><li><code>CLAUDE.md</code> 定義不變量，AI 不得越界；提示詞四層解析（單次→DB→設定→程式 fallback），行為可控、可追溯</li><li><strong>④ 驗證與品質</strong>：自我把關取代同儕審查</li><li>真實案例：「長壽命 DbContext 讀到陳舊追蹤實體」這個根因，0.2.76 首現、0.2.85 再現，最終 0.2.86 做<strong>全管線系統性修正</strong>——不是照單全收 AI 的輸出，是抓出並根治</li></ul>
+<blockquote><p>會用 AI 的人很多；<strong>會懷疑 AI、並驗證它的人</strong>，才稀缺。</p></blockquote>
+<hr>
+<h2 id="維度-⑤紀律讓速度不留債" class="t2">維度 ⑤：紀律，讓速度不留債</h2>
+<p>快，必須是「敢交付」的快</p>
+<ul><li><strong>版本即完成</strong>：每個可建置異動＝版本 +1 ＋ Commit ＋ 發行說明</li><li><strong>文件與程式同步</strong>：每次異動，文件一起更新、定期同步稽核</li><li><strong>規範自動守護</strong>：<code>docs/*.md</code> 一律 UTF-8 含 BOM，由 <code>Test-DocsEncoding.ps1</code> 把關</li><li><strong>模型變更成對遷移</strong>：SQLite 與 SQL Server 各一份 migration</li></ul>
+<blockquote><p>沒有紀律的速度，是技術債的高速公路。</p></blockquote>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="那麼">那麼——</h1>
+<h1 id="任何人都做得到嗎">任何人都做得到嗎？</h1>
+<hr>
+<h2 id="直答不是任何人都能" class="t3">直答：不是任何人都能</h2>
+<p>因為瓶頸，<strong>移位了</strong></p>
+<ul><li>過去的瓶頸：<strong>寫程式的能力</strong>（AI 已大幅補上）</li><li>現在的瓶頸：<strong>判斷、驗證、系統性紀律</strong>（AI 補不上）</li><li>工具的熟練度，幾週可學；<strong>判斷與紀律，是年資與品味的累積</strong></li></ul>
+<blockquote><p>門檻變高，不是變低——只是換了個地方。</p></blockquote>
+<hr>
+<h2 id="如何衡量看可觀察的證據" class="t4">如何衡量：看可觀察的證據</h2>
+<p>別看職稱與證照，看<strong>留下了什麼</strong></p>
+<div class="tw"><table><thead><tr><th>衡量維度</th><th>可觀察、可驗證的證據</th></tr></thead><tbody><tr><td>產出實證</td><td>可運行的系統、完整文件、可追溯變更（commit／版本紀律）</td></tr><tr><td>架構判斷</td><td>不變量是否被守住（如資安／權控）、技術選型站不站得住</td></tr><tr><td>自我驗證</td><td>是否設計成功準則並自行驗證（測試、檢查腳本、回歸防護）</td></tr><tr><td>AI 駕馭</td><td>能否辨識並攔截 AI 的錯誤，而非照單全收</td></tr><tr><td>工程紀律</td><td>版本、文件、編碼規範是否一致遵守</td></tr></tbody></table></div>
+<blockquote><p>能力看不見，但它的<strong>痕跡</strong>看得見。</p></blockquote>
+<hr>
+<h2 id="怎麼評鑑一個人" class="t5">怎麼評鑑一個人</h2>
+<p>用實作，不用履歷</p>
+<ul><li><strong>實作試煉</strong>：給一個橫跨領域的小任務（需求模糊、要自己定規格、要自己驗收），看交付</li><li><strong>產出稽核</strong>：檢視他的 commit、文件、測試、對 AI 輸出的取捨</li><li><strong>追問根因</strong>：請他講一個他抓到並根治的 bug——聽得出有沒有判斷力</li><li><strong>看誠實度</strong>：他敢不敢講限制與風險</li></ul>
+<blockquote><p>會說「這裡有風險」的人，比說「都沒問題」的人，更值得信任。</p></blockquote>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="哪些該哪些不該">哪些該、哪些不該</h1>
+<h1 id="由-ai-工程師做">由 AI 工程師做？</h1>
+<p>劃清邊界，才能放心倚賴</p>
+<hr>
+<h2 id="分工能獨立完成-vs-仍須把關" class="t6">分工：能獨立完成 vs 仍須把關</h2>
+<p>誠實地把話說清楚</p>
+<div class="tw"><table><thead><tr><th>AI 工程師可獨立高效完成</th><th>仍須他人／制度把關</th></tr></thead><tbody><tr><td>原型 → 產品的全棧開發</td><td>商業策略與最終拍板</td></tr><tr><td>規格、文件、變更紀錄</td><td>合規與法務簽核</td></tr><tr><td>重構與快速迭代</td><td>利害關係人對齊</td></tr><tr><td>跨層除錯與根因修復</td><td>真實用戶的 UX 驗證</td></tr><tr><td>資安內建的實作</td><td>安全紅線的獨立審核</td></tr></tbody></table></div>
+<blockquote><p>AI 工程師壓縮的是<strong>協作摩擦</strong>，不是消滅「需要第二雙眼睛」的場景。</p></blockquote>
+<hr>
+<h2 id="為什麼有些事不能只靠他" class="t7">為什麼有些事不能只靠他</h2>
+<p>不是能力不足，是<strong>角色與責任</strong>使然</p>
+<ul><li><strong>商業與合規</strong>：牽涉責任歸屬與外部規範，需有權者拍板</li><li><strong>真實用戶</strong>：UX 的好壞，最終由用戶說了算，不是開發者自評</li><li><strong>安全紅線</strong>：自己審自己，正是風險所在——需獨立一雙眼</li><li><strong>單點風險</strong>：刻意留下文件與傳承，才能降低 bus factor</li></ul>
+<blockquote><p>把對的事，交給對的人與制度——這也是一種能力。</p></blockquote>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="結論">結論</h1>
+<h1 id="這個職位真的存在">這個職位，真的存在</h1>
+<p>它不是「會用 AI 的工程師」， 而是一種<strong>新的綜合角色</strong>。</p>
+<hr>
+<h2 id="ai-工程師到底是什麼" class="t8">AI 工程師，到底是什麼</h2>
+<p>把整條交付鏈，<strong>內化成一個人的判斷迴圈</strong></p>
+<ul><li>一個人，扮演了一支團隊的多個角色</li><li>能力本質從「寫程式」，移到<strong>判斷、驗證、紀律</strong></li><li>它壓縮協作摩擦，但<strong>不取代</strong>所有角色</li><li>它稀缺，正因為這些能力難以速成</li></ul>
+<blockquote><p>不是人變得更快，是<strong>對的人 × AI</strong>，產生了團隊級的槓桿。</p></blockquote>
+<hr>
+<h2 id="給決策層的四個建議" class="t1">給決策層的四個建議</h2>
+<p>把機會放大，把風險管好</p>
+<ul><li><strong>定位</strong>：當成「團隊級產值」的高槓桿角色，而非單一工程師職稱</li><li><strong>評鑑</strong>：用實作試煉 ＋ 產出稽核，看判斷與紀律，而非證照</li><li><strong>緩解風險</strong>：制度補位——關鍵決策第二雙眼睛、資安／合規獨立審核</li><li><strong>降低單點</strong>：刻意累積文件與傳承，讓知識不只在一個人腦中</li></ul>
+<blockquote><p>用一個人的成本，得到一支團隊的結果——前提是，<strong>單點風險被制度接住</strong>。</p></blockquote>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="真的沒問題嗎-1">真的沒問題嗎？</h1>
+<p>有風險——但<strong>可被衡量、可被管理</strong>。</p>
+<p>而能做到這件事的人， <strong>價值，是團隊級的。</strong></p>
+<hr>
+<p>&lt;!-- _class: lead --&gt;</p>
+<h1 id="one-more-thing">One more thing</h1>
+<p>這份簡報——文字、HTML、PPTX——</p>
+<p><strong>也是 AI 協作產出的。</strong></p>
+<blockquote><p>它自己，就是最後一個證據。</p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（簡報）</h3><ul><li><a href="../../docs/presentation/ai-engineer-value.html">要做出一套產品</a></li><li><a href="../../docs/presentation/ai-leverage-dev.html">一套企業級系統</a></li><li><a href="../../docs/presentation/flagship-deck.html">你的公司，每天都在重複付錢</a></li><li><a href="../../docs/presentation/deck-speaker-notes.html">旗艦簡報・講者指南與使用說明</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一個刺激思考的事實">一個刺激思考的事實</a><a class="l2" href="#先看舊世界一場人的陣形">先看舊世界：一場「人的陣形」</a><a class="l2" href="#真正的成本不在寫程式">真正的成本，不在寫程式</a><a class="l2" href="#對照這個案例做了什麼">對照：這個案例做了什麼</a><a class="l2" href="#但是真的沒問題嗎">但是——真的沒問題嗎？</a><a class="l2" href="#先破除一個迷思">先破除一個迷思</a><a class="l2" href="#五個能力維度">五個能力維度</a><a class="l2" href="#維度-①②判斷力--整合力">維度 ①②：判斷力 × 整合力</a><a class="l2" href="#維度-③④駕馭力--驗證力">維度 ③④：駕馭力 × 驗證力</a><a class="l2" href="#維度-⑤紀律讓速度不留債">維度 ⑤：紀律，讓速度不留債</a><a class="l2" href="#直答不是任何人都能">直答：不是任何人都能</a><a class="l2" href="#如何衡量看可觀察的證據">如何衡量：看可觀察的證據</a><a class="l2" href="#怎麼評鑑一個人">怎麼評鑑一個人</a><a class="l2" href="#分工能獨立完成-vs-仍須把關">分工：能獨立完成 vs 仍須把關</a><a class="l2" href="#為什麼有些事不能只靠他">為什麼有些事不能只靠他</a><a class="l2" href="#ai-工程師到底是什麼">AI 工程師，到底是什麼</a><a class="l2" href="#給決策層的四個建議">給決策層的四個建議</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/presentation/AI工程師-能力衡量與邊界.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

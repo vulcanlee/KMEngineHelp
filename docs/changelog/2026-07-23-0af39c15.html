@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗 LLM 呼叫改走串流，根治 120 秒逾時（1.0.33）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>清洗 LLM 呼叫改走串流，根治 120 秒逾時（1.0.33）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-23</li><li>版本：1.0.32 → 1.0.33</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>修正內容清洗管線呼叫 LLM 時，長內容因整段生成超過 120 秒而被 <code>HttpClient.Timeout</code> 取消（<code>TaskCanceledException</code>）並反覆重試的問題。清洗五步改走<strong>串流累積</strong>，解除總生成時間的硬上限。</p>
+<h2 id="根因" class="t2">根因</h2>
+<ul><li>清洗步驟原用非串流的 <code>OpenAIChatCompletionClient.CompleteAsync</code>（<code>SendAsync</code> 預設 <code>ResponseContentRead</code>，緩衝整個回應），<code>HttpClient.Timeout=120s</code> 涵蓋「送出＋整段生成＋讀完 body」。</li><li><code>CleaningEnhancer.EnhanceAsync</code> 把整篇彙整內容一次整包送給 reasoning 模型 <code>gpt-5.4</code>，且連做去重／遮罩／分類／摘要／信心自評五步；內容一長，單步生成即超過 120 秒。</li><li>逾時的 <code>TaskCanceledException</code> 被判為可重試，整段最多重跑 3 次仍逾時。</li><li>120 秒設定於 <code>Program.cs</code>（chat typed client）← <code>OpenAISettings:GenerationTimeoutSeconds</code>。</li></ul>
+<h2 id="修正" class="t3">修正</h2>
+<ul><li><code>IChatCompletionClient</code> 新增預設介面方法 <code>CompleteStreamingAsync</code>（預設委派至 <code>CompleteAsync</code>，故其他實作與測試假物件無需改動）。</li><li><code>OpenAIChatCompletionClient</code> 覆寫 <code>CompleteStreamingAsync</code>：複用既有 <code>StreamAsync</code>（以 SSE、<code>ResponseHeadersRead</code> 讀取）逐塊累積為完整字串。<code>HttpClient.Timeout</code> 此時只界定「取得回應 headers」的時間，長內容的整段生成不再受總時間上限限制。</li><li><code>CleaningEnhancer</code> 五個步驟（去重／遮罩／分類／摘要／信心自評）改呼叫 <code>CompleteStreamingAsync</code>；其餘降級與取消處理邏輯不變。</li><li>測試：新增驗證「清洗各步驟走串流版、未走非串流緩衝版」；既有清洗測試（假物件僅實作 <code>CompleteAsync</code>，靠預設委派）維持通過。</li></ul>
+<h2 id="備註" class="t4">備註</h2>
+<ul><li><code>GenerationTimeoutSeconds</code> 維持 120（現在只界定取得 headers 的時間）。</li><li>只有清洗切換為串流；其他 chat 呼叫（圖片解讀／檔案／技能／蒸餾／會議紀錄／Query Rewrite）不變。</li><li>無資料模型變更，不需要資料庫 migration。</li><li>已知殘留風險（可接受）：移除總時間硬上限後，若連線中途完全停滯理論上可能久候；實務上停滯的 TCP 讀取仍會擲錯，且管線重試機制兜底。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#根因">根因</a><a class="l2" href="#修正">修正</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-23-清洗改串流避免逾時.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

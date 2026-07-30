@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>儀表板移入系統管理、/App 改為 AI 知識問答（1.0.80 → 1.0.81）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>儀表板移入系統管理、/App 改為 AI 知識問答（1.0.80 → 1.0.81）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-27</li><li>版本：1.0.80 → 1.0.81</li><li>類型：導覽/選單調整＋文件同步</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>側邊選單「首頁」(<code>/App</code>) 進去一直是<strong>統計儀表板</strong>（<code>HomeAuthed.razor</code> 掛載 <code>DashboardView</code>），但登入後的預設落地頁早已是 AI 知識問答（<code>/knowledge-base-chat</code>）。本次把首頁定位對齊主功能：<code>/App</code> 直接改成 <strong>AI 知識問答</strong>，而統計儀表板改定位為<strong>管理者工具</strong>，移入「系統管理 &gt; 系統監控與日誌」，僅管理員可見。</p>
+<h2 id="變更" class="t2">變更</h2>
+<ol><li><strong><code>/App</code> 改為 AI 知識問答</strong>（<code>Components/Pages/HomeAuthed.razor</code>）：由掛載 <code>DashboardView</code> 改為掛載 <code>KnowledgeBaseChatView</code>（與 <code>/knowledge-base-chat</code> 同一元件）；<code>&lt;PageTitle&gt;</code> 改為「AI 知識問答」。選單第一項「首頁」名稱與圖示（<code>analytics</code>）維持不變，故「首頁」與「知識庫 &gt; AI 知識問答」為同一問答頁的兩個入口。</li><li><strong>統計儀表板取得獨立路由</strong>：新增 <code>Components/Pages/DashboardPage.razor</code>（<code>@page "/dashboard"</code>），比照 <code>SystemHealthPage</code> 的守衛模式——<code>Check</code> 通過且 <code>CheckIsAdmin()</code> 為真才渲染 <code>&lt;DashboardView/&gt;</code>，否則顯示「您沒有權限檢視統計儀表板。」。<code>DashboardView</code>（含 <code>.cs</code>／<code>.css</code>）與 <code>DashboardService</code> 完全未動。</li><li><strong><code>Menu.json</code></strong>：在「系統管理 &gt; 系統監控與日誌」(id 502) 的 <code>subMenu</code> 最前面新增 <code>{ id:513, name:"統計儀表板", icon:"dashboard", url:"/dashboard", adminOnly:true }</code>。因整條路徑皆 <code>adminOnly</code>，依既有豁免規則<strong>只改 <code>Menu.json</code> 與圖示允許清單</strong>，不動 <code>MagicObjectHelper</code>／<code>RolePermissionService</code>。</li><li><strong><code>MenuIconTests.AllowedLeafIcons</code></strong>：新增 <code>"dashboard"</code>（classic Material Icon）。</li><li><strong>移除問答頁「← 返回」按鈕</strong>（<code>Components/Views/KnowledgeBase/KnowledgeBaseChatView.razor</code> 與 <code>.razor.cs</code>）：原本導回 <code>/App</code> 儀表板首頁；現在 <code>/App</code> 本身即問答頁，該按鈕已無意義（在 <code>/App</code> 上等於原地重載）。連同已無人引用的 <code>GoBack()</code> 方法一併移除。影響 <code>/App</code> 與 <code>/knowledge-base-chat</code> 兩處（同一元件），行為一致。</li><li><code>appsettings.json</code>：SystemVersion 1.0.80 → 1.0.81。</li><li>文件同步：<code>docs/prd/首頁與導覽-prd.md</code>（用途、目標與範圍、入口表、畫面與操作、LLM/RAG、驗收、相關程式、現況校正）、<code>docs/architecture/開發慣例與限制速查.md</code>（adminOnly 診斷頁清單補 <code>/dashboard</code>）、本 changelog 與索引。</li></ol>
+<h2 id="刻意不變更" class="t3">刻意不變更</h2>
+<ul><li><strong><code>MagicObjectHelper</code>／<code>RolePermissionService</code>／<code>MenuPermissionAlignmentTests</code>／<code>PermissionConstantCanaryTests</code></strong>：新增項為 adminOnly 葉節點，豁免位置索引權限槽，動了反而會打亂索引。</li><li><strong><code>DashboardView</code> 內容與 <code>DashboardService</code></strong>：內容元件與聚合服務沿用，僅換掛載位置並加頁面層管理員守衛。</li><li><strong>登入落地導向</strong>（<code>Login.razor.cs</code>／<code>ExternalAuthController.cs</code>／<code>SplashView.razor.cs</code>）：本就導向 <code>/knowledge-base-chat</code>，不受影響。</li><li>頂層選單順序與數量（8 組）不變；「首頁」仍指向 <code>/App</code>。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ul><li><code>dotnet build</code> 成功、<code>dotnet test</code> 758 全綠（含 <code>MenuIconTests</code>、<code>MenuPermissionAlignmentTests</code>、<code>SidebarMenuServiceTests</code>）。</li><li>手動：選單「首頁」→ <code>/App</code> 顯示 AI 知識問答、無「← 返回」；「知識庫 &gt; AI 知識問答」→ <code>/knowledge-base-chat</code> 同樣正常；管理員可由「系統管理 &gt; 系統監控與日誌 &gt; 統計儀表板」進入 <code>/dashboard</code>；非管理員看不到該項、直接開 <code>/dashboard</code> 被頁面拒絕。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 確認文件為 UTF-8 含 BOM、無亂碼。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#變更">變更</a><a class="l2" href="#刻意不變更">刻意不變更</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-27-儀表板移入系統管理與App改為AI問答.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

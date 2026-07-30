@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>腳手架補強實作路線圖 TODO｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 已歸檔</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">已歸檔</div><h1>腳手架補強實作路線圖 TODO</h1></header><div class="docwrap"><main><blockquote><h2 id="已歸檔10642026-07-25" class="t1">⚠️ 已歸檔（1.0.64，2026-07-25）</h2>
+<p><strong>本文件不代表現行需求或現況</strong>，僅保留供回溯當時的決策脈絡。</p>
+<ul><li><strong>歸檔原因</strong>：16 項全部完成（<code>api/v1</code> 路由、CORS、RateLimiter、HealthChecks 皆已落地）。</li><li><strong>改看</strong>：同上，另見 <code>planning/09-開發歷程總覽與未來建議.md</code></li></ul>
+<p>歸檔清單與說明見 <a href="../../docs/archive/readme-98f9f271.html">archive/README.md</a>。</p></blockquote>
+<hr>
+<h1 id="腳手架補強實作路線圖-todo">腳手架補強實作路線圖 TODO</h1>
+<h2 id="第一階段api-與-jwt-基礎" class="t2">第一階段：API 與 JWT 基礎</h2>
+<ul class="check"><li><span class="box">☑</span>目標說明：先補齊日後所有系統都會需要的 API contract、JWT、Swagger、測試與 CI。</li><li><span class="box">☑</span>現況盤點：第一階段已完成，並保留既有 API 路由相容性。</li><li><span class="box">☑</span>實作待辦：已新增 Auth DTO、JWT service、AuthController、ApiExceptionFilter、ApiValidationFilter 結構化錯誤、測試專案與 CI。</li><li><span class="box">☑</span>驗收標準：build 成功、測試通過、弱點掃描未列出風險套件。</li><li><span class="box">☑</span>相關檔案：<code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Auth</code>、<code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Controllers</code>、<code>src/KnowledgeExtraction/KnowledgeExtraction.Tests</code>、<code>.github/workflows/dotnet-ci.yml</code>。</li><li><span class="box">☑</span>備註風險：目前 refresh token stateless，不支援單顆 token 撤銷；限制已寫入正式部署安全清單。</li></ul>
+<h2 id="第二階段品質收斂" class="t3">第二階段：品質收斂</h2>
+<ul class="check"><li><span class="box">☑</span>修正 50 個 build warnings 中的高價值項目，目前剩 0 個 compiler/analyzer warning，已記錄於文件。</li><li><span class="box">☑</span>拆分 <code>Program.cs</code>，已先抽出 localization/application services 與 middleware/static files extension；database/seed 深度拆分保留為後續低風險重構。</li><li><span class="box">☑</span>加入 Web API integration tests，覆蓋 401、login、refresh、me、Project CRUD Bearer 授權與 validation 400；solution 已修正為會實際建置並執行測試專案。</li><li><span class="box">☑</span>補正式部署設定範本，說明 JWT key、資料庫路徑、NLog 路徑、Swagger UI 暴露策略。文件：<code>docs/operations/正式部署與安全檢查清單.md</code>。</li></ul>
+<h2 id="第三階段腳手架產品化" class="t4">第三階段：腳手架產品化</h2>
+<ul class="check"><li><span class="box">☑</span>建立新專案改名與替換清單。文件：<code>docs/guides/腳手架新專案啟動流程.md</code>。</li><li><span class="box">☑</span>建立 SQL Server 切換與 migration 操作文件。文件：<code>docs/guides/SQL Server 切換說明.md</code>。</li><li><span class="box">☑</span>建立預設帳號初始化設定流程：新增 <code>BootstrapSettings</code> 支援覆寫 support 帳號與密碼；強制改密碼功能化仍可依正式需求另開任務。</li><li><span class="box">☑</span>建立 API versioning 策略，但不破壞目前 <code>/api/...</code>。文件：<code>docs/architecture/API Versioning 策略.md</code>。</li><li><span class="box">☑</span>建立新專案初始化與 CRUD 模組骨架腳本：<code>scripts/New-StarterProject.ps1</code>、<code>scripts/New-CrudModule.ps1</code>。</li><li><span class="box">☑</span>補齊 Production 啟動安全檢查、health checks、CORS、rate limiting 與 <code>/api/v1/...</code> 平行路由。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（已歸檔）</h3><ul><li><a href="../../docs/archive/01-todo-7b613bd7.html">專案總覽與定位 TODO</a></li><li><a href="../../docs/archive/02-todo-3f55bf3e.html">現有架構盤點 TODO</a></li><li><a href="../../docs/archive/03-todo-4317ce18.html">缺口與風險清單 TODO</a></li><li><a href="../../docs/archive/04-webapi-jwt-apiresult-todo-63b775bd.html">WebAPI JWT ApiResult 設計 TODO</a></li><li><a href="../../docs/archive/06-todo-55e99cf3.html">開發與文件維護規範 TODO</a></li><li><a href="../../docs/archive/10-todo-2aadf980.html">知識頁審核與問答疑問釐清及需求（階段三起點）</a></li><li><a href="../../docs/archive/11-68d22fc1.html">系統功能與文件同步審計</a></li><li><a href="../../docs/archive/rag-ef495a4d.html">RAG 補強修正測試指南</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#第一階段api-與-jwt-基礎">第一階段：API 與 JWT 基礎</a><a class="l2" href="#第二階段品質收斂">第二階段：品質收斂</a><a class="l2" href="#第三階段腳手架產品化">第三階段：腳手架產品化</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/archive/05-腳手架補強實作路線圖-TODO.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

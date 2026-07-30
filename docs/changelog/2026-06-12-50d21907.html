@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗品質門檻鎖定（0.2.68）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>清洗品質門檻鎖定（0.2.68）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-12</li><li>版本：0.2.67 → 0.2.68（純文件變更，依專案慣例版本 +1）</li><li>對應路線圖：<a href="../../docs/planning/07-todo-f1c7d6cc.html">資料清洗開發代辦清單 第四階段</a>（收尾，第四階段完成）</li></ul>
+<h2 id="一做了什麼" class="t1">一、做了什麼</h2>
+<p>第四階段（品質保證）的 QA-2/3/4 機制早已實作，但<strong>可接受的門檻數值一直未正式決議與記錄</strong>； <code>strategy/08</code>（L141、L189）明確把這些數字延遲到 <code>strategy/05</code> 鎖定。本次補上該決議：</p>
+<ul><li>新增 <a href="../../docs/strategy/open-questions-risks.html">strategy/05 §五 資料清洗品質門檻鎖定</a>（文件版本 1.0 → 1.1）。</li><li>勾選 <a href="../../docs/planning/07-todo-f1c7d6cc.html">planning/07</a> 第四階段最後兩項（門檻鎖定、驗收），第四階段標為完成。</li></ul>
+<h2 id="二鎖定的門檻推薦組合規優先" class="t2">二、鎖定的門檻（推薦組・合規優先）</h2>
+<div class="tw"><table><thead><tr><th>指標</th><th>鎖定門檻</th><th>性質</th></tr></thead><tbody><tr><td>信心自動門檻 ConfidenceThreshold</td><td>0.70</td><td>強制（已套用 <code>appsettings</code>）</td></tr><tr><td>校準目標精準度 targetPrecision</td><td>0.90</td><td>校準建議用</td></tr><tr><td>遮罩召回率 MaskRecall</td><td>≥ 0.98（理想 1.0）</td><td>合規關鍵（漏遮＝外洩）</td></tr><tr><td>必留詞保留 MustKeepOk</td><td>100%</td><td>二元（必過）</td></tr><tr><td>分類 F1</td><td>≥ 0.70</td><td>參考</td></tr><tr><td>摘要關鍵實體涵蓋率 SummaryCoverage</td><td>≥ 0.60</td><td>參考（啟發式）</td></tr></tbody></table></div>
+<p><strong>依據</strong>：遮罩漏遮屬敏感資訊外洩（合規重大），故召回率優先；分類/摘要錯誤危害較低採較寬參考門檻，最終以人工審核關卡（QA-3）兜底。數值對齊程式常數（<code>CleaningEvaluator</code> / <code>SystemSettings.Cleaning.ConfidenceThreshold</code>）。</p>
+<h2 id="三量測-vs-硬閘誠實標註" class="t3">三、量測 vs 硬閘（誠實標註）</h2>
+<ul><li><strong>強制</strong>：信心自動門檻 0.70；遮罩步驟失敗即整筆失敗、必留詞缺失視為失敗。</li><li><strong>量測（非硬閘）</strong>：MaskRecall、ClassifyF1、SummaryCoverage 僅於黃金評測集量化，<strong>不會自動阻擋單筆清洗</strong>；低於門檻的把關＝黃金評測回歸 + 人工審核關卡（QA-3）。</li><li><strong>未來另案</strong>：把「遮罩召回率低於門檻強制轉待審核」做成單筆硬閘（本次不做）。</li></ul>
+<h2 id="四回歸用法" class="t4">四、回歸用法</h2>
+<p>於應用內「黃金評測」頁載入/評測樣本，檢視彙總指標與「建議門檻 vs 現行門檻（0.70）」；任一指標跌破上表門檻或建議門檻顯著背離即視為回歸 → 調整 prompt 或門檻。套用新門檻＝改 <code>appsettings.json</code> 的 <code>SystemSettings.Cleaning.ConfidenceThreshold</code> 後重啟。</p>
+<h2 id="備註" class="t5">備註</h2>
+<ul><li>純文件變更，未改程式；端到端真實樣本品質驗證屬第五階段 PoC。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一做了什麼">一、做了什麼</a><a class="l2" href="#二鎖定的門檻推薦組合規優先">二、鎖定的門檻（推薦組・合規優先）</a><a class="l2" href="#三量測-vs-硬閘誠實標註">三、量測 vs 硬閘（誠實標註）</a><a class="l2" href="#四回歸用法">四、回歸用法</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-12-清洗門檻鎖定.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

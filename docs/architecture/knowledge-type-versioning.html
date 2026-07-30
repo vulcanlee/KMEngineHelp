@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識型態抽象 × 版本化 × 時效性（設計文件）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 系統架構</p><header class="hero"><div class="kicker">系統架構</div><h1>知識型態抽象 × 版本化 × 時效性（設計文件）</h1><p class="sub">把 策略 13 §八/§十二/§十三 的「合規旗艦＋可組態平台底座」近期主軸，落為可決策、可施工的架構設計提案</p></header><div class="docwrap"><main><ul><li>文件用途：把 <a href="../../docs/strategy/market-analysis.html">策略 13 §八/§十二/§十三</a> 的「合規旗艦＋可組態平台底座」近期主軸，落為可決策、可施工的架構設計提案</li><li>主要讀者：架構師、開發、維運、導入顧問</li><li>文件版本：1.0</li><li>建立日期：2026/07/01</li><li>對應版本：設計提案（尚未實作；施工時各項 Entity/欄位/DbSet 名稱以現行碼為準核對）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>承接 <a href="../../docs/strategy/market-analysis.html">策略 13</a> 的近期路線（0–3 個月）；架構原則見 <a href="../../docs/architecture/dev-conventions.html">開發慣例與限制速查</a>、資料模型見 <a href="../../docs/architecture/data-model.html">資料模型與資料庫</a>、RAG 落地見 <a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a>。本文只設計「知識型態抽象、版本化/生效狀態、時效性（最新來源保證）」三塊；合規比對應用與安全強化另立文件。</p></blockquote>
+<hr>
+<h2 id="一背景與目標" class="t1">一、背景與目標</h2>
+<p>現況系統是「<strong>匯入導向、扁平切塊、快照式</strong>」的知識庫。策略 13 指出：合規（旗艦）與客戶 A（可迭代標準）都需要「<strong>可版本、有生效狀態、永遠用最新且經核可來源</strong>」的知識，而這無法靠現行快照式索引達成。</p>
+<p><strong>目標</strong>（本設計要達成的可驗證結果）：</p>
+<ol><li>用一層「<strong>知識型態（Knowledge Type）</strong>」設定，讓同一套閉環支援不同應用型態（合規標準、規格、一般問答），不為每客戶重寫。</li><li>讓知識條目可<strong>迭代改版並保留歷史</strong>，明確標示「現行版／生效日／被誰取代」。</li><li>讓檢索<strong>只取現行（或指定時點）且經核可的版本</strong>；來源更新後索引能<strong>增量刷新</strong>、不回舊版或草稿。</li></ol>
+<p><strong>非目標（YAGNI，本次不做）</strong>：GraphRAG/關聯邊（屬客戶 B 中期）、合規自動比對 agent（中期）、text-to-SQL（長期選配）、資料連接器（長期）。這些在策略 13 已排序，勿在此階段一起做。</p>
+<blockquote><p>📌 <strong>追記</strong>：其中 <strong>GraphRAG／關聯邊已於 1.0.83～1.0.88 另案實作</strong>（見 <a href="../../docs/strategy/graph-rag-blueprint.html">Graph RAG 導入分析與實作藍圖</a>），本設計文件的範圍未因此改變；其餘三項仍未實作。</p></blockquote>
+<hr>
+<h2 id="二知識型態knowledge-type抽象" class="t2">二、知識型態（Knowledge Type）抽象</h2>
+<h3 id="21-概念">2.1 概念</h3>
+<p>把目前寫死在管線裡的行為參數化。一個知識型態 = 一組設定，掛在「集合／知識來源」上，決定其閉環行為：</p>
+<div class="tw"><table><thead><tr><th>設定維度</th><th>值域（本階段）</th><th>對應現有機制</th></tr></thead><tbody><tr><td>匯入模式</td><td>檔案匯入 / 直接編修撰寫</td><td>既有匯入管線 + 內容線上編修</td></tr><tr><td>結構層級</td><td>扁平 chunk / 條款級(clause)</td><td>既有 chunk；條款級為新增</td></tr><tr><td>生命週期</td><td>快照 / 版本化＋生效狀態＋審核</td><td>既有審核流程 + 本文版本化</td></tr><tr><td>檢索策略</td><td>混合檢索 / 加 metadata filter 取現行版</td><td>既有混合檢索 + 本文 filter</td></tr><tr><td>清洗/蒸餾設定</td><td>沿用 <code>CleaningProfile</code></td><td>既有</td></tr><tr><td>提示詞</td><td>沿用四層 <code>LlmPromptResolver</code></td><td>既有</td></tr></tbody></table></div>
+<blockquote><p><strong>設計原則</strong>：知識型態是既有「設定驅動、不改碼」慣例（<code>CleaningProfile</code>、四層提示詞、供應商可切換）的自然延伸，而非新框架。多數行為差異先用<strong>設定</strong>表達，只有結構層級與生命週期需要新增資料模型支援。</p></blockquote>
+<h3 id="22-資料模型">2.2 資料模型</h3>
+<p>新增 <code>KnowledgeType</code>（知識型態定義）實體：型態名稱、匯入模式、結構層級、生命週期、檢索策略、預設 <code>CleaningProfileId</code>、<code>IsEnabled</code>。 <code>KnowledgeSource</code>（與/或新的 <code>Collection</code>，見 §五）新增 <code>KnowledgeTypeId</code> 外鍵，繼承其型態設定。</p>
+<blockquote><p>施工核對點：確認掛載點放在 <code>KnowledgeSource</code>（現有）或新的 <code>Collection</code>；預設型態＝「一般問答＋快照」，確保既有資料<strong>零行為變更</strong>（向後相容）。</p></blockquote>
+<hr>
+<h2 id="三版本化與生效狀態" class="t3">三、版本化與生效狀態</h2>
+<h3 id="31-狀態機">3.1 狀態機</h3>
+<p>對「版本化」型態的知識條目（現行以 <code>WikiPage</code> 承載，或新增「標準條目」實體），採明確狀態機：</p>
+<pre><code>草稿(draft) → 審查中(in-review) → 已核可(approved) → 現行(current)
+                                            │
+                                            └→（新版核可並生效）→ 舊版轉 已汰換(superseded)
+                                  審查退回 → 退回(rejected) → 回草稿</code></pre>
+<ul><li>同一「概念/條款」可有多個版本；<strong>至多一個</strong> <code>current</code>。</li><li>沿用既有 <code>WikiPage</code> 審核關卡（待審核/已完成/已退回）作為 draft→approved 段，<strong>擴充</strong>出 current/superseded 與版本鏈。</li></ul>
+<h3 id="32-資料模型改須雙-migration">3.2 資料模型（改，須雙 migration）</h3>
+<p>在版本化條目實體上新增欄位（名稱待核對）：</p>
+<ul><li><code>Version</code>（版次，整數或語意版號）</li><li><code>EffectiveStatus</code>（draft/in-review/approved/current/superseded/rejected）</li><li><code>EffectiveDate</code>（生效日）、<code>ExpiryDate</code>（可空，被取代時填）</li><li><code>SupersededByPageId</code>（指向新版）、<code>PreviousVersionPageId</code>（版本鏈）</li><li><code>BaselineId</code>（可空，凍結里程碑用；基線為選配，先留欄位）</li><li><code>Owner</code>（維護負責人）、<code>LastReviewedAt</code>（最後確認為現行的時間）</li><li><code>ChangeSummary</code>（本版變更摘要）</li></ul>
+<blockquote><p><strong>標籤欄位</strong>（若此實體含 Categories/Teams）續走 <code>TagStringHelper</code> 分隔字串＋精確比對；AutoMapper 以 <code>ForMember</code> 雙向。<strong>權控標籤（Teams）繼承來源</strong>，不因改版而遺失。</p></blockquote>
+<h3 id="33-索引與版本的關係">3.3 索引與版本的關係</h3>
+<p><code>VectorEmbedding</code> 已有 <code>WikiPageId</code>/<code>KnowledgeSourceId</code>/<code>ContentHash</code>。版本化後：</p>
+<ul><li>每個 chunk 記錄其<strong>來源版本</strong>（新增欄位或以 WikiPageId 對應到帶版本的條目）。</li><li>舊版被取代時，其 chunk <strong>標記為非現行</strong>（見 §四失效），不刪除（保留 as-of 查詢與稽核能力）。</li></ul>
+<hr>
+<h2 id="四時效性與最新最正確來源保證" class="t4">四、時效性與「最新最正確來源」保證</h2>
+<p>回應「系統運行後原始資料不斷更新，如何確保知識庫用最新且經核可來源」。三個機制：</p>
+<h3 id="41-檢索時-metadata-filter-取現行版">4.1 檢索時 metadata filter 取現行版</h3>
+<p><code>RetrievalService</code> / <code>DualDbVectorStore</code> 的查詢，在權控過濾之外<strong>再加生效狀態過濾</strong>：預設只取 <code>current</code> 且 <code>approved</code> 的內容，排除 draft/superseded；支援可選 as-of 時點查詢（合規需引用「當時有效版本」）。</p>
+<h3 id="42-事件觸發增量重索引--失效標記">4.2 事件觸發增量重索引 + 失效標記</h3>
+<p>沿用既有<strong>背景佇列 + Processor</strong> 模式（如 <code>EmbeddingIndexProcessor</code> / <code>ITranscriptionQueue</code> 同構）：</p>
+<ul><li>來源條目變更（改版/核可/汰換）時入列「重索引」事件。</li><li>只對受影響條目的 chunk 以 <code>ContentHash</code> 做增量重嵌（既有已支援增量），並<strong>失效舊版 chunk 的現行標記</strong>。</li><li>好處：避免全量重建；staleness gap 從「批次週期」縮短到「事件秒級」。</li></ul>
+<h3 id="43-四維新鮮度信任評分避免分數高但庫過時">4.3 四維新鮮度/信任評分（避免「分數高但庫過時」）</h3>
+<p>在條目 metadata 記錄並於管理面呈現：Freshness（<code>LastReviewedAt</code>）、Ownership（<code>Owner</code> 是否存在）、Lineage（可溯回來源）、Canonical alignment（是否 current）。缺 owner／久未複查者於<strong>知識缺口/評測儀表板</strong>標示（該儀表板為策略 13 近期項）。</p>
+<hr>
+<h2 id="五顯式集合collection" class="t5">五、顯式集合（Collection）</h2>
+<p>現況靠 <code>Teams</code>/<code>Categories</code>/<code>KnowledgeSourceId</code> 隱式分組，多應用邊界不清。新增 <code>Collection</code>（知識庫/集合）實體作為「一個知識應用」的邊界：掛 <code>KnowledgeTypeId</code>、預設 Teams、名稱/描述。<code>KnowledgeSource</code> 歸屬某 Collection。</p>
+<blockquote><p>範圍控制：本階段 Collection 僅作<strong>分組與型態掛載</strong>，不引入跨 Collection 聯邦（federated，屬長期）。</p></blockquote>
+<hr>
+<h2 id="六資料模型變更清單與雙-migration" class="t6">六、資料模型變更清單與雙 migration</h2>
+<div class="tw"><table><thead><tr><th>變更</th><th>內容</th><th>Migration</th></tr></thead><tbody><tr><td>新增 <code>KnowledgeType</code></td><td>型態定義</td><td>Sqlite + SqlServer 各一</td></tr><tr><td>新增 <code>Collection</code></td><td>應用邊界</td><td>Sqlite + SqlServer 各一</td></tr><tr><td>版本化欄位</td><td>條目實體加版本/生效狀態/owner 等</td><td>Sqlite + SqlServer 各一</td></tr><tr><td><code>VectorEmbedding</code> 加來源版本/現行標記</td><td>支援取現行版與 as-of</td><td>Sqlite + SqlServer 各一</td></tr></tbody></table></div>
+<blockquote><p><strong>鐵則</strong>：每項模型變更在 <code>AccessDatas</code>(Sqlite) 與 <code>AccessDatas.SqlServerMigrations</code>(SQL Server) <strong>各產一份 migration</strong>（<a href="../../docs/architecture/dev-conventions.html">開發慣例</a>）；Update/Delete 前 <code>CleanTrackingHelper.Clean&lt;T&gt;()</code>；編輯前 <code>Clone()</code>；注意 <code>DbSet MyTas</code> ≠ Entity <code>MyTask</code> 之類命名不要誤動。</p></blockquote>
+<hr>
+<h2 id="七新頁面與選單三處同步" class="t7">七、新頁面與選單三處同步</h2>
+<div class="tw"><table><thead><tr><th>新頁面</th><th>用途</th></tr></thead><tbody><tr><td>知識型態管理</td><td>CRUD 型態設定（沿用既有 CRUD 腳手架）</td></tr><tr><td>集合(Collection)管理</td><td>CRUD 集合、掛型態、設預設 Teams</td></tr><tr><td>標準/條目版本頁</td><td>版本 diff、生效狀態切換、審核、版本鏈檢視</td></tr></tbody></table></div>
+<blockquote><p><strong>鐵則</strong>：每個新頁面權限<strong>三處同步</strong>——<code>MagicObjectHelper</code>（權限常數）＋<code>RolePermissionService</code>（權限樹）＋<code>Menu.json</code>（選單），以位置索引對齊；檢視用建構式注入 Service、<code>[Inject]</code> 注入框架類；AntDesign 多選用 <code>SelectMode.Multiple</code>＋<code>Values</code>/<code>OnSelectedItemsChanged</code>。</p></blockquote>
+<hr>
+<h2 id="八對既有不變量的衝擊檢查表" class="t8">八、對既有不變量的衝擊檢查表</h2>
+<ul><li>✅ <strong>團隊權控</strong>：新檢索/查詢（含生效狀態過濾）一律套 <code>IRecordAccessScopeProvider</code>＋<code>TagStringHelper.BuildTeamAccessPredicate</code>，於<strong>檢索層</strong>過濾；生效狀態過濾疊加在權控之上，不取代。以 <code>RagEvalSample</code> 越權洩漏測試驗證。</li><li>✅ <strong>標籤</strong>：Categories/Teams 續走 <code>TagStringHelper</code>；版本繼承來源 Teams。</li><li>✅ <strong>雙 migration</strong>：見 §六。</li><li>✅ <strong>選單三處同步</strong>：見 §七。</li><li>✅ <strong>向後相容</strong>：預設型態＝一般問答＋快照，既有資料行為不變。</li><li>⚠️ <strong>向量庫規模化</strong>：本設計沿用現行 <code>byte[]</code>＋應用層餘弦即可運作；但生效狀態過濾增加查詢條件，規模成長後仍建議依策略 13 升級 pgvector/Qdrant（獨立項，非本設計前置）。</li></ul>
+<hr>
+<h2 id="九分階段落地對齊策略-13-近期-03-個月" class="t1">九、分階段落地（對齊策略 13 近期 0–3 個月）</h2>
+<ol><li><strong>知識型態 + 集合（骨架）</strong> → 驗證：可建立型態/集合、既有資料掛預設型態零行為變更。</li><li><strong>版本化欄位 + 狀態機 + 版本頁</strong> → 驗證：同一條目可多版本、至多一 current、可改版保留歷史與變更摘要、審核可核可/退回。</li><li><strong>檢索 metadata filter 取現行版（含 as-of）</strong> → 驗證：查詢預設只回 current+approved；as-of 可回指定時點版；越權不外洩。</li><li><strong>事件觸發增量重索引 + 失效標記</strong> → 驗證：條目改版/核可後秒級刷新，舊版 chunk 不再命中為現行。</li><li><strong>四維新鮮度呈現</strong> → 驗證：缺 owner／久未複查條目於儀表板標示。</li></ol>
+<blockquote><p>每次可建置產出 appsettings 版本號 +1（純設計文件本身不升版）。</p></blockquote>
+<hr>
+<h2 id="十驗收標準端到端" class="t2">十、驗收標準（端到端）</h2>
+<ul><li>建一個「合規標準」型態的集合，逐條匯入標準；改版後：查詢<strong>只回現行版</strong>、能查「上一版是什麼/改了什麼」、舊版標為 superseded 且不進 LLM context。</li><li>非授權團隊對該集合的越權內容在檢索層即被擋（測試驗證）。</li><li>來源條目核可後，索引在事件觸發下<strong>增量刷新</strong>（非全量），且答案引用的是最新經核可版本。</li></ul>
+<hr>
+<h2 id="十一開放問題與風險" class="t3">十一、開放問題與風險</h2>
+<ul><li><strong>版本化承載體</strong>：擴充 <code>WikiPage</code> vs 新增「標準條目」實體——建議先擴充 <code>WikiPage</code>（複用既有審核/蒸餾/繼承 Teams），條款級結構若不足再新增；施工前定案。</li><li><strong>基線(Baseline)</strong>：先留 <code>BaselineId</code> 欄位、暫不做完整基線凍結 UI（YAGNI），待合規客戶確認需求。</li><li><strong>as-of 查詢成本</strong>：保留舊版 chunk 會增加索引量；規模成長與向量庫升級一併評估。</li><li><strong>與客戶 JTBD 對齊</strong>：版本化/生效狀態的具體欄位（如是否需 EffectiveDate/ExpiryDate）應向合規客戶驗證後定稿，避免過度設計（呼應策略 13 §十五）。</li><li><strong>合規比對與安全強化</strong>：屬後續文件；本設計的版本化/現行版過濾是其前置。</li></ul>
+<hr>
+<h2 id="十二施工定案與落地0312--0314-完整實作" class="t4">十二、施工定案與落地（0.3.12 → 0.3.14 完整實作）</h2>
+<blockquote><p><strong>更新（0.3.14）</strong>：VER-1 完整版本狀態機與 VER-2 失效標記/as-of <strong>已完整實作</strong>（承載體＝擴充 <code>WikiPage</code>）。以下保留原施工定案脈絡，並於各節標注實作結果。</p></blockquote>
+<h3 id="ver-1已完整實作-0314承載體擴充-wikipage">VER-1（已完整實作 0.3.14；承載體＝擴充 WikiPage）</h3>
+<ul><li><strong>承載體定案：擴充 <code>WikiPage</code></strong>（複用既有審核關卡 <code>WikiPageService.ApproveAsync</code>/<code>RejectAsync</code>、Teams 繼承來源、<code>ConfidenceScore</code>、線上編修、蒸餾多頁生成）。條款級結構若不足，再另立「標準條目」實體。</li><li><strong>欄位設計（施工時雙 migration）</strong>：<code>Version</code>、<code>EffectiveStatus</code>(draft/in-review/approved/current/superseded/rejected)、<code>EffectiveDate</code>、<code>ExpiryDate?</code>、<code>SupersededByPageId?</code>、<code>PreviousVersionPageId?</code>、<code>Owner</code>、<code>LastReviewedAt</code>、<code>ChangeSummary</code>；<code>BaselineId?</code> 先留欄位不做 UI。<strong><code>EffectiveDate</code>／<code>ExpiryDate</code> 等是否納入，應向合規客戶驗證後定稿</strong>（避免過度設計，遵 §十一）。</li><li><strong>關鍵衝突（實作時務必處理）</strong>：<code>DistillationProcessor</code> 現行「重蒸餾＝刪除舊 Wiki＋舊向量、全新重建」（<code>DeleteExistingPagesAsync</code>）與版本化的「<strong>保留舊版→標 <code>superseded</code>→建版本鏈</strong>」語意相反，須改寫取代邏輯；<code>VectorEmbedding</code> 需加「來源版本／現行標記」欄位，供 VER-2 的失效標記與 as-of 查詢。</li><li><strong>實作結果（0.3.14）</strong>：</li><li><code>WikiPage</code> 已加 <code>Version</code>/<code>EffectiveStatus</code>(current/superseded/null)/<code>EffectiveDate</code>/<code>ExpiryDate</code>/<code>SupersededByPageId</code>/<code>PreviousVersionPageId</code>/<code>Owner</code>/<code>LastReviewedAt</code>/<code>ChangeSummary</code>（<code>BaselineId</code> 依 YAGNI 未加）。<strong>概念鍵＝(KnowledgeSourceId, Title)，每概念至多一個 current。</strong></li><li><code>DistillationProcessor</code> 重蒸餾<strong>不再刪除舊版</strong>：自動核可的新版即成 current、舊 current→superseded＋版本鏈；<code>WikiPageService.ApproveAsync</code> 核可時做同樣 current↔superseded 轉移。</li><li>治理欄位（Owner/ChangeSummary）於蒸餾頁編輯；<code>/knowledge-wiki</code> 顯示版本歷史。</li><li>雙 migration <code>AddVersioningFields</code>（含既有已完成頁 backfill 為 current）。</li></ul>
+<h3 id="ver-2已完整實作-0312-mvp--0314-失效as-of">VER-2（已完整實作 0.3.12 MVP + 0.3.14 失效/as-of）</h3>
+<ul><li><strong>事件觸發自動重索引（0.3.12）</strong>：Wiki 頁<strong>線上編修</strong>（<code>WikiPageService.UpdateContentAsync</code>，僅已核可頁）與<strong>核可</strong>（<code>ApproveAsync</code>）後自動排入該來源重索引（<code>TryEnqueueSourceReindexAsync</code> → <code>IEmbeddingIndexQueue</code>），沿用 <code>EmbeddingIndexProcessor</code> 增量冪等引擎。</li><li><strong>失效標記 + 只取現行版 + as-of（0.3.14）</strong>：</li><li><code>VectorEmbedding</code> 加 <code>IsCurrent</code>/<code>EffectiveDate</code>/<code>ExpiryDate</code>；汰換舊版時其向量 <code>IsCurrent=false</code>（<code>ExecuteUpdate</code>）、<strong>保留不刪</strong>（供 as-of/稽核）。</li><li><code>EmbeddingIndexProcessor</code> 只索引 current 頁、diff 只作用於 <code>IsCurrent=true</code>（superseded 向量不被當孤兒刪除）。</li><li>檢索（<code>DualDbVectorStore</code>/<code>RetrievalService</code>）以 <code>EffectiveVersionFilter</code> 疊加在權控之上：<strong>預設只回現行版</strong>；<code>RetrievalQuery.AsOf</code> 取時點現行 Wiki 版本（Cleaned 恆納入）。<code>/rag-diagnostics</code> 試檢索提供 as-of 日期。</li></ul>
+<hr>
+<blockquote><p>本文為設計提案，經決策後可展開為 <code>docs/prd/</code> 功能 PRD 與實作。相關：<a href="../../docs/strategy/market-analysis.html">策略 13</a>、<a href="../../docs/prd/prd-5c4f7f11.html">知識頁審核 PRD</a>、<a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a>。</p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（系統架構）</h3><ul><li><a href="../../docs/architecture/two-stage-threshold.html">AI 知識問答：兩段式相似度門檻與查無依據攔截（設計文件）</a></li><li><a href="../../docs/architecture/api-versioning.html">API Versioning 策略</a></li><li><a href="../../docs/architecture/dto-boundaries.html">DTO 與模型邊界規範</a></li><li><a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a></li><li><a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a></li><li><a href="../../docs/architecture/rag-rerank-analysis.html">RAG 是否導入 Re-rank（二階重排）分析與建議</a></li><li><a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例</a></li><li><a href="../../docs/architecture/wiki-vs-cleaned.html">Wiki 與 Cleaned 的角色差異</a></li><li><a href="../../docs/architecture/architecture-overview.html">架構總覽</a></li><li><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a></li><li><a href="../../docs/architecture/data-model.html">資料模型與資料庫</a></li><li><a href="../../docs/architecture/data-lifecycle.html">資料生命週期與維護（更新、刪除、級聯與孤兒）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景與目標">一、背景與目標</a><a class="l2" href="#二知識型態knowledge-type抽象">二、知識型態（Knowledge Type）抽象</a><a class="l3" href="#21-概念">2.1 概念</a><a class="l3" href="#22-資料模型">2.2 資料模型</a><a class="l2" href="#三版本化與生效狀態">三、版本化與生效狀態</a><a class="l3" href="#31-狀態機">3.1 狀態機</a><a class="l3" href="#32-資料模型改須雙-migration">3.2 資料模型（改，須雙 migration）</a><a class="l3" href="#33-索引與版本的關係">3.3 索引與版本的關係</a><a class="l2" href="#四時效性與最新最正確來源保證">四、時效性與「最新最正確來源」保證</a><a class="l3" href="#41-檢索時-metadata-filter-取現行版">4.1 檢索時 metadata filter 取現行版</a><a class="l3" href="#42-事件觸發增量重索引--失效標記">4.2 事件觸發增量重索引 + 失效標記</a><a class="l3" href="#43-四維新鮮度信任評分避免分數高但庫過時">4.3 四維新鮮度/信任評分（避免「分數高但庫過時」）</a><a class="l2" href="#五顯式集合collection">五、顯式集合（Collection）</a><a class="l2" href="#六資料模型變更清單與雙-migration">六、資料模型變更清單與雙 migration</a><a class="l2" href="#七新頁面與選單三處同步">七、新頁面與選單三處同步</a><a class="l2" href="#八對既有不變量的衝擊檢查表">八、對既有不變量的衝擊檢查表</a><a class="l2" href="#九分階段落地對齊策略-13-近期-03-個月">九、分階段落地（對齊策略 13 近期 0–3 個月）</a><a class="l2" href="#十驗收標準端到端">十、驗收標準（端到端）</a><a class="l2" href="#十一開放問題與風險">十一、開放問題與風險</a><a class="l2" href="#十二施工定案與落地0312--0314-完整實作">十二、施工定案與落地（0.3.12 → 0.3.14 完整實作）</a><a class="l3" href="#ver-1已完整實作-0314承載體擴充-wikipage">VER-1（已完整實作 0.3.14；承載體＝擴充 WikiPage）</a><a class="l3" href="#ver-2已完整實作-0312-mvp--0314-失效as-of">VER-2（已完整實作 0.3.12 MVP + 0.3.14 失效/as-of）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/architecture/2026-07-01-知識型態抽象與版本化時效性-design.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

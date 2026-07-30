@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph RAG P3：社群摘要 + 全域問答（1.0.84 → 1.0.85）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Graph RAG P3：社群摘要 + 全域問答（1.0.84 → 1.0.85）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-27</li><li>版本：1.0.84 → 1.0.85</li><li>類型：新增功能（Graph RAG 第三階段，系列完結）</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>延續 P1（wiki-link 邊 + 圖檢索融合）、P2（LLM 三元組抽取 + 人工審核 + 接進檢索）。P3 補齊「全域性問答」：把已核可的知識圖譜分群成社群、對每群產生 LLM 摘要，並在 AI 知識問答加「全域」查詢模式，以 <strong>map-reduce 社群摘要</strong>回答「綜觀全部／整體趨勢／系統性根因」這類 local 檢索答不好的問題（Microsoft GraphRAG 的 global search）。</p>
+<h2 id="變更" class="t2">變更</h2>
+<ol><li><strong>資料模型</strong>：新增 <code>GraphCommunity</code>（<code>Title</code>/<code>Summary</code>/<code>Teams</code>(成員聯集)/<code>MemberCount</code>），整批重建、不做審核；雙庫 <code>AddGraphCommunity</code> migration。</li><li><strong>社群偵測</strong>：<code>CommunityDetector.LabelPropagation</code>（LPA，純函式、決定性、無外部依賴）。</li><li><strong>摘要建置</strong>：<code>GraphCommunityBuilder</code>（只用 <code>已完成</code> 三元組建圖 → LPA 分群 → 依成員數上限 50 取大群 → 每群 LLM 產 <code>{title,summary}</code>（<code>OperationGraphCommunity</code>）→ 整批取代）；<code>IGraphCommunityQueue</code>/<code>GraphCommunityBackgroundService</code>/<code>IGraphCommunityBuildState</code>（單例全域工作，<strong>不進 <code>PipelineNames</code></strong>）；管理員於審核頁「重建社群摘要」手動觸發。</li><li><strong>全域問答</strong>：<code>KnowledgeBaseChatService.GlobalMapAsync</code>（對可存取社群摘要各生重點，map，<code>OperationGraphGlobalChat</code>）+ <code>BuildGlobalMessagesAsync</code>（reduce 系統提示詞 + 防注入包裹）+ 既有 <code>StreamAsync</code>（串流）。提示詞槽位 <code>GraphCommunitySummary</code>/<code>GraphGlobalMap</code>/<code>GraphGlobalReduce</code>（四處同步）。</li><li><strong>UI</strong>：AI 知識問答設定面板加「查詢模式」切換（一般／全域）；<code>SendAsync</code> 分支——全域→map-reduce、無社群→查無依據、答案末附「參考社群」。知識圖譜審核頁加「重建社群摘要」按鈕與狀態列（建置中／上次建立時間／社群數／錯誤）。</li><li><strong>DI/Host</strong>：<code>GraphCommunityQueue</code>/<code>BuildState</code>(Singleton)、<code>GraphCommunityBuilder</code>/<code>GraphCommunityService</code>(Scoped)、<code>GraphCommunityBackgroundService</code>(HostedService)。</li><li><code>appsettings.json</code>：SystemVersion 1.0.84 → 1.0.85。</li></ol>
+<h2 id="安全與相容leak0-紅線比一般權控更嚴" class="t3">安全與相容（leak=0 紅線，比一般權控更嚴）</h2>
+<ul><li>社群摘要<strong>混合成員知識</strong>，故存取判定為 <strong>社群 Teams 聯集 ⊆ 使用者團隊</strong>（子集，非一般的交集）或社群純公開；管理員全部。由 <code>GraphCommunityService.GetAccessibleSummariesAsync</code> 集中把關（<code>GraphCommunityServiceTests</code> 釘住：非管理員拿不到聯集超出其團隊的社群）。</li><li>全域無可用社群 → 程式層回「查無社群依據」不呼叫 reduce。</li><li>一般（local）問答、P1/P2、清洗、蒸餾、評測全部不受影響（切「一般」即原行為）。</li></ul>
+<h2 id="已知限制p4-再處理" class="t4">已知限制（P4 再處理）</h2>
+<ul><li>節點為 per-來源去重、三元組亦同來源，故社群多半落在單一來源內（未做跨來源實體合併）；但全域 map-reduce 仍涵蓋所有來源的社群，故全域問答仍跨來源，只是社群粒度偏「來源主題」。</li><li>map-reduce 成本 ＝ (可存取社群數 + 1) 次 LLM，以社群上限（建置 50、查詢 20）控管。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ul><li><code>dotnet build</code> 成功；<code>dotnet test</code> <strong>795 全綠</strong>（既有 785 + 新增 10：<code>CommunityDetectorTests</code> 3、<code>GraphCommunityBuilderTests</code> 3、<code>GraphCommunityServiceTests</code> 3、全域無社群 1）；守護測試（提示詞槽位/作業別/管線健康檢查）全綠——社群工作刻意不進 <code>PipelineNames</code> 故不影響健康檢查推導。</li><li>手動（管理員）：核可若干三元組 → 審核頁「重建社群摘要」→ 狀態走完、<code>GraphCommunity</code> 有列；AI 知識問答切「全域」問整體性問題 → 得跨社群綜合答案並列參考社群；切「一般」為原 local 行為。</li><li>非管理員/他隊：全域問答不出現他隊社群內容（leak=0）。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 0 失敗。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#變更">變更</a><a class="l2" href="#安全與相容leak0-紅線比一般權控更嚴">安全與相容（leak=0 紅線，比一般權控更嚴）</a><a class="l2" href="#已知限制p4-再處理">已知限制（P4 再處理）</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-27-GraphRAG-P3.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

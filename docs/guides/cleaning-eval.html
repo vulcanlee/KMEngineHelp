@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗品質評測使用指南：功能、欄位、操作與撰寫準則｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>清洗品質評測使用指南：功能、欄位、操作與撰寫準則</h1><p class="sub">說明「清洗品質評測」為什麼需要、按下評測時系統實際做了什麼、各欄位用途與範例、頁面操作、指標解讀（含公式與實例）、門檻校準與調整決策、對系統的實際影響，以及撰寫評測樣本的準則——讓一般使用者看完即可自行建立與操作清洗品質評測。</p></header><div class="docwrap"><main><ul><li>文件用途：說明「清洗品質評測」為什麼需要、<strong>按下評測時系統實際做了什麼</strong>、各欄位用途與範例、頁面操作、指標解讀（含公式與實例）、門檻校準與調整決策、對系統的實際影響，以及撰寫評測樣本的準則——讓一般使用者看完即可自行建立與操作清洗品質評測。</li><li>主要讀者：操作人員、知識庫管理者、品質保證（QA）</li><li>文件版本：1.2（補：載入種子按鈕常駐、分類上限 10、指標邊界條件）</li><li>建立日期：2026/06/26</li><li>最後更新：2026/07/26</li><li>對應系統版本：1.0.71（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>相關：上手地圖見 <a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a>；清洗與設定檔見 <a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定指南</a>；下游檢索品質見 <a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a>。</p></blockquote>
+<hr>
+<h2 id="一清洗品質評測在做什麼為什麼需要" class="t1">一、清洗品質評測在做什麼？（為什麼需要）</h2>
+<p>一句話：<strong>它是「資料清洗品質」的單元測試，外加「自動放行信心門檻」的校準台。</strong></p>
+<p>你準備一批「標準答案題庫」（黃金樣本）：每筆有一段原始輸入文字，以及「這段清洗後<strong>應該</strong>遮掉什麼、<strong>必須</strong>保留什麼、<strong>應該</strong>分到哪些類、摘要<strong>應該</strong>提到哪些關鍵實體」。按「評測」時，系統用<strong>目前的清洗提示詞</strong>跑這段輸入，把實際輸出和你的標準答案逐項比對，算出分數並彙整報表，建議一個「可以自動放行、不必人工審核」的信心門檻。</p>
+<p><strong>與 檢索品質評測的分工</strong>：清洗品質評測管<strong>上游清洗品質</strong>（內容清乾淨了嗎），<a href="../../docs/guides/retrieval-eval.html">檢索品質評測</a>管<strong>下游檢索品質</strong>（問得到、答得準、不越權嗎）。兩者互補、不可互相取代。</p>
+<p><strong>為什麼需要</strong>：清洗品質會隨提示詞/模型/設定檔調整而<strong>悄悄變動</strong>；遮漏個資是合規風險。清洗品質評測把「遮乾淨了沒、分對了沒」變成<strong>可出示、可回歸</strong>的數字。</p>
+<hr>
+<h2 id="二按下評測此筆系統做了什麼運作原理" class="t2">二、按下「評測此筆」系統做了什麼？（運作原理）</h2>
+<p>這一節回答「我按下去之後，系統到底讀了什麼、跟 AI 互動了什麼、怎麼算出那張表」。</p>
+<p><strong>步驟流程：</strong></p>
+<ol><li><strong>讀取這筆黃金樣本</strong>：包含「輸入文字」與你填的標準答案（預期遮罩詞、必保留詞、預期分類、預期摘要實體、人工通過）。評的是<strong>這筆黃金樣本自己的「輸入文字」</strong>，<strong>完全不讀「知識來源加工」</strong>的任何紀錄（「評測全部」＝目前頁面所有黃金樣本）。</li><li><strong>用清洗管線重跑「輸入文字」</strong>：系統把這段輸入丟進<strong>和正式清洗一模一樣的管線</strong>，依序跑 5 段大語言模型（LLM）呼叫：</li><li><strong>① 去重</strong>：移除重複段落與雜訊（可降級：失敗就用原文）。</li><li><strong>② 遮罩</strong>：把個資/機密（身分證、電話、Email、地址、金融帳號、密碼、金鑰等）換成【已遮罩】。<strong>這一段是強制的，失敗會直接報錯</strong>（遮罩是安全紅線）。</li><li><strong>③ 分類</strong>：建議 1–5 個主題分類標籤（這是<strong>內建預設</strong>的要求；系統實際最多保留 <strong>10</strong> 個，超出直接截掉，所以清洗規則設定可以要求更多、更細的分類）。</li><li><strong>④ 摘要</strong>：寫 100–200 字摘要，並列出「關鍵實體：」。</li><li><strong>⑤ 信心自評</strong>：請 LLM 自評上述清洗整體正不正確、完不完整，輸出一個 0～1 的小數（這就是「最近信心」的來源）。</li><li><strong>逐項比對打分</strong>：把實際輸出和你的標準答案比對，算出 遮罩Recall、MustKeep 正確率、分類 Precision/Recall/F1、摘要涵蓋率（公式見 §五）。</li><li><strong>存檔</strong>：把這筆的「最近信心、最近評測時間、各項指標 JSON」寫回該樣本；上方儀表板與門檻掃描表會即時重算。</li></ol>
+<p><strong>用的是哪些提示詞？</strong> 五段各對應一個提示詞鍵：<code>清洗-去重</code>、<code>清洗-遮罩</code>、<code>清洗-分類</code>、<code>清洗-摘要</code>、<code>清洗-信心</code>。每個提示詞採<strong>四層解析</strong>，由高到低：①該次操作覆寫 → ②資料庫「AI 提示詞」中同鍵的提示詞 → ③appsettings 設定 → ④程式內建預設值。也就是說：<strong>你在「AI 提示詞」改了 <code>清洗-*</code>，清洗品質評測下次評測就會用到新的提示詞</strong>——這正是清洗品質評測能「防止你改壞提示詞」的原理。</p>
+<blockquote><p><strong>關鍵限制</strong>：清洗品質評測用的是<strong>全域</strong>清洗提示詞，<strong>不會</strong>套用你在「清洗規則設定」裡選的那一組（見 §九、§十）。</p>
+<p><strong>需要 LLM</strong>：逐項指標要靠 LLM 的實際輸出來比對，所以<strong>未設定 OpenAI 金鑰時無法評測</strong>（正式清洗可降級略過 LLM，但評測不行）。</p></blockquote>
+<hr>
+<h2 id="三新增一筆樣本各欄位用途與例子" class="t3">三、新增一筆樣本：各欄位用途與例子</h2>
+<p>在 <code>/golden-samples</code> 按「新增」（下列「預期」欄位<strong>每行一項</strong>）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>量到什麼</th><th>例子</th></tr></thead><tbody><tr><td><strong>標題</strong></td><td>樣本辨識名稱</td><td>「會議紀錄樣本」「合約摘要（含機密帳號）」</td></tr><tr><td><strong>輸入文字</strong></td><td>餵進清洗管線的原始內容</td><td>「本次會議由王小明主持，電話0912345678，討論知識庫…」</td></tr><tr><td><strong>預期遮罩詞</strong></td><td>算<strong>遮罩 Recall</strong>：清洗後<strong>不該</strong>再出現的敏感詞</td><td><code>王小明</code>、<code>0912345678</code>、<code>mei@example.com</code>、<code>A123456789</code></td></tr><tr><td><strong>必保留詞</strong></td><td>算<strong>必保留正確率</strong>：<strong>一定要</strong>留著的關鍵詞（避免誤刪）</td><td><code>退款</code>、<code>計費規則</code>、<code>研發部</code>、<code>統一編號</code></td></tr><tr><td><strong>預期分類</strong></td><td>算<strong>分類 P/R/F1</strong>：應產生的主題標籤</td><td><code>會議</code>、<code>產品</code>、<code>客服</code>、<code>財務</code></td></tr><tr><td><strong>預期摘要實體</strong></td><td>算<strong>摘要涵蓋率</strong>：摘要應提到的人/組織/主題</td><td><code>知識庫</code>、<code>試點</code>、<code>退款</code>、<code>張總監</code></td></tr><tr><td><strong>人工通過（HumanPass）</strong></td><td>你（人工）判定這筆清洗結果可否接受；用來<strong>校準門檻</strong></td><td>乾淨樣本勾<strong>通過</strong>；破碎或含未遮機密者<strong>不通過</strong></td></tr></tbody></table></div>
+<blockquote><p><strong>載入種子</strong>：一鍵帶入 5 筆示範樣本（會議紀錄、客服案件、新進員工、系統障礙報告、合約摘要），可直接拿來理解各欄位怎麼填。</p></blockquote>
+<hr>
+<h2 id="四操作步驟頁面各功能" class="t4">四、操作步驟（頁面各功能）</h2>
+<p><strong>進入</strong>：選單「知識庫 → 清洗品質評測」(<code>/golden-samples</code>)，需 <code>黃金評測</code> 頁面權限。</p>
+<p><strong>工具列</strong>：新增／重新整理／<strong>載入種子</strong>／<strong>評測全部</strong>（評測目前頁所有樣本）／搜尋（標題或輸入文字）。</p>
+<blockquote><p>「載入種子」按鈕是<strong>常駐顯示</strong>的（不會因為清單有資料就隱藏）。若已有樣本，按下去不會重複載入，會回覆「已有黃金樣本，未載入種子。」</p></blockquote>
+<p><strong>單筆操作</strong>：<strong>評測此筆</strong>（用目前清洗提示詞跑這段輸入並計分）／<strong>檢視明細</strong>（看指標 JSON）／修改／刪除。</p>
+<p><strong>儀表板</strong>（有已評測樣本時顯示）：已評測筆數、平均遮罩 Recall、分類 F1、摘要涵蓋、MustKeep 正確率；建議門檻 vs 目前門檻；<strong>門檻掃描表</strong>。</p>
+<hr>
+<h2 id="五看懂指標含公式" class="t5">五、看懂指標（含公式）</h2>
+<h3 id="51-單筆品質指標">5.1 單筆品質指標</h3>
+<div class="tw"><table><thead><tr><th>指標</th><th>意思</th><th>公式（白話）</th><th>目標方向</th></tr></thead><tbody><tr><td><strong>遮罩 Recall</strong></td><td>應遮詞中真的被遮掉的比例</td><td>（應遮詞數 − 漏遮詞數）÷ 應遮詞數；沒填應遮詞時記 100%</td><td>越高越好（建議 <strong>≥0.98</strong>）</td></tr><tr><td><strong>MustKeep 正確率</strong></td><td>必保留詞是否<strong>全部</strong>仍在清洗後本文</td><td>全部都在＝是(100%)，少一個＝否；沒填必保留詞時記 是</td><td>理想 100%</td></tr><tr><td><strong>分類 Precision</strong></td><td>預測的分類有多少是對的</td><td>命中數 ÷ 模型實際給的分類數</td><td>越高越好</td></tr><tr><td><strong>分類 Recall</strong></td><td>應有的分類抓回了多少</td><td>命中數 ÷ 你填的預期分類數</td><td>越高越好</td></tr><tr><td><strong>分類 F1</strong></td><td>Precision 與 Recall 的調和平均</td><td>2 × P × R ÷ (P + R)</td><td>越高越好（建議 <strong>≥0.70</strong>）</td></tr><tr><td><strong>摘要涵蓋率</strong></td><td>預期實體在摘要中出現的比例</td><td>命中實體數 ÷ 預期實體數；沒填預期實體時記 100%</td><td>越高越好（建議 <strong>≥0.60</strong>）</td></tr><tr><td><strong>最近信心</strong></td><td>LLM 對「這一筆」清洗結果的<strong>自評</strong>分數（評測時第 5 段產生）</td><td>LLM 直接輸出 0～1</td><td>供門檻校準參考（非越高越「對」，是越高代表模型越「有把握」）</td></tr></tbody></table></div>
+<blockquote><p>「命中」一律以<strong>字串比對</strong>（分類不分大小寫）判定：例如「漏遮」＝清洗後本文裡還找得到該敏感詞；「摘要命中」＝摘要文字裡找得到該實體。</p>
+<p><strong>分類指標的兩個邊界條件</strong>（看到 100% 或 0% 別誤判）：①你<strong>沒填</strong>預期分類、模型<strong>也沒給</strong>分類 → P 與 R 都記 <strong>1（100%）</strong>；②你<strong>沒填</strong>預期分類、但模型<strong>給了</strong>分類 → P 記 <strong>0</strong>、R 記 <strong>1</strong>。所以「分類 F1 看起來很漂亮」有可能只是因為預期分類留空，不是真的分對了。</p></blockquote>
+<p><strong>F1 小例子</strong>：你填的預期分類＝<code>會議、財務</code>（2 個），模型給的＝<code>會議、產品</code>（2 個）。命中只有 <code>會議</code>（1 個）。Precision＝1÷2＝0.5、Recall＝1÷2＝0.5、F1＝2×0.5×0.5÷(0.5+0.5)＝<strong>0.5</strong>。若模型給的和預期完全沒交集（命中 0），則 P＝R＝F1＝<strong>0</strong>。</p>
+<h3 id="52-門檻掃描表校準台">5.2 門檻掃描表（校準台）</h3>
+<p>對每個候選門檻（0.5～0.9）計算——以<strong>所有已評測樣本</strong>為母體：</p>
+<ul><li><strong>自動清洗率</strong>＝信心 ≥ 門檻的樣本比例；<strong>待審核率</strong>＝1 − 自動清洗率。</li><li><strong>PrecisionVsHuman</strong>＝自動放行者中「人工也通過」的比例（<strong>放行得準不準</strong>）。autoCount=0 時記 0。</li><li><strong>RecallVsHuman</strong>＝所有人工通過者中「被自動放行」的比例（<strong>放行得夠不夠多</strong>）。沒有任何人工通過樣本時記 0。</li></ul>
+<p><strong>建議門檻</strong>：系統取「達到目標精準度（PrecisionVsHuman ≥ 0.9）的<strong>最低</strong>門檻」作建議（門檻越低、自動清洗率越高，故在達標前提下取最低）；若沒有任何門檻達到 0.9，則取 PrecisionVsHuman <strong>最高</strong>者中<strong>最低</strong>的門檻。<strong>目前門檻</strong>＝<code>SystemSettings.Cleaning.ConfidenceThreshold</code>（appsettings，預設 <strong>0.70</strong>）。⚠ 建議門檻<strong>僅供參考</strong>，要實際生效得改 <code>appsettings.json</code> 後重啟。</p>
+<hr>
+<h2 id="六一個完整範例拆解你畫面看到的那筆" class="t6">六、一個完整範例（拆解你畫面看到的那筆）</h2>
+<p>以畫面「<strong>系統障礙報告（格式不完整）</strong>」這筆為例（人工通過＝<strong>否</strong>、最近信心＝<strong>7%</strong>、遮罩Recall＝<strong>100%</strong>、分類F1＝<strong>0%</strong>、摘要涵蓋＝<strong>100%</strong>），逐項說明數字怎麼來：</p>
+<div class="tw"><table><thead><tr><th>看到的數字</th><th>為什麼</th></tr></thead><tbody><tr><td>最近信心 <strong>7%</strong></td><td>這筆輸入是「格式不完整」的破碎內容，第 5 段 LLM 自評對清洗結果<strong>很沒把握</strong>，輸出 0.07。</td></tr><tr><td>遮罩Recall <strong>100%</strong></td><td>這筆沒有漏遮（或本來就沒填應遮詞）：所有應遮詞都不在清洗後本文。<strong>安全面 OK</strong>。</td></tr><tr><td>分類F1 <strong>0%</strong></td><td>模型給的分類標籤與你填的「預期分類」<strong>完全沒有交集</strong>（命中 0）→ P=R=F1=0。代表分類沒分對。</td></tr><tr><td>摘要涵蓋 <strong>100%</strong></td><td>你填的預期摘要實體都出現在摘要裡（或沒填預期實體）。</td></tr></tbody></table></div>
+<p><strong>上方校準表為什麼整排都是 0%？</strong>（自動清洗率 0%、待審核率 100%、PrecisionVsHuman 0%、RecallVsHuman 0%，門檻 50%～90% 都一樣）</p>
+<ul><li>目前只有<strong>這 1 筆</strong>被評測，且它的信心只有 <strong>7%</strong>——比最低門檻 50% 還低，所以<strong>任何門檻都不會自動放行它</strong> → 自動清洗率 0%、待審核率 100%。</li><li>自動放行數為 0，PrecisionVsHuman 依公式記 <strong>0%</strong>。</li><li>這筆「人工通過＝否」，代表「人工通過樣本數＝0」→ RecallVsHuman 記 <strong>0%</strong>。</li><li><strong>建議門檻 50%</strong>：沒有任何門檻達到 0.9 精準度（全都 0），系統退而取「精準度最高者中最低門檻」＝最低的 50%。</li></ul>
+<p><strong>結論</strong>：這張表現在<strong>還不能拿來調門檻</strong>——因為只有一筆、又是「不通過」的壞樣本。校準要有意義，需要<strong>多筆、且通過/不通過都有</strong>的樣本（見 §九）。</p>
+<p><strong>對照組（健康的樣子）</strong>：假設你再放兩筆乾淨樣本並評測，得到：</p>
+<div class="tw"><table><thead><tr><th>樣本</th><th>人工通過</th><th>最近信心</th></tr></thead><tbody><tr><td>會議紀錄（乾淨）</td><td>是</td><td>0.88</td></tr><tr><td>客服案件（乾淨）</td><td>是</td><td>0.76</td></tr><tr><td>系統障礙報告（破碎）</td><td>否</td><td>0.07</td></tr></tbody></table></div>
+<p>在門檻＝0.70 時：信心≥0.70 的有兩筆（0.88、0.76）→ 自動清洗率＝2/3≈67%；這兩筆都「人工通過」→ PrecisionVsHuman＝2/2＝100%；人工通過共 2 筆、都被放行→ RecallVsHuman＝2/2＝100%。這種「Precision 100%、Recall 也高」就是健康、可放心自動放行的訊號。</p>
+<hr>
+<h2 id="七看到數字該怎麼調決策指引" class="t7">七、看到數字該怎麼調？（決策指引）</h2>
+<div class="tw"><table><thead><tr><th>觀察到</th><th>可能意義</th><th>建議動作</th></tr></thead><tbody><tr><td><strong>遮罩Recall &lt; 1（有漏遮）</strong></td><td>敏感資訊外洩風險（<strong>安全紅線</strong>）</td><td><strong>最優先</strong>：強化 <code>清洗-遮罩</code> 提示詞或換更強模型；<strong>不要</strong>用「調門檻」來掩蓋漏遮</td></tr><tr><td><strong>MustKeep &lt; 100%</strong></td><td>清洗把關鍵詞<strong>誤刪</strong>了</td><td>檢查 <code>清洗-去重</code>／<code>清洗-摘要</code> 是否刪過頭</td></tr><tr><td><strong>分類 F1 低</strong></td><td>分類標籤不準</td><td>調 <code>清洗-分類</code> 提示詞；或讓「預期分類」用詞與模型語彙對齊</td></tr><tr><td><strong>摘要涵蓋 低</strong></td><td>摘要漏掉關鍵實體</td><td>調 <code>清洗-摘要</code> 提示詞（明確要求列出關鍵實體）</td></tr><tr><td><strong>PrecisionVsHuman 高、RecallVsHuman 低</strong></td><td>門檻太嚴：很多「人工會通過」的好資料被擋去人工審核</td><td>可考慮<strong>降</strong>門檻（提高自動清洗率、減少人工負擔）</td></tr><tr><td><strong>PrecisionVsHuman 低</strong></td><td>門檻太鬆：放行了不少「人工會打回」的資料</td><td><strong>提</strong>門檻；或先回頭修清洗品質，別只調門檻</td></tr><tr><td><strong>建議門檻 與 目前門檻 差很多</strong></td><td>訊號：「該調門檻了」</td><td>改 <code>appsettings.json</code> 的 <code>SystemSettings.Cleaning.ConfidenceThreshold</code> 後<strong>重啟</strong>才生效（改頁面不會生效）</td></tr></tbody></table></div>
+<blockquote><p>口訣：<strong>遮罩漏 → 先修清洗（安全優先），不是調門檻</strong>；門檻只決定「自動放行 vs 轉人工審核」的鬆緊，不會讓清洗本身變好。</p></blockquote>
+<hr>
+<h2 id="八清洗品質評測對系統到底有沒有影響重要澄清" class="t8">八、清洗品質評測對系統到底有沒有影響？（重要澄清）</h2>
+<p>很多人會誤以為「跑了清洗品質評測，系統就會變好/變不一樣」。<strong>並不會。</strong> 清洗品質評測是一台<strong>量測儀／校準台</strong>，不是會改變系統行為的開關：</p>
+<ul><li>它<strong>不會</strong>自動修改任何設定（建議門檻只是「建議」，要人工改 appsettings 才生效）。</li><li>它<strong>不會</strong>影響 AI 知識問答／RAG 檢索結果（那是另一條獨立管線，見 <a href="../../docs/guides/retrieval-eval.html">檢索品質評測</a>）。</li><li>它<strong>不會</strong>改變你實際清洗某筆知識來源時的產出。</li><li><strong>沒有建立任何黃金樣本時，清洗、搜尋、問答照常運作，結果完全一樣。</strong></li></ul>
+<p>那它的價值在哪？在於<strong>「把看不見的清洗品質變成看得見、可回歸的數字」</strong>，並給你一個<strong>有依據</strong>的門檻建議。系統裡唯一真正「會依信心門檻決定一筆清洗結果要『自動放行（已清洗）』還是『轉人工審核（待審核）』」的地方，是清洗管線讀取的 <code>Cleaning.ConfidenceThreshold</code>——清洗品質評測幫你決定這個值該設多少，但<strong>套用與否、設多少，由你（人工）決定</strong>。</p>
+<pre><code>清洗某筆知識來源 → LLM 產生信心分數
+   信心 ≥ 目前門檻(預設0.70) → 標記「已清洗」（自動放行）
+   信心 &lt;  目前門檻           → 標記「待審核」（轉人工）</code></pre>
+<hr>
+<h2 id="九撰寫準則與建議" class="t1">九、撰寫準則與建議</h2>
+<ul><li><strong>代表性</strong>：樣本要涵蓋你真實會處理的內容類型（會議、客服、合約、技術文件…），每類至少一筆。</li><li><strong>樣本數量</strong>：起步時每種類型 1–2 筆即可開始；但<strong>門檻校準要可信，建議累積到約 10–20 筆以上、且「通過」與「不通過」樣本都要有</strong>（只有一筆、或全部同一種結果時，建議門檻沒有參考價值——見 §六）。這是為了「判讀穩定度」，不是系統的硬性限制。</li><li><strong>遮罩詞要列全</strong>：把各種型態的敏感資訊都放進去（姓名、電話、Email、身分證、金融帳號、密碼、統編），才量得出真實遮漏率。</li><li><strong>必保留詞挑「誤刪會出事」的</strong>：流程詞、條款用語、關鍵數字。</li><li><strong>HumanPass 誠實標</strong>：乾淨可接受的標通過、破碎或含未遮機密的標不通過——這組標註是門檻校準的依據，標歪了建議門檻就不準。建議<strong>通過/不通過樣本都要有</strong>，門檻掃描才有對比。</li><li><strong>防回歸用法</strong>：調清洗提示詞、換模型、建新清洗規則設定後<strong>重跑評測</strong>，比較指標有沒有退步。<strong>不需要固定排程跑</strong>；在「動到清洗品質的事情」或「出貨前抽驗」時跑即可。</li><li><strong>與清洗規則設定的關係</strong>：清洗品質評測目前用<strong>全域</strong>清洗提示詞評測，不會套你選的清洗規則設定；要驗特定設定檔，先把該組設成全域 <code>清洗-*</code> 再評測，或以清洗前後人工比對。</li></ul>
+<hr>
+<h2 id="十常見問題faq" class="t2">十、常見問題（FAQ）</h2>
+<div class="tw"><table><thead><tr><th>問題</th><th>說明</th></tr></thead><tbody><tr><td>按「評測」說未設定 LLM</td><td>清洗品質評測的逐項指標需要跑清洗管線；未設 OpenAI 金鑰時無法評測（清洗本身可降級，但評測需要 LLM 輸出來比對）。</td></tr><tr><td>建議門檻和目前門檻差很多</td><td>視為「該調門檻」的訊號；但<strong>套用要改 appsettings</strong>（<code>Cleaning.ConfidenceThreshold</code>）後重啟，不是改了頁面就生效。</td></tr><tr><td>分數忽高忽低</td><td>樣本太少或代表性不足；增加樣本數與類型（見 §九）。</td></tr><tr><td>校準表整排都是 0%</td><td>多半是「只有一筆」或「沒有任何人工通過樣本」造成（見 §六）；多放幾筆、並標好 HumanPass 即會有對比。</td></tr><tr><td>跑了清洗品質評測，搜尋/問答怎麼沒變</td><td>正常。清洗品質評測只量測清洗品質、不影響搜尋/RAG（見 §八）。</td></tr><tr><td>想驗某個清洗規則設定的效果</td><td>清洗品質評測用全域提示詞；暫以「設為全域再評測」或清洗前後人工比對（指定設定檔評測為規劃中延伸）。</td></tr><tr><td>多久跑一次</td><td>沒有固定排程；改提示詞/模型/設定檔後、或出貨前抽驗時重跑作防回歸即可。</td></tr></tbody></table></div><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：我要讓答案更準、更可信</li><li>導入顧問：我要帶客戶做驗收</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一清洗品質評測在做什麼為什麼需要">一、清洗品質評測在做什麼？（為什麼需要）</a><a class="l2" href="#二按下評測此筆系統做了什麼運作原理">二、按下「評測此筆」系統做了什麼？（運作原理）</a><a class="l2" href="#三新增一筆樣本各欄位用途與例子">三、新增一筆樣本：各欄位用途與例子</a><a class="l2" href="#四操作步驟頁面各功能">四、操作步驟（頁面各功能）</a><a class="l2" href="#五看懂指標含公式">五、看懂指標（含公式）</a><a class="l3" href="#51-單筆品質指標">5.1 單筆品質指標</a><a class="l3" href="#52-門檻掃描表校準台">5.2 門檻掃描表（校準台）</a><a class="l2" href="#六一個完整範例拆解你畫面看到的那筆">六、一個完整範例（拆解你畫面看到的那筆）</a><a class="l2" href="#七看到數字該怎麼調決策指引">七、看到數字該怎麼調？（決策指引）</a><a class="l2" href="#八清洗品質評測對系統到底有沒有影響重要澄清">八、清洗品質評測對系統到底有沒有影響？（重要澄清）</a><a class="l2" href="#九撰寫準則與建議">九、撰寫準則與建議</a><a class="l2" href="#十常見問題faq">十、常見問題（FAQ）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/清洗品質評測使用指南.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

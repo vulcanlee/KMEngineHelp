@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗管線 LLM 步驟（去重/遮罩/分類/摘要）（0.2.61）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>清洗管線 LLM 步驟（去重/遮罩/分類/摘要）（0.2.61）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-11</li><li>版本：0.2.60 → 0.2.61</li><li>對應路線圖：<a href="../../docs/planning/07-todo-f1c7d6cc.html">資料清洗開發代辦清單 第三階段</a>、設計 <a href="../../docs/strategy/cleaning-stage-design.html">strategy/08</a></li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>在清洗管線（QA-1）的「彙整 → OpenCC 繁體」之後，接上 LLM 四個增強步驟： <strong>去重/品質過濾 → 敏感資訊遮罩 → 分類/標籤建議 → 摘要/實體擷取</strong>，重用既有 OpenAI client。</p>
+<h2 id="內容" class="t2">內容</h2>
+<ul><li><strong><code>IChatCompletionClient</code></strong>：自既有 <code>OpenAIChatCompletionClient</code> 抽出純文字完成介面，</li></ul>
+<p>讓清洗增強可用假 client 單元測試、不影響其他使用者。</p>
+<ul><li><strong><code>CleaningEnhancer</code></strong>（<code>Business/Services/Cleanings/</code>）：封裝四個 LLM 步驟。</li><li>提示詞：程式內預設常數；若 <code>Prompt</code> 清單存在同名且啟用者（<code>清洗-去重</code>/<code>清洗-遮罩</code>/<code>清洗-分類</code>/<code>清洗-摘要</code>）則優先覆寫。</li><li><strong>失敗策略</strong>：敏感資訊遮罩失敗（或回傳空）→ <strong>整筆清洗失敗</strong>（不輸出未遮罩內容）；</li></ul>
+<p>去重/分類/摘要失敗 → 降級（保留前一步內容、於清洗文件加註記）。</p>
+<ul><li><strong>未設定 <code>OpenAISettings.ApiKey</code></strong> → 整段 LLM 略過（降級為彙整+OpenCC，文件註記），離線/開發可用。</li><li><strong><code>CleaningProcessor</code> 整合</strong>：彙整成員內容 → LLM 增強 → 組最終 Markdown</li></ul>
+<p>（<code># 標題</code> + <code>## 摘要</code> + <code>## 建議分類</code> + 註記 + <code>---</code> + 遮罩後本文）； 建議分類<strong>合併</strong>進 <code>KnowledgeSource.Categories</code>（不重複），<strong>不動 <code>Teams</code></strong>（權控）。</p>
+<ul><li><strong>測試</strong>：<code>CleaningEnhancerTests</code>（四步轉換、分類解析、遮罩失敗拋例外、去重/分類降級、ApiKey 空略過）、</li></ul>
+<p><code>CleaningProcessorTests</code> 新增 LLM 端到端與遮罩失敗→失敗案例；全測試 183 筆綠燈。</p>
+<ul><li>不新增 DB 欄位、無 migration。</li></ul>
+<h2 id="未納入後續" class="t3">未納入（後續）</h2>
+<p>LLM 供應商「設定驅動切換雲端/地端」（介面已抽象，切換未做）、信心分數（QA-2）、 人工審核（QA-3）、黃金評測（QA-4）、知識蒸餾。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#內容">內容</a><a class="l2" href="#未納入後續">未納入（後續）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-11-清洗管線LLM步驟.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

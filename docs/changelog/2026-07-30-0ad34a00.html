@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗的輸出截斷偵測（1.0.111 → 1.0.112）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>清洗的輸出截斷偵測（1.0.111 → 1.0.112）</h1></header><div class="docwrap"><main><ul><li>變更日期：2026/07/30</li><li>版本：1.0.111 → <strong>1.0.112</strong></li><li>性質：<strong>程式變更</strong>（<code>src/</code>）＋測試＋文件。<strong>無模型變更、無新表、無 migration</strong>。</li><li>對應待辦：<a href="../../docs/planning/todo-720ef565.html">知識來源規模守門 TODO</a> 的 <strong>P1</strong>（三項中的第一項）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="一修掉什麼" class="t1">一、修掉什麼</h2>
+<p>清洗的<strong>去重</strong>與<strong>遮罩</strong>兩步要把<strong>整份彙整內容重新輸出一遍</strong>，所以真正的天花板是模型的<strong>輸出上限</strong>，不是輸入上下文。撞到輸出上限時 SSE 會正常結束、回傳文字非空——而舊程式只檢查「是否空白」，於是<strong>把殘缺內容當成成功</strong>：</p>
+<ul><li>狀態仍是「已清洗」</li><li>信心分數可能還很高（模型只評自己輸出的那一段）</li><li><strong>沒有任何註記</strong></li><li>之後整條 RAG（切塊／嵌入／問答）都建立在殘缺內容上</li></ul>
+<p>使用者的感受是「<strong>明明有這份文件卻查不到</strong>」，而且會被誤判為檢索問題，然後去調檢索參數（無效，因為那段內容根本不在索引裡）。</p>
+<p><strong>這是 1.0.112 之前全系統唯一完全無痕跡的失敗。</strong></p>
+<h2 id="二怎麼修" class="t2">二、怎麼修</h2>
+<div class="tw"><table><thead><tr><th>檔案</th><th>變更</th></tr></thead><tbody><tr><td><code>Business/Services/Transcription/IChatCompletionClient.cs</code></td><td>新增 <code>CompleteStreamingCheckedAsync</code>，回傳 <code>(string Text, bool TruncatedByOutputLimit)</code>。<strong>帶預設實作</strong>（回報 false，沿用舊行為）</td></tr><tr><td><code>…/Transcription/OpenAIChatCompletionClient.cs</code></td><td>①<code>StreamAsync</code> 本體抽成 <code>StreamCoreAsync(messages, ct, onFinishReason)</code>，公開的 <code>StreamAsync</code> 以 <code>null</code> 委派（<strong>簽章與外部行為零變化</strong>）；②SSE 迴圈擷取 <code>choices[0].finish_reason</code>；③覆寫 <code>CompleteStreamingCheckedAsync</code>，<code>finish_reason == "length"</code>（忽略大小寫）即回報截斷並記 <code>LogWarning</code></td></tr><tr><td><code>…/Cleanings/CleaningEnhancer.cs</code></td><td><strong>去重</strong>與<strong>遮罩</strong>改用 checked 版本（見下表）</td></tr></tbody></table></div>
+<h3 id="兩步的處置刻意不同">兩步的處置刻意不同</h3>
+<div class="tw"><table><thead><tr><th>步驟</th><th>被截斷時</th><th>為什麼</th></tr></thead><tbody><tr><td><strong>去重</strong></td><td><strong>不採用</strong>截斷輸出 → 退回未去重的原文 → 在清洗結果開頭寫 <code>&gt; 註記：去重步驟的輸出被模型輸出上限截斷…</code></td><td>保住完整內容遠比省下重複段落重要。而且下一步遮罩會對同樣過大的內容再撞一次上限並讓整筆失敗，所以使用者仍會得到明確的失敗，<strong>不會拿到殘缺內容</strong></td></tr><tr><td><strong>遮罩</strong></td><td><strong>擲例外 → 整筆清洗失敗</strong>，訊息說明是輸出被上限截斷並建議分盒或拆檔</td><td>截斷的尾段<strong>根本沒有經過模型</strong>，那部分的個資與機密<strong>必然沒有被遮到</strong>。把它落檔等於把未遮罩內容送進索引。與「遮罩失敗＝整筆清洗失敗」的既有安全設計同一理由</td></tr></tbody></table></div>
+<p><strong>分類／摘要／信心維持原樣</strong>——輸出只有幾十字，撞不到上限，加了只是噪音。</p>
+<h3 id="為什麼不改共用方法">為什麼不改共用方法</h3>
+<p><code>CompleteStreamingAsync</code> 有 <strong>11 個生產呼叫端</strong>（清洗 5 處、蒸餾、圖譜 3 處、會議紀錄、依提示詞產生 2 處）。改它的簽章或行為會把變更擴散到全部——這正是 <code>PdfMarkdownLlmClient.cs:85-115</code> 的 remarks 早已寫明的風險（該處的截斷檢查也是<strong>刻意不放進共用方法</strong>）。</p>
+<p>本次改用「<strong>新增帶預設實作的介面方法</strong>」：</p>
+<ul><li>只有清洗的兩步改用 → 另 10 個呼叫端<strong>行為完全不變</strong>（有測試釘住）</li><li>測試假件（如 <code>CleaningEnhancerTests</code> 的 <code>StreamTrackingFakeClient</code>）<strong>一行都不用改</strong></li></ul>
+<p>PDF 那支 <code>IsTruncatedByOutputLimit</code> 雖是 <code>public static</code>，但它吃的是<strong>完整的非串流回應 JSON</strong>，串流路徑拿不到那個結構，故無法直接重用——只沿用判定語意（忽略大小寫比對 <code>"length"</code>）。</p>
+<h2 id="三測試新增-10-條全量-1057--10670-失敗" class="t3">三、測試（新增 10 條；全量 1057 → <strong>1067</strong>，0 失敗）</h2>
+<p><code>OpenAIChatCompletionClientTests</code>（沿用既有 <code>Fixture.Create(idleSeconds, script)</code> 腳本化 SSE）：</p>
+<ul><li><code>finish_reason == "length"</code> → 判為截斷，且<strong>仍回傳已收到的文字</strong>（由呼叫端決定要不要用）</li><li>🔴 <strong>反證（本組最重要）</strong>：<code>stop</code>／<code>tool_calls</code>／<code>content_filter</code>／<strong>完全沒有 <code>finish_reason</code></strong> → <strong>一律不得誤判</strong>。判定寫反會讓每一次清洗都失敗，這種迴歸比漏偵測嚴重得多</li><li>大小寫不敏感（與 <code>IsTruncatedByOutputLimit</code> 語意一致）</li><li><strong>釘住既有行為</strong>：<code>CompleteStreamingAsync</code> 被截斷時仍照舊回傳文字、不擲例外</li></ul>
+<p><code>CleaningEnhancerTests</code>（新增可回報截斷並記錄輸入的 <code>TruncatingFakeClient</code>）：</p>
+<ul><li>去重截斷 → <code>Notes</code> 含截斷字樣，且<strong>遮罩步驟收到的是原始內容</strong>（不是被截斷的去重輸出）</li><li>遮罩截斷 → 擲 <code>InvalidOperationException</code>（訊息含「截斷」），且<strong>不再跑分類／摘要／信心</strong></li><li><strong>反證</strong>：兩步都沒截斷時，<code>Body</code>／<code>ConfidenceScore</code>／<code>Notes</code>（空）／呼叫次數與加偵測前完全一致</li></ul>
+<p>⚠️ <strong>既有測試一條都沒有修改</strong>（沒有為了遷就新程式而改斷言）。</p>
+<h2 id="四-對既有資料的影響" class="t4">四、⚠️ 對既有資料的影響</h2>
+<p><strong>1.0.112 之前清洗的知識來源，仍可能已經被靜默截斷</strong>——當時沒有任何痕跡，所以無法從資料本身分辨。</p>
+<p>處置建議（已寫入文件）：</p>
+<ol><li>最快的做法是<strong>重新清洗一次</strong>：新版會直接失敗或留註記。</li><li>要人工判斷則用 <a href="../../docs/guides/source-scale-limits.html">分盒與規模上限指南 §4.2</a> 的三步法：比長度（清洗後 <code>.md</code> ÷ 成員萃取檔總大小，正常 0.5～1.0）→ 找 <code>&gt; 註記：</code> → 抽查尾段。</li></ol>
+<h2 id="五文件更新" class="t5">五、文件更新</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>改什麼</th></tr></thead><tbody><tr><td><a href="../../docs/planning/todo-720ef565.html">planning/知識來源規模守門-todo</a></td><td>P1 標記完成、記錄實作位置與測試；補上 2026/07/30 的查證紀錄</td></tr><tr><td><a href="../../docs/guides/source-scale-limits.html">guides/知識來源分盒與規模上限指南</a></td><td>§一 對照表模式 B 危險度改為「已可發現」；<strong>§3.3 整節改寫</strong>為「系統會怎麼攔」＋為什麼不是一開始就有；§3.4 表格；§4.2 判斷法補「舊版才會無痕跡」</td></tr><tr><td><a href="../../docs/operations/capacity-limits.html">operations/容量邊界與限制</a></td><td>§7.2 的 B 列與其下說明；§五 第 9 條</td></tr><tr><td><a href="../../docs/strategy/consultant-handbook.html">strategy/知識庫導入實施顧問手冊</a></td><td>事實表 S3／S4；踩雷急救的對應列</td></tr><tr><td><a href="../../docs/strategy/knowledge-transfer-method.html">strategy/知識傳承與經驗累積方法論</a></td><td>盤點節奏：每月抽查改為「主要針對舊版清洗的資料」</td></tr><tr><td><a href="../../docs/guides/department-playbook.html">guides/企業實戰情境劇本</a></td><td>跨部門失敗模式第 9 列</td></tr><tr><td>說明網站</td><td>重跑 <code>python scripts/Build-HelpSite.py --both</code></td></tr></tbody></table></div>
+<h2 id="六驗證" class="t6">六、驗證</h2>
+<ul><li><code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.slnx</code> → <strong>1067 通過／0 失敗</strong></li><li><code>dotnet build</code> → 0 錯誤（44 個警告皆為既有的 Razor 產生碼 CS8669）</li><li><code>python scripts/Test-DocLinks.py</code> → 硬性失敗 0</li><li><code>pwsh -File scripts/Test-DocsEncoding.ps1</code> → 全綠</li><li><code>python scripts/Build-HelpSite.py --both</code> → 無法解析的文件連結 0</li></ul>
+<h2 id="七後續" class="t7">七、後續</h2>
+<p>同一份 TODO 還有兩項，將分階段實作：<strong>P2</strong> 讓「彙整後內容量」在畫面上看得到（1.0.113 預計）、<strong>P3</strong> 清洗前的軟上限警告（1.0.114 預計）。</p>
+<hr>
+<blockquote><p>返回 <a href="../../docs/changelog/readme-436e4418.html">changelog 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一修掉什麼">一、修掉什麼</a><a class="l2" href="#二怎麼修">二、怎麼修</a><a class="l3" href="#兩步的處置刻意不同">兩步的處置刻意不同</a><a class="l3" href="#為什麼不改共用方法">為什麼不改共用方法</a><a class="l2" href="#三測試新增-10-條全量-1057--10670-失敗">三、測試（新增 10 條；全量 1057 → 1067，0 失敗）</a><a class="l2" href="#四-對既有資料的影響">四、⚠️ 對既有資料的影響</a><a class="l2" href="#五文件更新">五、文件更新</a><a class="l2" href="#六驗證">六、驗證</a><a class="l2" href="#七後續">七、後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-30-清洗輸出截斷偵測.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

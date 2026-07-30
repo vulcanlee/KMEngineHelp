@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRD 核對第 1 段：核心匯入管線與專案協作（1.0.61）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>PRD 核對第 1 段：核心匯入管線與專案協作（1.0.61）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-25</li><li>版本：1.0.60 → 1.0.61</li><li>類型：文件修正（docs 全庫稽核批次 4／第 1 段，共 3 段）</li></ul>
+<h2 id="範圍" class="t1">範圍</h2>
+<p><code>prd/</code> 共 35 份 PRD ＋ README，分 3 段核對。本段為第 1 段的 11 份：</p>
+<p><code>音訊影片轉錄服務PRD.md</code>、<code>文件萃取-markitdown-prd.md</code>、<code>圖片清單-prd.md</code>、<code>逐字稿LLM產生-prd.md</code>、<code>專案協作模組強化-prd.md</code>、<code>專案項目-prd.md</code>、<code>工作項目-prd.md</code>、<code>會議記錄-prd.md</code>、<code>會議AI自動化-prd.md</code>、<code>專案分類-prd.md</code>、<code>首頁與導覽-prd.md</code></p>
+<h2 id="核對方法" class="t2">核對方法</h2>
+<p><strong>自動化識別字驗證</strong>：從 11 份中抽出反引號標記的程式識別字與路由共 <strong>651 個</strong>，比對 <code>src/</code>（含檔名）後只有 <strong>6 個</strong>找不到 —— 訊噪比夠高，可用自動化找候選、再人工判定。</p>
+<p><strong>人工核對規格陳述</strong>：自動化只驗識別字，狀態機／上限／預設值仍須逐條比對程式。</p>
+<h2 id="找到並修正的問題" class="t3">找到並修正的問題</h2>
+<h3 id="1-規劃但未實作的元件沒有校正紀錄">1. 規劃但未實作的元件沒有校正紀錄</h3>
+<p><code>音訊影片轉錄服務PRD.md</code> §7 的「系統整合點」規劃表列出 <code>MediaTranscriptionRepository</code>，但實作並未採用 —— 轉錄的資料存取直接落在 <code>MediaTranscriptionService</code>，<code>Business/Repositories/</code> 底下只有 Project／MyTask／Meeting／Category／Team／Prompt／WorkCategory 七個。已在表後加註實作差異，<strong>保留原規劃表</strong>（那是當初的設計產物，不應改寫）。</p>
+<h3 id="2-技術描述不夠精確">2. 技術描述不夠精確</h3>
+<p>同檔的「以 <code>IHttpClientFactory</code> 建立 HttpClient」——程式實際用的是 typed client <code>AddHttpClient&lt;OpenAITranscriptionClient&gt;</code>（該模式底層即 <code>IHttpClientFactory</code>，但沒有直接引用該介面）。已改為指名實際 API。</p>
+<h3 id="3-狀態列舉缺少已取消">3. 狀態列舉缺少「已取消」</h3>
+<p><code>音訊影片轉錄服務PRD.md</code>（2 處）與 <code>文件萃取-markitdown-prd.md</code>（2 處）的狀態列舉停在 <code>等待中／處理中／已完成／失敗</code>，實際 <code>*AdapterModel</code> 都已有 <code>StatusCancelled = "已取消"</code>。（<code>圖片清單-prd.md</code> 已正確含此狀態。）</p>
+<h3 id="4-同一份文件自相矛盾">4. 同一份文件自相矛盾</h3>
+<p><code>會議AI自動化-prd.md</code> 第 33 行寫會議紀錄產生是「第 <strong>8</strong> 條管線」，第 42 行寫「第 <strong>7</strong> 條」。實際 <code>PipelineNames</code> 有 7 個常數（技能管線已於 1.0.45 移除），第 42 行正確。已修正第 33 行。</p>
+<h3 id="5-選單舊名同步">5. 選單舊名同步</h3>
+<p>保護式替換 <strong>193 處</strong>（沿用批次 3 的規則：遮蔽圍欄程式碼、連結網址、行內程式碼、<code>角色_XXX</code> 識別字與複合詞例外）。權限值如 <code>角色_音訊轉錄 = "音訊轉錄"</code> 正確保留未動。</p>
+<p><strong>PRD 檔名一律不改</strong> —— 改檔名會牽動全庫 250 處 <code>-prd.md</code> 參照，且 PRD 是以「當初的功能名」建檔的規格基準。</p>
+<h3 id="6-中繼資料標頭">6. 中繼資料標頭</h3>
+<p>11 份的 <code>現行系統版本</code> → <code>1.0.61</code>、<code>最後核對日期</code> → <code>2026/07/25</code>（原本多數停在 1.0.11／2026-07-17，落後 49 版）。</p>
+<h2 id="核對通過未發現問題的項目" class="t4">核對通過、未發現問題的項目</h2>
+<p>逐條比對程式常數後確認正確：媒體上傳 2GB／文件 1GB／圖片 50MB／專案・工作・會議附件 1GB；批次 zip 500 檔・解壓 2GB（文件與圖片兩條管線皆有）；UI 輪詢 5 秒；分段門檻 25MB 與 1200 秒；<code>GenerationModel</code> <code>gpt-5.4</code>、<code>GenerationTimeoutSeconds</code> 120。</p>
+<p>另確認 <code>音訊影片轉錄服務PRD.md</code> §14 的更名校正紀錄<strong>正確</strong>：<code>YouTubeDownloader</code> → <code>MediaUrlDownloader</code>、<code>AddYouTubeAsync</code> → <code>AddUrlSourceAsync</code>、<code>DownloadYouTubeAsync</code> → <code>DownloadFromUrlAsync</code>，三者的新名皆存在於程式中。</p>
+<h2 id="方法上的觀察" class="t5">方法上的觀察</h2>
+<p>自動化識別字檢查對 PRD 的價值<strong>低於預期</strong>：PRD 本來就會提到「當初規劃、後來改掉」的識別字（多數集中在各檔的「現況校正」段落），因此找到的候選多為<strong>正確的歷史紀錄</strong>而非過期資料。真正的價值在於逐條核對「現況陳述」——本段找到的 4 類問題有 3 類是自動化抓不到的。第 2、3 段將以人工核對為主、自動檢查為輔。</p>
+<h2 id="驗證" class="t6">驗證</h2>
+<div class="tw"><table><thead><tr><th>檢查</th><th>結果</th></tr></thead><tbody><tr><td>識別字檢查器</td><td>651 個中 6 個找不到，<strong>逐項有判定結論</strong>（2 個修正、4 個確認為正確的歷史校正紀錄）</td></tr><tr><td>權限值完好</td><td><code>角色_XXX</code> 常數值未被替換</td></tr><tr><td>路由／類別名／檔名</td><td>基準比對出現次數不變</td></tr><tr><td>死連結</td><td>0</td></tr><tr><td>版本戳記</td><td>11/11 份已更新</td></tr><tr><td>文件編碼</td><td>全數 <code>BOM=True ReplacementCharacter=False</code></td></tr><tr><td><code>dotnet test</code></td><td>643 全綠（本批不動程式）</td></tr></tbody></table></div><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#範圍">範圍</a><a class="l2" href="#核對方法">核對方法</a><a class="l2" href="#找到並修正的問題">找到並修正的問題</a><a class="l3" href="#1-規劃但未實作的元件沒有校正紀錄">1. 規劃但未實作的元件沒有校正紀錄</a><a class="l3" href="#2-技術描述不夠精確">2. 技術描述不夠精確</a><a class="l3" href="#3-狀態列舉缺少已取消">3. 狀態列舉缺少「已取消」</a><a class="l3" href="#4-同一份文件自相矛盾">4. 同一份文件自相矛盾</a><a class="l3" href="#5-選單舊名同步">5. 選單舊名同步</a><a class="l3" href="#6-中繼資料標頭">6. 中繼資料標頭</a><a class="l2" href="#核對通過未發現問題的項目">核對通過、未發現問題的項目</a><a class="l2" href="#方法上的觀察">方法上的觀察</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-PRD核對第1段-匯入與協作.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

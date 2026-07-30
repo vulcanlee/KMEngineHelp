@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>所屬專案改為選填、可清除（0.2.149–0.2.151）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>所屬專案改為選填、可清除（0.2.149–0.2.151）</h1></header><div class="docwrap"><main><ul><li>日期：2026/06/29</li><li>版本：0.2.148 → 0.2.151</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>修正「工作項目」與「會議記錄」兩個維護頁的「所屬專案」欄位：</p>
+<ul><li><strong>工作項目</strong>：編輯時雖已設 <code>AllowClear</code>，但 AntDesign 1.6.0 的單選 <code>Select</code>（<code>DataSource</code> + <code>@bind-Value</code> 為 <code>int?</code>）清除 (x) 圖示不會穩定出現，導致選了專案後無法還原為「未指定」。</li><li><strong>會議記錄</strong>：所屬專案被強制必填（資料註解、FormItem、新增自動帶入第一個專案、服務端驗證共四層），新增時被迫輸入、編輯時無法取消。</li></ul>
+<p>兩頁改為<strong>選填且可清除</strong>：下拉清單最前面加入值為 <code>null</code> 的「（不指定專案）」選項，不再依賴不可靠的 <code>AllowClear</code> 圖示，並與表單既有的優先級/狀態欄位（皆用 <code>SelectOption</code> 子元素）一致。</p>
+<h2 id="變更內容" class="t2">變更內容</h2>
+<ul><li>移除 <code>[Required]</code>：<code>MeetingAdapterModel.ProjectId</code>、<code>Meeting.ProjectId</code>、<code>MeetingCreateUpdateDto.ProjectId</code>、<code>MyTaskCreateUpdateDto.ProjectId</code>。</li><li><code>MeetingViewView.razor</code> / <code>MyTasViewView.razor</code>：所屬專案 <code>Select</code> 由 <code>DataSource</code> 改為 <code>SelectOption</code> 子元素，最前面加「（不指定專案）」（<code>Value</code> 為 <code>null</code>）；會議頁 <code>FormItem</code> 移除 <code>Required</code>。</li><li><code>MeetingViewView.razor.cs</code>：<code>OnAddAsync</code> 移除「自動帶入第一個專案」邏輯。</li><li><code>MeetingService</code>：移除「請選擇所屬專案」必填驗證；專案存在性檢查改為僅在有指定專案時才執行；<code>AddAsync</code>/<code>UpdateAsync</code> 加入 <code>ProjectId &lt;= 0 → null</code> 正規化（與 <code>MyTasService</code> 一致）。</li><li>新增雙 provider migration <code>MakeMeetingProjectOptional</code>：將 <code>Meeting.ProjectId</code> 由 NOT NULL 改為可空（SQLite 於 <code>KnowledgeExtraction.AccessDatas</code>、SQL Server 於 <code>KnowledgeExtraction.AccessDatas.SqlServerMigrations</code>）。</li><li><code>SystemVersion</code> 升至 <code>0.2.151 (2026/06/29)</code>（0.2.149 完成程式碼/文件，0.2.150 補上 migration 修正啟動，0.2.151 修正「（不指定專案）」選取凍結）。</li><li><strong>修正選取凍結</strong>：「（不指定專案）」選項的 <code>Value</code> 由 <code>null</code> 改為哨兵值 <code>0</code>（AntDesign 1.6.0 無法處理 <code>Value=null</code> 的 <code>SelectOption</code>，選取會凍結 circuit）；編輯/新增載入時把 <code>null</code> 正規化為 <code>0</code>，存檔仍由服務端 <code>&lt;=0→null</code> 還原為 <code>NULL</code>。</li></ul>
+<h2 id="注意事項" class="t3">注意事項</h2>
+<ul><li><strong>EF Core 行為</strong>：<code>[Required]</code> 套在 <code>int?</code> 上會把欄位對映為 NOT NULL。<code>MyTask.ProjectId</code> 早已於前一提交以 <code>MakeMyTaskProjectOptional</code> 改為可空；<code>Meeting.ProjectId</code> 原本因 <code>[Required]</code> 為 NOT NULL，本次移除後須補產 <code>MakeMeetingProjectOptional</code>（雙 provider）才可空，否則啟動 <code>Migrate()</code> 會拋 <code>PendingModelChangesWarning</code>。</li><li>子工作仍沿用父工作專案、編輯視窗不顯示所屬專案欄位，本次未更動。</li><li>團隊權控（<code>IRecordAccessScopeProvider</code> / <code>TagStringHelper</code>）完全不受影響。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#變更內容">變更內容</a><a class="l2" href="#注意事項">注意事項</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-29-所屬專案改為選填可清除.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

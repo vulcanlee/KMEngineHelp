@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wiki 與 Cleaned 的角色差異｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 系統架構</p><header class="hero"><div class="kicker">系統架構</div><h1>Wiki 與 Cleaned 的角色差異</h1><p class="sub">集中說明 RAG 流程中「Cleaned Markdown（清洗後文字）」與「Wiki 頁（知識頁審核產物）」兩層的角色、資料流位置、為何兩者都要、以及維運上必須知道的關鍵。</p></header><div class="docwrap"><main><ul><li>文件用途：集中說明 RAG 流程中「Cleaned Markdown（清洗後文字）」與「Wiki 頁（知識頁審核產物）」兩層的角色、資料流位置、為何兩者都要、以及維運上必須知道的關鍵。</li><li>主要讀者：維運人員、導入顧問、開發者、需要調 RAG 品質的系統負責人</li><li>對應版本：0.3.1（版本化與時效性一節更新至 0.3.14）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li><li>建立日期：2026/07/08（0.3.14 補充版本化行為）</li></ul>
+<blockquote><p>本文把散見於 planning/10 §4.3、architecture/知識庫RAG設計與執行 §一/§二/§五、guides/知識頁審核與Wiki頁管理指南、strategy/12 §2.2 的說明<strong>收斂成單一參照</strong>。相關：<a href="../../docs/planning/12-rag-b561e5d2.html">RAG 系統補強總彙整</a>、<a href="../../docs/operations/rag-troubleshooting.html">RAG 問題診斷手冊</a>。</p></blockquote>
+<hr>
+<h2 id="一一句話結論" class="t1">一、一句話結論</h2>
+<p><strong>兩層不是二選一，而是分工並存、且都會被索引。</strong> Cleaned＝「事實佐證與出處」層；Wiki＝「概念導引與命中」層。問答時 Wiki 導引在前、Cleaned 佐證在後。</p>
+<hr>
+<h2 id="二兩層是什麼" class="t2">二、兩層是什麼</h2>
+<h3 id="cleaned-markdown清洗後文字">Cleaned Markdown（清洗後文字）</h3>
+<ul><li><strong>產出者</strong>：<code>CleaningProcessor</code>（清洗管線）。把一個知識來源的所有已完成成員內容<strong>彙整、去重、去敏（遮罩）、分類、摘要</strong>後，組成一份 Markdown（<code># 標題</code> + <code>## 摘要</code> + <code>## 建議分類</code> + 正文）。</li><li><strong>儲存</strong>：只存檔，DB 僅存相對路徑 <code>KnowledgeSource.CleanedContentRelativePath</code>（檔案於 <code>CleanedSourcePath/{yyyy}/{guid}.md</code>）。</li><li><strong>粒度</strong>：一個來源一份彙整長文，<strong>保留較完整的事實與條款細節</strong>。</li></ul>
+<h3 id="wiki-頁知識頁審核產物">Wiki 頁（知識頁審核產物）</h3>
+<ul><li><strong>產出者</strong>：<code>DistillationProcessor</code> + <code>DistillationEnhancer</code>（蒸餾管線）。把 Cleaned 內容用 LLM 重組成<strong>一概念一頁、以 <code>[[links]]</code> 互連</strong>的 Wiki 實體頁。</li><li><strong>儲存</strong>：只存檔，DB 存 <code>WikiPage</code>（<code>Title</code>、<code>LinkTitles</code>、<code>ContentRelativePath</code>、<code>Status</code>…），檔案於 <code>WikiOutputPath/{yyyy}/{guid}.md</code>。</li><li><strong>粒度</strong>：一概念一頁的精煉、結構化、可解釋內容，<strong>適合概念導引與摘要式命中</strong>。</li><li><strong>審核</strong>：<code>Status</code> 有 <code>待審核／已完成／已退回</code>（審核狀態）。自 0.3.14 起另有<strong>版本治理狀態</strong> <code>EffectiveStatus</code>（<code>current</code>／<code>superseded</code>／<code>null</code>=草稿），與審核狀態正交；<strong>只有「<code>Status=已完成</code> 且 <code>EffectiveStatus=current</code>（現行版）」的 Wiki 頁才會進索引</strong>，被超越的 <code>superseded</code> 版本保留但不再索引（見 §八）。</li></ul>
+<hr>
+<h2 id="三關鍵事實最容易誤解處" class="t3">三、關鍵事實（最容易誤解處）</h2>
+<ol><li><strong>蒸餾的「輸入」就是 Cleaned。</strong> 資料流是 清洗 → 蒸餾，蒸餾讀的是 <code>CleanedContentRelativePath</code>，不是原始來源。所以 Cleaned 的品質直接決定 Wiki 的品質。</li><li><strong>嵌入索引「兩層都建」。</strong> <code>EmbeddingIndexProcessor.BuildDesiredChunksAsync</code> 同時切塊嵌入：(a) Cleaned Markdown，(b) <code>Status=已完成</code> 且為現行版（<code>EffectiveStatus=current</code>）的 Wiki 頁。每個 chunk 用 <code>VectorEmbedding.SourceLayer</code> 標記是 <code>"Cleaned"</code> 還是 <code>"Wiki"</code>。<strong>不是二選一。</strong></li><li><strong>只有已核准的現行版 Wiki 進索引；Cleaned 只要存在就進索引。</strong> 這是兩層進索引的條件差異；被超越的 Wiki 舊版向量會被標記失效（<code>IsCurrent=false</code>）但保留供 as-of 查詢與稽核（見 §八）。</li><li><strong>出處指向「產生該 chunk 的那一層」。</strong> 命中 Cleaned chunk → 出處層名「清洗內容」、<code>WikiPageId=null</code>；命中 Wiki chunk → 出處層名「蒸餾頁」、<code>WikiPageId</code> 指向該頁。<code>AnchorRef</code>（chunk 內最近的 Markdown 標題）兩層機制相同。</li><li><strong>問答排序：Wiki 在前、Cleaned 在後。</strong> <code>OrderByDescending(SourceLayer==Wiki).ThenByDescending(Score)</code>。Wiki 給概念框架，Cleaned 給原文佐證。</li></ol>
+<hr>
+<h2 id="四資料流位置" class="t4">四、資料流位置</h2>
+<pre><code>知識來源成員（逐字稿／文件萃取／圖片辨識…）
+   │  彙整
+   ▼
+[清洗] CleaningProcessor
+   輸出：Cleaned Markdown（去重／去敏／摘要）
+   ▼
+[蒸餾] DistillationProcessor（輸入＝Cleaned）
+   輸出：多張互連 WikiPage（一概念一頁、[[links]]）
+   ▼
+[嵌入索引] EmbeddingIndexProcessor
+   輸入＝Cleaned Markdown ＋ 已核准 WikiPage（兩者都切塊嵌入）
+   輸出＝VectorEmbedding（SourceLayer 標記層別 + AnchorRef + WikiPageId）
+   ▼
+[檢索] RetrievalService（混合檢索，兩層都在候選）
+   ▼
+[問答] KnowledgeBaseChatService（Wiki 前、Cleaned 後，附【來源｜層別｜AnchorRef】）</code></pre>
+<hr>
+<h2 id="五兩層角色對照表" class="t5">五、兩層角色對照表</h2>
+<div class="tw"><table><thead><tr><th>面向</th><th>Cleaned Markdown</th><th>Wiki 頁（蒸餾產物）</th></tr></thead><tbody><tr><td>產出者</td><td><code>CleaningProcessor</code></td><td><code>DistillationProcessor</code> + <code>DistillationEnhancer</code></td></tr><tr><td>輸入</td><td>彙整後成員內容</td><td><strong>Cleaned Markdown</strong></td></tr><tr><td>儲存</td><td><code>KnowledgeSource.CleanedContentRelativePath</code></td><td><code>WikiPage.ContentRelativePath</code></td></tr><tr><td>粒度</td><td>一來源一份彙整長文</td><td>一概念一頁、<code>[[links]]</code> 互連</td></tr><tr><td>資訊完整度</td><td>高（保留事實／條款細節）</td><td>精煉（概念化、可能省略細節）</td></tr><tr><td>進索引條件</td><td>有 <code>CleanedContentRelativePath</code> 即可</td><td><strong><code>Status=已完成</code> 且 <code>EffectiveStatus=current</code>（已核准的現行版）</strong></td></tr><tr><td><code>VectorEmbedding</code> 標記</td><td><code>SourceLayer="Cleaned"</code>，<code>WikiPageId=null</code></td><td><code>SourceLayer="Wiki"</code>，<code>WikiPageId=頁Id</code></td></tr><tr><td>問答角色</td><td>事實<strong>佐證</strong>（排在後），原文出處</td><td>概念<strong>導引</strong>（排在前），命中定位</td></tr><tr><td>出處層名</td><td>「清洗內容」</td><td>「蒸餾頁」</td></tr><tr><td>適合問題型態</td><td>要精確條款／數字／原文的問題</td><td>要概念解釋／綜覽／跨段歸納的問題</td></tr></tbody></table></div>
+<hr>
+<h2 id="六維運關鍵診斷時要記住" class="t6">六、維運關鍵（診斷時要記住）</h2>
+<ol><li><strong>去敏（遮罩）必須在清洗階段完成。</strong> 蒸餾<strong>不重做遮罩</strong>；來源漏遮 → Cleaned 帶敏感資訊 → Wiki 與向量都會延續。審核 Wiki 時要順便檢查「敏感資訊是否仍乾淨」。（對應補強清單 SEC-2。）</li><li><strong>Wiki 過度摘要會掉召回。</strong> 若某問題答不準，且命中都在 Wiki 層，可能是 Wiki 把細節摘掉了 → 此時 Cleaned 層是安全網（它保留原文）；檢查 Cleaned 是否有進索引、或降低對 Wiki 的依賴。</li><li><strong>Wiki 沒核准 = 沒進索引。</strong> 若剛蒸餾完就問答卻查無 Wiki 依據，先確認 Wiki 頁 <code>Status</code> 是否已到「已完成」。</li><li><strong>改了 Cleaned 或 Wiki 內容要重建索引。</strong> 兩者都是「檔案 + 索引」；內容變動後既有 <code>VectorEmbedding</code> 不會自動更新。自 0.3.14 起，線上編修 Wiki 內容或核准 Wiki 都會<strong>自動觸發來源重索引</strong>（<code>WikiPageService.TryEnqueueSourceReindexAsync</code>），縮短陳舊落差。重蒸餾時<strong>不再刪除舊 Wiki 頁</strong>：改以版本鏈保留舊版、將舊版標記為 <code>superseded</code> 並使其向量失效（<code>IsCurrent=false</code>），現行版重新索引（見 §八）。Cleaned 層仍走增量 diff。</li><li><strong>出處可回溯到層別。</strong> 使用者若回報「出處不對」，先看該筆出處是「清洗內容」還是「蒸餾頁」，再回到對應檔案與 <code>AnchorRef</code> 檢查切塊是否切壞。</li></ol>
+<hr>
+<h2 id="七為什麼要兩層並存而不是只留一層" class="t7">七、為什麼要「兩層並存」而不是只留一層</h2>
+<ul><li><strong>只留 Cleaned</strong>：有完整事實，但缺概念化導引，跨來源綜覽與「這是什麼概念」類問題命中差、答案較零散。</li><li><strong>只留 Wiki</strong>：概念清楚，但摘要會丟失細節與精確條款，「第幾條寫什麼、確切數字」類問題容易失真，且出處不夠貼近原文。</li><li><strong>兩層並存</strong>：Wiki 負責「找到對的概念、給框架」，Cleaned 負責「補回原文細節、當出處」，兼顧召回廣度與答案可信度——這是本系統刻意的雙層設計。</li></ul>
+<hr>
+<h2 id="八版本化與時效性對兩層的影響0314-起" class="t8">八、版本化與時效性對兩層的影響（0.3.14 起）</h2>
+<p>自 0.3.14 導入 Wiki 版本狀態機（VER-1）與失效標記／as-of（VER-2）後，<strong>Wiki 層新增了版本維度，Cleaned 層維持不版本化</strong>。要點：</p>
+<ul><li><strong>概念鍵＝(來源, 標題)，同一概念至多一個 <code>current</code>。</strong> 核准一頁時，該概念的舊 <code>current</code> 版轉為 <code>superseded</code>（設 <code>ExpiryDate</code>、<code>SupersededByPageId</code>），新版成為 <code>current</code>，<code>Version</code> 遞增。</li><li><strong>只索引現行版。</strong> 索引只建 <code>Status=已完成</code> 且 <code>EffectiveStatus=current</code> 的 Wiki 頁；<code>superseded</code> 舊版<strong>保留頁與檔案不刪除</strong>，但其向量標記 <code>IsCurrent=false</code>。</li><li><strong>重蒸餾不再刪舊版。</strong> 改以版本鏈保留歷史（<code>PreviousVersionPageId</code>），確保既有知識不遺失、可回溯。</li><li><strong><code>as-of</code> 時點檢索。</strong> <code>EffectiveVersionFilter</code> 疊在<strong>團隊 ACL 之上</strong>：<code>RetrievalQuery.AsOf</code> 為 null 時只取 <code>IsCurrent</code> 向量；指定時間 T 時取「<code>EffectiveDate ≤ T</code> 且（<code>ExpiryDate</code> 為 null 或 <code>&gt; T</code>）」的版本。Cleaned 層 <code>EffectiveDate=null</code>、永遠納入，不受版本過濾影響。</li><li><strong>權控不變量不變。</strong> 版本過濾<strong>不取代</strong>團隊權控；非管理員越權洩漏須維持 0。</li><li><strong>治理欄位。</strong> Wiki 頁另有 <code>Owner</code>／<code>ChangeSummary</code>／<code>LastReviewedAt</code> 供知識治理，與審核狀態、版本狀態皆正交。</li></ul>
+<blockquote><p>詳見 <a href="../../docs/architecture/knowledge-type-versioning.html">知識型態抽象 × 版本化 × 時效性（設計文件）</a> 與 <a href="../../docs/features/versioning-freshness.html">features/版本化與時效性</a>。</p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（系統架構）</h3><ul><li><a href="../../docs/architecture/two-stage-threshold.html">AI 知識問答：兩段式相似度門檻與查無依據攔截（設計文件）</a></li><li><a href="../../docs/architecture/knowledge-type-versioning.html">知識型態抽象 × 版本化 × 時效性（設計文件）</a></li><li><a href="../../docs/architecture/api-versioning.html">API Versioning 策略</a></li><li><a href="../../docs/architecture/dto-boundaries.html">DTO 與模型邊界規範</a></li><li><a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a></li><li><a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a></li><li><a href="../../docs/architecture/rag-rerank-analysis.html">RAG 是否導入 Re-rank（二階重排）分析與建議</a></li><li><a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例</a></li><li><a href="../../docs/architecture/architecture-overview.html">架構總覽</a></li><li><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a></li><li><a href="../../docs/architecture/data-model.html">資料模型與資料庫</a></li><li><a href="../../docs/architecture/data-lifecycle.html">資料生命週期與維護（更新、刪除、級聯與孤兒）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一一句話結論">一、一句話結論</a><a class="l2" href="#二兩層是什麼">二、兩層是什麼</a><a class="l3" href="#cleaned-markdown清洗後文字">Cleaned Markdown（清洗後文字）</a><a class="l3" href="#wiki-頁知識頁審核產物">Wiki 頁（知識頁審核產物）</a><a class="l2" href="#三關鍵事實最容易誤解處">三、關鍵事實（最容易誤解處）</a><a class="l2" href="#四資料流位置">四、資料流位置</a><a class="l2" href="#五兩層角色對照表">五、兩層角色對照表</a><a class="l2" href="#六維運關鍵診斷時要記住">六、維運關鍵（診斷時要記住）</a><a class="l2" href="#七為什麼要兩層並存而不是只留一層">七、為什麼要「兩層並存」而不是只留一層</a><a class="l2" href="#八版本化與時效性對兩層的影響0314-起">八、版本化與時效性對兩層的影響（0.3.14 起）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/architecture/Wiki與Cleaned角色差異.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

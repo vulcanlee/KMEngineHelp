@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KnowledgeExtraction.AI 安全優先穩定化計畫｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../../index.html">角色首頁</a>
+    <a href="../../../all-docs.html">全部文件</a>
+    <a href="../../../search.html">搜尋</a>
+    <a href="../../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../../all-docs.html">全部文件</a> ／ superpowers/plans</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">superpowers/plans</div><h1>KnowledgeExtraction.AI 安全優先穩定化計畫</h1></header><div class="docwrap"><main><h2 id="現況摘要" class="t1">現況摘要</h2>
+<p>健康狀態：<code>DONE_WITH_CONCERNS</code>。工具基線約 8.9/10，但這不是安全分數。</p>
+<div class="tw"><table><thead><tr><th>面向</th><th>結果</th><th>判讀</th></tr></thead><tbody><tr><td>Release 建置</td><td>成功、21 warnings</td><td>6 個業務程式 nullable 警告；15 個 Razor 產生碼警告</td></tr><tr><td>xUnit</td><td>484/484 通過</td><td>基礎不錯，但非 migration 程式行覆蓋粗估僅 30.4%，整體 branch coverage 17.8%</td></tr><tr><td>文件編碼</td><td>全數通過</td><td>UTF-8 BOM 與亂碼護欄有效</td></tr><tr><td>套件弱點</td><td>2 個 High</td><td><code>SQLitePCLRaw.lib.e_sqlite3 2.1.11</code>、<code>Microsoft.OpenApi 2.4.1</code></td></tr><tr><td>CI</td><td>0 個 workflow</td><td>文件宣稱已建立 CI，但實際不存在</td></tr><tr><td>資料生命週期</td><td>104 次 <code>CleanTrackingHelper.Clean</code></td><td>scoped <code>DbContext</code> 綁定 Blazor circuit，陳舊追蹤補丁已成為系統性債務</td></tr></tbody></table></div>
+<p>首要原因：</p>
+<ul><li><code>PasswordHelper.cs</code> 使用單次 SHA-256；改用 ASP.NET Core <code>PasswordHasher&lt;TUser&gt;</code> 的版本化 PBKDF2 格式，降低資料庫外洩後的離線破解風險。<a href="https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.identity.passwordhasher-1?view=aspnetcore-10.0" rel="noopener" target="_blank">Microsoft PasswordHasher</a></li><li>NuGet 掃描結果已推翻舊文件中的「無漏洞」結論；SQLite 套件有 High advisory，而 Microsoft.OpenApi 2.x 至 2.7.4 受影響。<a href="https://github.com/advisories/GHSA-2m69-gcr7-jv3q" rel="noopener" target="_blank">SQLite advisory</a>、<a href="https://github.com/advisories/GHSA-v5pm-xwqc-g5wc" rel="noopener" target="_blank">Microsoft.OpenApi advisory</a></li><li><code>ServiceCollectionExtensions.cs</code> 使用 scoped <code>DbContext</code>；Microsoft 明確指出 Blazor Server circuit 會跨元件共享 scoped context，建議每次操作建立 context。<a href="https://learn.microsoft.com/en-us/aspnet/core/blazor/blazor-ef-core?view=aspnetcore-10.0" rel="noopener" target="_blank">Blazor EF Core guidance</a></li></ul>
+<h2 id="實作變更" class="t2">實作變更</h2>
+<h3 id="第一波安全缺口">第一波：安全缺口</h3>
+<ul><li>新增 <code>MyUser.MustChangePassword</code>，產生 SQLite 與 SQL Server 雙 migration；既有非空本機密碼標記為必須重設，OAuth-only 帳號不受影響，系統 support 帳號由啟動程序安全升級。</li><li>新增 <code>IPasswordHashService</code>，新密碼一律使用 <code>PasswordHasher&lt;MyUser&gt;</code>；舊 SHA-256 只允許驗證至首次登入，登入後強制進入變更密碼頁，成功後改存新格式並清除旗標。</li><li>API 登入遇到 <code>MustChangePassword=true</code> 時不核發 JWT，回傳明確的密碼重設要求；Web Cookie 登入仍可進入受限的變更密碼流程。</li><li><code>BootstrapSettings</code> 新增 <code>SeedSupportAccount</code>。Production 預設停用；啟用時，<code>SupportPassword</code> 若空白、預設值或未達強度即 fail-fast。既有新格式 support 密碼不得每次啟動覆寫。</li><li>在資料專案明確引用 <code>SQLitePCLRaw.bundle_e_sqlite3 3.0.3</code>，它改用 SQLite 3.50.4.5 以上的 native package；Web 專案明確引用 patched <code>Microsoft.OpenApi 2.7.5</code>。<a href="https://www.nuget.org/packages/SQLitePCLRaw.bundle_e_sqlite3/3.0.3" rel="noopener" target="_blank">SQLite bundle 3.0.3</a></li></ul>
+<h3 id="第二波防退化護欄">第二波：防退化護欄</h3>
+<ul><li>修正 6 個業務 nullable 警告；Razor <code>CS8669</code> 僅在 Web 專案針對產生碼做定向抑制，最終 Release 建置必須 0 warning。</li><li>兩處靜默 <code>IOException</code> 改為結構化 <code>LogWarning</code>，符合專案「catch 不得靜默」規範。</li><li>新增 <code>global.json</code> 鎖定 .NET 10 SDK，以及 <code>.github/workflows/dotnet-ci.yml</code>，在 Windows runner 執行：</li><li>Release restore/build，warning 視為失敗。</li><li>完整 xUnit 與 coverage。</li><li><code>scripts/Test-DocsEncoding.ps1</code>。</li><li>JSON 格式 NuGet 弱點掃描；任何 High/Critical 即失敗。</li><li>初始 coverage 門檻設為：排除 migrations/產生碼後 line ≥30%、branch ≥15%，之後只升不降。</li><li>校正 <code>docs/planning/03-缺口與風險清單-TODO.md</code> 的 CI、warning、漏洞狀態，改記錄「最後驗證日期＋實際命令」，避免完成勾選永久失真。</li><li>釐清 AutoMapper 16 的 production license 警告；本機 PoC 可暫緩購買或替換，但文件不得再描述成「留空即可免費正式使用」。</li></ul>
+<h3 id="第三波局部架構治理">第三波：局部架構治理</h3>
+<ul><li>同時註冊 <code>IDbContextFactory&lt;BackendDBContext&gt;</code>，先遷移最容易被背景工作改動的 <code>KnowledgeSourceService</code>、清洗／蒸餾／索引 Processor 與 Wiki 流程；每個 public operation 建立一個 context，私有方法共用該 operation context。</li><li>保留其他既有 scoped 服務，避免一次改寫全系統；已遷移區域移除對應 <code>CleanTrackingHelper.Clean</code>，以跨 context 更新測試驗證不再讀到陳舊資料。</li><li>Production 不再於 <code>Program.cs</code> 自動 migration；Development/Testing 保留便利行為，正式部署使用檢查過的 SQL script 或 migration bundle。<a href="https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying" rel="noopener" target="_blank">EF Core production migration guidance</a></li><li><code>UseConfiguredForwardedHeaders</code> 移至 HSTS、HTTPS redirect、認證前，並由設定列出 trusted proxies/networks。<a href="https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-10.0" rel="noopener" target="_blank">Forwarded Headers guidance</a></li><li>增加三條瀏覽器 smoke tests：登入與強制改密碼、首頁儀表板載入、非管理員團隊資料隔離。</li><li>目前維持單機 Channel 背景架構；不導入 RabbitMQ、Hangfire 或獨立 Worker。多實例部署確定後再處理 durable queue 與競態。</li></ul>
+<h2 id="介面與資料變更" class="t3">介面與資料變更</h2>
+<ul><li>Entity：<code>MyUser.MustChangePassword : bool</code>。</li><li>設定：<code>BootstrapSettings.SeedSupportAccount : bool</code>。</li><li>內部介面：<code>IPasswordHashService.Hash</code>、<code>Verify</code>、<code>IsLegacyHash</code>。</li><li>外部 DTO 不變；只有 <code>/api/Auth/login</code> 在必須改密碼時新增明確拒絕行為。</li><li>模型異動必須產生雙 provider migrations，文件同步更新。</li></ul>
+<h2 id="驗收測試" class="t4">驗收測試</h2>
+<ul><li>舊 SHA-256 使用者可用舊密碼登入一次，但只能前往變更密碼；變更後舊密碼失效、新密碼可登入且儲存值不再是 64 字元 SHA-256。</li><li>OAuth-only 帳號不被誤導向變更密碼；API 不會為待重設帳號核發 JWT。</li><li>Production 在 support seed 啟用但密碼空白／弱密碼時拒絕啟動；停用 seed 時不建立或覆寫 support 帳號。</li><li><code>dotnet list ... package --vulnerable --include-transitive</code> 不得再列出漏洞。</li><li>Release build 0 warning、全部測試通過、coverage 不低於基線、文件編碼全綠。</li><li>SQLite 實際 CRUD／migration 啟動測試通過；SQL Server migrations 可成功產生 idempotent script。</li><li>反向代理整合測試驗證 forwarded HTTPS scheme、HSTS 與 redirect 不形成迴圈。</li></ul>
+<h2 id="假設與限制" class="t5">假設與限制</h2>
+<ul><li>採用未收到 D4 回覆時的推薦方案：「安全優先穩定化」。</li><li>部署目標是本機單實例 PoC，因此外部佇列與全面服務拆分不在本輪。</li><li>所有既有本機帳號採首次登入強制重設；support 為系統帳號例外，由安全設定值升級。</li><li>不修改目前使用者已變更的 <code>AGENTS.md</code>、<code>CLAUDE.md</code>。</li><li>每個可建置交付依規範將 <code>SystemVersion</code> 加 1、同步繁體中文 BOM 文件；不自動 commit，只提供建議 commit message。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（superpowers/plans）</h3><ul><li><a href="../../../docs/superpowers/plans/2026-06-02-73d2ea8b.html">音訊／影片轉錄服務 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-04-35c13737.html">抖音影片自動轉錄整合 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-09-7034edfd.html">提示詞清單（Prompt）管理頁面 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-11-knowledge-source-crud-6e918bdb.html">知識來源管理清單（KnowledgeSource）CRUD + 成員聚合 實作計畫</a></li><li><a href="../../../docs/superpowers/plans/2026-07-12-prd-e14e5def.html">PRD 全庫基線重建 Implementation Plan</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#現況摘要">現況摘要</a><a class="l2" href="#實作變更">實作變更</a><a class="l3" href="#第一波安全缺口">第一波：安全缺口</a><a class="l3" href="#第二波防退化護欄">第二波：防退化護欄</a><a class="l3" href="#第三波局部架構治理">第三波：局部架構治理</a><a class="l2" href="#介面與資料變更">介面與資料變更</a><a class="l2" href="#驗收測試">驗收測試</a><a class="l2" href="#假設與限制">假設與限制</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/superpowers/plans/2026-07-10-專案安全優先穩定化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

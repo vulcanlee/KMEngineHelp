@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>favicon 多尺寸重生：修正緊裁基準，分頁圖示放大 1.38 倍｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>favicon 多尺寸重生：修正緊裁基準，分頁圖示放大 1.38 倍</h1></header><div class="docwrap"><main><h2 id="變更目的" class="t1">變更目的</h2>
+<p>使用者回報：瀏覽器分頁上本系統的圖示，比 Facebook / LinkedIn / Blogger / TikTok 等其他分頁的圖示小很多。</p>
+<h2 id="根本原因02159-那次去白邊放大本身就沒改對" class="t2">根本原因：0.2.159 那次「去白邊放大」本身就沒改對</h2>
+<p><code>wwwroot/favicon.png</code>（128×128）中，<strong>標誌本體只佔 74×90 px（寬 57.8%、高 70.3%）</strong>，四周是透明留白。換算到分頁的 16px 顯示，標誌只有 9.2 × 11.2 px，難怪比鄰居小一截。</p>
+<p>留白的來源是 <a href="../../docs/changelog/2026-07-04-favicon-e979b1ed.html">0.2.159 的處理方式</a>。該篇第 3 步寫「依非透明像素 bbox 緊裁（裁切後約 304×341）」—— 用的是 <strong>alpha bbox</strong>。但來源圖 <code>wwwroot/images/app-logo.png</code> 的白色圓角卡片外圍有一層<strong>淺灰柔邊</strong>（以下稱「幽靈環」），它既不夠透明（alpha &gt; 32）也不夠白（min RGB &lt; 235），四角 flood fill 會停在那裡。緊裁於是被這圈環撐大，<strong>裁到的是卡片，不是標誌</strong>。</p>
+<p>本次在記憶體中重跑該演算法，完整重現了這個 bug：</p>
+<pre><code>四角 flood fill 後  alpha bbox = (92, 72, 420, 439) → 328×367，比例 0.894  ← 幽靈環（卡片）
+                    墨色  bbox = (136, 105, 366, 382) → 230×277，比例 0.830  ← 標誌本體</code></pre>
+<p><code>328×367</code> 與該篇自述的「約 304×341」（比例 0.891）是同一個東西 —— 比例對得上，而標誌本體的 0.830 對不上。<strong>該篇第 1 段「讓 logo 貼齊放大」的成果宣稱並未達成</strong>，已回頭在該篇加註勘誤。</p>
+<h2 id="處理方式" class="t3">處理方式</h2>
+<p>新增 <code>scripts/Build-Favicons.py</code>（納入版控，取代一次性執行）。核心是把緊裁基準從 alpha bbox 換成<strong>墨色 bbox</strong>（<code>alpha &gt; 128 且 (R+G+B)/3 &lt; 200</code>）：</p>
+<ol><li>讀 <code>wwwroot/images/app-logo.png</code>（512×512 RGBA）轉 RGBA。</li><li>四角 BFS 連通填充去背（背景判定：<code>alpha &lt; 32</code> 或 <code>min(R,G,B) &gt;= 235</code>）：與畫布邊緣相連的區域 alpha 設 0；<strong>內部白色（節點圓、盾牌、鑰匙孔）被深色描邊包圍、與外部不連通，完整保留 5,982 個像素</strong>（未用「全部白→透明」以免挖空內部）。</li><li>依<strong>墨色 bbox</strong> 緊裁 → 230×277。幽靈環在此框之外，因此被裁掉。</li><li>長邊縮至 <code>round(尺寸 × 0.96)</code>（LANCZOS）、置中貼到透明方形畫布。留 2% 安全邊距是刻意的：六邊形上下尖角的反鋸齒貼死邊緣會被切平。</li><li><strong>落檔前驗證，未通過則非零離開、不寫任何檔案</strong>（見下節）。</li></ol>
+<p>輸出四個尺寸，<code>App.razor</code> 以 <code>sizes</code> 屬性升冪宣告（Chrome 依 <code>sizes</code> 挑最接近、Firefox 傾向取最後一個合適者，升冪且尺寸標示正確時兩種策略結果都對）：</p>
+<div class="tw"><table><thead><tr><th>檔案</th><th>畫布</th><th>標誌內容</th><th>高填滿</th><th>寬填滿</th></tr></thead><tbody><tr><td><code>favicon-16.png</code></td><td>16×16</td><td>12 × 15</td><td>93.8%</td><td>75.0%</td></tr><tr><td><code>favicon-32.png</code></td><td>32×32</td><td>26 × 31</td><td>96.9%</td><td>81.2%</td></tr><tr><td><code>favicon-48.png</code></td><td>48×48</td><td>38 × 46</td><td>95.8%</td><td>79.2%</td></tr><tr><td><code>favicon.png</code></td><td>128×128</td><td>102 × 123</td><td>96.1%</td><td>79.7%</td></tr><tr><td><strong>（修改前）<code>favicon.png</code></strong></td><td>128×128</td><td><strong>74 × 90</strong></td><td><strong>70.3%</strong></td><td><strong>57.8%</strong></td></tr></tbody></table></div>
+<p>相對現況<strong>放大約 1.38 倍</strong>；分頁上的標誌從 9.2 × 11.2 px 變成 12 × 15 px。</p>
+<p><code>favicon.png</code> 檔名刻意不改：既是 128 尺寸的來源，也是有人硬寫 <code>/favicon.png</code> 時的相容路徑。</p>
+<h2 id="驗證守門已實證有效" class="t4">驗證：守門已實證有效</h2>
+<p><code>Build-Favicons.py</code> 的 <code>verify()</code> 直接釘住本次的 bug 型態。<strong>已實證</strong>：把緊裁基準改回 alpha bbox（＝0.2.159 的錯誤做法）後，驗證器回報 7 個問題、離開碼 1，第一條即點名成因：</p>
+<pre><code>墨色 bbox 為 328x367，預期 230x277。（若量到 328x367 表示緊裁基準被改回 alpha bbox，那是幽靈環不是標誌）
+墨色 bbox 比例 0.894，預期 0.83 ± 0.005
+墨色 bbox (92, 72, 420, 439) 未嚴格內縮於 alpha bbox (92, 72, 420, 439)，緊裁基準可能取錯
+16px：內容寬 13，預期 12 ／ 32px：28，預期 26 ／ 48px：41，預期 38 ／ 128px：110，預期 102</code></pre>
+<p>其餘斷言：輸出必須是 RGBA 且四角 alpha 為 0（擋住日後偷加實心底磚）、內部白色像素不得低於 1,000（擋住挖空盾牌與鑰匙孔）、每個尺寸的內容高必須<strong>等於</strong> <code>round(尺寸 × 0.96)</code> 且置中偏移差 ≤ 1px。</p>
+<blockquote><p>⚠️ 驗證器刻意<strong>不</strong>斷言「填滿率 ≥ 96%」：<code>round(16 × 0.96) = 15</code>、<code>15/16 = 93.75%</code>，16px 那檔會永遠不過。要比對的是精確值 15／31／46／123。</p></blockquote>
+<h2 id="本次修改檔案" class="t5">本次修改檔案</h2>
+<ul><li><code>scripts/Build-Favicons.py</code>（<strong>新增</strong>，產圖與驗證）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/wwwroot/favicon-16.png</code>（新增）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/wwwroot/favicon-32.png</code>（新增）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/wwwroot/favicon-48.png</code>（新增）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/wwwroot/favicon.png</code>（重生：緊裁基準修正、放大）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/App.razor</code>（第 15 行單行 → 四行 <code>sizes</code> 宣告）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json</code>（版本 1.0.78→1.0.79）</li><li><code>docs/changelog/2026-07-04-favicon去白邊透明化.md</code>（加勘誤段）</li><li><code>docs/architecture/開發慣例與限制速查.md</code>（新增品牌圖示資產不變量）</li></ul>
+<h2 id="未變更" class="t6">未變更</h2>
+<ul><li><code>wwwroot/images/app-logo.png</code>（登入頁 <code>Login.razor</code> 與 <code>SplashView.razor</code> 仍在用的白色圓角磚版，維持不變）。</li><li>指紋化機制：<code>@Assets[...]</code> 寫法沿用 <a href="../../docs/changelog/2026-07-04-favicon-d236fda1.html">0.2.158</a> 的結論，四個新舊檔案都走同一套。</li><li><code>.csproj</code>：Razor SDK 對 <code>wwwroot/**</code> 自動 glob，新增 PNG 不需任何設定。</li><li>測試數量：758 條不變（本次不影響任何測試）。無 migration。</li></ul>
+<h2 id="刻意不做" class="t7">刻意不做</h2>
+<ul><li><strong>不加實心底色磚</strong>。其他分頁的圖示（Facebook / LinkedIn / Blogger / TikTok）之所以看起來「滿」，是因為它們是填滿整個方框的實心色磚。本系統維持透明背景是使用者的明確選擇，代價是六邊形為直立形（比例 0.830），寬度只能填到約 80%，視覺上仍會比滿版色磚略小一點。</li><li><strong>不加 <code>favicon.ico</code> / <code>site.webmanifest</code> / <code>apple-touch-icon</code> / <code>theme-color</code></strong>：超出本次需求範圍。</li><li><strong>不新增守門測試</strong>：使用者選擇以實作順序與人工檢查守住，改以速查文件登記不變量。</li></ul>
+<h2 id="已知風險" class="t8">已知風險</h2>
+<ul><li>⚠️ <strong><code>@Assets["不存在的 key"]</code> 會靜默失敗</strong>：<code>ResourceAssetCollection</code> 的 indexer 查不到時原樣回傳 key，<strong>不編譯失敗也不拋例外</strong>，產生無指紋的 <code>&lt;link href="favicon-16.png"&gt;</code> → <code>MapStaticAssets</code> 不認得 → 404 → 被 <code>UseStatusCodePagesWithReExecute("/not-found")</code> 重導成一頁 HTML，瀏覽器拿到非圖片內容就安靜放棄。畫面上只會看到「favicon 沒變」，沒有任何錯誤訊息。<strong>因此實作順序必須是「先產圖 → 再改 <code>App.razor</code> → 再建置」</strong>，且四個檔案缺一不可。已登記進速查。</li><li>發佈設定 <code>FolderProfile.pubxml</code> 是 <code>DeleteExistingFiles=false</code>，舊的 <code>favicon.&lt;舊指紋&gt;.png</code> 會殘留在發佈資料夾。無害（<code>App.razor</code> 引用的是新指紋），但可自行清理。</li></ul>
+<h2 id="備註" class="t1">備註</h2>
+<ul><li>favicon 是瀏覽器快取最頑固的資源之一，Chrome 另有獨立的 favicon 資料庫，<strong><code>Ctrl+F5</code> 常常無效</strong>。若沒看到變化，最可靠的確認方式是<strong>開一個全新的無痕視窗</strong>，或 DevTools → Application → Storage → Clear site data。</li><li>重新產生圖示：<code>python scripts/Build-Favicons.py</code>（先跑 <code>--dry-run</code> 可只驗證不落檔）。相依 Pillow。</li></ul>
+<h2 id="編碼要求" class="t2">編碼要求</h2>
+<ul><li>本次新增文件以 UTF-8（含 BOM）保存，內容為繁體中文、無亂碼。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#變更目的">變更目的</a><a class="l2" href="#根本原因02159-那次去白邊放大本身就沒改對">根本原因：0.2.159 那次「去白邊放大」本身就沒改對</a><a class="l2" href="#處理方式">處理方式</a><a class="l2" href="#驗證守門已實證有效">驗證：守門已實證有效</a><a class="l2" href="#本次修改檔案">本次修改檔案</a><a class="l2" href="#未變更">未變更</a><a class="l2" href="#刻意不做">刻意不做</a><a class="l2" href="#已知風險">已知風險</a><a class="l2" href="#備註">備註</a><a class="l2" href="#編碼要求">編碼要求</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-26-favicon多尺寸重生.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRD 全庫基線重建 Implementation Plan｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../../index.html">角色首頁</a>
+    <a href="../../../all-docs.html">全部文件</a>
+    <a href="../../../search.html">搜尋</a>
+    <a href="../../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../../all-docs.html">全部文件</a> ／ superpowers/plans</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">superpowers/plans</div><h1>PRD 全庫基線重建 Implementation Plan</h1></header><div class="docwrap"><main><blockquote><p><strong>For agentic workers:</strong> REQUIRED: Use superpowers:executing-plans to implement this plan. Steps use checkbox (<code>- [ ]</code>) syntax for tracking. 本專案未授權子代理，且不得自動 commit。</p></blockquote>
+<p><strong>Goal:</strong> 讓 <code>docs/prd</code> 的 31 份能力 PRD 完整且可驗證地覆蓋系統 0.3.34，並將尚未實作藍圖嚴格分層。</p>
+<p><strong>Architecture:</strong> 先以選單、路由、權限、資料模型、服務、背景管線與測試建立能力基線，再新增五份缺口 PRD、分批校正既有 25 份文件，最後以覆蓋矩陣與自動檢查收斂。保留既有 PRD 路徑，避免破壞歷史連結。</p>
+<p><strong>Tech Stack:</strong> Markdown（UTF-8 BOM、繁體中文）、ASP.NET Core／Blazor、EF Core、PowerShell、ripgrep、Git、xUnit。</p>
+<p><strong>Spec:</strong> <code>docs/superpowers/specs/2026-07-12-PRD全庫基線重建-design.md</code></p>
+<hr>
+<h2 id="chunk-1-建立真實來源與缺口基線" class="t1">Chunk 1: 建立真實來源與缺口基線</h2>
+<h3 id="task-1-建立產品能力覆蓋矩陣草稿">Task 1: 建立產品能力覆蓋矩陣草稿</h3>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>docs/prd/README.md</code></li><li>Reference: <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Datas/Menu.json</code></li><li>Reference: <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/**/*.razor</code></li><li>Reference: <code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/**</code></li></ul>
+<ul class="check"><li><span class="box">☐</span><strong>Step 1: 擷取正式入口</strong></li></ul>
+<p>Run:</p>
+<pre><code>Get-Content -Raw src/KnowledgeExtraction/KnowledgeExtraction.Web/Datas/Menu.json
+rg -n --glob '*.razor' '^@page' src/KnowledgeExtraction/KnowledgeExtraction.Web</code></pre>
+<p>Expected: 列出所有正式選單頁與 Razor 路由；排除 <code>/counter</code>、<code>/weather</code> 等樣板／非正式入口。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 2: 擷取無頁面核心能力</strong></li></ul>
+<p>Run:</p>
+<pre><code>rg --files src/KnowledgeExtraction | rg 'BackgroundService|Processor\.cs$|Queue\.cs$'
+Get-ChildItem src/KnowledgeExtraction/KnowledgeExtraction.Models -Recurse -Filter '*.cs'</code></pre>
+<p>Expected: 清洗、蒸餾、嵌入索引、Token 寫入等背景能力，以及主要產品資料模型均被盤點。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 3: 將 README 改為 PRD 主控台</strong></li></ul>
+<p>建立四個區塊：已實作產品能力矩陣、無選單核心能力、規劃中藍圖、PRD 維護規則。矩陣欄位固定為「產品能力／PRD／入口或流程／主要程式來源／狀態／最後核對版本」。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 4: 驗證所有選單頁都有歸屬</strong></li></ul>
+<p>逐一核對 <code>/App</code>、專案管理 6 頁、清洗與蒸餾 7 頁、系統管理 8 頁、資料定義 4 頁；每頁至少對應一份 PRD，不以操作指南代替 PRD。</p>
+<p>Expected: 26 個功能頁全部有 PRD 歸屬；登出由登入與帳號流程 PRD 覆蓋。</p>
+<hr>
+<h2 id="chunk-2-補齊五組核心能力-prd" class="t2">Chunk 2: 補齊五組核心能力 PRD</h2>
+<h3 id="task-2-新增知識瀏覽與索引檢索-prd">Task 2: 新增知識瀏覽與索引檢索 PRD</h3>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>docs/prd/知識瀏覽與Wiki導覽-prd.md</code></li><li>Create: <code>docs/prd/嵌入索引與混合檢索-prd.md</code></li><li>Reference: <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/KnowledgeWiki/**</code></li><li>Reference: <code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Embeddings/**</code></li><li>Reference: <code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/KnowledgeBase/**</code></li></ul>
+<ul class="check"><li><span class="box">☐</span><strong>Step 1: 撰寫知識瀏覽現況 PRD</strong></li></ul>
+<p>涵蓋 <code>/knowledge-wiki</code>、已完成 Wiki 頁、概念索引、搜尋、分類／團隊篩選、<code>[[概念]]</code> 導覽、版本歷史、複製／PDF、無權概念行為與團隊權控。規劃中項目獨立成章。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 2: 撰寫索引與檢索現況 PRD</strong></li></ul>
+<p>涵蓋 Cleaned／Wiki chunk、嵌入端點、向量儲存、關鍵字與向量融合、Query Rewrite、TopK／CandidateTopK／MinScore／權重、來源與分類限制、權控、單筆／全量重建、狀態機與失敗恢復。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 3: 交叉核對問答與 RAG 評測邊界</strong></li></ul>
+<p>索引 PRD 定義「如何建立與取回證據」；問答 PRD 定義「如何生成答案」；RAG 評測 PRD 定義「如何量測檢索」。避免三份重複或互相矛盾。</p>
+<h3 id="task-3-新增診斷生命週期與可觀測性-prd">Task 3: 新增診斷、生命週期與可觀測性 PRD</h3>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>docs/prd/RAG診斷與查詢期調校-prd.md</code></li><li>Create: <code>docs/prd/資料版本時效性與一致性生命週期-prd.md</code></li><li>Create: <code>docs/prd/AI可觀測性與成本治理-prd.md</code></li><li>Reference: <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/RagDiagnostics/**</code></li><li>Reference: <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/DataConsistency/**</code></li><li>Reference: <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/ChatLogs/**</code></li><li>Reference: <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/TokenUsage/**</code></li></ul>
+<ul class="check"><li><span class="box">☐</span><strong>Step 1: 撰寫 RAG 診斷 PRD</strong></li></ul>
+<p>涵蓋目前／建議門檻、合法關係 <code>0 ≤ RejectThreshold ≤ LowConfidenceThreshold ≤ 1</code>、熱套用／回復預設、查詢期參數、topScore 分佈、門檻模擬、索引健康、自檢、試檢索、近期稽核與管理員限制。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 2: 撰寫生命週期 PRD</strong></li></ul>
+<p>涵蓋素材版本鏈、現行版／被取代版、版本歷史與 as-of、上游編修造成下游過時、孤兒成員、<code>/data-consistency</code>、單筆與批次處置、檔案／資料庫一致性、成本與安全確認。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 3: 撰寫可觀測性與成本 PRD</strong></li></ul>
+<p>涵蓋問答／單一來源對話稽核、全文、使用者與來源、信心與 topScore、滿意度可改／取消、Token 分類、模型／作業／帳號／日期篩選、彙總、緊湊數字與精確 tooltip、管理員權限及不得記錄秘密。</p>
+<hr>
+<h2 id="chunk-3-校正既有-26-份-prd" class="t3">Chunk 3: 校正既有 26 份 PRD</h2>
+<h3 id="task-4-校正帳號治理與專案協作文件">Task 4: 校正帳號、治理與專案協作文件</h3>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>docs/prd/首頁與導覽-prd.md</code></li><li>Modify: <code>docs/prd/登入與帳號流程-prd.md</code></li><li>Modify: <code>docs/prd/使用者管理-prd.md</code></li><li>Modify: <code>docs/prd/角色管理-prd.md</code></li><li>Modify: <code>docs/prd/分類清單-prd.md</code></li><li>Modify: <code>docs/prd/團隊清單-prd.md</code></li><li>Modify: <code>docs/prd/提示詞清單-prd.md</code></li><li>Modify: <code>docs/prd/系統健康監控-prd.md</code></li><li>Modify: <code>docs/prd/專案項目-prd.md</code></li><li>Modify: <code>docs/prd/工作項目-prd.md</code></li><li>Modify: <code>docs/prd/會議記錄-prd.md</code></li></ul>
+<ul class="check"><li><span class="box">☐</span><strong>Step 1: 統一中繼資料</strong></li></ul>
+<p>將文件狀態、現行版本 <code>0.3.34</code>、首次實作版本、最後核對日期補齊；不得把「對應版本」誤寫成只支援舊版。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 2: 校正首頁與治理</strong></li></ul>
+<p>首頁補齊統計儀表板、近 30 天滿意度與 Token；登入補齊 Google 待審核、記住我、強制改密碼與 API 密碼邊界；角色補齊管理員專用選單、動作型權限位置規則與預設團隊。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 3: 擴充系統健康 PRD</strong></li></ul>
+<p>加入健康分數、檢查證據、最後 100 筆日誌、<code>/log-settings</code> 執行期等級切換、重啟回復預設、敏感資訊與高日誌量風險。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 4: 校正專案／工作／會議</strong></li></ul>
+<p>核對欄位、附件、專案對話窗入口、所屬專案選填、子工作、團隊權控、下載與刪除實體檔案責任。</p>
+<h3 id="task-5-校正內容匯入與共用編修文件">Task 5: 校正內容匯入與共用編修文件</h3>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>docs/prd/音訊影片轉錄服務PRD.md</code></li><li>Modify: <code>docs/prd/文件萃取-markitdown-prd.md</code></li><li>Modify: <code>docs/prd/圖片清單-prd.md</code></li><li>Modify: <code>docs/prd/逐字稿LLM產生-prd.md</code></li><li>Modify: <code>docs/prd/紀錄分類與團隊權控-prd.md</code></li></ul>
+<ul class="check"><li><span class="box">☐</span><strong>Step 1: 校正三條背景管線</strong></li></ul>
+<p>統一等待中／處理中／已完成／失敗／已取消、重試、取消、重啟回復、進度與錯誤訊息；圖片保留初始未解讀狀態。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 2: 補齊新增能力</strong></li></ul>
+<p>影音補來源下載、URL 平台與 H.264 保底；文件與圖片補 zip 批次上傳；影音／文件補衍生內容；四類內容編修補搜尋取代、原地覆寫、團隊權控與下游過時影響。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 3: 校正上傳與安全邊界</strong></li></ul>
+<p>核對格式／大小、上傳 Modal 不可遮罩關閉、檔案路徑、原始檔下載權控、內容預覽 HTML 停用與精確團隊比對。</p>
+<h3 id="task-6-校正知識加工rag-與規劃藍圖">Task 6: 校正知識加工、RAG 與規劃藍圖</h3>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>docs/prd/知識來源管理-prd.md</code></li><li>Modify: <code>docs/prd/知識來源AI對話-prd.md</code></li><li>Modify: <code>docs/prd/資料清洗與品質保證-prd.md</code></li><li>Modify: <code>docs/prd/黃金評測-prd.md</code></li><li>Modify: <code>docs/prd/清洗設定檔-prd.md</code></li><li>Modify: <code>docs/prd/知識蒸餾-prd.md</code></li><li>Modify: <code>docs/prd/知識庫問答-prd.md</code></li><li>Modify: <code>docs/prd/RAG評測-prd.md</code></li><li>Modify: <code>docs/prd/PDF型RAG處理-prd.md</code></li></ul>
+<ul class="check"><li><span class="box">☐</span><strong>Step 1: 校正聚合、清洗與蒸餾流程</strong></li></ul>
+<p>核對成員資格／排序／權控、清洗設定檔優先序、遮罩失敗不變量、信心門檻與人工審核、內容編修、蒸餾版本與索引連動。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 2: 校正問答與稽核</strong></li></ul>
+<p>補齊來源／分類多選限制、Query Rewrite、拒答／低信心、出處鑽取、PDF、滿意度、聊天紀錄與 Token；明確區分單一來源對話和跨庫問答。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 3: 校正評測</strong></li></ul>
+<p>黃金評測保持上游清洗品質與門檻建議；RAG 評測保持純檢索、團隊模擬、基線快照、P@k／R@k／NDCG／MRR／越權與延遲，兩者不得混用。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 4: 分離 PDF 藍圖</strong></li></ul>
+<p>將通用 RAG 現況放在獨立已實作段落；條款／表格／雙欄／圖表感知解析等未完成能力全部放入「規劃中」，移除任何會讓人誤判已可使用的驗收語句。</p>
+<hr>
+<h2 id="chunk-4-版本索引與完整驗證" class="t4">Chunk 4: 版本、索引與完整驗證</h2>
+<h3 id="task-7-同步版本與文件索引">Task 7: 同步版本與文件索引</h3>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json</code></li><li>Modify: <code>docs/README.md</code></li><li>Modify: <code>docs/changelog/README.md</code></li><li>Create: <code>docs/changelog/2026-07-12-PRD全庫基線重建0.3.34.md</code></li></ul>
+<ul class="check"><li><span class="box">☐</span><strong>Step 1: 升級版本</strong></li></ul>
+<p>將 <code>SystemSettings.SystemInformation.SystemVersion</code> 從 <code>0.3.33</code> 改為 <code>0.3.34 (2026/07/12)</code>。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 2: 更新索引</strong></li></ul>
+<p>在文件總索引加入五份新 PRD，並將 PRD 入口描述改為「現況／藍圖分層＋完整覆蓋矩陣」。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 3: 新增變更紀錄</strong></li></ul>
+<p>記錄新增能力 PRD、25 份既有文件校正、現況／藍圖分層、版本 <code>0.3.33 → 0.3.34</code>，並同步 changelog 索引。</p>
+<h3 id="task-8-執行全庫驗收">Task 8: 執行全庫驗收</h3>
+<p><strong>Files:</strong></p>
+<ul><li>Verify: <code>docs/prd/*.md</code></li><li>Verify: <code>docs/**/*.md</code></li><li>Verify: <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json</code></li></ul>
+<ul class="check"><li><span class="box">☐</span><strong>Step 1: 檢查選單覆蓋率</strong></li></ul>
+<p>以 PowerShell 讀取 <code>Menu.json</code> 的每個 URL，確認 <code>docs/prd/README.md</code> 覆蓋矩陣均有對應；預期正式功能頁覆蓋率 100%。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 2: 檢查 PRD 關鍵詞與狀態分層</strong></li></ul>
+<p>Run:</p>
+<pre><code>rg -n '規劃中|部分實作|已實作|已淘汰' docs/prd
+rg -n '0\.2\.|0\.3\.' docs/prd</code></pre>
+<p>Expected: 舊版本只作首次實作／變更歷史，不再被誤寫為現行系統版本；規劃內容均在獨立章節。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 3: 驗證相對連結與路由</strong></li></ul>
+<p>使用唯讀 PowerShell 解析 <code>docs/prd/*.md</code> Markdown 相對連結，確認目標存在；擷取反引號中的 <code>/route</code>，與 Razor <code>@page</code>／<code>Menu.json</code> 對照。</p>
+<p>Expected: 0 個失效本地連結；正式路由全部可解析。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 4: 驗證 JSON 與文件編碼</strong></li></ul>
+<p>Run:</p>
+<pre><code>Get-Content -Raw src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json | ConvertFrom-Json | Out-Null
+powershell -ExecutionPolicy Bypass -File scripts/Test-DocsEncoding.ps1
+git diff --check</code></pre>
+<p>Expected: JSON 有效；全部 Markdown <code>BOM=True</code> 且 <code>ReplacementCharacter=False</code>；diff 無空白錯誤。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 5: 執行測試</strong></li></ul>
+<p>Run:</p>
+<pre><code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.slnx --no-restore --logger 'console;verbosity=normal'</code></pre>
+<p>Expected: 全部測試通過；既有警告可記錄但不得新增錯誤。</p>
+<ul class="check"><li><span class="box">☐</span><strong>Step 6: 最終範圍檢查</strong></li></ul>
+<p>Run:</p>
+<pre><code>git status --short
+git diff --stat
+git diff -- src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json docs/prd docs/README.md docs/changelog docs/superpowers</code></pre>
+<p>Expected: 僅包含規格、計畫、PRD、必要索引／changelog 與版本設定；不 stage、不 commit。</p>
+<h2 id="執行交付" class="t5">執行交付</h2>
+<p>完成後保留 <code>codex/prd-baseline-0.3.34</code> 分支與全域 worktree，不自動 commit。交付內容須包含新增／更新文件清單、覆蓋率、測試數、警告、worktree 路徑與建議 commit message：</p>
+<p><code>docs: 重建完整 PRD 基線（版本 0.3.33 → 0.3.34）</code></p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（superpowers/plans）</h3><ul><li><a href="../../../docs/superpowers/plans/2026-06-02-73d2ea8b.html">音訊／影片轉錄服務 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-04-35c13737.html">抖音影片自動轉錄整合 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-09-7034edfd.html">提示詞清單（Prompt）管理頁面 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-11-knowledge-source-crud-6e918bdb.html">知識來源管理清單（KnowledgeSource）CRUD + 成員聚合 實作計畫</a></li><li><a href="../../../docs/superpowers/plans/2026-07-10-d75d8738.html">KnowledgeExtraction.AI 安全優先穩定化計畫</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#chunk-1-建立真實來源與缺口基線">Chunk 1: 建立真實來源與缺口基線</a><a class="l3" href="#task-1-建立產品能力覆蓋矩陣草稿">Task 1: 建立產品能力覆蓋矩陣草稿</a><a class="l2" href="#chunk-2-補齊五組核心能力-prd">Chunk 2: 補齊五組核心能力 PRD</a><a class="l3" href="#task-2-新增知識瀏覽與索引檢索-prd">Task 2: 新增知識瀏覽與索引檢索 PRD</a><a class="l3" href="#task-3-新增診斷生命週期與可觀測性-prd">Task 3: 新增診斷、生命週期與可觀測性 PRD</a><a class="l2" href="#chunk-3-校正既有-26-份-prd">Chunk 3: 校正既有 26 份 PRD</a><a class="l3" href="#task-4-校正帳號治理與專案協作文件">Task 4: 校正帳號、治理與專案協作文件</a><a class="l3" href="#task-5-校正內容匯入與共用編修文件">Task 5: 校正內容匯入與共用編修文件</a><a class="l3" href="#task-6-校正知識加工rag-與規劃藍圖">Task 6: 校正知識加工、RAG 與規劃藍圖</a><a class="l2" href="#chunk-4-版本索引與完整驗證">Chunk 4: 版本、索引與完整驗證</a><a class="l3" href="#task-7-同步版本與文件索引">Task 7: 同步版本與文件索引</a><a class="l3" href="#task-8-執行全庫驗收">Task 8: 執行全庫驗收</a><a class="l2" href="#執行交付">執行交付</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/superpowers/plans/2026-07-12-PRD全庫基線重建.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

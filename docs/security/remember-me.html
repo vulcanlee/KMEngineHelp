@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>記住我登入原理說明｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 認證與資安</p><header class="hero"><div class="kicker">認證與資安</div><h1>記住我登入原理說明</h1></header><div class="docwrap"><main><h2 id="文件目的" class="t1">文件目的</h2>
+<p>說明本專案在登入頁勾選「記住我」之後，為什麼下次重新開啟網站時可以不必重新做身分驗證，以及這個機制在本專案中是如何實作的。</p>
+<h2 id="結論" class="t2">結論</h2>
+<p>「記住我」的核心不是把密碼記在前端，也不是跳過登入檢查，而是：</p>
+<ol><li>使用者第一次成功登入時，伺服器建立一張 <strong>持久化的登入 Cookie</strong>。</li><li>瀏覽器把這張 Cookie 存起來，不只在目前分頁有效，關閉後重新開啟網站時也會再帶回來。</li><li>之後每次請求網站時，瀏覽器都會自動把這張 Cookie 傳給伺服器。</li><li>伺服器驗證 Cookie 合法後，就能還原目前使用者的登入身分。</li><li>因此使用者不需要再次手動輸入帳號、密碼與驗證碼。</li></ol>
+<p>也就是說，「記住我」真正記住的是 <strong>登入狀態</strong>，不是帳號密碼本身。</p>
+<hr>
+<h2 id="本專案的程式流程" class="t3">本專案的程式流程</h2>
+<h2 id="1-系統先註冊-cookie-驗證機制" class="t4">1. 系統先註冊 Cookie 驗證機制</h2>
+<p>檔案：<code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Program.cs</code></p>
+<p>專案在啟動時有註冊 Cookie 驗證：</p>
+<ul><li><code>builder.Services.AddAuthentication(MagicObjectHelper.CookieScheme)</code></li><li><code>.AddCookie(MagicObjectHelper.CookieScheme, options =&gt; { ... })</code></li></ul>
+<p>目前設定重點：</p>
+<ul><li><code>options.LoginPath = "/Auths/Login";</code></li><li><code>options.LogoutPath = "/Auths/Logout";</code></li><li><code>options.AccessDeniedPath = "/Auths/Login";</code></li><li><code>options.Cookie.IsEssential = true;</code></li></ul>
+<p>對應程式位置：</p>
+<ul><li><code>KnowledgeExtraction.Web/Program.cs</code>（<code>AddAuthentication</code> 的 Cookie 選項設定）</li></ul>
+<h3 id="這段的作用">這段的作用</h3>
+<p>這表示系統採用 <strong>Cookie Authentication</strong> 做登入狀態管理。</p>
+<p>當使用者登入成功後，系統會發出一張驗證 Cookie；之後的請求只要帶著這張 Cookie，系統就能知道這個人之前已經登入過。</p>
+<p>其中：</p>
+<ul><li><code>LoginPath</code>：未登入時導到登入頁</li><li><code>LogoutPath</code>：登出時走的路徑</li><li><code>AccessDeniedPath</code>：權限不足時導回登入頁</li><li><code>Cookie.IsEssential = true</code>：把這張登入 Cookie 標記為必要 Cookie，避免被 Cookie 同意政策擋掉</li></ul>
+<hr>
+<h2 id="2-使用者在登入頁勾選記住我" class="t5">2. 使用者在登入頁勾選「記住我」</h2>
+<p>檔案：<code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Auths/Login.razor</code></p>
+<p>登入頁面有一個 <code>RememberMe</code> 欄位，會綁定到後端的 <code>Input.RememberMe</code>。</p>
+<p>這個欄位的意思是：</p>
+<ul><li><code>false</code>：只建立目前瀏覽器工作階段有效的登入 Cookie</li><li><code>true</code>：建立可跨瀏覽器重新開啟後仍存在的持久化 Cookie</li></ul>
+<hr>
+<h2 id="3-登入成功後系統把-rememberme-寫進-authenticationproperties" class="t6">3. 登入成功後，系統把 RememberMe 寫進 AuthenticationProperties</h2>
+<p>檔案：<code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Auths/Login.razor.cs</code></p>
+<p>登入成功後，程式會建立 <code>AuthenticationProperties</code>：</p>
+<ul><li><code>IsPersistent = Input.RememberMe</code></li><li><code>RedirectUri = returnUrl</code></li></ul>
+<p>對應程式位置：</p>
+<ul><li><code>KnowledgeExtraction.Web/Components/Auths/Login.razor.cs</code> 的 <code>LoginUser()</code></li></ul>
+<p>接著呼叫：</p>
+<ul><li><code>HttpContext.SignInAsync("CookieAuthenticationScheme", new ClaimsPrincipal(claimsIdentity), authProperties)</code></li></ul>
+<p>對應程式位置：</p>
+<ul><li><code>KnowledgeExtraction.Web/Components/Auths/Login.razor.cs</code> 的 <code>LoginUser()</code>（簽發 Cookie 段）</li></ul>
+<h3 id="這裡是整個記住我的關鍵">這裡是整個「記住我」的關鍵</h3>
+<p><code>IsPersistent = Input.RememberMe</code> 代表：</p>
+<ul><li>如果沒有勾選記住我：<code>IsPersistent = false</code></li><li>產生的是 <strong>Session Cookie</strong></li><li>通常只在目前瀏覽器工作階段有效</li><li>關閉瀏覽器後，下次再開啟通常就不在了</li></ul>
+<ul><li>如果有勾選記住我：<code>IsPersistent = true</code></li><li>產生的是 <strong>Persistent Cookie</strong></li><li>瀏覽器會把 Cookie 保存到本機</li><li>下次重新啟動瀏覽器或重新打開網站時，Cookie 仍可能存在</li><li>因此不需要重新登入</li></ul>
+<p>簡單講：</p>
+<blockquote><p>勾選「記住我」後，ASP.NET Core 不是把登入狀態只放在記憶體，而是要求瀏覽器把驗證 Cookie 持久保存。</p></blockquote>
+<hr>
+<h2 id="4-cookie-裡面裝的是什麼" class="t7">4. Cookie 裡面裝的是什麼</h2>
+<p>登入成功時，程式會先建立 Claims：</p>
+<ul><li><code>ClaimTypes.Role</code></li><li><code>ClaimTypes.Name</code></li><li><code>ClaimTypes.NameIdentifier</code></li><li><code>ClaimTypes.Sid</code></li></ul>
+<p>對應程式位置：</p>
+<ul><li><code>KnowledgeExtraction.Web/Components/Auths/Login.razor.cs</code> 的 <code>LoginUser()</code>（建立 Claims 段）</li></ul>
+<p>這些 Claims 會組成 <code>ClaimsIdentity</code>，再由 Cookie 驗證機制序列化成驗證票證，最後寫進 Cookie。</p>
+<h3 id="重點">重點</h3>
+<p>Cookie 內通常不是明文帳號密碼。</p>
+<p>它保存的是一份經過 ASP.NET Core Cookie Authentication 處理過的 <strong>驗證票證</strong>，裡面包含使用者識別資訊與必要宣告。伺服器在後續請求中讀到這張 Cookie，就能重建 <code>ClaimsPrincipal</code>，知道目前是誰登入。</p>
+<p>所以：</p>
+<ul><li>不需要再次輸入密碼</li><li>但也不是把密碼原封不動存在 Cookie 內</li></ul>
+<hr>
+<h2 id="5-下次重新開啟網站時為什麼還知道你是誰" class="t8">5. 下次重新開啟網站時，為什麼還知道你是誰</h2>
+<p>當使用者重新開啟網站：</p>
+<ol><li>瀏覽器對網站送出新請求</li><li>如果本機還保留那張持久化驗證 Cookie，就會自動附帶在請求中</li><li>ASP.NET Core 的 Cookie 驗證中介軟體會先讀取 Cookie</li><li>如果 Cookie 有效，就把目前請求的 <code>HttpContext.User</code> 設成已登入使用者</li><li>Blazor / 元件層再透過認證狀態取得目前登入者資訊</li></ol>
+<p>在本專案中，後續檢查使用者身分的地方是：</p>
+<p>檔案：<code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Other/AuthenticationStateHelper.cs</code></p>
+<h3 id="這段實際在做什麼">這段實際在做什麼</h3>
+<p><code>AuthenticationStateHelper.Check(...)</code> 會：</p>
+<ol><li>透過 <code>authStateProvider.GetAuthenticationStateAsync()</code> 取得目前認證狀態</li><li>檢查 <code>user.Identity.IsAuthenticated</code></li><li>從 Claims 中取出 <code>ClaimTypes.Sid</code>，並確認它是有效的使用者 Id</li><li>依使用者 Id 再去資料庫抓完整使用者資料</li><li>檢查使用者是否存在、是否停用、是否需要強制變更密碼</li><li>初始化目前使用者權限與角色資訊</li><li>把資料寫進 <code>currentUserService.CurrentUser</code></li></ol>
+<p><code>Check(...)</code> 目前會回傳 <code>AuthenticationCheckResult</code>：</p>
+<ul><li><code>Succeeded</code>：檢查成功，已建立目前使用者狀態與權限。</li><li><code>Unauthenticated</code>：目前 principal 未登入，系統會導向登出流程。</li><li><code>InvalidUser</code>：Sid 無效、使用者不存在、帳號停用、角色資料缺失或權限初始化失敗。</li><li><code>RequiresPasswordChange</code>：使用者需要先到 <code>/ChangePassword</code> 完成強制改密碼。</li></ul>
+<p>所以「重新進站後仍已登入」不是單靠前端記憶，而是：</p>
+<ul><li>瀏覽器保留 Cookie</li><li>伺服器驗證 Cookie</li><li>系統再從 Claims 與資料庫重建目前使用者狀態</li></ul>
+<hr>
+<h2 id="6-為什麼不需要重新驗證碼" class="t1">6. 為什麼不需要重新驗證碼</h2>
+<p>驗證碼只在 <strong>登入當下</strong> 用來防止機器人或暴力嘗試。</p>
+<p>一旦首次登入成功，系統就已經發出有效的驗證 Cookie。之後再次進站時，系統是根據 Cookie 來識別你，而不是重新走登入表單流程，所以也不需要重新輸入驗證碼。</p>
+<p>換句話說：</p>
+<ul><li>驗證碼是登入前的防護</li><li>Cookie 是登入後的身分憑證</li></ul>
+<p>兩者用途不同。</p>
+<hr>
+<h2 id="7-什麼情況下即使勾選記住我還是可能失效" class="t2">7. 什麼情況下即使勾選記住我，還是可能失效</h2>
+<p>即使有勾選「記住我」，也不代表永遠不會失效。常見原因如下：</p>
+<h3 id="71-cookie-過期">7.1 Cookie 過期</h3>
+<p>持久化 Cookie 仍然有有效期限。</p>
+<p>本專案目前沒有在 <code>AddCookie(...)</code> 裡顯式設定 <code>ExpireTimeSpan</code>，因此會採用 ASP.NET Core Cookie 驗證的預設行為。到期後仍然需要重新登入。</p>
+<h3 id="72-使用者主動登出">7.2 使用者主動登出</h3>
+<p>檔案：<code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Auths/Logout.razor.cs</code></p>
+<p>登出時會呼叫：</p>
+<ul><li><code>HttpContext.SignOutAsync(MagicObjectHelper.CookieScheme)</code></li></ul>
+<p>對應程式位置：</p>
+<ul><li><code>KnowledgeExtraction.Web/Components/Auths/Logout.razor.cs</code> 的 <code>OnInitializedAsync()</code></li></ul>
+<p>這會刪除目前登入對應的驗證 Cookie，所以之後再進站就要重新登入。</p>
+<h3 id="73-瀏覽器清除-cookie">7.3 瀏覽器清除 Cookie</h3>
+<p>如果使用者手動清除瀏覽器 Cookie，或使用隱私模式 / 無痕模式，持久化 Cookie 可能不會被保留。</p>
+<h3 id="74-伺服器無法接受原本的-cookie">7.4 伺服器無法接受原本的 Cookie</h3>
+<p>例如：</p>
+<ul><li>系統的 Cookie 保護金鑰變了</li><li>驗證票證失效</li><li>Cookie 被竄改</li><li>站台網域或安全設定變更</li></ul>
+<p>這些情況都可能讓舊 Cookie 無法再被接受。</p>
+<h3 id="75-使用者資料狀態改變">7.5 使用者資料狀態改變</h3>
+<p>在本專案中，登入後還會再檢查：</p>
+<ul><li>使用者是否存在</li><li><code>ClaimTypes.Sid</code> 是否存在且可解析成有效使用者 Id</li><li>使用者帳號是否仍為啟用狀態</li><li>是否需要變更密碼</li><li>是否具備角色資料</li><li>權限資料能否正常初始化</li></ul>
+<p>若其中任一檢查失敗，系統仍可能導向登出或要求重新處理；若回傳 <code>RequiresPasswordChange</code>，則會先導向 <code>/ChangePassword</code>，不會直接進入一般系統頁面。</p>
+<hr>
+<h2 id="8-本專案裡記住我的完整事件順序" class="t3">8. 本專案裡「記住我」的完整事件順序</h2>
+<h3 id="第一次登入時">第一次登入時</h3>
+<ol><li>使用者輸入帳號、密碼、驗證碼</li><li>使用者勾選「記住我」</li><li><code>LoginUser()</code> 驗證帳密與驗證碼</li><li>建立 Claims 與 <code>ClaimsIdentity</code></li><li>設定 <code>AuthenticationProperties.IsPersistent = true</code></li><li>呼叫 <code>HttpContext.SignInAsync(...)</code></li><li>伺服器回應驗證 Cookie</li><li>瀏覽器把 Cookie 保存到本機</li></ol>
+<h3 id="下次重新開啟網站時">下次重新開啟網站時</h3>
+<ol><li>瀏覽器重新請求網站</li><li>自動帶上之前保存的驗證 Cookie</li><li>伺服器驗證 Cookie</li><li><code>HttpContext.User</code> 被還原成已登入使用者</li><li><code>AuthenticationStateHelper</code> 讀取 Claims 與資料庫資料</li><li>系統建立目前使用者狀態與權限</li><li>使用者直接進入系統，不必重新登入</li></ol>
+<hr>
+<h2 id="9-常見誤解" class="t4">9. 常見誤解</h2>
+<h3 id="誤解一記住我是把密碼存起來">誤解一：記住我是把密碼存起來</h3>
+<p>不是。</p>
+<p>一般情況下，記住我保存的是登入票證或驗證 Cookie，不是明文密碼。</p>
+<h3 id="誤解二記住我代表永不登出">誤解二：記住我代表永不登出</h3>
+<p>不是。</p>
+<p>只要 Cookie 過期、被清除、被登出，或伺服器不再接受該 Cookie，就仍然需要重新登入。</p>
+<h3 id="誤解三重新開網站不用登入代表系統沒做驗證">誤解三：重新開網站不用登入，代表系統沒做驗證</h3>
+<p>不是。</p>
+<p>系統仍然有做驗證，只是驗證依據從「帳密 + 驗證碼」改成「先前登入成功後簽發的驗證 Cookie」。</p>
+<hr>
+<h2 id="10-與本次修正的關係" class="t5">10. 與本次修正的關係</h2>
+<p>本專案先前有兩個與 RememberMe 相關的重點：</p>
+<ol><li><code>RememberMe</code> 欄位本身要能正確送出表單值</li><li>登入 Cookie 要能被正常保存</li></ol>
+<p>其中：</p>
+<ul><li><code>Login.razor</code> 已將 RememberMe 改為較適合 Blazor 表單繫結的 <code>InputCheckbox</code></li><li><code>Program.cs</code> 已將 <code>options.Cookie.IsEssential = true</code> 加入 Cookie 設定，避免必要登入 Cookie 被 Cookie 同意機制擋下</li></ul>
+<p>這兩者一起作用後，RememberMe 才能正常完成：</p>
+<ul><li>表單送出成功</li><li><code>LoginUser()</code> 讀到 <code>Input.RememberMe = true</code></li><li>系統建立持久化驗證 Cookie</li><li>下次重開網站時可還原登入狀態</li></ul>
+<hr>
+<h2 id="11-一句話總結" class="t6">11. 一句話總結</h2>
+<p>勾選「記住我」之後，系統會在登入成功時發出一張可持久保存的驗證 Cookie；瀏覽器下次再開網站時自動帶回這張 Cookie，伺服器驗證通過後就能還原你的登入身分，因此不需要重新做帳密與驗證碼驗證。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（認證與資安）</h3><ul><li><a href="../../docs/security/google-oauth2.html">Google OAuth2 第三方登入</a></li><li><a href="../../docs/security/password-storage.html">密碼種類與儲存機制</a></li><li><a href="../../docs/security/auth-and-permissions.html">認證授權與權限機制</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#文件目的">文件目的</a><a class="l2" href="#結論">結論</a><a class="l2" href="#本專案的程式流程">本專案的程式流程</a><a class="l2" href="#1-系統先註冊-cookie-驗證機制">1. 系統先註冊 Cookie 驗證機制</a><a class="l3" href="#這段的作用">這段的作用</a><a class="l2" href="#2-使用者在登入頁勾選記住我">2. 使用者在登入頁勾選「記住我」</a><a class="l2" href="#3-登入成功後系統把-rememberme-寫進-authenticationproperties">3. 登入成功後，系統把 RememberMe 寫進 AuthenticationProperties</a><a class="l3" href="#這裡是整個記住我的關鍵">這裡是整個「記住我」的關鍵</a><a class="l2" href="#4-cookie-裡面裝的是什麼">4. Cookie 裡面裝的是什麼</a><a class="l3" href="#重點">重點</a><a class="l2" href="#5-下次重新開啟網站時為什麼還知道你是誰">5. 下次重新開啟網站時，為什麼還知道你是誰</a><a class="l3" href="#這段實際在做什麼">這段實際在做什麼</a><a class="l2" href="#6-為什麼不需要重新驗證碼">6. 為什麼不需要重新驗證碼</a><a class="l2" href="#7-什麼情況下即使勾選記住我還是可能失效">7. 什麼情況下即使勾選記住我，還是可能失效</a><a class="l3" href="#71-cookie-過期">7.1 Cookie 過期</a><a class="l3" href="#72-使用者主動登出">7.2 使用者主動登出</a><a class="l3" href="#73-瀏覽器清除-cookie">7.3 瀏覽器清除 Cookie</a><a class="l3" href="#74-伺服器無法接受原本的-cookie">7.4 伺服器無法接受原本的 Cookie</a><a class="l3" href="#75-使用者資料狀態改變">7.5 使用者資料狀態改變</a><a class="l2" href="#8-本專案裡記住我的完整事件順序">8. 本專案裡「記住我」的完整事件順序</a><a class="l3" href="#第一次登入時">第一次登入時</a><a class="l3" href="#下次重新開啟網站時">下次重新開啟網站時</a><a class="l2" href="#9-常見誤解">9. 常見誤解</a><a class="l3" href="#誤解一記住我是把密碼存起來">誤解一：記住我是把密碼存起來</a><a class="l3" href="#誤解二記住我代表永不登出">誤解二：記住我代表永不登出</a><a class="l3" href="#誤解三重新開網站不用登入代表系統沒做驗證">誤解三：重新開網站不用登入，代表系統沒做驗證</a><a class="l2" href="#10-與本次修正的關係">10. 與本次修正的關係</a><a class="l2" href="#11-一句話總結">11. 一句話總結</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/security/記住我登入原理說明.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

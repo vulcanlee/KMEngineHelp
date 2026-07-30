@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>啟動安全檢查守門修正（1.0.65）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>啟動安全檢查守門修正（1.0.65）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/25</li><li>版本：1.0.64 → <strong>1.0.65</strong></li><li>類型：<strong>資安修正</strong></li><li>影響範圍：Production 啟動流程、系統健康監控「身分驗證」項</li></ul>
+<h2 id="一問題" class="t1">一、問題</h2>
+<p><code>StartupSafetyValidator</code>（<code>Program.cs:47</code>，在 <code>builder.Build()</code> 之前執行的 fail-fast 檢查）有兩個守門<strong>永不觸發</strong>：</p>
+<div class="tw"><table><thead><tr><th>守門</th><th>程式比對的常數</th><th><code>appsettings.json</code> 實際值</th></tr></thead><tbody><tr><td>JWT 金鑰</td><td><code>DevelopmentOnly-ChangeThisJwtSigningKey-AtLeast32Chars</code></td><td><code>DevelopmentOnly-ChangeThisJwtSigningKey-AtLeast32Chars</code><strong><code>SigningKeySigningKeySigningKeySigningKey</code></strong></td></tr><tr><td>support 密碼</td><td><code>support</code></td><td><code>1qaz@WSX</code></td></tr></tbody></table></div>
+<p><code>string.Equals</code> 永遠為 false，因此<strong>以倉庫現狀直接跑 Production，四項檢查全數通過</strong>——沿用開發預設金鑰與內建管理密碼都不會被擋下。</p>
+<h3 id="根因">根因</h3>
+<p><strong>「硬編字面值必須等於 <code>appsettings.json</code> 預設值」這個假設會隨時間漂移，而且沒有任何機制強制兩者同步。</strong> 兩個放大因素：</p>
+<ol><li><strong>同一份錯誤常數存在兩處</strong>。<code>SystemHealthService</code> 也各自維護一份 <code>DevelopmentSigningKey</code>，用於「身分驗證」健康項（權重 15）判定 <code>usesDevelopmentKeyInProduction</code>——同樣永不觸發。各自維護正是持續漂移的來源。</li><li><strong>既有測試一直是綠燈，但它測的是舊字面值</strong>。<code>ApiIntegrationTests.ProductionSafetyValidation_WithDevelopmentDefaults_ShouldFailFast</code> 手動餵入 <code>…AtLeast32Chars</code> 與 <code>support</code>，而非真實設定值，所以缺陷長期無人察覺。</li></ol>
+<h2 id="二修正" class="t2">二、修正</h2>
+<h3 id="21-新增-webconfigurationunsafedefaultscs">2.1 新增 <code>Web/Configuration/UnsafeDefaults.cs</code></h3>
+<p>集中「什麼算不安全預設值」的判定，供啟動驗證器與健康檢查共用：</p>
+<ul><li><code>IsUnsafeSigningKey</code> —— 改以 <strong><code>DevelopmentOnly-</code> 前綴</strong>判定（<code>StringComparison.Ordinal</code>）。這是本 repo 的既有命名慣例，日後金鑰再加長尾巴、換字串內容都擋得住。空白不算（空白／過短由 <code>JwtSettings</code> 的 <code>[Required]</code>／<code>[MinLength(32)]</code> 負責）。</li><li><code>IsUnsafeSupportPassword</code> —— 密碼沒有自然前綴，改維護一份已知不安全值集合：<code>support</code>（<code>BootstrapSettings</code> 類別內預設值）與 <code>1qaz@WSX</code>（<code>appsettings.json</code> 現值）。</li></ul>
+<h3 id="22-兩處呼叫端改為共用">2.2 兩處呼叫端改為共用</h3>
+<ul><li><code>StartupSafetyValidator</code>：移除私有常數，兩處 <code>string.Equals</code> 改呼叫 <code>UnsafeDefaults</code>。另三項檢查（Swagger 明確設定、Redis 連線字串）本來就正確，未動。</li><li><code>SystemHealthService</code>：移除重複常數，改用 <code>UnsafeDefaults.IsUnsafeSigningKey</code>。<strong>行為變化</strong>：Production 沿用開發金鑰時，「身分驗證」項現在真的會轉為異常。</li></ul>
+<h3 id="23-新增-startupsafetyvalidatortests26-個測試">2.3 新增 <code>StartupSafetyValidatorTests</code>（26 個測試）</h3>
+<p><strong>關鍵一條 <code>Validate_WithRepositoryAppSettings_RejectsProduction</code>：直接從磁碟載入本 repo 的 <code>KnowledgeExtraction.Web/appsettings.json</code></strong>，斷言 Production 驗證必須拋例外、且訊息同時含 <code>JwtSettings:SigningKey</code> 與 <code>BootstrapSettings:SupportPassword</code>。定位檔案沿用 <code>MenuPermissionAlignmentTests</code> 既有的「從輸出目錄逐層往上找原始碼」寫法。</p>
+<p>這是唯一能結構性防止同類漂移的作法：<strong>日後任何人改動 <code>appsettings.json</code> 的預設金鑰或 support 密碼卻沒同步 <code>UnsafeDefaults</code>，這條測試立刻紅燈。</strong></p>
+<p>其餘涵蓋：現值與歷史字面值都被擋、Swagger 空白與 Redis 空連線被擋、<strong>安全設定完全通過</strong>（避免退化成「總是拋」）、非 Production 即使帶不安全值也直接通過、<code>UnsafeDefaults</code> 兩個判定式的 <code>null</code>／空白／大小寫邊界。</p>
+<p>既有的 <code>ApiIntegrationTests</code> 那條<strong>保持不動</strong>——新邏輯下它仍通過（舊字面值符合前綴、<code>support</code> 在清單內），留著正好記錄歷史字面值。</p>
+<h2 id="三刻意不做的事" class="t3">三、刻意不做的事</h2>
+<ul><li><strong>沒有改動任何設定值本身</strong>。<code>SigningKey</code> 與 <code>SupportPassword</code> 的開發預設維持原樣——那是開發便利性，且 guides 有十餘處以 <code>1qaz@WSX</code> 作為教學範例。守門只在 <code>ASPNETCORE_ENVIRONMENT=Production</code> 生效，開發與測試環境完全不受影響。</li><li><strong>沒有新增其他檢查</strong>。<code>appsettings.Production.json</code> 的 <code>OpenAISettings:ApiKey</code> 預設是佔位字串「在此填入 OpenAI API Key」且無人守門，但「沒有 API Key」不等於「不安全」（可能是刻意只用地端模型），擋啟動會誤傷合法部署。另記 backlog。</li></ul>
+<h2 id="四驗證" class="t4">四、驗證</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>結果</th></tr></thead><tbody><tr><td><code>dotnet test</code></td><td><strong>669 通過 / 0 失敗</strong>（643 → 669，新增 26）</td></tr><tr><td><strong>守門真的會抓到漂移</strong></td><td>暫時把 <code>1qaz@WSX</code> 從 <code>UnsafeDefaults</code> 移除 → 3 條測試立刻紅燈（含讀真實 <code>appsettings.json</code> 那條）；還原後恢復全綠</td></tr><tr><td>Production 啟動實測（倉庫現狀）</td><td><strong>啟動失敗</strong>，訊息完整列出兩項：<code>Production 啟動安全檢查失敗：JwtSettings:SigningKey 不可在 Production 使用開發預設值。 BootstrapSettings:SupportPassword 不可在 Production 使用預設密碼。</code></td></tr><tr><td>Production 啟動實測（環境變數覆寫為安全值）</td><td><strong>正常啟動</strong>，<code>Now listening on: http://localhost:5000</code></td></tr><tr><td>開發環境</td><td>不受影響</td></tr></tbody></table></div>
+<blockquote><p>注意：此檢查在 NLog 初始化<strong>之前</strong>執行，失敗時只會在主控台看到未處理例外、日誌檔不會有紀錄——這是刻意的 fail-fast 設計。</p></blockquote>
+<h2 id="五文件同步" class="t5">五、文件同步</h2>
+<ul><li><code>operations/全新機器部署SOP.md</code>：移除三處「⚠️ 守門目前失效，不可依賴」的警語，§6.3 改寫為四項守門的觸發條件表、訊息範例與處置步驟。</li><li><code>planning/08-優化建議清單-TODO.md</code>：該項標記完成；並更正原記載「沒有任何測試覆蓋這支驗證器」的錯誤敘述。</li><li><code>security/認證授權與權限機制.md</code>、<code>security/密碼種類與儲存機制.md</code>：守門敘述改為現況。</li><li><code>features/系統健康監控.md</code>：「身分驗證」項補上開發金鑰判定。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一問題">一、問題</a><a class="l3" href="#根因">根因</a><a class="l2" href="#二修正">二、修正</a><a class="l3" href="#21-新增-webconfigurationunsafedefaultscs">2.1 新增 Web/Configuration/UnsafeDefaults.cs</a><a class="l3" href="#22-兩處呼叫端改為共用">2.2 兩處呼叫端改為共用</a><a class="l3" href="#23-新增-startupsafetyvalidatortests26-個測試">2.3 新增 StartupSafetyValidatorTests（26 個測試）</a><a class="l2" href="#三刻意不做的事">三、刻意不做的事</a><a class="l2" href="#四驗證">四、驗證</a><a class="l2" href="#五文件同步">五、文件同步</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-啟動安全檢查守門修正.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

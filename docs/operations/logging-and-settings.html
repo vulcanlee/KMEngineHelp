@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日誌與設定檔說明｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 部署與維運</p><header class="hero"><div class="kicker">部署與維運</div><h1>日誌與設定檔說明</h1></header><div class="docwrap"><main><h2 id="文件目的" class="t1">文件目的</h2>
+<p>整理本專案使用 NLog 寫入日誌的方式、不同層級的使用時機，以及 <code>appsettings.json</code> 各區段的完整說明。</p>
+<hr>
+<h2 id="1-日誌方案nlog" class="t2">1. 日誌方案：NLog</h2>
+<p>採 <code>NLog.Web.AspNetCore 6.1.2</code>，於 <span class="docref" title="../../src/KnowledgeExtraction/KnowledgeExtraction.Web/Program.cs"><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Program.cs</code></span> 的 NLog 設定區塊完成設定：</p>
+<ol><li>從 <code>appsettings.json</code> 讀取 <code>NLog.BasePath</code>（預設 <code>C:\temp\Logs</code>）。</li><li>在 <code>BasePath/KnowledgeExtraction.Web/</code> 下建立日誌目錄。</li><li>設定 NLog Internal Logger 寫入 <code>KnowledgeExtraction.Web-nlog-internal.log</code>。</li><li>將 <code>BasePath</code> 與 <code>LogFilenamePrefix</code> 變數寫入 NLog 設定，供 <code>nlog.config</code> 內 <code>${var:BasePath}</code> 引用。</li><li><code>builder.Logging.ClearProviders()</code> 清除預設 Provider，由 <code>builder.Host.UseNLog()</code> 接管。</li></ol>
+<p><code>nlog.config</code> 位於 <code>KnowledgeExtraction.Web/</code> 根目錄，定義具體 Target / Rule。</p>
+<p><code>/system-health</code> 人工巡檢頁會依 <code>NLog.BasePath</code> 與專案命名空間定位今日日誌檔，並在頁尾顯示最後 100 筆原始日誌。此頁僅限管理員使用，但日誌本身仍不應寫入密碼、token 或完整連線字串。</p>
+<hr>
+<h2 id="2-何時使用何種等級" class="t3">2. 何時使用何種等級</h2>
+<div class="tw"><table><thead><tr><th>等級</th><th>使用時機</th><th>範例</th></tr></thead><tbody><tr><td><code>Trace</code></td><td>細節最高的逐步追蹤；通常不啟用。</td><td>內部演算法每一步狀態。</td></tr><tr><td><code>Debug</code></td><td>流程關鍵節點、輸入參數、查詢條件。</td><td><code>logger.LogDebug("Received task search request. Keyword={Keyword}", request.Keyword);</code></td></tr><tr><td><code>Information</code></td><td>商業流程成功完成、啟動 / 關閉、Seed 完成。</td><td><code>logger.LogInformation("Application startup completed.");</code></td></tr><tr><td><code>Warning</code></td><td>找不到資源、業務驗證未通過、可恢復例外。</td><td><code>logger.LogWarning("Task get request could not find record. TaskId={TaskId}", id);</code></td></tr><tr><td><code>Error</code></td><td>例外、外部資源失敗、重要流程中斷。</td><td><code>logger.LogError(ex, "Failed to search tasks");</code></td></tr><tr><td><code>Critical</code></td><td>系統幾乎無法繼續運作。</td><td>DB 連線完全失敗、執行階段崩潰。</td></tr></tbody></table></div>
+<p>撰寫原則：</p>
+<ul><li>訊息以英文 + 結構化參數（<code>{Name}</code> 佔位）為主，方便日後檢索。</li><li>使用者面向訊息（中文）保留在 <code>ApiResult.Message</code> / <code>Notification</code>，不要混入日誌訊息。</li><li>例外請使用 <code>logger.LogError(ex, "...")</code> 寫入完整堆疊。</li><li><strong>外部整合</strong>（OpenAI Whisper/Chat、ffmpeg、yt-dlp、抖音助手、MarkItDown）一律「開始→成功→失敗」三點式，失敗含 <code>ExitCode</code>／<code>StatusCode</code>／<code>StdErr</code> 或回應前 ~500 字；<strong>catch 不得靜默</strong>，即使吞例外不中斷也要留一筆 <code>Warning</code>/<code>Debug</code> 與原因。</li><li><strong>不記</strong> ApiKey／密碼／token，也不記請求/回應內容本文。</li></ul>
+<h3 id="21-如何臨時開啟-debug--trace-詳細日誌診斷用">2.1 如何臨時開啟 Debug / Trace 詳細日誌（診斷用）</h3>
+<p><strong>預設等級＝<code>info</code></strong>，由 <code>nlog.config</code> 這一行決定（唯一有效開關；MEL 端 <code>Logging:LogLevel:Default</code> 已設 <code>Trace</code> 放行、把實際等級交給它）：</p>
+<pre><code>&lt;logger name="*" ruleName="AppCatchAll" minlevel="info" writeTo="file_async,console_async" /&gt;</code></pre>
+<p>外部工具參數、各管線步驟、CRUD 進入點等屬 <code>Debug</code>，平時不輸出。需要更細軌跡時，用以下<strong>任一種</strong>臨時調高，<strong>皆免重啟</strong>，診斷完切回 <code>Information</code>：</p>
+<ul><li><strong>(A) 管理員畫面（最方便）</strong>：登入管理員 → 側選單「<strong>系統管理 → 日誌等級切換</strong>」(<code>/log-settings</code>) → 下拉選 <code>Debug</code>／<code>Trace</code> → 套用，<strong>立即生效</strong>。此為<strong>執行期暫時覆蓋</strong>；<code>nlog.config</code> 存檔（autoReload）或應用重啟後，會回到檔案預設（<code>info</code>）。</li><li><strong>(B) 改設定檔（永久預設）</strong>：把上面那行的 <code>minlevel</code> 改成 <code>Debug</code>／<code>Trace</code> 存檔——因 <code>autoReload="true"</code>，<strong>存檔即生效免重啟</strong>；改回 <code>info</code> 即恢復。這會改變「預設」等級（重啟後仍是這個）。</li><li><strong>縮小噪音（可選）</strong>：若某命名空間太吵，可在 <code>appsettings</code> 用 MEL 把它單獨<strong>壓低</strong>（MEL 會在進 NLog 前先過濾），例如 <code>"Microsoft.EntityFrameworkCore": "Warning"</code>。</li><li><strong>取檔</strong>：日誌在 <code>NLog.BasePath</code> 下 <code>KnowledgeExtraction.Web/KnowledgeExtraction.Web-logfile-{日期}.log</code>；管理員亦可用 <code>/system-health</code> 看最後 100 筆。把該檔（已遮去敏感資訊）提供給 AI 即可分析故障點。</li></ul>
+<h3 id="22-執行環境情境與例外快照自-0323">2.2 執行環境情境與例外快照（自 0.3.23）</h3>
+<p>每筆日誌除既有 <code>TraceId</code>（<code>${aspnet-TraceIdentifier}</code>）外，新增三個<strong>情境欄位</strong>：<code>user=</code>（登入者帳號）、<code>op=</code>（操作名稱）、<code>id=</code>（紀錄 Id）——來自 <code>ILogger.BeginScope</code>（<code>KnowledgeExtraction.Share.Helpers.LogScope</code>）。</p>
+<ul><li><strong>請求層</strong>：<code>UseHttpRequestLogging</code> 自動把 <code>user</code>＋<code>op=HTTP</code> 附到該請求內所有下游日誌。</li><li><strong>背景管線</strong>：轉錄/文件/圖片/清洗/蒸餾/索引各服務處理單筆時帶 <code>op=&lt;管線&gt;</code>＋<code>id=&lt;紀錄Id&gt;</code>（含其 Processor/Enhancer 的日誌）。</li><li><strong>啟動摘要</strong>：啟動時記一行 <code>Information</code>「執行環境摘要。OS=… Framework=… Machine=… Env=… SystemVersion=… DatabaseProvider=… GenerationProvider=…」（<code>RuntimeEnvironmentInfo.StartupSummary</code>），可核對執行環境是否符合預期。</li><li><strong>例外快照</strong>：未處理例外（API <code>ApiExceptionFilterAttribute</code>、MVC <code>/Error</code>、Blazor <code>LoggingErrorBoundary</code>）除完整堆疊外，另附 <code>RuntimeEnvironmentInfo.Snapshot()</code>（機器/程序/工作集/GC 記憶體/執行緒數），定位當時運作狀態。</li><li>情境欄位只放非機敏資訊（帳號/團隊名/操作/Id），仍<strong>不記</strong>金鑰/密碼/token/請求本文。</li><li>新程式碼慣例：對一段有明確「操作＋對象」的流程，於進入點 <code>using var _ = logger.BeginScope(LogScope.Of("Operation", ("RecordId", id)));</code>；空 <code>catch {}</code> 會被 <code>LoggingConventionTests</code> 擋下。</li></ul>
+<h3 id="23-依時間區間下載日誌log-download自-1012">2.3 依時間區間下載日誌（<code>/log-download</code>，自 1.0.12）</h3>
+<p>管理員可於側選單「<strong>系統管理 → 日誌下載</strong>」(<code>/log-download</code>) 選定<strong>起訖時間（含時分）</strong>，下載該區間內的應用日誌。</p>
+<ul><li><strong>範圍</strong>：僅 NLog 應用程式紀錄檔（<code>{NLog.BasePath}/KnowledgeExtraction.Web/KnowledgeExtraction.Web-logfile-*.log</code>，含每日檔與同日 sequence 封存檔）；不含聊天紀錄等其他檔案。</li><li><strong>過濾</strong>：以每筆日誌開頭的 <code>${longdate}</code> 時間戳<strong>逐筆過濾</strong>，只保留落在 <code>[起, 訖]</code>（含端點）的 entry。例外堆疊等<strong>多行內容</strong>會整筆歸屬其起首時間戳，不被截斷或漏取。</li><li><strong>輸出</strong>：符合的 entry 依時間<strong>合併為單一 <code>.log</code></strong>（<code>application-{起}-{訖}.log</code>），封裝成 zip（<code>logs_{起}-{訖}.zip</code>）由瀏覽器下載。區間內無資料時仍下載一個<strong>空日誌檔</strong>的 zip。</li><li><strong>限制</strong>：區間上限 <strong>31 天</strong>；輸出量過大（未壓縮 &gt; 200MB）會回 400 並提示縮小範圍。</li><li><strong>權限（伺服器端把關）</strong>：下載端點 <code>GET /api/LogArchive/download?from=…&amp;to=…</code> 以 <code>IRecordAccessScopeProvider.GetAsync().IsAdmin</code> 於<strong>伺服器端</strong>確認管理員身分，非管理員回 <strong>403</strong>——不僅靠隱藏 UI 按鈕。日誌本身仍不應寫入密碼、token 或完整連線字串。</li><li>元件：<code>LogArchiveService</code>（<code>KnowledgeExtraction.Business/Services/DataAccess</code>，純解析/合併/壓縮邏輯，可單元測試）＋ <code>LogArchiveController</code>（<code>KnowledgeExtraction.Web/Controllers</code>）＋ Blazor 頁 <code>Components/Pages/LogDownload</code> + <code>Components/Views/LogDownload</code>。</li></ul>
+<hr>
+<h2 id="3-全域請求日誌" class="t4">3. 全域請求日誌</h2>
+<p><code>ApplicationBuilderExtensions.UseHttpRequestLogging</code> 註冊一個自訂 middleware（由 <code>Program.cs</code> 的中介軟體管線呼叫）：</p>
+<ul><li>對每筆 HTTP 請求記錄 <code>Method</code>、<code>Path</code>、<code>StatusCode</code>、<code>ElapsedMilliseconds</code>。</li><li>例外發生時改寫為 <code>Error</code>，並重新拋出讓上層 ExceptionHandler 處理。</li></ul>
+<p>由此可在不額外加程式的情況下取得每個 endpoint 的響應耗時。</p>
+<hr>
+<h2 id="31-openai-chat-token-用量記錄自-0293" class="t5">3.1 OpenAI chat token 用量記錄（自 0.2.93）</h2>
+<p>每次呼叫 OpenAI Chat Completions（<code>OpenAIChatCompletionClient</code>）成功後，會記錄一行 <code>Information</code> 級的 token 用量，供成本與用量稽核：</p>
+<pre><code>OpenAI chat 用量。Operation=Text Model=gpt-5.4 送出(prompt)=1200 接收(completion)=340 合計(total)=1540</code></pre>
+<ul><li><code>送出(prompt)</code>＝送進模型的 token、<code>接收(completion)</code>＝模型產生的 token、<code>合計(total)</code>＝兩者總和。</li><li><code>Operation</code>：<code>Text</code>（純文字，如<strong>清洗五步驟</strong>、逐字稿/文件 LLM 生成）、<code>Image</code>（圖片辨識）、<code>File</code>（PDF 等檔案解讀）。</li><li>一次<strong>清洗</strong>最多會看到 <strong>5 行</strong>（去重/遮罩/分類/摘要/信心自評各一），夾在 <code>cleaning queued</code> 與 <code>Cleaning completed</code> 兩行之間。</li><li>地端或回應未含 <code>usage</code> 時，記「OpenAI chat 用量不可用（回應未含 usage）」。</li><li>僅記 token 數字，<strong>不記錄請求/回應內容本文</strong>，避免敏感內容入日誌。</li><li><strong>自 0.2.109 起</strong>：所有 chat 呼叫（含<strong>串流</strong> <code>Operation=Stream</code>）與<strong>語音轉錄</strong>皆額外記 <code>完整明細=…</code>，由 <code>TokenUsageFormatter.Format</code> <strong>遞迴攤平</strong> <code>usage</code> 的所有數值欄位（含 <code>prompt_tokens_details.cached_tokens</code>、<code>*.audio_tokens</code>、<code>completion_tokens_details.reasoning_tokens</code> 等任意子欄位，不需事先列舉）；非串流另含 <code>理解(reasoning)=…</code>。轉錄記為「OpenAI 轉錄用量。Model=… File=… 完整明細=…」（gpt-4o-transcribe 有 usage；whisper-1 記「不可用」）。</li><li><strong>自 0.3.30 起（持久化）</strong>：token 用量除了寫日誌，也<strong>持久化到 <code>LlmTokenUsage</code> 資料表</strong>（<code>ITokenUsageRecorder</code> → <code>Channel</code> → <code>TokenUsageWriterBackgroundService</code> 批次寫入），並附<strong>業務作業</strong>（Cleaning/KnowledgeBaseChat…，由 <code>OperationContext</code> 帶入；背景作業經佇列帶入提交者身分）與模型。管理員可於 <strong><code>/token-usage</code></strong> 依使用者/作業/型別/模型/<strong>時間區間</strong>查詢，首頁儀表板顯示近 30 天各類 token 全站彙總。仍<strong>只存數字、不存內容本文</strong>。</li></ul>
+<hr>
+<h2 id="4-appsettingsjson-區段全表" class="t6">4. <code>appsettings.json</code> 區段全表</h2>
+<p>檔案：<span class="docref" title="../../src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json"><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json</code></span></p>
+<pre><code>{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Trace",              // 倉庫現值為 Trace（開發用）；正式環境建議改回 Information
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "Swagger": { "EnabledInProduction": false },
+  "Security": { "ReturnExceptionDetails": null },
+  "Cors": { "AllowedOrigins": [] },
+  "CacheSettings": {
+    "Provider":                 "Memory",
+    "RedisConnection":          "",
+    "InstanceName":             "KnowledgeExtraction:",
+    "DefaultExpirationMinutes": 30
+  },
+  "NLog": { "BasePath": "C:\\temp\\Logs" },
+  "JwtSettings": {
+    "Issuer": "KnowledgeExtraction",
+    "Audience": "KnowledgeExtraction.WebApi",
+    "SigningKey": "DevelopmentOnly-ChangeThisJwtSigningKey-AtLeast32CharsSigningKeySigningKeySigningKeySigningKey",
+    "AccessTokenMinutes": 60,
+    "RefreshTokenDays": 7,
+    "ClockSkewMinutes": 2
+  },
+  "BootstrapSettings": {
+    "SupportAccount": "support",
+    "SupportName": "support",
+    "SupportEmail": "support",
+    "SupportPassword": "1qaz@WSX"
+  },
+  "GoogleOAuthSettings": {
+    "Enabled":         false,
+    "ClientId":        "",
+    "ClientSecret":    "",
+    "DefaultRoleName": "預設角色"
+  },
+  "SystemSettings": {
+    "DatabaseProvider": "Sqlite",
+    "DatabaseCommandTimeoutSeconds": 120,   // EF Core 指令逾時（自 1.0.34）
+    "ConnectionStrings": {
+      "DefaultConnection":         "...",
+      "SQLiteDefaultConnection":   "Data Source=BackendDB.db"
+    },
+    "SystemInformation": {
+      "SystemName":        "智庫引擎",
+      "SystemDescription": "將企業分散的文件、會議與影音資料，轉化為可搜尋、可問答、可傳承的智慧知識庫。",
+      "SystemVersion":     "1.0.59 (2026/07/25)"   // 每次建置遞增，此處僅示意
+    },
+    "ExternalFileSystem": {
+      "DatabasePath":         "C:\\temp\\KnowledgeExtraction\\DB",
+      "DownloadPath":         "C:\\temp\\KnowledgeExtraction\\Download",
+      "UploadPath":           "C:\\temp\\KnowledgeExtraction\\Upload",
+      "ProjectFilePath":      "C:\\temp\\KnowledgeExtraction\\ProjectFile",
+      "TaskFilePath":         "C:\\temp\\KnowledgeExtraction\\TaskFilePath",
+      "MeetingFilePath":      "C:\\temp\\KnowledgeExtraction\\MeetingFilePath",
+      "MediaUploadPath":      "C:\\temp\\KnowledgeExtraction\\MediaUpload",
+      "OriginalMediaPath":    "C:\\temp\\KnowledgeExtraction\\OriginalMedia",
+      "TranscriptionFilePath":"C:\\temp\\KnowledgeExtraction\\Transcription",
+      "GeneratedContentPath": "C:\\temp\\KnowledgeExtraction\\GeneratedContent",
+      "ImageUploadPath":      "C:\\temp\\KnowledgeExtraction\\ImageUpload",
+      "ImageRecognitionTextPath":"C:\\temp\\KnowledgeExtraction\\ImageRecognition",
+      "DocumentExtractionUploadPath":"C:\\temp\\KnowledgeExtraction\\DocumentExtractionUpload",
+      "MarkdownFilePath":     "C:\\temp\\KnowledgeExtraction\\Markdown",
+      "CleanedSourcePath":    "C:\\temp\\KnowledgeExtraction\\CleanedSource",
+      "WikiOutputPath":       "C:\\temp\\KnowledgeExtraction\\Wiki",
+      "ChatLogPath":          "C:\\temp\\KnowledgeExtraction\\ChatLog"
+    },
+    "Cleaning": {
+      "ConfidenceThreshold": 0.7,
+      "AggregateWarnBytes": 200000,
+      "CleanedRatioWarnBelow": 0.30
+    },
+    "Distillation": {
+      "ConfidenceThreshold": 0.7
+    },
+    "Retrieval": {
+      "QueryRewrite": {
+        "Enabled": true,
+        "Mode": "Auto",
+        "MinQueryChars": 20,
+        "MaxHistoryMessages": 6,
+        "FallbackToOriginalOnError": true
+      },
+      "ChunkTargetChars": 800,
+      "ChunkMaxChars": 1200,
+      "ChunkOverlapChars": 120,
+      "TopK": 10,
+      "CandidateTopK": 50,
+      "VectorWeight": 0.7,
+      "KeywordWeight": 0.3,
+      "GraphWeight": 0.2,
+      "GraphMaxHops": 2,
+      "GraphHopDecay": 0.5,
+      "GraphMaxNodes": 200,
+      "GraphGlobalCommunityCap": 20,
+      "GraphMaxCommunities": 50,
+      "GraphAliasNameCap": 300,
+      "MinScore": 0.0,
+      "RejectThreshold": 0.15,
+      "LowConfidenceThreshold": 0.30
+    }
+  },
+  "OpenAISettings": {
+    "ApiKey":         "",
+    "BaseUrl":        "https://api.openai.com/v1/",
+    "Model":          "gpt-4o-transcribe",
+    "GenerationModel": "gpt-5.4",
+    "GenerationTimeoutSeconds": 120,
+    "QueryRewriteModel": "gpt-5.4-mini",
+    "QueryRewriteTimeoutSeconds": 30,
+    "GenerationProvider": "Cloud",
+    "LocalBaseUrl":   "",
+    "LocalGenerationModel": "",
+    "LocalQueryRewriteModel": "",
+    "LocalApiKey":    "",
+    "LocalGenerationTimeoutSeconds": 300,
+    "Language":       "zh",
+    "Prompt":         "請以台灣繁體中文輸出逐字稿，例如：軟體、資訊、程式、伺服器。",
+    "MaxChunkSizeMB": 25,
+    "MaxChunkDurationSeconds": 1200,
+    "TimeoutSeconds": 600,
+    "FfmpegPath":     "C:\\KMEngineTools\\ffmpeg\\bin\\ffmpeg.exe",
+    "FfmpegTimeoutSeconds": 3600,      // ffmpeg 外部程序逾時（自 1.0.34）；0＝不套逾時
+    "YtDlpPath":      "C:\\KMEngineTools\\yt-dlp\\yt-dlp.exe",
+    "YtDlpTimeoutSeconds": 1800,       // yt-dlp 外部程序逾時（自 1.0.34）；0＝不套逾時
+    "YtDlpCookiesFile": "",
+    "YtDlpCookiesFromBrowser": "",
+    "NodePath": "C:\\KMEngineTools\\node\\node.exe",
+    "DouyinHelperScript": "C:\\KMEngineTools\\douyin-audio\\get-douyin-audio.mjs",
+    "DouyinTimeoutSeconds": 150,
+    "EmbeddingProvider": "Cloud",
+    "EmbeddingModel": "text-embedding-3-large",
+    "EmbeddingDimensions": 1024,
+    "EmbeddingTimeoutSeconds": 120,
+    "LocalEmbeddingModel": "bge-m3"
+  },
+  "MarkItDownSettings": {
+    "MarkItDownPath": "C:\\KMEngineTools\\python\\Scripts\\markitdown.exe",
+    "TimeoutSeconds": 600,
+    "PdfUseLlm": true,                 // 倉庫現值已啟用（自 1.0.54 支援、於後續啟用）
+    "PdfLlmModel": "gpt-5.4",
+    "PdfLlmTimeoutSeconds": 600
+  },
+  "LlmPrompts": {
+    "_說明": "LLM 提示詞平台預設層。值留空＝沿用程式內建預設（fallback）。覆蓋優先序：對話頁/清洗設定檔等單次操作 &gt; DB 提示詞清單(同名鍵) &gt; 本區段 &gt; 程式 fallback。轉錄提示詞沿用 OpenAISettings.Prompt。",
+    "CleaningDedupe": "",
+    "CleaningMask": "",
+    "CleaningClassify": "",
+    "CleaningSummary": "",
+    "CleaningConfidence": "",
+    "ChatSystem": "",
+    "ChatConcise": "",
+    "ChatStandard": "",
+    "ChatDetailed": "",
+    "KnowledgeBaseSystem": "",
+    "KnowledgeBaseQueryRewrite": "",
+    "DistillationGenerate": "",
+    "GraphTripleExtract": "",
+    "GraphCommunitySummary": "",
+    "GraphGlobalMap": "",
+    "GraphGlobalReduce": "",
+    "EntityAliasPropose": "",
+    "MeetingMinutes": "",
+    "DocumentPdfToMarkdown": ""
+  },
+  "AutoMapper:LicenseKey": ""
+}</code></pre>
+<h3 id="41-logging">4.1 <code>Logging</code></h3>
+<p>.NET 預設記錄等級。NLog 啟動後會接管實際輸出，但此區段仍影響 <code>Microsoft.*</code> 等內建類別的 Filter。</p>
+<h3 id="42-nlogbasepath">4.2 <code>NLog.BasePath</code></h3>
+<p>NLog 寫檔的根目錄；專案會在其下建立 <code>KnowledgeExtraction.Web</code> 子目錄。若不存在會被 NLog 自動建立。</p>
+<h3 id="43-swagger--security--cors">4.3 <code>Swagger</code> / <code>Security</code> / <code>Cors</code></h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>Swagger.EnabledInProduction</code></td><td>Production 是否開啟 Swagger UI；Production 必須明確設定。</td></tr><tr><td><code>Security.ReturnExceptionDetails</code></td><td>是否在 API 500 回應填入完整 <code>Exception</code>；未設定時 Development 才會回傳。</td></tr><tr><td><code>Cors.AllowedOrigins</code></td><td>允許跨來源呼叫的 origin 清單；空陣列代表不開放。</td></tr></tbody></table></div>
+<h3 id="431-googleoauthsettings">4.3.1 <code>GoogleOAuthSettings</code></h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>Enabled</code></td><td>是否啟用 Google 第三方登入；<code>false</code> 時不註冊 Google 驗證，登入頁也不顯示按鈕。</td></tr><tr><td><code>ClientId</code> / <code>ClientSecret</code></td><td>Google OAuth 用戶端憑證；正式環境請用 user-secrets / 環境變數，勿進版控。</td></tr><tr><td><code>DefaultRoleName</code></td><td>首次以 Google 登入而自動建立的帳號所套用的預設角色名稱。</td></tr></tbody></table></div>
+<p>完整設定步驟與登入流程詳見 <a href="../../docs/security/google-oauth2.html">Google OAuth2 第三方登入</a>。</p>
+<h3 id="432-cachesettings">4.3.2 <code>CacheSettings</code></h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>Provider</code></td><td>快取提供者，支援 <code>Memory</code>（預設，單機記憶體）與 <code>Redis</code>（分散式）。空字串會回退為 <code>Memory</code>，未知值在啟動時拋出例外。</td></tr><tr><td><code>RedisConnection</code></td><td><code>Provider=Redis</code> 時的連線字串（如 <code>localhost:6379</code>）；<code>Redis</code> 時不可留空，Production 會被啟動安全檢查阻擋。</td></tr><tr><td><code>InstanceName</code></td><td>Redis 鍵前綴，用於隔離同一 Redis 實例上的多個應用。</td></tr><tr><td><code>DefaultExpirationMinutes</code></td><td>未指定過期時間時套用的預設絕對過期（分鐘）。</td></tr></tbody></table></div>
+<p>呼叫端統一透過 <code>ICacheService</code>（<code>Get/Set/GetOrCreateAsync&lt;T&gt;/Remove</code>，內含 JSON 序列化），切換 provider 不需改任何使用端程式。完整說明見 <a href="../../docs/features/distributed-cache.html">分散式快取機制</a>。</p>
+<h3 id="433-jwtsettings">4.3.3 <code>JwtSettings</code></h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>Issuer</code> / <code>Audience</code></td><td>JWT 發行者與受眾識別。</td></tr><tr><td><code>SigningKey</code></td><td>JWT 簽章金鑰；正式環境必須用環境變數或部署 secret 覆寫。</td></tr><tr><td><code>AccessTokenMinutes</code></td><td>Access Token 有效分鐘數。</td></tr><tr><td><code>RefreshTokenDays</code></td><td>Refresh Token 有效天數。</td></tr><tr><td><code>ClockSkewMinutes</code></td><td>Token 驗證允許的時間偏移。</td></tr></tbody></table></div>
+<h3 id="434-bootstrapsettings">4.3.4 <code>BootstrapSettings</code></h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>SupportAccount</code> / <code>SupportName</code> / <code>SupportEmail</code></td><td>系統啟動種子資料使用的支援帳號基本資訊。</td></tr><tr><td><code>SupportPassword</code></td><td>支援帳號初始密碼；正式環境必須用部署 secret 覆寫或在初始化後立即更換。</td></tr></tbody></table></div>
+<h3 id="44-systemsettingsdatabaseprovider">4.4 <code>SystemSettings.DatabaseProvider</code></h3>
+<p>支援 <code>Sqlite</code> 與 <code>SqlServer</code>。開發預設為 <code>Sqlite</code>；正式環境可改為 <code>SqlServer</code>，並搭配部署 secret 提供 <code>DefaultConnection</code>。</p>
+<h3 id="45-systemsettingsconnectionstrings">4.5 <code>SystemSettings.ConnectionStrings</code></h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>DefaultConnection</code></td><td>SQL Server 連線字串；<code>DatabaseProvider=SqlServer</code> 時使用。</td></tr><tr><td><code>SQLiteDefaultConnection</code></td><td>SQLite 範本字串；實際連線字串由 <code>MagicObjectHelper.GetSQLiteConnectionString</code> 結合 <code>DatabasePath</code> 動態產生。</td></tr></tbody></table></div>
+<h3 id="46-systemsettingssysteminformation">4.6 <code>SystemSettings.SystemInformation</code></h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>SystemName</code></td><td>顯示在 UI 上的系統名稱。</td></tr><tr><td><code>SystemDescription</code></td><td>顯示用描述。</td></tr><tr><td><strong><code>SystemVersion</code></strong></td><td><strong>唯一版本來源</strong>，每次更新必須遞增；格式 <code>Major.Minor.Patch (YYYY/MM/DD)</code>。詳見 <a href="../../docs/operations/maintenance-rules.html">維護規範</a>。</td></tr></tbody></table></div>
+<h3 id="47-systemsettingsexternalfilesystem">4.7 <code>SystemSettings.ExternalFileSystem</code></h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>DatabasePath</code></td><td>SQLite 資料庫檔放置目錄。</td></tr><tr><td><code>DownloadPath</code></td><td>對應 <code>/UploadFiles</code> 的靜態資源目錄。</td></tr><tr><td><code>UploadPath</code></td><td>通用上傳暫存目錄。</td></tr><tr><td><code>ProjectFilePath</code></td><td>專案附件根目錄（依年/月分層）。</td></tr><tr><td><code>TaskFilePath</code></td><td>工作附件根目錄。</td></tr><tr><td><code>MeetingFilePath</code></td><td>會議附件根目錄。</td></tr><tr><td><code>MediaUploadPath</code></td><td>音訊／影片上傳檔根目錄（依上傳年度分層）。上傳來源即原始檔；URL 來源則為 yt-dlp 抽取的 <code>.mp3</code>（供轉錄）。</td></tr><tr><td><code>OriginalMediaPath</code></td><td><strong>URL 來源</strong>原始影片保存根目錄（依年度分層，<code>{guid}.ext</code>，對應 <code>MediaTranscription.OriginalMediaRelativePath</code>）。yt-dlp（YouTube／小紅書）以 <code>-k</code> 保留原始影片後搬移至此；<strong>抖音助手以 <code>--out-video</code> 保留原始 mp4 至此</strong>（合併檔直接存、DASH 分流則合流）。上傳來源不使用（原始檔已在 <code>MediaUploadPath</code>）。</td></tr><tr><td><code>TranscriptionFilePath</code></td><td>逐字稿輸出根目錄（依上傳年度分層，輸出 <code>.txt</code>）。</td></tr><tr><td><code>GeneratedContentPath</code></td><td>LLM 生成內容落地根目錄（依年度分層，<code>{guid}.md</code>，只保留最新一筆）。對應 <code>MediaTranscription.GeneratedContentRelativePath</code>（逐字稿依提示詞產生）<strong>與 <code>DocumentExtraction.GeneratedContentRelativePath</code>（文件轉文字「依提示詞產生」，0.2.77 起）</strong>。<strong>生成內容的唯一儲存位置</strong>——資料庫不再保存內容；寫檔失敗即視為產生失敗。文件轉文字的產生來源可為「萃取文字」或「原始檔案」（圖片走視覺、PDF 走 base64 <code>file</code>；僅圖片/PDF 可送原檔且上限 20MB，由 <code>DocumentExtractionService.IsLlmFileSupported</code> 判斷；PDF 需所設定 GenerationModel 支援 <code>file</code> 輸入）。</td></tr><tr><td><code>ImageUploadPath</code></td><td>圖片解讀上傳圖片根目錄（依上傳年度分層）。</td></tr><tr><td><code>ImageRecognitionTextPath</code></td><td>圖片 LLM 視覺解讀文字輸出根目錄（依上傳年度分層，輸出 <code>.txt</code>，只保留最新一筆）。</td></tr><tr><td><code>DocumentExtractionUploadPath</code></td><td>文件轉文字上傳檔根目錄（依上傳年度分層）。</td></tr><tr><td><code>MarkdownFilePath</code></td><td>文件轉文字轉出的 Markdown 輸出根目錄。</td></tr><tr><td><code>CleanedSourcePath</code></td><td>知識來源清洗後彙整 Markdown 輸出根目錄（依年度分層，檔名 <code>{guid}.md</code>，對應 <code>KnowledgeSource.CleanedContentRelativePath</code>）。</td></tr><tr><td><code>WikiOutputPath</code></td><td>知識頁審核 Wiki 頁 Markdown 輸出根目錄（依年度分層，檔名 <code>{guid}.md</code>，對應 <code>WikiPage.ContentRelativePath</code>）。</td></tr><tr><td><code>ChatLogPath</code></td><td>問答稽核明細全文輸出根目錄（依年度分層，檔名 <code>{guid}.md</code>，對應 <code>LlmChatLog.RelativePath</code>，0.3.29）。AI 知識問答與知識來源 AI 對話每輪的提示詞與回覆全文存於此；DB 僅存相對路徑與滿意度。<strong>目錄由 <code>ChatLogService</code> 於首次寫入時建立</strong>（非啟動時 <code>EnsureDirectoryExists</code> 清單）。</td></tr></tbody></table></div>
+<p>啟動時 <code>Program.cs</code> 會逐一呼叫 <code>EnsureDirectoryExists</code> 建立缺少的目錄（含上述 <code>MediaUploadPath</code>、<code>OriginalMediaPath</code>、<code>TranscriptionFilePath</code>、<code>GeneratedContentPath</code>、<code>CleanedSourcePath</code>、<code>WikiOutputPath</code>）；路徑留空則略過建立。<code>ChatLogPath</code> 不在此啟動清單，改由 <code>ChatLogService</code> 於首次寫入聊天紀錄時以 <code>Directory.CreateDirectory</code> 建立。</p>
+<h3 id="471-systemsettingscleaning">4.7.1 <code>SystemSettings.Cleaning</code></h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>ConfidenceThreshold</code></td><td>清洗信心自動門檻（0~1，預設 <strong>0.70</strong>）。清洗完成後，LLM 自評信心 ≥ 此值自動標「已清洗」，否則（或信心無法解析）轉「待審核」交人工審核（QA-2/QA-3）。</td></tr><tr><td><code>CleanedRatioWarnBelow</code></td><td>「清洗後 ÷ 彙整前」的<strong>低比值警示</strong>門檻（預設 <strong>0.30</strong>）。比值低於此值即視為可疑（<strong>剛好等於不算</strong>），會在①清洗對話窗顯示警示、②<code>/data-consistency</code> 的「低比值來源」列出。<strong>0 或負數＝停用</strong>；需重啟生效。&lt;br&gt;用途：清洗後內容應與彙整前同一量級，比值明顯偏低常代表<strong>內容曾被模型輸出上限截斷</strong>——1.0.112 起截斷會直接失敗或留註記，但<strong>該版之前清洗的資料沒有痕跡</strong>，只有比值看得出來。&lt;br&gt;⚠️ <strong>會有誤報</strong>：內容本來就高度重複的素材（大量制式表單）合理地會有很低的比值。判準取自 <a href="../../docs/guides/source-scale-limits.html">分盒指南 §4.2</a>（正常 0.5～1.0），<strong>會隨模型與素材密度變動</strong>。</td></tr><tr><td><code>AggregateWarnBytes</code></td><td>清洗前彙整量的<strong>軟警告</strong>門檻（位元組，預設 <strong>200000</strong>，約 6.6 萬中文字）。超過時「確認清洗」對話窗會顯示提示並要求勾選確認才能送出——<strong>是提示，不是阻擋</strong>；<code>TriggerCleaningAsync</code> 的行為完全不變。<strong>0 或負數＝停用警告</strong>；剛好等於門檻不算超過。&lt;br&gt;⚠️ <strong>200000 只是保守起點，不是正確答案</strong>：真正的天花板是模型的<strong>輸出</strong>上限（去重與遮罩要把整份內容重新輸出一遍），換模型就會變。請依 <a href="../../docs/guides/source-scale-limits.html">知識來源分盒與規模上限指南 §五</a> 的實測逼近法量出自己環境的數字後改這個值。</td></tr></tbody></table></div>
+<blockquote><p>此門檻與遮罩召回率、分類 F1、摘要涵蓋率等「可接受門檻」已正式鎖定，見 <a href="../../docs/strategy/open-questions-risks.html">strategy/05 §五 資料清洗品質門檻鎖定</a>。調整後需重啟生效。</p>
+<p><code>AggregateWarnBytes</code> 同樣<strong>需重啟生效</strong>（服務啟動時讀入）。有一條測試會斷言 <code>appsettings.json</code> 的這個鍵存在且與程式預設值一致，所以改了程式預設就必須同步改設定檔，否則測試紅燈。</p></blockquote>
+<h3 id="472-systemsettingsdistillation">4.7.2 <code>SystemSettings.Distillation</code></h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>ConfidenceThreshold</code></td><td>知識頁審核 Wiki 頁信心自動門檻（0~1，預設 <strong>0.70</strong>）。蒸餾頁信心 ≥ 此值標「已完成」，否則轉「待審核」由具 <code>蒸餾審核</code> 權限者核准或退回。</td></tr></tbody></table></div>
+<p>調整後需重啟生效。蒸餾流程與 Wiki 頁管理見 <a href="../../docs/guides/wiki-review.html">知識頁審核與 Wiki 頁管理指南</a>。</p>
+<h3 id="473-systemsettingsretrieval">4.7.3 <code>SystemSettings.Retrieval</code></h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>ChunkTargetChars</code></td><td>RAG 索引建立時的 chunk 目標字元數，預設 <code>800</code>；調整後需重建索引才會影響既有向量。</td></tr><tr><td><code>ChunkMaxChars</code></td><td>單一 chunk 硬上限，預設 <code>1200</code>；必須大於或等於 <code>ChunkTargetChars</code>。調整後需重建索引。</td></tr><tr><td><code>ChunkOverlapChars</code></td><td>相鄰 chunk 的重疊字元數，預設 <code>120</code>；必須小於 <code>ChunkTargetChars</code>。調整後需重建索引。</td></tr><tr><td><code>TopK</code></td><td>問答與 檢索品質評測最終回傳命中數，預設 <code>10</code>。</td></tr><tr><td><code>CandidateTopK</code></td><td>混合檢索候選命中數，預設 <code>50</code>。</td></tr><tr><td><code>VectorWeight</code></td><td>向量相似度分數權重，預設 <code>0.7</code>。</td></tr><tr><td><code>KeywordWeight</code></td><td>關鍵字分數權重，預設 <code>0.3</code>。</td></tr><tr><td><code>MinScore</code></td><td>逐筆最低融合分數門檻（過濾單一低分命中），預設 <code>0.0</code>。</td></tr><tr><td><code>RejectThreshold</code></td><td>整體信心下限：最高分命中低於此值即視為查無依據，由 <code>KnowledgeBaseChatService</code> 直接回覆、不呼叫 LLM，預設 <code>0.15</code>。</td></tr><tr><td><code>LowConfidenceThreshold</code></td><td>信心不足門檻：最高分介於 <code>RejectThreshold</code> 與此值之間時照答但加註提示，預設 <code>0.30</code>。</td></tr></tbody></table></div>
+<p><strong>知識圖譜（Graph RAG）參數（1.0.83～1.0.96）</strong> — 融合分數為 <code>VectorWeight × 向量 + KeywordWeight × 關鍵字 + GraphWeight × 圖分</code>：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>預設</th><th>用途</th><th>可否熱套用</th></tr></thead><tbody><tr><td><code>GraphWeight</code></td><td><code>0.2</code></td><td>圖鄰域分數在融合式中的權重。<strong>設 <code>0</code> 即完全關閉圖檢索路徑</strong>（連圖查詢都不會發出），系統回到 1.0.82 之前的行為。</td><td>✅ <strong><code>/rag-diagnostics</code> 熱套用，下一次檢索生效</strong></td></tr><tr><td><code>GraphMaxHops</code></td><td><code>2</code></td><td>圖鄰域擴展跳數，合法範圍 <code>1</code>～<code>3</code>（讀取時夾住）。設 <code>1</code> 即 1.0.89 之前的單跳行為。</td><td>✅ 同上</td></tr><tr><td><code>GraphHopDecay</code></td><td><code>0.5</code></td><td>跳數衰減：第 h 跳強度 ＝ 種子強度 × <code>decay^(h-1)</code>，故<strong>第 1 跳不衰減</strong>。範圍 <code>[0,1]</code>。</td><td>✅ 同上</td></tr><tr><td><code>GraphMaxNodes</code></td><td><code>200</code></td><td>單次檢索圖遍歷的鄰居頁節點上限（安全閥，防大圖爆炸）。達上限即停止擴展並記 log。</td><td>❌ <strong>只讀 appsettings，改了要重啟</strong></td></tr><tr><td><code>GraphGlobalCommunityCap</code></td><td><code>20</code></td><td>全域問答一次 map 最多取用的社群數。<strong>每個社群一次 LLM 呼叫，直接決定成本。</strong></td><td>❌ 需重啟</td></tr><tr><td><code>GraphMaxCommunities</code></td><td><code>50</code></td><td>社群摘要重建保留的社群數上限（每群一次 LLM；超出者取成員數最大的前 N 群並記 log）。</td><td>❌ 需重啟</td></tr><tr><td><code>GraphAliasNameCap</code></td><td><code>300</code></td><td>LLM 別名建議一次送出的實體名上限（超出者取出現次數最多者）。</td><td>❌ 需重啟</td></tr></tbody></table></div>
+<blockquote><p>⚠️ <strong>前三項與後四項的行為不同，不要混在一起記</strong>：<code>GraphWeight</code>／<code>GraphMaxHops</code>／<code>GraphHopDecay</code> 有資料庫覆寫路徑（<code>RetrievalParamOverride</code>），可在「系統管理 → 診斷與日誌 → 檢索診斷與調校」（<code>/rag-diagnostics</code>）線上調整並即時生效，<strong>因此你在 appsettings 看到的值不一定是當前生效值</strong>。後四項是成本／安全閥，<strong>沒有</strong> DB 覆寫路徑，該頁也刻意不提供調整入口，只能改 appsettings 並重啟。</p>
+<p>⚠️ 後四項讀取時以 <code>Math.Max(1, 值)</code> 夾住：填 <code>0</code> 或負數會退回 <code>1</code>，<strong>不會靜默停擺</strong>。<code>GraphMaxHops</code>／<code>GraphHopDecay</code> 亦於讀取時夾上下界。</p>
+<p>⚠️ <strong><code>GraphMaxHops</code> 預設是 <code>2</code>（1.0.90 起多跳生效）。</strong> 這會讓 1.0.89 之前建立的檢索評測基線<strong>位移</strong>（召回變多）。升級後應重跑一次評測建立新基線；要維持舊行為就設 <code>1</code>。</p></blockquote>
+<p><code>TopK</code>、<code>CandidateTopK</code>、<code>VectorWeight</code>、<code>KeywordWeight</code>、<code>MinScore</code> 由 <code>IRetrievalService</code> 用於AI 知識問答與 檢索品質評測；檢索層會先套團隊權控，再回傳可見 chunk。<code>RejectThreshold</code>、<code>LowConfidenceThreshold</code> 由 <code>KnowledgeBaseChatService</code> 以「最高分命中」判定AI 知識問答的整體信心（兩段式門檻），預設值僅為起點、須以真實資料校準。調整後需重啟生效。</p>
+<p><code>ChunkTargetChars</code>、<code>ChunkMaxChars</code>、<code>ChunkOverlapChars</code> 由 <code>Chunker</code> 在嵌入索引建立時使用。調整後除了重啟服務，也必須重新蒸餾或重建索引，既有 <code>VectorEmbedding</code> 才會套用新的切塊規則。完整設計見 <a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a>。</p>
+<h4 id="systemsettingsretrievalqueryrewrite"><code>SystemSettings.Retrieval.QueryRewrite</code></h4>
+<p>AI 知識問答的檢索前查詢改寫設定；只影響送進檢索層的 query，不影響回答中的原始使用者問題，也不改變團隊權控。</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>Enabled</code></td><td>是否啟用 Query Rewrite，預設 <code>true</code>。</td></tr><tr><td><code>Mode</code></td><td>改寫模式，預設 <code>Auto</code>；<code>Auto</code> 只在短問句或含上下文代詞時啟用，<code>Always</code> 只要有 history 就改寫，<code>Off</code> 關閉。</td></tr><tr><td><code>MinQueryChars</code></td><td><code>Auto</code> 模式下的短問句門檻，預設 <code>20</code>。</td></tr><tr><td><code>MaxHistoryMessages</code></td><td>最多帶入最近幾則 user/assistant 訊息，預設 <code>6</code>。</td></tr><tr><td><code>FallbackToOriginalOnError</code></td><td>改寫失敗或逾時時是否回退原始 query，預設 <code>true</code>。</td></tr></tbody></table></div>
+<h3 id="48-openaisettings">4.8 <code>OpenAISettings</code></h3>
+<p>音訊／影片轉錄功能使用，呼叫 OpenAI 語音轉文字 API，並支援影片連結來源（YouTube／小紅書等 yt-dlp 支援平台；抖音須改用助手腳本，見<a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a> 第 8 節）。</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>ApiKey</code></td><td>OpenAI API 金鑰。<strong>屬機密，請勿進版控</strong>；<code>appsettings.json</code> 留空，改以環境變數或 User Secrets 提供（見第 6 節）。</td></tr><tr><td><code>BaseUrl</code></td><td>API 基底位址，預設 <code>https://api.openai.com/v1/</code>（結尾須帶斜線，供 HttpClient 組合相對路徑 <code>audio/transcriptions</code>）。</td></tr><tr><td><code>Model</code></td><td>語音轉文字模型，預設 <code>gpt-4o-transcribe</code>。</td></tr><tr><td><code>GenerationModel</code></td><td>逐字稿「依提示詞透過 LLM 產生內容」使用的聊天模型（Chat Completions），預設 <code>gpt-5.4</code>。與上方語音轉文字的 <code>Model</code> 不同；雲端時共用 <code>ApiKey</code>／<code>BaseUrl</code>。</td></tr><tr><td><code>GenerationTimeoutSeconds</code></td><td>雲端聊天/生成請求的 HttpClient 逾時秒數，預設 <code>120</code>。</td></tr><tr><td><code>QueryRewriteModel</code></td><td>AI 知識問答 Query Rewrite 使用的小型聊天模型，預設 <code>gpt-5.4-mini</code>；空白時沿用 <code>GenerationModel</code>。</td></tr><tr><td><code>QueryRewriteTimeoutSeconds</code></td><td>Query Rewrite 呼叫逾時秒數，預設 <code>30</code>。</td></tr><tr><td><code>GenerationProvider</code></td><td><strong>聊天/生成＋視覺</strong> LLM 供應者：<code>Cloud</code>（OpenAI，預設）或 <code>Local</code>（OpenAI 相容地端伺服器，如 Ollama／LM Studio／vLLM）。影響清洗、逐字稿/文件生成、圖片視覺解讀、知識來源對話、AI 知識問答、知識頁審核；語音轉錄(Whisper)永遠走雲端。切換於啟動時生效，改設定需重啟。</td></tr><tr><td><code>LocalBaseUrl</code></td><td>地端 OpenAI 相容 API 基底位址（結尾帶斜線），例 <code>http://localhost:11434/v1/</code>（Ollama）。<code>Local</code> 時必填。</td></tr><tr><td><code>LocalGenerationModel</code></td><td>地端聊天模型名，例 <code>llama3.1</code>、<code>qwen2.5</code>。<code>Local</code> 時必填。</td></tr><tr><td><code>LocalQueryRewriteModel</code></td><td>地端 Query Rewrite 模型名；留空時沿用 <code>LocalGenerationModel</code>。</td></tr><tr><td><code>LocalApiKey</code></td><td>地端 API 金鑰，<strong>選填</strong>；多數地端伺服器免金鑰（留空即可）。留空時不送 Authorization 標頭。</td></tr><tr><td><code>LocalGenerationTimeoutSeconds</code></td><td>地端聊天請求逾時秒數，預設 <code>300</code>（地端推論通常較慢）。</td></tr><tr><td><code>Language</code></td><td><strong>預設</strong>轉錄語言，預設 <code>zh</code>。每筆記錄可於新增頁的「轉錄語言」下拉覆寫為繁體中文（<code>zh</code>）／英文（<code>en</code>）／自動偵測（<code>auto</code>）。</td></tr><tr><td><code>Prompt</code></td><td>繁體中文導引提示語（含繁體範例字）。僅在該筆語言為中文時送出；英文與自動偵測不送 <code>prompt</code>。</td></tr><tr><td><code>MaxChunkSizeMB</code></td><td>單檔切分上限（MB），預設 <code>25</code>（OpenAI API 單檔上限）；超過會以 FFmpeg 依時間分段後逐段轉錄再合併。</td></tr><tr><td><code>MaxChunkDurationSeconds</code></td><td>單段音訊長度上限（秒），預設 <code>1200</code>。<code>gpt-4o-transcribe</code> 單次請求音訊長度上限為 1400 秒，故即使檔案未達 25MB，超過此時長也會分段（取「大小」與「時長」所需段數的較大者）。</td></tr><tr><td><code>TimeoutSeconds</code></td><td>HttpClient 呼叫逾時秒數，預設 <code>600</code>。</td></tr><tr><td><code>FfmpegPath</code></td><td>FFmpeg 執行檔路徑；預設 <code>ffmpeg</code>（走系統 PATH）。大檔分段與影片連結抽音訊需要；若未加入 PATH 可改填絕對路徑（如 <code>C:\\path\\to\\ffmpeg.exe</code>）。</td></tr><tr><td><code>YtDlpPath</code></td><td>yt-dlp 執行檔路徑；預設 <code>yt-dlp</code>（走系統 PATH）。影片連結來源下載音訊時使用；若未加入 PATH 可改填絕對路徑。</td></tr><tr><td><code>YtDlpCookiesFile</code></td><td>cookies.txt 檔路徑（Netscape 格式），選用，供其他需 cookie 的平台；對應 yt-dlp <code>--cookies</code>。YouTube／小紅書不需要，抖音無效（見第 8 節）。<strong>含登入憑證，屬機密，勿進版控。</strong> 詳見<a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a> 第 8 節。</td></tr><tr><td><code>YtDlpCookiesFromBrowser</code></td><td>從已登入的本機瀏覽器讀取 cookies，例：<code>edge</code>／<code>chrome</code>／<code>firefox</code>；對應 yt-dlp <code>--cookies-from-browser</code>。兩個 cookies 設定皆填時以 <code>YtDlpCookiesFile</code> 優先。伺服器／服務帳號通常無登入中瀏覽器，建議改用 cookies 檔。</td></tr><tr><td><code>NodePath</code></td><td>Node.js 執行檔路徑，預設 <code>node</code>（走 PATH）。抖音音訊助手使用。</td></tr><tr><td><code>DouyinHelperScript</code></td><td>抖音助手 <code>get-douyin-audio.mjs</code> 的絕對路徑。<strong>偵測到抖音網址時自動以此助手下載</strong>；留空則抖音下載失敗並提示設定。僅限有桌面的本機。</td></tr><tr><td><code>DouyinTimeoutSeconds</code></td><td>抖音助手執行逾時秒數，預設 <code>150</code>。逾時（含需人工驗證未完成）該筆標記失敗，可重試。</td></tr><tr><td><code>EmbeddingProvider</code></td><td>嵌入模型供應者：<code>Cloud</code>／<code>Local</code>；留空時沿用 <code>GenerationProvider</code>。切換後既有向量不可混用，需全量重建索引。</td></tr><tr><td><code>EmbeddingModel</code></td><td>雲端嵌入模型，預設 <code>text-embedding-3-large</code>。</td></tr><tr><td><code>EmbeddingDimensions</code></td><td>雲端嵌入維度，預設且系統運作約定為 <code>1024</code>；不要任意更動，除非同步重建索引並確認所有向量維度一致。</td></tr><tr><td><code>EmbeddingTimeoutSeconds</code></td><td>嵌入 HTTP 呼叫逾時秒數，預設 <code>120</code>。</td></tr><tr><td><code>LocalEmbeddingModel</code></td><td>地端嵌入模型名，預設 <code>bge-m3</code>；<code>EmbeddingProvider=Local</code> 時搭配 <code>LocalBaseUrl</code> 使用。</td></tr></tbody></table></div>
+<blockquote><p><strong>台灣繁體保底</strong>：OpenAI 轉錄 API 的 <code>language</code> 僅接受 ISO-639-1 兩碼（中文僅 <code>zh</code>，不支援 <code>zh-tw</code>），且 <code>language</code>／<code>prompt</code> 僅為軟性偏好。因此語言為中文時，逐字稿會再經 <code>OpenccNetLib</code>（<code>s2twp</code>）簡轉繁，確保輸出為台灣繁體中文。</p>
+<p><strong>影片連結來源</strong>：新增記錄時來源類型可選「影片連結」，系統以 <code>yt-dlp -x --audio-format mp3</code> 僅抽取音訊後轉錄，無須上傳檔案。可直接貼整段分享文字（系統會自動抽出網址）；平台辨識交給 yt-dlp（YouTube／小紅書等，<strong>均不需 cookies</strong>）。<strong>抖音例外</strong>：偵測到抖音網址時系統會自動以 <code>DouyinHelperScript</code> 所指定的 playwright 助手腳本下載（需設定 <code>NodePath</code> 與 <code>DouyinHelperScript</code>）；未設定或逾時則標記失敗可重試。助手仍可獨立於命令列手動執行，詳見<a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a> 第 8 節。</p></blockquote>
+<blockquote><p><strong>雲端／地端 LLM 切換</strong>：<code>GenerationProvider=Local</code> 可讓清洗（去重/遮罩/分類/摘要/信心）、逐字稿/文件 LLM 產生、圖片視覺、知識來源對話、AI 知識問答、知識頁審核改走地端 OpenAI 相容伺服器，資料不出企業環境。地端伺服器須提供 <code>POST {LocalBaseUrl}chat/completions</code>（OpenAI 相容）。<strong>注意</strong>：圖片視覺解讀走同一聊天 client，地端模型須支援視覺才可用；語音轉錄不在切換範圍（永遠雲端）。</p>
+<p>地端範例（Ollama）：</p>
+<pre><code>"OpenAISettings": {
+  "GenerationProvider": "Local",
+  "LocalBaseUrl": "http://localhost:11434/v1/",
+  "LocalGenerationModel": "llama3.1",
+  "LocalApiKey": "",
+  "LocalGenerationTimeoutSeconds": 300
+}</code></pre>
+<p>未設定聊天/生成 LLM（雲端 <code>ApiKey</code> 空，或地端 <code>LocalBaseUrl</code>／<code>LocalGenerationModel</code> 缺）時，清洗會略過 LLM 增強，僅輸出彙整＋繁體正規化並加註記；其他需要 LLM 的生成/對話/蒸餾功能會顯示設定不足或處理失敗。</p></blockquote>
+<blockquote><p><strong>嵌入模型切換</strong>：<code>EmbeddingProvider</code> 留空時沿用 <code>GenerationProvider</code>；明確設為 <code>Cloud</code> 或 <code>Local</code> 可獨立切換。是否可用由 <code>OpenAISettings.IsEmbeddingConfigured()</code> 判斷：雲端需 <code>ApiKey</code>，地端需 <code>LocalBaseUrl</code> + <code>LocalEmbeddingModel</code>。換模型或維度後需重新建立所有 <code>VectorEmbedding</code> 索引。</p></blockquote>
+<p>註冊位置：<code>OpenAISettings</code> 綁定於 <code>ServiceCollectionExtensions.AddConfiguredOptions</code>，HttpClient 與背景工作於 <code>Program.cs</code> 的 <code>AddHttpClient&lt;OpenAITranscriptionClient&gt;</code> 與 <code>AddHostedService&lt;TranscriptionBackgroundService&gt;</code>。聊天 client <code>AddHttpClient&lt;OpenAIChatCompletionClient&gt;</code> 的 BaseAddress/逾時取自 <code>OpenAISettings.ResolveChatLlm()</code>（依 <code>GenerationProvider</code>）。</p>
+<blockquote><p><strong>依提示詞透過 LLM 產生內容</strong>：影音轉逐字稿與文件轉文字頁對「已完成」紀錄提供「依提示詞產生」功能，將使用者選取／調整後的提示詞與內容送往 <code>GenerationModel</code> 指定的 Chat Completions 模型，結果寫入 <code>ExternalFileSystem.GeneratedContentPath</code> 下的年度檔案並回填相對路徑（只保留最新一筆）。對應元件：<code>OpenAIChatCompletionClient</code>（<code>AddHttpClient&lt;OpenAIChatCompletionClient&gt;</code>，逾時取 <code>GenerationTimeoutSeconds</code>）、<code>LlmGenerationService</code> 與 <code>DocumentLlmGenerationService</code>。AI 提示詞由「基礎資料設定 &gt; AI 提示詞」維護。</p></blockquote>
+<h3 id="481-llmpromptsllm-提示詞平台預設層自-02110">4.8.1 <code>LlmPrompts</code>（LLM 提示詞平台預設層，自 0.2.110）</h3>
+<p>LLM 提示詞的「平台預設層」，介於 DB 覆蓋與程式 fallback 之間。<strong>每個屬性對應一個槽位鍵；值留空＝沿用程式內建預設（<code>LlmPromptDefaults</code>）</strong>，不要把預設文字抄一份進來以免分歧（drift）。</p>
+<p>四層覆蓋優先序（高→低）：<strong>單次操作覆蓋（對話頁輸入／清洗規則設定）→ DB <code>Prompt</code>(同名鍵，於「AI 提示詞」<code>/prompts</code> 線上編輯、免重啟）→ 本區段 <code>LlmPrompts</code>（改值需重啟）→ 程式 fallback <code>LlmPromptDefaults</code></strong>。任一層非空白即採用、否則往下退；<code>LlmPromptResolver</code> 以 <code>Debug</code> 記錄本次採用層級。</p>
+<p>屬性／槽位鍵（沿用 <code>LlmPromptKeys</code>）：<code>CleaningDedupe</code>（清洗-去重）、<code>CleaningMask</code>（清洗-遮罩）、<code>CleaningClassify</code>（清洗-分類）、<code>CleaningSummary</code>（清洗-摘要）、<code>CleaningConfidence</code>（清洗-信心）、<code>ChatSystem</code>（對話-系統）、<code>ChatConcise</code>/<code>ChatStandard</code>/<code>ChatDetailed</code>（對話 詳簡三段）、<code>KnowledgeBaseSystem</code>（知識庫-系統）、<code>KnowledgeBaseQueryRewrite</code>（知識庫-查詢改寫）、<code>DistillationGenerate</code>（蒸餾-生成）、<code>GraphTripleExtract</code>（圖譜-三元組抽取）、<code>GraphCommunitySummary</code>（圖譜-社群摘要）、<code>GraphGlobalMap</code>（圖譜-全域map）、<code>GraphGlobalReduce</code>（圖譜-全域reduce）、<code>EntityAliasPropose</code>（圖譜-別名建議）、<code>MeetingMinutes</code>（會議-紀錄生成）、<code>DocumentPdfToMarkdown</code>（文件-PDF轉Markdown）。<strong>轉錄提示詞不在此</strong>，沿用 <code>OpenAISettings.Prompt</code>，另由 DB「轉錄-提示」覆蓋。</p>
+<pre><code>"LlmPrompts": {
+  "CleaningDedupe": "", "CleaningMask": "", "CleaningClassify": "",
+  "CleaningSummary": "", "CleaningConfidence": "",
+  "ChatSystem": "", "ChatConcise": "", "ChatStandard": "", "ChatDetailed": "",
+  "KnowledgeBaseSystem": "",
+  "KnowledgeBaseQueryRewrite": "",
+  "DistillationGenerate": "",
+  "GraphTripleExtract": "",
+  "GraphCommunitySummary": "",
+  "GraphGlobalMap": "",
+  "GraphGlobalReduce": "",
+  "EntityAliasPropose": "",
+  "MeetingMinutes": "",
+  "DocumentPdfToMarkdown": ""
+}</code></pre>
+<p>槽位鍵 <code>MeetingMinutes</code>（DB 對應名稱「會議-紀錄生成」）供上傳會議錄音後產生會議紀錄時使用；<code>DocumentPdfToMarkdown</code>（DB 對應名稱「文件-PDF轉Markdown」）供 PDF 走大語言模型萃取時使用，見 §4.8.2。</p>
+<p>五個 <code>Graph*</code>／<code>EntityAliasPropose</code> 槽位鍵（1.0.84～1.0.88）供知識圖譜使用：三元組抽取、社群摘要、全域問答的 map 與 reduce、LLM 別名建議。⚠️ <strong>它們在 DB <code>/prompts</code> 的對應名稱是中文的 <code>圖譜-*</code></strong>（如 <code>圖譜-三元組抽取</code>），不是這裡的英文屬性名——填英文名不會命中（DB 比對是精確相等）。目前共 <strong>20 個槽位鍵</strong>，完整對照見 <a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化 §10.1</a>。</p>
+<p>註冊位置：<code>LlmPromptsSettings</code> 綁定於 <code>ServiceCollectionExtensions.AddConfiguredOptions</code>；解析器 <code>LlmPromptResolver</code> 為 Scoped。完整說明（槽位鍵對照、操作方式、衝突解析、預設全文）見 <a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a> §10／§3。</p>
+<h3 id="482-markitdownsettings">4.8.2 <code>MarkItDownSettings</code></h3>
+<blockquote><p>下表的「預設」指<strong>程式內建預設值</strong>（<code>MarkItDownSettings.cs</code> 的屬性初始值）。倉庫的 <code>appsettings.json</code> 已覆寫其中數項（工具絕對路徑、<code>PdfUseLlm</code>、<code>PdfLlmModel</code>），實際生效值以 §4 的快照為準。</p></blockquote>
+<div class="tw"><table><thead><tr><th>欄位</th><th>用途</th></tr></thead><tbody><tr><td><code>MarkItDownPath</code></td><td>MarkItDown 命令列工具執行檔路徑；預設 <code>markitdown</code>（走 PATH）。文件轉文字背景管線會以此工具將 PDF、Office、文字、HTML、圖片等支援格式轉為 Markdown。</td></tr><tr><td><code>TimeoutSeconds</code></td><td>MarkItDown 轉檔逾時秒數，預設 <code>600</code>。逾時或外部行程非 0 結束會將該筆文件轉文字標記為失敗並留下錯誤訊息。</td></tr><tr><td><code>PdfUseLlm</code></td><td>上傳檔案為 PDF 時，是否改呼叫大語言模型 API 轉 Markdown（而非用 MarkItDown）。預設 <code>false</code>＝一律走 MarkItDown。</td></tr><tr><td><code>PdfLlmModel</code></td><td>PDF 轉換使用的模型名稱；<strong>留空＝沿用 <code>OpenAISettings.ResolveChatLlm()</code> 解析出的聊天模型</strong>（雲端為 <code>GenerationModel</code>、地端為 <code>LocalGenerationModel</code>）。</td></tr><tr><td><code>PdfLlmTimeoutSeconds</code></td><td>PDF 轉換請求逾時秒數，預設 <code>600</code>；<code>0</code>＝沿用聊天模型的逾時。此逾時套在專屬的 <code>PdfMarkdownLlmClient</code> HttpClient 上，不影響對話、清洗等其他 LLM 功能。</td></tr></tbody></table></div>
+<p>安裝與路徑設定見 <a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a>。</p>
+<blockquote><p><strong>PDF 走大語言模型萃取（自 1.0.54）</strong></p>
+<p>MarkItDown 對 PDF 只做純文字抽取，圖片與圖表會遺失、複雜表格常被壓成無結構文字。開啟 <code>PdfUseLlm</code> 後，PDF 會改以 base64 <code>file</code> 內容送 OpenAI Chat Completions，請模型輸出完整 Markdown（含表格語法，圖片則以 <code>&gt; **[圖片]**</code> 描述段落表達）。</p>
+<ul><li><strong>提示詞</strong>走 §4.8.1 的解析鏈，槽位鍵為 <code>DocumentPdfToMarkdown</code> /「文件-PDF轉Markdown」，可於「AI 提示詞」<code>/prompts</code> 線上調整、免重啟。</li></ul>
+<p>⚠️ <strong>這條路徑實際只有 3 層</strong>：DB <code>/prompts</code> &gt; appsettings <code>LlmPrompts</code> &gt; 程式內建 fallback。四層裡的第 1 層「單次操作覆蓋」在 PDF 自動萃取硬傳 <code>null</code>（<code>DocumentExtractionProcessor</code> 呼叫 <code>ResolveAsync</code> 時第 2 引數為 <code>null</code>）——那是背景管線、沒有使用者互動點，所以沒有覆蓋入口。 ⚠️ <strong>在 <code>/prompts</code> 覆蓋時名稱必須逐字完全一致</strong>（<code>文件-PDF轉Markdown</code>，含連字號與 <code>Markdown</code> 大小寫，不可多空白）。DB 比對是精確的（<code>x.Name == name</code>），打錯<strong>不會有任何錯誤或日誌</strong>，只會安靜退回內建預設。<strong>1.0.77 起 <code>/prompts</code> 的名稱欄會即時顯示「✅ 對應系統槽位」或「ℹ️ 這是自訂提示詞」並列出可點擊填入的槽位清單</strong>，避免這個坑。</p>
+<ul><li><strong>失敗自動降級</strong>：LLM 只嘗試一次（金鑰未設定、API 錯誤、逾時、模型不支援 <code>file</code> 輸入皆同），失敗即自動改用 MarkItDown 完成轉換。該筆紀錄狀態仍為「已完成」，並在訊息欄留下「AI 解析 PDF 失敗，已自動改用 MarkItDown 轉換：…」。</li><li><strong>輸出被截斷也算失敗（1.0.77 起）</strong>：回應 <code>choices[0].finish_reason == "length"</code> 代表 PDF 太長、模型輸出撞到上限，Markdown 不完整。此時<strong>不採用該結果</strong>、走上述降級路徑。先前這種情況會被當成成功——殘缺的 Markdown 直接落檔、狀態「已完成」、無任何提示，之後整條 RAG（切塊／嵌入／問答）都建立在殘缺內容上。</li></ul>
+<p>請求刻意<strong>不帶 <code>max_tokens</code></strong>（模型預設上限通常大於我們能合理硬設的值，硬設反而更早截斷）；目標是「截斷要被發現」而非「提高上限」。</p>
+<ul><li><strong>不設檔案大小上限</strong>，超限由 OpenAI API 回報錯誤後走降級路徑。</li><li><strong>Token 用量</strong>記為 Operation=<code>DocumentExtraction</code>、CallType=<code>File</code>，可於 <code>/token-usage</code> 與 Token 用量報表查閱。</li></ul></blockquote>
+<h3 id="49-automapperlicensekey">4.9 <code>AutoMapper:LicenseKey</code></h3>
+<p>AutoMapper 12+ 商業授權金鑰；留空會走免費條款。註冊位置：<code>Program.cs</code>。</p>
+<hr>
+<h2 id="5-環境差異設定" class="t7">5. 環境差異設定</h2>
+<p><code>appsettings.Development.json</code> 僅覆寫 Logging：</p>
+<pre><code>{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}</code></pre>
+<p>未來可在 <code>appsettings.Production.json</code> 內切換 SystemSettings（例如連線字串、外部目錄）以符合不同部署環境。</p>
+<hr>
+<h2 id="6-以環境變數--user-secrets-覆寫敏感設定openai-金鑰等" class="t8">6. 以環境變數 / User Secrets 覆寫敏感設定（OpenAI 金鑰等）</h2>
+<p>本專案使用 <code>WebApplication.CreateBuilder(args)</code>（<code>Program.cs</code>），其預設設定來源<strong>已包含環境變數 provider</strong>，且優先序高於 <code>appsettings.json</code>。因此 <code>OpenAISettings.ApiKey</code>、JWT <code>SigningKey</code>、Google <code>ClientSecret</code> 等機密<strong>不應寫入 <code>appsettings.json</code></strong>，而以環境變數或 User Secrets 提供。</p>
+<h3 id="61-設定來源優先序後者覆蓋前者">6.1 設定來源優先序（後者覆蓋前者）</h3>
+<pre><code>appsettings.json
+→ appsettings.{Environment}.json
+→ User Secrets（僅 Development 環境）
+→ 環境變數
+→ 命令列參數</code></pre>
+<h3 id="62-階層鍵--環境變數命名">6.2 階層鍵 → 環境變數命名</h3>
+<p>設定鍵的冒號 <code>:</code> 在環境變數需改寫為<strong>雙底線 <code>__</code></strong>：</p>
+<div class="tw"><table><thead><tr><th>設定鍵</th><th>環境變數名稱</th></tr></thead><tbody><tr><td><code>OpenAISettings:ApiKey</code></td><td><code>OpenAISettings__ApiKey</code></td></tr><tr><td><code>OpenAISettings:FfmpegPath</code></td><td><code>OpenAISettings__FfmpegPath</code></td></tr><tr><td><code>OpenAISettings:YtDlpPath</code></td><td><code>OpenAISettings__YtDlpPath</code></td></tr><tr><td><code>JwtSettings:SigningKey</code></td><td><code>JwtSettings__SigningKey</code></td></tr></tbody></table></div>
+<p><code>appsettings.json</code> 內對應欄位留空即可，由環境變數覆寫。</p>
+<h3 id="63-windows-設定方式擇一">6.3 Windows 設定方式（擇一）</h3>
+<p><strong>A. 目前 PowerShell 工作階段（測試用，關閉視窗即失效；須在同一階段啟動 App）</strong></p>
+<pre><code>$env:OpenAISettings__ApiKey = "sk-你的金鑰"
+dotnet run --project src/KnowledgeExtraction/KnowledgeExtraction.Web</code></pre>
+<p><strong>B. 永久寫入使用者環境變數（需重新開啟終端機/IDE 才生效）</strong></p>
+<pre><code>setx OpenAISettings__ApiKey "sk-你的金鑰"</code></pre>
+<p><strong>C. 開發階段建議：User Secrets（金鑰存於專案外、不進版控；使用冒號 <code>:</code> 而非 <code>__</code>）</strong></p>
+<pre><code>cd src/KnowledgeExtraction/KnowledgeExtraction.Web
+dotnet user-secrets init        # 若 csproj 尚無 UserSecretsId 才需要
+dotnet user-secrets set "OpenAISettings:ApiKey" "sk-你的金鑰"</code></pre>
+<p><strong>D. IDE 偵錯（<code>Properties/launchSettings.json</code>，僅供本機開發，勿放正式金鑰）</strong></p>
+<pre><code>"environmentVariables": {
+  "OpenAISettings__ApiKey": "sk-你的金鑰"
+}</code></pre>
+<h3 id="64-部署環境">6.4 部署環境</h3>
+<p>正式環境建議透過部署平台的機密管理提供：IIS 應用程式集區環境變數、Windows 服務環境變數、容器 <code>-e OpenAISettings__ApiKey=...</code> 等。</p>
+<h3 id="65-驗證">6.5 驗證</h3>
+<p>啟動後於「影音轉逐字稿」頁上傳音檔；若金鑰未被讀到，<code>OpenAITranscriptionClient</code> 會丟出中文例外「尚未設定 OpenAISettings:ApiKey。」並把該筆轉錄標記為「失敗」。不再出現此訊息即代表覆寫成功。同理，<code>FfmpegPath</code> 亦可用 <code>OpenAISettings__FfmpegPath</code> 指向本機已安裝的 FFmpeg，而不必寫死在版控的 <code>appsettings.json</code>。</p>
+<hr>
+<h2 id="7-延伸閱讀" class="t1">7. 延伸閱讀</h2>
+<ul><li><a href="../../docs/architecture/architecture-overview.html">架構總覽</a> — Program.cs 啟動順序與 NLog 初始化點。</li><li><a href="../../docs/features/health-monitoring.html">系統健康監控</a> — 健康百分比、紅黃綠燈號與最後 100 筆日誌顯示。</li><li><a href="../../docs/features/file-upload.html">檔案上傳機制</a> — <code>ExternalFileSystem</code> 各路徑的實際使用情境。</li><li><a href="../../docs/operations/maintenance-rules.html">維護規範</a> — 版本欄位的更新規定。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>導入顧問：客戶環境出問題，我要排查</li></ul></div><div class="card"><h3>同類文件（部署與維運）</h3><ul><li><a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定（C:\KMEngineTools）</a></li><li><a href="../../docs/operations/rag-troubleshooting.html">RAG 問題診斷手冊（維運用）</a></li><li><a href="../../docs/operations/fresh-machine-sop.html">全新機器部署 SOP</a></li><li><a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a></li><li><a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a></li><li><a href="../../docs/operations/help-site-build.html">文件說明網站：產生與佈署</a></li><li><a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a></li><li><a href="../../docs/operations/maintenance-rules.html">維護規範</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#文件目的">文件目的</a><a class="l2" href="#1-日誌方案nlog">1. 日誌方案：NLog</a><a class="l2" href="#2-何時使用何種等級">2. 何時使用何種等級</a><a class="l3" href="#21-如何臨時開啟-debug--trace-詳細日誌診斷用">2.1 如何臨時開啟 Debug / Trace 詳細日誌（診斷用）</a><a class="l3" href="#22-執行環境情境與例外快照自-0323">2.2 執行環境情境與例外快照（自 0.3.23）</a><a class="l3" href="#23-依時間區間下載日誌log-download自-1012">2.3 依時間區間下載日誌（/log-download，自 1.0.12）</a><a class="l2" href="#3-全域請求日誌">3. 全域請求日誌</a><a class="l2" href="#31-openai-chat-token-用量記錄自-0293">3.1 OpenAI chat token 用量記錄（自 0.2.93）</a><a class="l2" href="#4-appsettingsjson-區段全表">4. appsettings.json 區段全表</a><a class="l3" href="#41-logging">4.1 Logging</a><a class="l3" href="#42-nlogbasepath">4.2 NLog.BasePath</a><a class="l3" href="#43-swagger--security--cors">4.3 Swagger / Security / Cors</a><a class="l3" href="#431-googleoauthsettings">4.3.1 GoogleOAuthSettings</a><a class="l3" href="#432-cachesettings">4.3.2 CacheSettings</a><a class="l3" href="#433-jwtsettings">4.3.3 JwtSettings</a><a class="l3" href="#434-bootstrapsettings">4.3.4 BootstrapSettings</a><a class="l3" href="#44-systemsettingsdatabaseprovider">4.4 SystemSettings.DatabaseProvider</a><a class="l3" href="#45-systemsettingsconnectionstrings">4.5 SystemSettings.ConnectionStrings</a><a class="l3" href="#46-systemsettingssysteminformation">4.6 SystemSettings.SystemInformation</a><a class="l3" href="#47-systemsettingsexternalfilesystem">4.7 SystemSettings.ExternalFileSystem</a><a class="l3" href="#471-systemsettingscleaning">4.7.1 SystemSettings.Cleaning</a><a class="l3" href="#472-systemsettingsdistillation">4.7.2 SystemSettings.Distillation</a><a class="l3" href="#473-systemsettingsretrieval">4.7.3 SystemSettings.Retrieval</a><a class="l3" href="#48-openaisettings">4.8 OpenAISettings</a><a class="l3" href="#481-llmpromptsllm-提示詞平台預設層自-02110">4.8.1 LlmPrompts（LLM 提示詞平台預設層，自 0.2.110）</a><a class="l3" href="#482-markitdownsettings">4.8.2 MarkItDownSettings</a><a class="l3" href="#49-automapperlicensekey">4.9 AutoMapper:LicenseKey</a><a class="l2" href="#5-環境差異設定">5. 環境差異設定</a><a class="l2" href="#6-以環境變數--user-secrets-覆寫敏感設定openai-金鑰等">6. 以環境變數 / User Secrets 覆寫敏感設定（OpenAI 金鑰等）</a><a class="l3" href="#61-設定來源優先序後者覆蓋前者">6.1 設定來源優先序（後者覆蓋前者）</a><a class="l3" href="#62-階層鍵--環境變數命名">6.2 階層鍵 → 環境變數命名</a><a class="l3" href="#63-windows-設定方式擇一">6.3 Windows 設定方式（擇一）</a><a class="l3" href="#64-部署環境">6.4 部署環境</a><a class="l3" href="#65-驗證">6.5 驗證</a><a class="l2" href="#7-延伸閱讀">7. 延伸閱讀</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/operations/日誌與設定檔說明.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

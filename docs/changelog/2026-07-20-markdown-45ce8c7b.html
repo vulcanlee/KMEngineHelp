@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>會議編輯窗：摘要與決議事項改為左編輯／右 Markdown 預覽（1.0.22）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>會議編輯窗：摘要與決議事項改為左編輯／右 Markdown 預覽（1.0.22）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/20</li><li>版本：1.0.21 → <strong>1.0.22</strong></li><li>類型：UI 優化</li><li>觸發來源：使用者回報「修改會議」對話窗的摘要欄只有 4 行、看不到幾個字，且內容是 Markdown，希望右側有預覽、兩區都能複製</li><li>相關：<a href="../../docs/changelog/2026-07-20-ui-a5368795.html">會議模組 UI 優化（1.0.21）</a></li></ul>
+<hr>
+<h2 id="一改了什麼" class="t1">一、改了什麼</h2>
+<p>「修改會議」對話窗的<strong>摘要</strong>與<strong>決議事項</strong>兩欄，從 <code>Rows="4"</code> 的單一 <code>TextArea</code> 改為<strong>左編輯／右即時 Markdown 預覽</strong>的分欄版面，各 320px 高，兩區各一顆複製鈕。</p>
+<p>版面與複製邏輯<strong>直接照抄 <code>Components/Commons/ContentEditDialog.razor:51-84</code></strong> 的既有實作，沒有自創新做法。</p>
+<h3 id="兩顆複製鈕語意不同刻意不統一">兩顆複製鈕語意不同，刻意不統一</h3>
+<div class="tw"><table><thead><tr><th>位置</th><th>呼叫</th><th>複製到的內容</th></tr></thead><tbody><tr><td>左（編輯區）</td><td><code>navigator.clipboard.writeText</code></td><td><strong>Markdown 原始碼</strong>（看得到 <code>#</code>、<code>-</code>）</td></tr><tr><td>右（預覽區）</td><td><code>keChat.copyElementText</code>（<code>wwwroot/js/chat.js</code>）</td><td><strong>渲染後的可見純文字</strong>（無 Markdown 符號）</td></tr></tbody></table></div>
+<p>這是 <a href="../../docs/changelog/2026-07-13-b1007ebf.html">2026-07-13 編修對話窗左右複製</a> 已確立的設計，沿用不改。</p>
+<h3 id="預覽做了-300ms-debounce">預覽做了 300ms debounce</h3>
+<p><code>OnInput</code> <strong>立即</strong>更新 <code>CurrentRecord.Summary</code>／<code>Decisions</code>（資料不可延遲，否則存檔會漏掉最後幾個字），但<strong>延後 300ms</strong> 才更新預覽文字觸發重繪。</p>
+<p>理由有二：①<code>docs/planning/08-優化建議清單-TODO.md</code> 早就把「Markdown 預覽 debounce」列為待辦；②<a href="../../docs/changelog/2026-06-17-55aea524.html">2026-06-17 逐字稿編修移除預覽修復閃爍</a> 記錄過長內容即時轉 HTML 壓垮 SignalR 造成畫面閃爍。本次預覽是<strong>表單內常駐、且有兩個實例</strong>，風險比一次性對話窗高。</p>
+<p>元件因此實作 <code>IDisposable</code> 釋放兩個計時器。</p>
+<h3 id="css-放全域-appcss">CSS 放全域 <code>app.css</code></h3>
+<p>新增 <code>.meeting-md-split</code> / <code>.meeting-md-pane</code> / <code>.meeting-md-pane-head</code> / <code>.meeting-md-preview</code>。</p>
+<p><strong>寫全域不是隨意選擇</strong>：AntDesign Modal 的內容不受 scoped CSS 管轄，寫進 <code>.razor.css</code> 會靜默失效——這正是 1.0.21 修掉的那七個 class 從未生效的同一個坑。</p>
+<p>高度<strong>固定 320px 而非 <code>flex:1</code></strong>：<code>meeting-view-modal</code> 的 body 是 <code>overflow-y:auto</code> 而非 flex 撐滿，用 <code>flex:1</code> 會塌成 0 高度。</p>
+<hr>
+<h2 id="二為什麼摘要欄裡會是-markdown釐清非本次修改" class="t2">二、為什麼摘要欄裡會是 Markdown（釐清，非本次修改）</h2>
+<p><code>MeetingService.ApplyGeneratedFieldsAsync</code>（<code>MeetingService.cs:707-737</code>）讀出落檔的 <code>.md</code> <strong>全文</strong>，餵給 <code>MeetingMinutesGenerationService.ParseResponse</code>——但那個方法預期的是 LLM 的 <strong>JSON</strong> 回應。餵 Markdown 進去<strong>必然 <code>Degraded: true</code></strong>，於是走：</p>
+<pre><code>item.Summary = parsed.Degraded ? markdown : (parsed.Summary ?? item.Summary);</code></pre>
+<p>把整份會議紀錄灌進摘要欄。程式碼註解也明說了這件事。</p>
+<p><strong>衍生現象</strong>：<code>Decisions</code> 與 <code>Participants</code> 只在 <code>!parsed.Degraded</code> 時才寫入，而該條件在這條路徑上<strong>永遠不成立</strong>——也就是說「<strong>套用 AI 結果」從來沒有真的套用過決議事項與出席者</strong>，實際只改了摘要。</p>
+<p>自動產生路徑（<code>MeetingMinutesGenerationService.GenerateAsync</code>）解析的是真正的 JSON，不受此影響，摘要會是提示詞要求的「三到五句純文字」。</p>
+<blockquote><p>本次<strong>未修改</strong>上述行為，僅記錄現況。是否要讓「套用 AI 結果」真的套用三個欄位，待裁示。</p></blockquote>
+<hr>
+<h2 id="三未完成多行欄位按-enter-疑似會直接存檔關窗" class="t3">三、未完成：多行欄位按 Enter 疑似會直接存檔關窗</h2>
+<p><code>MeetingEditModal.razor</code> 的 <code>&lt;EditForm&gt;</code> 掛了 <code>@onkeydown="OnModalKeyDownAsync"</code>，處理器（<code>.razor.cs</code>）是：</p>
+<pre><code>if (args.Key == "Enter") { await Task.Delay(200); await OnModalOKHandleAsync(new MouseEventArgs()); }</code></pre>
+<p>keydown 會從子元素冒泡上來，而這裡<strong>沒有排除 textarea、沒有檢查 Shift、沒有看事件來源</strong>。同一套寫法在 <strong>9 個編輯對話窗</strong>都有，逐一檢查過沒有任何一個有防護。</p>
+<p>若屬實，使用者在摘要欄<strong>連換行都打不出來</strong>，本次把欄位加大的意義會大打折扣。</p>
+<p><strong>但這是程式碼推論，尚未實機重現。</strong> 嘗試過的驗證途徑與結果：</p>
+<ul><li>檢查 AntDesign 1.6.0 的 DLL：<code>stopPropagation</code> 字串確實存在，但無法判定它是否用在 <code>TextArea</code> 的 keydown 上（可能屬於 Modal／Dropdown 等其他元件）</li><li>測試專案<strong>沒有 bUnit</strong>，為了驗證這一件事引入元件測試框架不成比例</li></ul>
+<p>因此<strong>刻意未動那 6 個檔案／9 個 TextArea</strong>。待人工確認後再處理：開任一編輯對話窗，游標放進 TextArea 按 Enter——若對話窗存檔關閉即屬實。</p>
+<p>規劃中的修法（尚未實作）：新增 <code>Components/Commons/MultilineInputGuard.razor</code>，內容為 <code>&lt;div @onkeydown:stopPropagation="true"&gt;@ChildContent&lt;/div&gt;</code>，包住所有 <code>&lt;TextArea&gt;</code>；單行 <code>&lt;Input&gt;</code> 不包，維持既有的 Enter 送出便利行為。</p>
+<p>實際需要動的檔案是 <strong>6 個／9 個 TextArea</strong>（<code>MeetingEditModal</code> ×4、<code>MyTasEditModal</code>、<code>ProjectViewView</code>、<code>CategoryViewView</code>、<code>TeamViewView</code>、<code>WorkCategoryViewView</code> 各 ×1）。另外三個有 Enter 處理器的檔案（<code>MyUserView</code>、<code>McpAccessKeyView</code>、<code>RoleViewView</code>）<strong>沒有任何 TextArea</strong>，不受影響。</p>
+<hr>
+<h2 id="四已知地雷decisions-的-4000-字驗證衝突未處理" class="t4">四、已知地雷：<code>Decisions</code> 的 4000 字驗證衝突（未處理）</h2>
+<p><code>MeetingAdapterModel.cs:68</code> 有：</p>
+<pre><code>[StringLength(4000, ErrorMessage = "決議事項長度不可超過 4000 字元")]
+public string? Decisions { get; set; }</code></pre>
+<p>但 AI 寫入是<strong>直接改 entity</strong>，繞過 AdapterModel 驗證；DB 欄位為 <code>nvarchar(max)</code> 亦無限制。若 AI 產出超過 4000 字的決議，使用者一開編輯窗按儲存就會被驗證擋下，<strong>而且擋的是他沒有輸入過的內容</strong>。</p>
+<p><code>Summary</code> 與 <code>Participants</code> 無此問題（沒有 <code>StringLength</code>）。</p>
+<p>本次把決議事項改成大面積編輯區，等同鼓勵放更長的內容，這顆地雷更容易被踩到。<strong>依裁示暫不處理</strong>，僅記錄。三個可能方向：放寬／移除該限制、AI 寫入端加截斷、維持現狀。</p>
+<hr>
+<h2 id="五異動檔案" class="t5">五、異動檔案</h2>
+<div class="tw"><table><thead><tr><th>檔案</th><th>變更</th></tr></thead><tbody><tr><td><code>Web/Components/Views/Projects/MeetingEditModal.razor</code></td><td>摘要與決議事項改為左右分欄</td></tr><tr><td><code>Web/Components/Views/Projects/MeetingEditModal.razor.cs</code></td><td>注入 <code>IJSRuntime</code>；預覽狀態、debounce、4 個複製處理器；實作 <code>IDisposable</code></td></tr><tr><td><code>Web/wwwroot/app.css</code></td><td>新增 4 個分欄樣式 class</td></tr><tr><td><code>Web/appsettings.json</code></td><td>版本 1.0.21 → 1.0.22</td></tr></tbody></table></div>
+<p><strong>本次零 migration</strong>，未動任何資料庫模型；不新增測試（全是 UI 版面，無可自動化驗證的邏輯）。</p>
+<hr>
+<h2 id="六測試" class="t6">六、測試</h2>
+<p><code>dotnet build</code> 成功；<code>dotnet test</code> <strong>616 個測試全數通過</strong>（與 1.0.21 相同，本次未新增）。</p>
+<hr>
+<h2 id="七尚未執行的人工驗收" class="t7">七、尚未執行的人工驗收</h2>
+<p>本次全屬 UI 改動，自動化測試涵蓋不到，以下<strong>一項都未實機驗證</strong>：</p>
+<ol><li>左右等寬、各 320px 高，版面正常</li><li>開有 AI 摘要的會議，一開窗右側就有渲染結果（非空白）</li><li>左側打字後約 300ms 預覽跟上；連續快打不卡頓</li><li>左側「複製」得到 Markdown 原始碼（含 <code>#</code>、<code>-</code>）</li><li>右側「複製」得到純文字（無 Markdown 符號）</li><li>編輯後存檔，重開內容正確（debounce 沒有吃掉最後幾個字）</li><li>摘要清空時預覽區空白且不報錯</li><li>貼入數千字 Markdown 不出現閃爍或連線中斷</li><li>決議事項欄重複 2–8</li><li><strong>第三節的 Enter 行為確認</strong>（決定是否要做那 6 個檔案的修改）</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一改了什麼">一、改了什麼</a><a class="l3" href="#兩顆複製鈕語意不同刻意不統一">兩顆複製鈕語意不同，刻意不統一</a><a class="l3" href="#預覽做了-300ms-debounce">預覽做了 300ms debounce</a><a class="l3" href="#css-放全域-appcss">CSS 放全域 app.css</a><a class="l2" href="#二為什麼摘要欄裡會是-markdown釐清非本次修改">二、為什麼摘要欄裡會是 Markdown（釐清，非本次修改）</a><a class="l2" href="#三未完成多行欄位按-enter-疑似會直接存檔關窗">三、未完成：多行欄位按 Enter 疑似會直接存檔關窗</a><a class="l2" href="#四已知地雷decisions-的-4000-字驗證衝突未處理">四、已知地雷：Decisions 的 4000 字驗證衝突（未處理）</a><a class="l2" href="#五異動檔案">五、異動檔案</a><a class="l2" href="#六測試">六、測試</a><a class="l2" href="#七尚未執行的人工驗收">七、尚未執行的人工驗收</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-20-會議編輯窗Markdown預覽.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新增「知識庫統計報表」PRD 與開發代辦清單（規劃中）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>新增「知識庫統計報表」PRD 與開發代辦清單（規劃中）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-13</li><li>版本：不升版（純文件・規劃中，實作預計 0.3.37）</li><li>類型：文件（規劃）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>需要在側邊功能表新增「統計報表」子選單，提供可自訂時間區間的各式統計分析報表：Token 用量統計、使用者 token 用量排名、使用者回饋（喜歡/不喜歡）統計等。本次先產出規劃文件（PRD＋代辦清單），與使用者反覆確認需求與範圍後再進入實作。</p>
+<h2 id="變更文件" class="t2">變更（文件）</h2>
+<ul><li>新增 <a href="../../docs/prd/prd-eda2f75f.html">知識庫統計報表 PRD</a>：定義 5 份管理員專用彙總報表（Token 用量分析、使用者回饋分析、問答量與使用行為、檢索品質分析、內容/來源清點），各支援日期區間、（可行範圍內的）團隊/分類過濾與「下載 PDF 報表」。狀態標為「規劃中」。</li><li>新增 <a href="../../docs/planning/todo-f4f1025f.html">統計報表開發代辦清單</a>：分六階段可勾選項目。</li><li>更新 <a href="../../docs/prd/readme-3c3c34ab.html">PRD 主控台</a>「規劃中產品藍圖」新增一列。</li><li>更新 <a href="../../docs/docs-index.html">文件總索引</a> prd 與 planning 兩處。</li></ul>
+<h2 id="確認過的關鍵決策" class="t3">確認過的關鍵決策</h2>
+<ul><li>存取層級：管理員專用（選單 <code>adminOnly</code>、頁面 <code>CheckIsAdmin()</code>，不進權限樹）。</li><li>視覺化：沿用 Dashboard 的 CSS 卡片＋長條，不引入圖表庫。</li><li>保留現有 <code>/token-usage</code>、<code>/chat-logs</code> 明細頁，另建彙總報表。</li><li>內容清點以素材級（三張上游表）計數；影音/音訊合併為一類。</li><li>團隊過濾全報表提供；Token/回饋/問答三報表以新增 <code>LlmTokenUsage</code>/<code>LlmChatLog</code> 的 <code>Teams</code> 快照欄位支援（需雙 migration，僅升版後新資料有值）。分類過濾僅內容清點提供。</li><li>PDF 匯出沿用既有 QuestPDF＋Noto Sans TC 管線（零新相依）。</li></ul>
+<h2 id="已知限制載於-prd" class="t4">已知限制（載於 PRD）</h2>
+<ul><li>無費用/成本欄位，Token 報表僅呈現原始 token 數。</li><li>Token/回饋/問答的團隊維度僅對升版後新紀錄有值。</li><li>分類過濾僅內容清點；影音/音訊無法從資料模型分離。</li></ul>
+<h2 id="後續" class="t5">後續</h2>
+<p>實作時依代辦清單推進，完成後將 PRD 狀態改「已實作」、移入主控台矩陣、補實作版 changelog 並升版至 0.3.37。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更文件">變更（文件）</a><a class="l2" href="#確認過的關鍵決策">確認過的關鍵決策</a><a class="l2" href="#已知限制載於-prd">已知限制（載於 PRD）</a><a class="l2" href="#後續">後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-13-知識庫統計報表PRD.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識來源分盒與規模上限指南｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>知識來源分盒與規模上限指南</h1><p class="sub">回答「一個知識來源可以放幾份素材、內容可以多大」。說明三種因規模而失效的模式（其中一種會靜默發生）、怎麼判斷自己遇到哪一種、怎麼量出你自己環境的安全上限、以及分盒與拆檔的具體策略。</p></header><div class="docwrap"><main><ul><li>文件用途：回答「一個知識來源可以放幾份素材、內容可以多大」。說明<strong>三種因規模而失效的模式</strong>（其中一種會靜默發生）、怎麼判斷自己遇到哪一種、怎麼量出你自己環境的安全上限、以及分盒與拆檔的具體策略。</li><li>主要讀者：知識庫管理者、導入顧問（本文會寫出參數與機制）</li><li>文件版本：1.0</li><li>建立日期：2026/07/30</li><li>更新日期：2026/07/30</li><li>對應系統版本：1.0.110（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p><strong>前置閱讀</strong>：<a href="../../docs/guides/naming-rules.html">知識庫命名規範與範例</a>（盒子標題怎麼取）、<a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南</a>（清洗提示詞怎麼寫）。</p>
+<p><strong>各管線的檔案大小、格式與逾時上限</strong>在 <a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a>。本文只處理「<strong>知識來源聚合與清洗</strong>」這一段的規模問題——那一段的上限跟你直覺想的不一樣。</p></blockquote>
+<hr>
+<h2 id="一先定位你遇到的是哪一種" class="t1">一、先定位你遇到的是哪一種</h2>
+<p>「檔案太多、內容太大」其實會造成<strong>三種不同的失效</strong>，而且<strong>危險度跟直覺相反</strong>：</p>
+<div class="tw"><table><thead><tr><th>模式</th><th>什麼時候發生</th><th>你會看到什麼</th><th>危險度</th></tr></thead><tbody><tr><td><strong>A｜大聲失敗</strong></td><td>彙整內容超過模型的<strong>輸入</strong>上限</td><td>清洗直接失敗，錯誤訊息看得到 <code>HTTP 400</code>，狀態變「失敗」</td><td>🟢 <strong>安全</strong> —— 你一定會發現</td></tr><tr><td><strong>B｜輸出被截斷</strong></td><td>塞得進輸入，但<strong>輸出</strong>撞到上限</td><td><strong>1.0.112 起會被攔下</strong>：遮罩被截斷 → 整筆清洗<strong>失敗</strong>並說明原因；去重被截斷 → 退回未去重原文並在清洗結果留 <code>&gt; 註記：</code>。&lt;br&gt;⚠️ 1.0.112 之前是<strong>完全靜默</strong>（狀態仍「已清洗」卻少一大段），舊資料仍可能有此問題</td><td>🟡 已可發現（舊資料仍須用 §4.2 檢查）</td></tr><tr><td><strong>C｜檢索稀釋</strong></td><td>沒截斷也沒失敗，但一盒塞太多</td><td>問答答得不完整，而且<strong>很有自信</strong>。「明明有這份文件，它卻沒提到」</td><td>🟡 中等</td></tr></tbody></table></div>
+<blockquote><p><strong>這份文件最重要的一句話</strong>： <strong>如果你的症狀是「問答找不到內容」，根因通常是 B（上游清洗已經殘缺），不是檢索出問題。</strong> 去調檢索參數不會有用，因為那一段內容根本不在索引裡。</p></blockquote>
+<hr>
+<h2 id="二先看對數字不是檔案大小是萃取後的文字量" class="t2">二、先看對數字：不是檔案大小，是萃取後的文字量</h2>
+<p>這是最常見的誤判。<strong>清洗吃的不是你上傳的檔案，是萃取之後的純文字。</strong></p>
+<div class="tw"><table><thead><tr><th>你上傳的</th><th>萃取後的文字量</th><th>落差</th></tr></thead><tbody><tr><td>10 MB 的掃描版 PDF（大部分是圖）</td><td>可能只有 <strong>50～300 KB</strong> 文字</td><td>30～200 倍</td></tr><tr><td>10 MB 的 PowerPoint（大量圖表）</td><td>可能只有 <strong>20～100 KB</strong> 文字</td><td>100 倍以上</td></tr><tr><td>10 MB 的 Word 文件（純文字為主）</td><td>可能 <strong>3～8 MB</strong> 文字</td><td>1～3 倍</td></tr><tr><td>10 MB 的 <code>.txt</code>／<code>.md</code></td><td><strong>就是 10 MB</strong> 文字</td><td>1 倍</td></tr><tr><td>一小時會議錄音（約 25 MB mp3）</td><td>逐字稿約 <strong>20～40 KB</strong> 文字</td><td>—</td></tr><tr><td>一張機構圖（2 MB png）</td><td>解讀文字約 <strong>1～3 KB</strong></td><td>—</td></tr></tbody></table></div>
+<p>所以「數十筆成員、加總 10MB」這個描述<strong>不足以判斷會不會出問題</strong>：如果那 10MB 是掃描 PDF 與投影片，萃取後可能只有兩三百 KB，完全沒問題；如果是純文字檔，那就是 10MB 文字，幾乎一定會出事。</p>
+<h3 id="怎麼看到真正的數字10113-起畫面上就有">怎麼看到真正的數字（1.0.113 起，畫面上就有）</h3>
+<p><strong>兩個對話窗會直接告訴你</strong>：</p>
+<div class="tw"><table><thead><tr><th>在哪裡</th><th>看得到什麼</th></tr></thead><tbody><tr><td>知識來源加工 → <strong>管理成員</strong></td><td><code>彙整量：約 1.2 MB（12 個可用成員，2 個略過）</code>，加入或移除成員後即時更新</td></tr><tr><td>知識來源加工 → <strong>清洗</strong>（確認清洗對話窗）</td><td>同一行；若這一盒<strong>已經清洗過</strong>，再多一行 <code>上次清洗後：780 KB（比值 0.62）</code></td></tr></tbody></table></div>
+<p><strong>清洗對話窗那一行比值就是 §4.2 的「比長度」檢查</strong>，而且出現在最需要它的時機——你要（重新）清洗之前，先知道上次是不是被截斷了。</p>
+<blockquote><p>⚠️ 數字是<strong>估計值</strong>，所以寫「約」：量測只讀檔案大小、不讀內容，因此「檔案只含空白字元」這種邊界會被算成可用（實際彙整時會略過）。對判斷規模而言這個誤差無關緊要。</p>
+<p><code>/reports/content-inventory</code>（內容清點統計）<strong>仍然只統計筆數</strong>，沒有字數或位元組——要看規模請用上面兩個對話窗。</p></blockquote>
+<p>&lt;details&gt; &lt;summary&gt;1.0.113 之前：從檔案系統人工比對（仍可用，例如要寫腳本批次盤點時）&lt;/summary&gt;</p>
+<p>各類素材的萃取輸出落在 <code>appsettings.json</code> 的 <code>SystemSettings.ExternalFileSystem</code> 所設路徑下（皆為 <code>{年}/{guid}.副檔名</code>）：</p>
+<div class="tw"><table><thead><tr><th>素材類型</th><th>看哪個路徑設定</th><th>檔案</th></tr></thead><tbody><tr><td>文件轉文字</td><td><code>MarkdownFilePath</code></td><td><code>.md</code>（萃取結果）</td></tr><tr><td>影音轉逐字稿</td><td><code>TranscriptionFilePath</code></td><td><code>.txt</code>（逐字稿）</td></tr><tr><td>圖片解讀</td><td><code>ImageRecognitionTextPath</code></td><td><code>.txt</code>（解讀文字）</td></tr><tr><td>會議紀錄</td><td><code>GeneratedContentPath</code></td><td><code>.md</code>（AI 會議紀錄）</td></tr><tr><td><strong>清洗後結果</strong></td><td><code>CleanedSourcePath</code></td><td><code>.md</code>（<strong>比長度時看這個</strong>）</td></tr></tbody></table></div>
+<p>用檔案總管按大小排序，或用 PowerShell 加總。你要的是兩個數字——成員萃取檔的<strong>總大小</strong>，與清洗後 <code>.md</code> 的大小。</p>
+<p>&lt;/details&gt;</p>
+<hr>
+<h2 id="三清洗實際上怎麼處理你的內容" class="t3">三、清洗實際上怎麼處理你的內容</h2>
+<p>後面所有建議都建立在這一節。不懂機制的話，會把力氣花在沒用的地方（例如調逾時）。</p>
+<h3 id="31-一次清洗的實際動作">3.1 一次清洗的實際動作</h3>
+<pre><code>你按「清洗」
+   ↓
+① 聚合：把所有成員的萃取文字，依排序串成「一份」Markdown
+      ⚠️ 成員數沒有上限、總大小沒有上限、全部讀進記憶體
+   ↓
+② 繁體正規化
+   ↓
+③ 去重      ← 送「提示詞 ＋ 整份全文」給 LLM，要它輸出「整份清理後的內容」
+   ↓
+④ 遮罩      ← 送「提示詞 ＋ ③ 的輸出」給 LLM，要它輸出「整份遮罩後的內容」
+   ↓
+⑤ 分類      ← 送「提示詞 ＋ ④ 的輸出」，只要它輸出幾個分類名
+   ↓
+⑥ 摘要      ← 送「提示詞 ＋ ④ 的輸出」，只要它輸出一段摘要
+   ↓
+⑦ 信心自評  ← 送「提示詞 ＋ ④ 的輸出」，只要它輸出一個小數
+   ↓
+寫成單一 .md 檔（DB 只存相對路徑）</code></pre>
+<p><strong>五個步驟各是一次獨立的 LLM 呼叫，而且每一次都帶著整份內容。</strong></p>
+<h3 id="32-關鍵真正的天花板是輸出上限不是輸入上下文">3.2 關鍵：真正的天花板是「輸出上限」，不是輸入上下文</h3>
+<p>看上面的 ③ 與 ④：它們要模型<strong>把整份內容重新輸出一遍</strong>。⑤⑥⑦ 只要輸出幾十個字，不受影響。</p>
+<p>所以：</p>
+<blockquote><p><strong>決定一盒能多大的，是模型「一次能吐出多少字」，不是「一次能讀進多少字」。</strong> 而模型的輸出上限，通常<strong>遠小於</strong>輸入上限。</p></blockquote>
+<p>這就是為什麼會有模式 B：內容讀得進去（不報錯），但吐不完整（也不報錯）。</p>
+<h3 id="33-系統會怎麼攔10112-起">3.3 系統會怎麼攔（1.0.112 起）</h3>
+<p><strong>1.0.112 起，清洗的去重與遮罩兩步會偵測「輸出是否被模型上限截斷」</strong>（讀 SSE 的 <code>finish_reason == "length"</code>），兩步的處置刻意不同：</p>
+<div class="tw"><table><thead><tr><th>步驟</th><th>被截斷時</th><th>為什麼這樣設計</th></tr></thead><tbody><tr><td><strong>去重</strong></td><td><strong>不採用</strong>截斷的輸出，退回未去重的原文，並在清洗結果開頭寫 <code>&gt; 註記：去重步驟的輸出被模型輸出上限截斷…</code></td><td>保住完整內容遠比省下重複段落重要。而且下一步遮罩會對同樣過大的內容再撞一次上限並讓整筆失敗，所以你仍會得到明確的失敗，不會拿到殘缺內容</td></tr><tr><td><strong>遮罩</strong></td><td><strong>整筆清洗失敗</strong>，錯誤訊息說明是輸出被上限截斷，並建議分盒或拆檔</td><td>截斷的尾段<strong>根本沒有經過模型</strong>，那部分的個資與機密<strong>必然沒被遮到</strong>。把它落檔等於把未遮罩內容送進索引</td></tr></tbody></table></div>
+<p>分類／摘要／信心<strong>沒有加這道檢查</strong>——它們的輸出只有幾十字，撞不到上限，加了只是噪音。</p>
+<blockquote><p>⚠️ <strong>1.0.112 之前是完全靜默的。</strong> 在那之前清洗的內容若被截斷，狀態仍是「已清洗」、信心可能還很高、沒有任何註記。<strong>在 1.0.112 之前清洗的知識來源，仍需要用 §4.2 的三步檢查確認</strong>；有疑慮就重新清洗一次（新版會直接告訴你）。</p></blockquote>
+<p><strong>為什麼不是一開始就有</strong>：PDF 萃取那條路早就有這道檢查（<code>PdfMarkdownLlmClient.EnsureNotTruncated</code>），但它的註解明寫<strong>刻意不放進共用方法</strong>——共用方法另有多個呼叫端，那些路徑被截斷未必要當失敗。1.0.112 的做法是<strong>新增一個帶截斷旗標的方法</strong>，只讓清洗的兩步改用，其餘 10 個呼叫端行為完全不變。</p>
+<h3 id="36-按下清洗之前系統會先警告你10114-起">3.6 按下清洗之前，系統會先警告你（1.0.114 起）</h3>
+<p>彙整量超過設定門檻（<code>SystemSettings.Cleaning.AggregateWarnBytes</code>，<strong>預設 200,000 位元組</strong>，約 6.6 萬中文字）時，「確認清洗」對話窗會顯示警示，說明可能撞上輸出上限、以及建議分盒或拆檔，並且<strong>要勾選確認才能按下「清洗」</strong>。</p>
+<p>這是<strong>軟警告，不是阻擋</strong>——判準取決於你用的模型，硬擋會擋到正常使用。三道防線的分工是：</p>
+<div class="tw"><table><thead><tr><th>版本</th><th>做什麼</th><th>時機</th></tr></thead><tbody><tr><td>1.0.114（P3）</td><td>超過門檻時先提醒，要勾選才能送出</td><td><strong>事前</strong></td></tr><tr><td>1.0.113（P2）</td><td>彙整量在對話窗上看得到</td><td><strong>事中</strong></td></tr><tr><td>1.0.112（P1）</td><td>真的被截斷時，遮罩失敗、整筆清洗中止並說明原因</td><td><strong>事後</strong></td></tr><tr><td>1.0.116</td><td>比值偏低時警示，並在資料一致性巡檢列出全庫可疑來源</td><td><strong>回溯</strong>（找出該版之前已被靜默截斷的舊資料）</td></tr></tbody></table></div>
+<blockquote><p>⚠️ <strong>預設 200,000 只是保守起點，不是正確答案。</strong> 用 §五 的實測逼近法量出你自己環境的數字之後，<strong>把結果寫回這個設定</strong>（改 <code>appsettings.json</code> 後需重啟），警告才會落在對你有意義的地方。門檻設 <strong>0 或負數＝停用警告</strong>。</p></blockquote>
+<h3 id="34-各步驟失敗時的行為不一樣很重要">3.4 各步驟失敗時的行為不一樣（很重要）</h3>
+<div class="tw"><table><thead><tr><th>步驟</th><th>失敗時</th><th>有沒有留下痕跡</th></tr></thead><tbody><tr><td>去重、分類、摘要</td><td><strong>可降級</strong>，跳過該步繼續</td><td>✅ 清洗後檔案開頭會有 <code>&gt; 註記：…步驟失敗，已略過</code></td></tr><tr><td>信心自評</td><td>解析不出數字 → 信心為空 → <strong>整筆轉「待審核」</strong></td><td>✅ 註記「信心自評無法解析，將轉待審核」</td></tr><tr><td><strong>遮罩</strong></td><td>⚠️ <strong>不可降級——整筆清洗直接失敗</strong></td><td>✅ 狀態「失敗」＋錯誤訊息</td></tr><tr><td><strong>被輸出上限截斷</strong>（1.0.112 起）</td><td>去重：退回原文；<strong>遮罩：整筆失敗</strong></td><td>✅ 去重有 <code>&gt; 註記：</code>；遮罩有錯誤訊息</td></tr></tbody></table></div>
+<p>最後一列就是模式 B。<strong>1.0.112 之前它是這套系統唯一「完全靜默」的失敗；現在會被攔下</strong>（§3.3）。舊資料仍需用 §4.2 檢查。</p>
+<h3 id="35-跑很久不等於壞掉">3.5 「跑很久」不等於壞掉</h3>
+<p><code>CleaningProcessor</code> 的原始碼註解記載了開發者的<strong>實測</strong>結果：大內容時，去重與遮罩<strong>各可達十餘分鐘</strong>。</p>
+<p>而逾時設定是這樣的：</p>
+<ul><li><code>GenerationTimeoutSeconds = 120</code>：走串流時<strong>只界定「取得回應標頭」的時間</strong>，不涵蓋讀取內容。</li><li><code>GenerationStreamIdleTimeoutSeconds = 120</code>：是<strong>閒置</strong>逾時——只有「連續 120 秒沒收到任何資料」才中止。資料持續流動就永不觸發（實測單一清洗步驟可合法連續串流 14 分鐘）。</li></ul>
+<blockquote><p>所以：<strong>清洗卡在 60% 很久，很可能是正常的</strong>（尤其大內容）。調高逾時解決不了規模問題，因為逾時根本不是瓶頸。要確認是不是還在跑，看「待處理背景工作」（<code>/pipeline-jobs</code>）與清洗進度的步驟名稱（1.0.98 起會逐步回報「AI 加值：去重（1/5）」這類標籤）。</p></blockquote>
+<hr>
+<h2 id="四三種失效模式的判斷與處理" class="t4">四、三種失效模式的判斷與處理</h2>
+<h3 id="41-模式-a大聲失敗">4.1 模式 A：大聲失敗</h3>
+<p><strong>症狀</strong>：清洗狀態變「失敗」，錯誤訊息類似 <code>OpenAI 串流產生失敗 (HTTP 400)：{...context_length_exceeded...}</code>。</p>
+<p><strong>為什麼不會自動重試</strong>：這類錯誤被歸為<strong>非暫時性</strong>（<code>PipelineRetryHelper.IsTransient</code> 對 <code>InvalidOperationException</code> 回 false），所以不會重試 3 次浪費時間與費用，直接標記失敗。<strong>這是好的設計</strong>——重試只會重複失敗。</p>
+<p><strong>怎麼修</strong>：分盒（§六）或上傳前拆檔（§七）。<strong>不要</strong>試著調逾時或重試。</p>
+<h3 id="42-模式-b靜默截斷重點">4.2 模式 B：靜默截斷（重點）</h3>
+<p><strong>症狀</strong>：清洗「成功」了，但問答查不到你確定存在的內容——特別是<strong>排在後面的成員</strong>的內容。</p>
+<p><strong>怎麼確認</strong>（三步，不需要工具）：</p>
+<p><strong>第一步：比長度。</strong> （1.0.113 起，清洗對話窗會直接顯示比值，不必自己算；<strong>1.0.116 起比值偏低時還會主動警示</strong>。）</p>
+<blockquote><p>💡 <strong>不想逐筆檢查的話</strong>：1.0.116 起「資料一致性巡檢」（<code>/data-consistency</code>）有一節「<strong>低比值來源</strong>」，會把全庫比值偏低的來源一次列出來——這是處理「1.0.112 之前清洗的舊資料」最省事的方式。門檻是 <code>SystemSettings.Cleaning.CleanedRatioWarnBelow</code>（預設 0.30）。</p></blockquote>
+<pre><code>清洗後 .md 的大小  ÷  所有成員萃取檔的總大小</code></pre>
+<ul><li>這個比值<strong>正常應該在 0.5 ～ 1.0 之間</strong>（去重會縮，繁體化與標頭會略增）。</li><li>比值<strong>低於 0.3</strong> 就要高度懷疑；<strong>低於 0.1</strong> 幾乎確定是截斷。</li></ul>
+<p><strong>第二步：檢查有沒有註記。</strong> 打開清洗後內容，看開頭有沒有 <code>&gt; 註記：</code>。</p>
+<ul><li><strong>有註記</strong> → 是某個步驟降級（去重／分類／摘要失敗），這是<strong>另一回事</strong>，內容通常還在。</li><li><strong>沒有註記但內容明顯變短</strong> → 若這一筆是在 <strong>1.0.112 之前</strong>清洗的，就是被靜默截斷（當時系統偵測不到，所以不會寫註記）。<strong>1.0.112 之後清洗的內容不會有這種情況</strong>——截斷會直接失敗或留註記，所以「無註記＋長度正常」才是真的沒事。有疑慮時最快的做法是<strong>重新清洗一次</strong>：新版會直接告訴你。</li></ul>
+<p><strong>第三步：抽查尾段。</strong> 打開清洗後內容拉到最下面，確認<strong>排序最後那個成員</strong>的內容還在不在。截斷一定是從尾巴開始掉。</p>
+<p><strong>怎麼修</strong>：分盒（§六）或拆檔（§七）。修完<strong>必須重新清洗 → 重新蒸餾 → 重建索引</strong>，否則索引裡還是殘缺的舊內容。</p>
+<h3 id="43-模式-c檢索稀釋">4.3 模式 C：檢索稀釋</h3>
+<p><strong>症狀</strong>：內容完整（比值正常、尾段還在），但問答的答案不完整，而且<strong>沒有觸發「查無相關依據」</strong>——它很有自信地只答了一部分。</p>
+<p><strong>為什麼</strong>：檢索的參數是候選 <code>CandidateTopK = 50</code> → 最終只有 <strong><code>TopK = 10</code> 段</strong>交給 LLM 寫答案。切塊參數是目標 800 字、上限 1200 字、重疊 120 字，所以一盒 50 萬字大約會產生 600 個以上的 chunk——而只有 10 段會進到答案裡。</p>
+<p>同一盒內容越多、彼此越相似，正確那一段就越可能擠不進前 10。而<strong>兩段式門檻不會攔住這種情況</strong>：撈到的內容主題確實相關、分數不低，所以不會回「查無依據」。</p>
+<p><strong>怎麼確認</strong>：同一個問題問兩次，第二次<strong>開「限定知識來源」只選那一個盒子</strong>。如果答案明顯變好，就是稀釋。</p>
+<p><strong>怎麼修</strong>：</p>
+<ol><li><strong>分盒</strong>，讓「限定知識來源」的篩選更精準（這是最有效的一招）。</li></ol>
+<p>2 . 使用紀律：問特定主題時<strong>先開限定知識來源</strong>。</p>
+<ol><li>若確實需要，可在 <code>/rag-diagnostics</code> 調 <code>TopK</code>／<code>CandidateTopK</code>（<strong>可熱套用、免重啟</strong>）——但<strong>先分盒再談調參數</strong>，調參數是治症狀。</li></ol>
+<hr>
+<h2 id="五怎麼量出你自己的安全上限" class="t5">五、怎麼量出你自己的安全上限</h2>
+<p><strong>本文刻意不給「幾萬字」這種絕對數字。</strong> 理由：那個數字完全取決於你用哪個模型（雲端或地端、哪一版），模型一換就過期，而<strong>過時的參數建議會害人做錯決定</strong>。</p>
+<p>改用實測。半小時可以做完，而且結果是你自己環境的真實數字。</p>
+<h3 id="步驟">步驟</h3>
+<ol><li><strong>選一批同質的真實素材</strong>（例如 20 份規範文件），先確認每一份都已「已完成」且有內容。</li><li><strong>從小開始</strong>：建一個盒子，先放 3 個成員 → 清洗 → <strong>打開清洗對話窗把兩個數字抄下來</strong>（彙整量、上次清洗後大小與比值）。1.0.113 起這兩個數字就在畫面上，不必再翻檔案系統。</li><li><strong>逐步加量</strong>：3 → 6 → 10 → 15 → 20，每次重新清洗並記錄比值。</li><li><strong>找轉折點</strong>：比值原本穩定在 0.5～1.0，某一次突然掉到 0.3 以下——<strong>那一次的量就是你的截斷起點</strong>。</li><li><strong>取 70% 當團隊上限</strong>，寫進你們的建盒規範。留 30% 餘裕是因為：不同素材的內容密度不同，而且模型行為會隨版本變動。</li><li><strong>每次換模型或換 provider 都要重測。</strong></li></ol>
+<h3 id="實測記錄表可填">實測記錄表（可填）</h3>
+<div class="tw"><table><thead><tr><th>回</th><th>成員數</th><th>成員萃取檔總大小</th><th>清洗後 .md 大小</th><th>比值</th><th>有 <code>&gt; 註記：</code>？</th><th>尾段內容還在？</th></tr></thead><tbody><tr><td>1</td><td>3</td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>2</td><td>6</td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>3</td><td>10</td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>4</td><td>15</td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>5</td><td>20</td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table></div>
+<p><strong>結論欄</strong>：截斷起點＝第 ___ 回（___ 成員／約 ___ MB 文字）；<strong>團隊上限＝其 70%＝___</strong>。</p>
+<ol><li><strong>把結果寫回設定</strong>：把團隊上限填進 <code>appsettings.json</code> 的 <code>SystemSettings.Cleaning.AggregateWarnBytes</code>（需重啟），之後彙整量超過它時，清洗對話窗就會自動提醒（見 §3.6）。</li></ol>
+<blockquote><p><strong>一個省時間的替代做法</strong>：如果你只想要一個安全的起點而不想實測，就用 §六 的建議粒度（<strong>一盒 5～15 個成員</strong>）並在第一次清洗後做 §4.2 的三步檢查。實務上這個粒度對絕大多數企業文件都在安全範圍內。系統預設的 200,000 位元組警告門檻也是同一個用途——先擋住明顯過大的情況。</p></blockquote>
+<hr>
+<h2 id="六分盒策略" class="t6">六、分盒策略</h2>
+<h3 id="61-判準只有兩條">6.1 判準只有兩條</h3>
+<p>分盒不是「平均分」，是按語意分。問這兩個問題：</p>
+<ol><li><strong>它們會不會一起失效？</strong> 同一份規範改版時要一起重新清洗的東西，放同一盒。生命週期不同的分開（規範本文與審圖會議紀錄通常該分盒——規範改版時會議紀錄不必跟著重跑）。</li><li><strong>回答一個問題時，需不需要它們同時在場？</strong> 需要一起被看到才能回答的，放同一盒；各自獨立就能回答的，可以分。</li></ol>
+<h3 id="62-建議粒度">6.2 建議粒度</h3>
+<div class="tw"><table><thead><tr><th>項目</th><th>建議</th><th>超過就該問為什麼</th></tr></thead><tbody><tr><td>一盒的成員數</td><td><strong>5 ～ 15</strong></td><td>20</td></tr><tr><td>一盒的彙整後文字量</td><td>用 §五 實測出的團隊上限</td><td>—</td></tr></tbody></table></div>
+<p>成員數不是硬限制（系統沒有上限），但它是<strong>最容易檢查的代理指標</strong>。</p>
+<h3 id="63-三種分盒法">6.3 三種分盒法</h3>
+<div class="tw"><table><thead><tr><th>分法</th><th>什麼時候用</th><th>命名範例</th></tr></thead><tbody><tr><td><strong>按文件族</strong></td><td>同一對象但文件性質不同（最常用）</td><td><code>眾宇｜EPS-3000 系列｜Rev.C｜設計規範與公差</code>&lt;br&gt;<code>眾宇｜EPS-3000 系列｜Rev.C｜審圖決議與變更紀錄</code></td></tr><tr><td><strong>按版本或期間</strong></td><td>內容會持續累積（工單、客訴、會議）</td><td><code>眾宇｜SMT 一線｜2025｜作業標準與異常處置</code>&lt;br&gt;<code>眾宇｜SMT 一線｜2026｜作業標準與異常處置</code></td></tr><tr><td><strong>按主題子集</strong></td><td>前兩種都切不開，單一文件族本身就太大</td><td><code>眾宇｜迴焊爐 RF-8｜不分版｜設備手冊之一 安裝與參數</code>&lt;br&gt;<code>眾宇｜迴焊爐 RF-8｜不分版｜設備手冊之二 故障排除</code></td></tr></tbody></table></div>
+<p>⚠️ <strong>同一文件族分多盒時，序號加在「文件族」那一段的後面</strong>（<code>設備手冊之一</code>／<code>設備手冊之二</code>），<strong>不要改前三段</strong>。理由：前三段（範圍／對象／版本）是給人與 AI 辨識「這是誰的、哪個型號、哪一版」用的，改了會讓同一批知識看起來像不同對象的。命名格式見 <a href="../../docs/guides/naming-rules.html">知識庫命名規範與範例 §3.3</a>。</p>
+<p><strong>不要</strong>用 <code>之一</code>／<code>之二</code> 表達「第一批匯入／第二批匯入」——那是過程資訊，三個月後沒有意義。序號要對應<strong>內容主題</strong>。</p>
+<h3 id="64-為什麼分盒的代價比你想的小">6.4 為什麼分盒的代價比你想的小</h3>
+<p>很多人不敢分盒，怕「切開之後 AI 就看不到全貌」。實際上：</p>
+<div class="tw"><table><thead><tr><th>擔心</th><th>實際情況</th></tr></thead><tbody><tr><td>「分盒後跨盒的關聯就斷了」</td><td><strong>不會。</strong> 索引有<strong>兩層</strong>：清洗層與已核可的 Wiki（蒸餾）層。蒸餾產生的概念頁以 <code>[[連結]]</code> 互連，而知識圖譜的關聯查詢（1～3 跳）<strong>本來就是跨盒的</strong></td></tr><tr><td>「問答時只能選一個盒子」</td><td><strong>不是。</strong> 「限定知識來源」是<strong>多選</strong>，要跨盒就多選幾個</td></tr><tr><td>「分盒會讓分類變亂」</td><td>分類是獨立的標籤，跟分盒無關。分盒之後<strong>分類反而更好用</strong>，因為每盒的主題更純</td></tr><tr><td>「要重跑很多次清洗」</td><td>是的，這是唯一的實質成本。但比「一盒巨大內容清洗失敗或被截斷」便宜太多</td></tr></tbody></table></div>
+<hr>
+<h2 id="七上傳前先拆檔第二個主要槓桿" class="t7">七、上傳前先拆檔（第二個主要槓桿）</h2>
+<p>分盒解決「一盒太多份」，但如果<strong>單一份文件本身就很大</strong>（例如 500 頁的設備手冊、300 頁的合約集），分盒解不了——那一份還是會整份進彙整。</p>
+<h3 id="71-為什麼必須在上傳前做">7.1 為什麼必須在上傳前做</h3>
+<p>直覺的解法是「先用『依提示詞產生』把每份文件摘要成短版，再把摘要加進盒子」。<strong>這條路對文件類走不通</strong>：</p>
+<p>聚合器讀取成員內容的規則是固定的——</p>
+<div class="tw"><table><thead><tr><th>素材類型</th><th>聚合器實際讀什麼</th></tr></thead><tbody><tr><td><strong>文件轉文字</strong></td><td><strong>只讀萃取後的完整 Markdown</strong>。「依提示詞產生」的內容<strong>不會被採用</strong></td></tr><tr><td>影音轉逐字稿</td><td>優先讀逐字稿；<strong>只有逐字稿為空時</strong>才 fallback 到「依提示詞產生」的內容</td></tr><tr><td>圖片解讀</td><td>讀 AI 視覺解讀文字</td></tr><tr><td>會議紀錄</td><td>固定讀 AI 會議紀錄（不是逐字稿）</td></tr></tbody></table></div>
+<p>所以文件一律以<strong>全文</strong>進入彙整。要縮小，只能在<strong>上傳之前</strong>動手。</p>
+<h3 id="72-怎麼拆">7.2 怎麼拆</h3>
+<p><strong>原則</strong>：按文件本身的結構拆（章、節、附錄），不要按頁數平均切。按頁切會把一個主題切成兩半，兩邊的 chunk 都不完整。</p>
+<p><strong>檔名與標題怎麼配合</strong>（沿用 <a href="../../docs/guides/naming-rules.html">命名規範</a>）：</p>
+<pre><code>檔名：20260311_RF-8_設備手冊_第7章故障代碼.pdf
+素材標題：設備手冊｜RF-8 第 7 章 故障代碼｜2026-03-11</code></pre>
+<p><strong>⚠️ 拆檔時每一份都要能單獨看懂</strong>：如果第 7 章通篇只寫「本機」而沒提到型號，那一份的 chunk 就不含型號字樣，問答時鎖不到它。<strong>在每個拆出來的檔案開頭補一行對象與版本</strong>（<code>本文件適用：迴焊爐 RF-8，手冊版次 Rev.2</code>）。這一步很小，但它決定了拆出來的檔案能不能被找到。</p>
+<h3 id="73-具體例一份-500-頁設備手冊">7.3 具體例：一份 500 頁設備手冊</h3>
+<div class="tw"><table><thead><tr><th>步驟</th><th>做法</th></tr></thead><tbody><tr><td>1</td><td>按章拆成 12 個 PDF，每個 20～60 頁；每份開頭補一行對象與版次</td></tr><tr><td>2</td><td>依 §7.2 命名，走「文件轉文字」（<code>/document-extraction</code>）匯入，匯入時就貼團隊與分類</td></tr><tr><td>3</td><td>按主題分成 2 個盒子：<code>設備手冊之一 安裝與參數</code>（第 1～6 章）、<code>設備手冊之二 故障排除</code>（第 7～12 章）</td></tr><tr><td>4</td><td>各自清洗，並對每一盒做 §4.2 的三步檢查</td></tr><tr><td>5</td><td>蒸餾 → 知識頁審核 → 建立索引</td></tr><tr><td>6</td><td>出 5 題考題，其中<strong>至少 2 題要問到最後一章的內容</strong>（這是驗證有沒有截斷最直接的方法）</td></tr></tbody></table></div>
+<hr>
+<h2 id="八四種不建議的做法" class="t8">八、四種不建議的做法</h2>
+<div class="tw"><table><thead><tr><th>做法</th><th>為什麼不行</th></tr></thead><tbody><tr><td><strong>先用「依提示詞產生」摘要，再把摘要當成員</strong></td><td>文件類<strong>無效</strong>——聚合器只讀完整萃取 Markdown，不讀產生內容（§7.1）</td></tr><tr><td><strong>一盒塞完所有東西，靠問答時「限定分類」收斂</strong></td><td>分類多選是「<strong>或</strong>」不是「且」——同時選兩個分類，範圍<strong>反而變大</strong>，而且畫面不會提示你</td></tr><tr><td><strong>不設 LLM 金鑰來避免截斷</strong></td><td>沒有金鑰時清洗只做彙整與繁體化，等於<strong>完全沒有遮罩</strong>（個資與機密會原樣進索引），而且蒸餾與評測都無法執行</td></tr><tr><td><strong>調高逾時</strong></td><td>逾時不是瓶頸（§3.5）。串流的閒置逾時只在「連續 120 秒沒有資料」才觸發，調它對截斷沒有任何幫助</td></tr></tbody></table></div>
+<hr>
+<h2 id="九三個實例" class="t1">九、三個實例</h2>
+<h3 id="小8-份設計規範">小：8 份設計規範</h3>
+<div class="tw"><table><thead><tr><th>項目</th><th>內容</th></tr></thead><tbody><tr><td>素材</td><td>8 份 Word／PDF 規範，萃取後合計約 400 KB 文字</td></tr><tr><td>判斷</td><td>遠低於一般安全範圍 → <strong>一盒就好</strong></td></tr><tr><td>盒子</td><td><code>眾宇｜EPS-3000 系列｜Rev.C｜設計規範與公差</code></td></tr><tr><td>驗證</td><td>清洗後比值 0.78、無註記、尾段在 → 通過</td></tr></tbody></table></div>
+<h3 id="中三年份維修工單-40-筆">中：三年份維修工單 40 筆</h3>
+<div class="tw"><table><thead><tr><th>項目</th><th>內容</th></tr></thead><tbody><tr><td>素材</td><td>40 筆工單（Excel／掃描件），萃取後合計約 2.5 MB 文字</td></tr><tr><td>判斷</td><td>單盒偏大，且工單是<strong>持續累積型</strong> → <strong>按年度分 3 盒</strong></td></tr><tr><td>盒子</td><td><code>眾宇｜迴焊爐 RF-8｜2024｜維修工單與處置</code>（以下 2025、2026 同理）</td></tr><tr><td>好處</td><td>除了避開規模風險，<strong>新年度只需清洗新的那一盒</strong>，舊盒不必重跑</td></tr><tr><td>驗證</td><td>三盒比值分別 0.62／0.58／0.71；問答時多選三盒可跨年度比較</td></tr></tbody></table></div>
+<h3 id="大500-頁設備手冊--老師傅訪談錄音">大：500 頁設備手冊 ＋ 老師傅訪談錄音</h3>
+<div class="tw"><table><thead><tr><th>項目</th><th>內容</th></tr></thead><tbody><tr><td>素材</td><td>手冊 1 份（萃取後約 6 MB 文字）＋ 3 場訪談逐字稿（約 120 KB）</td></tr><tr><td>判斷</td><td>單一文件本身過大 → <strong>先拆檔（§7.3），再分盒</strong></td></tr><tr><td>盒子</td><td><code>設備手冊之一 安裝與參數</code>、<code>設備手冊之二 故障排除</code>（訪談逐字稿放<strong>第二盒</strong>，因為它談的是故障排除，與該盒同主題）</td></tr><tr><td>常見錯誤</td><td>把訪談錄音放進「之一」只因為它是「第一批匯入的」——分盒要按<strong>主題</strong>，不是按匯入順序</td></tr><tr><td>驗證</td><td>兩盒各做三步檢查；考題含 2 題問最後一章</td></tr></tbody></table></div>
+<hr>
+<h2 id="十清洗完必做的五項檢查" class="t2">十、清洗完必做的五項檢查</h2>
+<p>每一盒第一次清洗後都做一遍。做過一次就會知道你們的素材落在什麼範圍。</p>
+<ul class="check"><li><span class="box">☐</span>1. <strong>比長度</strong>：打開該來源的<strong>清洗對話窗</strong>，看「上次清洗後」那一行的比值，應在 <strong>0.5～1.0</strong>。低於 0.3 高度懷疑截斷。（1.0.113 之前需自行從檔案系統加總。）</li><li><span class="box">☐</span>2. <strong>找註記</strong>：打開清洗後內容，看開頭有沒有 <code>&gt; 註記：</code>。有註記＝某步驟降級（另一回事）；<strong>沒註記但內容明顯變短＝靜默截斷</strong>。</li><li><span class="box">☐</span>3. <strong>抽查尾段</strong>：拉到最下面，確認<strong>排序最後那個成員</strong>的內容還在。截斷一定從尾巴開始掉。</li><li><span class="box">☐</span>4. <strong>確認索引</strong>：到「系統健康監控」（<code>/system-health</code>）看向量索引涵蓋率是否正常。</li><li><span class="box">☐</span>5. <strong>問尾段的問題</strong>：出 3～5 題，其中<strong>至少 2 題的答案只存在於最後一兩個成員裡</strong>。這是驗證截斷最直接的方法——比長度只能懷疑，這一步能確定。</li></ul>
+<blockquote><p><strong>第 5 項是最有價值的一項。</strong> 大多數人出考題只會問「最重要的內容」，而最重要的內容通常排在前面——正好是截斷時<strong>唯一還在</strong>的部分。所以那種考題會全部通過，然後你以為沒事。</p></blockquote>
+<hr>
+<h2 id="十一相關文件" class="t3">十一、相關文件</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>用途</th></tr></thead><tbody><tr><td><a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a></td><td>各管線的<strong>檔案大小、格式、逾時</strong>上限；§三 的逾時語意、新增的「知識來源聚合與清洗」一節</td></tr><tr><td><a href="../../docs/planning/todo-720ef565.html">知識來源規模守門 TODO</a></td><td>本文提到的三個系統缺口（缺截斷偵測、無字數顯示、無軟上限警告）的改善建議與優先序</td></tr><tr><td><a href="../../docs/guides/naming-rules.html">知識庫命名規範與範例</a></td><td>盒子命名格式、分多盒時的序號寫法</td></tr><tr><td><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南</a></td><td>五段清洗提示詞的輸出契約與失敗行為</td></tr><tr><td><a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定使用指南</a></td><td>盒子怎麼建、管理成員怎麼挑、13 顆動作按鈕的出現條件</td></tr><tr><td><a href="../../docs/guides/import-to-knowledge-flow.html">從匯入到知識的操作流程</a></td><td>清洗結果只存檔案不存 DB、<code>CleanedSourcePath</code> 的位置</td></tr><tr><td><a href="../../docs/guides/import-guide.html">資料匯入指南：音訊／影片、文件、圖片</a></td><td>上傳前拆檔會用到的格式與批次上傳</td></tr><tr><td><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></td><td>「限定知識來源」多選的操作</td></tr><tr><td><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a></td><td>切塊與檢索參數的權威說明</td></tr><tr><td><a href="../../docs/operations/rag-troubleshooting.html">RAG 問題診斷手冊</a></td><td>問答結果不如預期時的完整排查順序</td></tr><tr><td><a href="../../docs/guides/monitoring-health.html">系統監控與健康檢查指南</a></td><td>索引涵蓋率、<code>/pipeline-jobs</code> 背景工作觀察</td></tr></tbody></table></div>
+<hr>
+<blockquote><p>返回 <a href="../../docs/guides/guides-index.html">guides 目錄索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：一個知識來源該放多少份、內容太大會怎樣</li><li>知識庫管理者：問答結果不如預期，我要找出原因</li><li>導入顧問：我要幫客戶規劃知識該怎麼切</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一先定位你遇到的是哪一種">一、先定位你遇到的是哪一種</a><a class="l2" href="#二先看對數字不是檔案大小是萃取後的文字量">二、先看對數字：不是檔案大小，是萃取後的文字量</a><a class="l3" href="#怎麼看到真正的數字10113-起畫面上就有">怎麼看到真正的數字（1.0.113 起，畫面上就有）</a><a class="l2" href="#三清洗實際上怎麼處理你的內容">三、清洗實際上怎麼處理你的內容</a><a class="l3" href="#31-一次清洗的實際動作">3.1 一次清洗的實際動作</a><a class="l3" href="#32-關鍵真正的天花板是輸出上限不是輸入上下文">3.2 關鍵：真正的天花板是「輸出上限」，不是輸入上下文</a><a class="l3" href="#33-系統會怎麼攔10112-起">3.3 系統會怎麼攔（1.0.112 起）</a><a class="l3" href="#36-按下清洗之前系統會先警告你10114-起">3.6 按下清洗之前，系統會先警告你（1.0.114 起）</a><a class="l3" href="#34-各步驟失敗時的行為不一樣很重要">3.4 各步驟失敗時的行為不一樣（很重要）</a><a class="l3" href="#35-跑很久不等於壞掉">3.5 「跑很久」不等於壞掉</a><a class="l2" href="#四三種失效模式的判斷與處理">四、三種失效模式的判斷與處理</a><a class="l3" href="#41-模式-a大聲失敗">4.1 模式 A：大聲失敗</a><a class="l3" href="#42-模式-b靜默截斷重點">4.2 模式 B：靜默截斷（重點）</a><a class="l3" href="#43-模式-c檢索稀釋">4.3 模式 C：檢索稀釋</a><a class="l2" href="#五怎麼量出你自己的安全上限">五、怎麼量出你自己的安全上限</a><a class="l3" href="#步驟">步驟</a><a class="l3" href="#實測記錄表可填">實測記錄表（可填）</a><a class="l2" href="#六分盒策略">六、分盒策略</a><a class="l3" href="#61-判準只有兩條">6.1 判準只有兩條</a><a class="l3" href="#62-建議粒度">6.2 建議粒度</a><a class="l3" href="#63-三種分盒法">6.3 三種分盒法</a><a class="l3" href="#64-為什麼分盒的代價比你想的小">6.4 為什麼分盒的代價比你想的小</a><a class="l2" href="#七上傳前先拆檔第二個主要槓桿">七、上傳前先拆檔（第二個主要槓桿）</a><a class="l3" href="#71-為什麼必須在上傳前做">7.1 為什麼必須在上傳前做</a><a class="l3" href="#72-怎麼拆">7.2 怎麼拆</a><a class="l3" href="#73-具體例一份-500-頁設備手冊">7.3 具體例：一份 500 頁設備手冊</a><a class="l2" href="#八四種不建議的做法">八、四種不建議的做法</a><a class="l2" href="#九三個實例">九、三個實例</a><a class="l3" href="#小8-份設計規範">小：8 份設計規範</a><a class="l3" href="#中三年份維修工單-40-筆">中：三年份維修工單 40 筆</a><a class="l3" href="#大500-頁設備手冊--老師傅訪談錄音">大：500 頁設備手冊 ＋ 老師傅訪談錄音</a><a class="l2" href="#十清洗完必做的五項檢查">十、清洗完必做的五項檢查</a><a class="l2" href="#十一相關文件">十一、相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/知識來源分盒與規模上限指南.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

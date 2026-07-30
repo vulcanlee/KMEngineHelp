@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph RAG P1：概念連結邊 + 圖檢索融合（1.0.82 → 1.0.83）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Graph RAG P1：概念連結邊 + 圖檢索融合（1.0.82 → 1.0.83）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-27</li><li>版本：1.0.82 → 1.0.83</li><li>類型：新增功能（Graph RAG 第一階段）</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>延續《Graph RAG 導入分析與實作藍圖》(<code>docs/strategy/2026-07-27-Graph-RAG導入分析與實作藍圖.md</code>) 的 P1：把蒸餾階段既有的概念連結 <code>WikiPage.LinkTitles</code>（<code>[[標題]]</code>）具體化為可遍歷的邊，並在現有混合檢索加上第三路「圖檢索」，讓「跨文件關聯 / 多跳」問題答得更好。低風險、沿用既有資產、無 LLM 抽取、無審核 UI。</p>
+<h2 id="變更" class="t2">變更</h2>
+<ol><li><strong>新增邊表 <code>GraphEdge</code></strong>（<code>AccessDatas/Models/GraphEdge.cs</code>）：來源頁→目標頁（<code>SourceWikiPageId</code>/<code>TargetWikiPageId</code> 純索引整數、不設 WikiPage FK 以避免 SQL Server 多重串聯路徑）、<code>Relation</code>、<code>Teams</code>（權控，由來源頁複製）、<code>KnowledgeSourceId</code>（Cascade FK＋重建批次鍵）。<code>BackendDBContext</code> 加 <code>DbSet</code> 與三個索引。</li><li><strong>新增 <code>GraphEdgeService.RebuildForSourceAsync</code></strong>（<code>Business/Services/Embeddings/</code>）：解析 <code>LinkTitles</code>（<code>TagStringHelper.ToList</code>）→ 以標題對應到「已完成且現行」的 WikiPage（先同來源、再全域）→ 整批刪除/重建該來源的邊（冪等）。無 LLM。</li><li><strong>建邊觸發</strong>：於既有重索引時機順帶重建——<code>DistillationProcessor</code>（蒸餾完成後）、<code>WikiPageService.ApproveAsync</code>/<code>UpdateContentAsync</code>（<code>TryEnqueueSourceReindexAsync</code> 之後）。失敗只記警告、不影響主流程。</li><li><strong>圖檢索融合</strong>（<code>RetrievalService.SearchGraphAsync</code>）：以 vector∪keyword 命中中的「Wiki 層」頁為種子（強度＝該頁最佳 chunk 的 <code>Vw*v+Kw*k</code>）→ 沿 <code>GraphEdge</code> 1 跳取鄰居頁 → 把鄰居頁的「現行 Wiki 層」chunk 以種子強度加分。融合式改為 <code>Vw*v + Kw*k + GraphWeight*g</code>；<code>RetrievalHit</code> 加 <code>GraphScore</code>。問答端 <code>KnowledgeBaseChatService</code> 只讀 <code>hit.Entity</code>/<code>hit.Score</code>，<strong>不需改動</strong>。</li><li><strong><code>GraphWeight</code> 熱調參數</strong>（貫穿 <code>SystemSettings.Retrieval</code>、<code>RetrievalParamOverride</code>、<code>EffectiveRetrievalParams</code>、<code>RetrievalSettingsProvider</code>、<code>RagDiagnosticsService</code>、<code>/rag-diagnostics</code> 頁）。<strong>預設 0.2（啟用）</strong>，管理員可於檢索診斷頁熱調或設 0 關閉；試檢索面板新增「圖分」欄。<code>appsettings.json</code> 補 <code>GraphWeight: 0.2</code>。</li><li><strong>雙庫 migration <code>AddGraphEdge</code></strong>（<code>AccessDatas</code> Sqlite 與 <code>AccessDatas.SqlServerMigrations</code> 各一；含 <code>GraphEdge</code> 表與 <code>RetrievalParamOverride.GraphWeight</code> 欄）。</li><li><code>appsettings.json</code>：SystemVersion 1.0.82 → 1.0.83。</li><li>文件：本 changelog、<code>開發慣例與限制速查.md</code> 新增 Graph RAG 不變量、藍圖 §9 標記 P1 已實作。</li></ol>
+<h2 id="安全與相容leak0-紅線" class="t3">安全與相容（leak=0 紅線）</h2>
+<ul><li>圖遍歷全程套團隊權控：邊查詢（<code>e.Teams</code>）與鄰居 chunk 查詢（<code>x.Teams</code>）皆用 <code>TagStringHelper.BuildTeamAccessPredicate</code>，並對齊 as-of 版本與查詢期 SourceIds/Categories/Teams 篩選——非管理員不會被加分到越權 chunk（已由 <code>GraphPath_DoesNotLeakOtherTeamNeighbor_ZeroLeak</code> 測試釘住）。</li><li>設計為「新表＋旁掛管線＋不動既有檢索預設」：<code>GraphWeight</code> 設 0 即回到純混合檢索（<code>GraphWeightZero_DisablesGraphPath</code> 測試）。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ul><li><code>dotnet build</code> 成功；<code>dotnet test</code> <strong>769 全綠</strong>（既有 760 + 新增 9：<code>GraphEdgeServiceTests</code> 5、<code>RetrievalServiceTests</code> 圖融合 3、<code>RetrievalParamOverrideTests</code> GraphWeight 1）。</li><li>手動：對含 <code>[[連結]]</code> 的來源重跑蒸餾/核可 → <code>GraphEdge</code> 有資料；問跨頁關聯問題時關聯頁更易進入出處；<code>/rag-diagnostics</code> 調 <code>GraphWeight</code>（設 0 回到原行為）、試檢索面板可見「圖分」。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 文件 0 失敗。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#變更">變更</a><a class="l2" href="#安全與相容leak0-紅線">安全與相容（leak=0 紅線）</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-27-GraphRAG-P1.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

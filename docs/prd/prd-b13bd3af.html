@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 知識問答 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>AI 知識問答 PRD</h1><p class="sub">定義「AI 知識問答」畫面的產品需求、內部 RAG 運作、LLM 互動與權控要求</p></header><div class="docwrap"><main><ul><li>文件用途：定義「AI 知識問答」畫面的產品需求、內部 RAG 運作、LLM 互動與權控要求</li><li>主要讀者：產品、開發、導入顧問、維運人員</li><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.62</li><li>首次實作版本：0.2.127</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026/06/28</li><li>對應版本：0.2.145（已實作）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>操作教學見 <a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a>；RAG 落地現況與參數見 <a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a>；階段三藍圖見 <a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格</a>。</p></blockquote>
+<h2 id="一目標與範圍" class="t1">一、目標與範圍</h2>
+<p>讓使用者以自然語言對整個已索引知識庫提問，取得「有依據、有出處、且只包含自己有權看的內容」的串流回答。此功能是清洗、蒸餾、嵌入索引完成後的主要智慧應用入口。</p>
+<p>本 PRD 範圍包含 <code>/knowledge-base-chat</code> 頁面、跨來源混合檢索、LLM 串流回答、出處面板與原始檔鑽取。同一檢索服務（<code>KnowledgeBaseChatService.RetrieveAsync</code>）亦由 <strong>MCP <code>knowledge_ask</code> 工具複用</strong>（沿用同一團隊權控與稽核，1.0.x），對外 AI Agent 的問答見 <a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a>。非範圍包含索引管線本身、PDF 結構化解析、問答稽核紀錄持久化、回答品質自動評分。</p>
+<h2 id="二使用者與入口" class="t2">二、使用者與入口</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>說明</th></tr></thead><tbody><tr><td>路由</td><td><code>/knowledge-base-chat</code></td></tr><tr><td>選單</td><td>知識庫 → AI 知識問答</td></tr><tr><td>權限</td><td><code>MagicObjectHelper.角色_知識庫問答</code></td></tr><tr><td>主要使用者</td><td>一般知識庫使用者、知識管理者、導入顧問</td></tr></tbody></table></div>
+<p>進頁時須先通過 <code>AuthenticationStateHelper.Check(...)</code>，再檢查頁面權限。無權限時顯示「你沒有權限存取此頁面」，且不載入問答功能。</p>
+<h2 id="三畫面與操作" class="t3">三、畫面與操作</h2>
+<ul><li>設定面板：回答詳簡（簡潔/標準/詳細）、套用既有提示詞、系統提示詞文字區、<strong>查詢期範圍篩選</strong>（限定知識來源／分類／團隊，多選；留空＝有權限的整個知識庫）。分類下拉只列可存取知識中實際用到的分類、團隊下拉只列可存取團隊；篩選疊加在團隊權控之上、只縮小不擴權。</li><li>對話區：顯示 user/assistant 多輪訊息，assistant 逐字串流呈現。</li><li>輸入區：輸入問題、送出、串流中可停止。</li><li>每則 AI 回答下方動作列（<strong>同一列常駐顯示</strong>）：<strong>複製</strong>原始 Markdown、<strong>下載 PDF</strong>（伺服器端以 QuestPDF 產生、內嵌繁中字型，單則匯出）、<strong>滿意 / 不滿意</strong>回饋。</li><li>每輪回答下方顯示出處清單（來源標題、層別、錨點、片段、分數），<strong>預設收合</strong>；標題旁「展開／收合」按鈕可切換整份出處明細的顯示，各則回答獨立收合。</li><li>出處可展開來源成員，並導向既有下載端點下載原始檔。</li><li>多輪模糊問題（如「它怎麼處理」「剛剛那個限制是什麼」）會在檢索前自動補全為可獨立檢索的查詢。</li></ul>
+<h2 id="四內部系統運作" class="t4">四、內部系統運作</h2>
+<p>核心流程為 <code>KnowledgeBaseChatView → KnowledgeBaseChatService → KnowledgeBaseQueryRewriteService → IRetrievalService → IChatConversationClient</code>。</p>
+<ol><li>使用者送出問題後，前端先快照既有對話作為 history，再新增本輪 user/assistant 訊息。</li><li><code>KnowledgeBaseQueryRewriteService</code> 依 <code>SystemSettings.Retrieval.QueryRewrite</code> 判斷是否用最近 history 補全檢索 query。</li><li><code>KnowledgeBaseChatService.RetrieveAsync</code> 每輪重新透過 <code>IRecordAccessScopeProvider.GetAsync()</code> 取得目前使用者 scope。</li><li><code>IRetrievalService.RetrieveAsync</code> 對 <code>VectorEmbedding</code> 執行混合檢索：向量檢索與關鍵字檢索並行，再依 <code>Retrieval.VectorWeight</code> / <code>KeywordWeight</code> 融合。</li><li>檢索層即套團隊權控：非管理員只可取得公開或團隊交集 chunk；越權 chunk 不會進入 context 或出處。</li><li>兩段式信心門檻：以最高分命中的融合分數判定 <code>RetrievalConfidence</code>。低於 <code>Retrieval.RejectThreshold</code>（或無命中）為 <code>Insufficient</code>，介於兩門檻為 <code>LowConfidence</code>，達 <code>LowConfidenceThreshold</code> 為 <code>Sufficient</code>。</li><li>命中結果排序時「蒸餾頁 Wiki」優先於「清洗內容 Cleaned」，同層再依分數排序。</li><li>服務組出附出處 context，每段格式包含來源標題、層別與錨點。</li><li>依信心分流：<code>Insufficient</code> 由前端直接回固定訊息、<strong>不呼叫 LLM</strong>、不附出處；<code>LowConfidence</code> 於回答前加註固定提示後照常呼叫 LLM；<code>Sufficient</code> 正常呼叫。</li><li><code>BuildMessagesAsync</code> 組 system 訊息、歷史對話與本輪原始 user 訊息。</li><li><code>StreamAsync</code> 委派 <code>IChatConversationClient.StreamAsync</code> 以 SSE 串流回傳 LLM 文字。</li></ol>
+<h2 id="五llm-與提示詞" class="t5">五、LLM 與提示詞</h2>
+<ul><li>LLM 介面：<code>IChatConversationClient</code>，實作為 <code>OpenAIChatCompletionClient</code>。</li><li>提示詞解析：<code>LlmPromptResolver.ResolveAsync</code> 四層優先序：單次操作覆蓋 → DB <code>Prompt</code> → <code>appsettings</code> → <code>LlmPromptDefaults</code>。</li><li>知識庫系統提示詞鍵：<code>LlmPromptKeys.KnowledgeBaseSystem</code>（顯示名稱「知識庫-系統」）。</li><li>查詢改寫提示詞鍵：<code>LlmPromptKeys.KnowledgeBaseQueryRewrite</code>（顯示名稱「知識庫-查詢改寫」）。</li><li>Query Rewrite 預設使用 <code>OpenAISettings.QueryRewriteModel = gpt-5.4-mini</code>，地端模式可用 <code>LocalQueryRewriteModel</code> 指定；改寫失敗時預設回退原始 query。</li><li>回答詳簡提示詞鍵：簡潔/標準/詳細分別走對應 chat verbosity key。</li><li>信心判定為 <code>Insufficient</code>（最高分低於 <code>RejectThreshold</code> 或無命中）時，由前端程式層直接回覆固定訊息「您的問題在知識庫中查無相關依據…」，<strong>不呼叫 LLM</strong>、不附出處。固定訊息為 <code>KnowledgeBaseChatService.InsufficientMessage</code>。</li><li>信心判定為 <code>LowConfidence</code> 時，由程式層在 LLM 回答最前面加上固定提示 <code>KnowledgeBaseChatService.LowConfidencePrefix</code>（⚠️ 信心不足…），仍附出處。兩段訊息均由程式層保證，不依賴 LLM 自律。</li><li>門檻 <code>RejectThreshold</code> / <code>LowConfidenceThreshold</code> 預設值僅為起點，須以真實資料校準；稽核日誌已記錄每輪最高分與信心供調整。</li></ul>
+<h2 id="六資料與權控" class="t6">六、資料與權控</h2>
+<ul><li>檢索資料來源為 <code>VectorEmbedding</code>，其 <code>Teams</code>、<code>Categories</code>、<code>SourceLayer</code>、<code>AnchorRef</code> 由清洗/蒸餾/索引流程繼承。</li><li>團隊權控在檢索層強制套用，出處鑽取時再透過 <code>KnowledgeSourceService.GetAsync</code> 套一次母來源權控。</li><li>原始檔下載沿用既有受權控 API，不新增繞過權控的下載端點。</li><li>日誌記錄 query 長度、命中 chunk id、層別與分數，不記錄完整問題與完整參考資料本文。</li></ul>
+<h2 id="七錯誤與邊界" class="t7">七、錯誤與邊界</h2>
+<ul><li>未設定嵌入端點時，索引管線無法建立新的向量索引；檢索服務可退化為關鍵字路徑，但語意品質會下降，且不等於完整跨來源語意檢索。</li><li>檢索無命中、或最高分低於 <code>RejectThreshold</code> 時，由程式層直接回覆查無依據、不呼叫 LLM、不附出處。</li><li>Query Rewrite 只做保守補全；不得新增 history 未出現的事實。改寫結果只影響檢索，不取代使用者原始問題。</li><li>LLM 串流中斷時，保留已產出片段並顯示中斷訊息。</li><li>使用者按停止時，取消 token 會中止串流；若尚未產生內容，顯示「已停止」。</li></ul>
+<h2 id="八驗收與測試" class="t8">八、驗收與測試</h2>
+<ul><li>具權限者可進入 <code>/knowledge-base-chat</code> 並完成多輪串流問答。</li><li>非授權團隊內容不會進入 context、回答或出處清單。</li><li>出處清單可展開來源成員，下載走既有受權控端點。</li><li>Wiki 命中排序在 Cleaned 命中之前。</li><li>多輪短問句可透過 Query Rewrite 命中前文所指主題；清楚完整問題不應額外呼叫改寫。</li><li>最高分低於 <code>RejectThreshold</code>（或無命中）時，回覆固定查無依據訊息且不呼叫 LLM、不附出處。</li><li>最高分介於 <code>RejectThreshold</code> 與 <code>LowConfidenceThreshold</code> 時，回答最前面出現「⚠️ 信心不足」固定提示且仍附出處。</li><li>最高分達 <code>LowConfidenceThreshold</code> 時正常回答。</li><li>索引未建立（<code>VectorEmbedding</code> 為空）或嵌入未設定時，<strong>管理員</strong>在問答查無依據訊息後會看到診斷提示（一般使用者僅看到通用訊息）；管理員可於「知識來源加工」按「建立索引」（不需重蒸餾）建立向量索引。</li></ul>
+<h2 id="九相關程式與文件" class="t1">九、相關程式與文件</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/KnowledgeBaseChatService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/KnowledgeBaseQueryRewriteService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Embeddings/RetrievalService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/KnowledgeBase/KnowledgeBaseChatView.razor.cs</code></li><li><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a></li><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li></ul>
+<h2 id="十0334-現況校正" class="t2">十、0.3.34 現況校正</h2>
+<ul><li>支援回答詳簡、套用既有提示詞、自訂系統提示、限定多個知識來源與分類、多輪串流、停止、複製及 PDF 下載。</li><li>Query Rewrite 先改寫檢索查詢，混合檢索依 Reject／LowConfidence 門檻決定查無依據、低信心或正常回答；調校由檢索診斷與調校 PRD 規範。</li><li>每則回答附可鑽取至來源成員與原始檔的出處；所有候選在計分前套團隊權控。</li><li>滿意度可新增、改選、取消，並與聊天紀錄、首頁統計及 Token 用量連動。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目標與範圍">一、目標與範圍</a><a class="l2" href="#二使用者與入口">二、使用者與入口</a><a class="l2" href="#三畫面與操作">三、畫面與操作</a><a class="l2" href="#四內部系統運作">四、內部系統運作</a><a class="l2" href="#五llm-與提示詞">五、LLM 與提示詞</a><a class="l2" href="#六資料與權控">六、資料與權控</a><a class="l2" href="#七錯誤與邊界">七、錯誤與邊界</a><a class="l2" href="#八驗收與測試">八、驗收與測試</a><a class="l2" href="#九相關程式與文件">九、相關程式與文件</a><a class="l2" href="#十0334-現況校正">十、0.3.34 現況校正</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/知識庫問答-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

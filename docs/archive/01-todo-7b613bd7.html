@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>專案總覽與定位 TODO｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 已歸檔</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">已歸檔</div><h1>專案總覽與定位 TODO</h1></header><div class="docwrap"><main><blockquote><h2 id="已歸檔10642026-07-25" class="t1">⚠️ 已歸檔（1.0.64，2026-07-25）</h2>
+<p><strong>本文件不代表現行需求或現況</strong>，僅保留供回溯當時的決策脈絡。</p>
+<ul><li><strong>歸檔原因</strong>：腳手架期的規劃 TODO，9 項全部完成。</li><li><strong>改看</strong>：<code>guides/腳手架新專案啟動流程.md</code>、<code>guides/SQL Server 切換說明.md</code>、<code>operations/正式部署與安全檢查清單.md</code>（皆為本文件當初列出的產出物）</li></ul>
+<p>歸檔清單與說明見 <a href="../../docs/archive/readme-98f9f271.html">archive/README.md</a>。</p></blockquote>
+<hr>
+<h1 id="專案總覽與定位-todo">專案總覽與定位 TODO</h1>
+<h2 id="腳手架定位" class="t2">腳手架定位</h2>
+<ul class="check"><li><span class="box">☑</span>目標說明：本專案定位為未來開發 .NET 10 Blazor + Web API 系統的預設腳手架，提供 UI、資料存取、DTO、API、認證授權、日誌與文件基礎。</li><li><span class="box">☑</span>現況盤點：目前已有 Blazor Web App、EF Core SQLite 預設、NLog、AutoMapper、DTO 專案、Project/MyTask/Meeting CRUD API、Swagger、Cookie 登入與 JWT Bearer API 認證基礎。</li><li><span class="box">☑</span>實作待辦：已完成第一階段 API/JWT/測試/CI 補強，後續要持續收斂 nullable warning、Program.cs 結構、預設帳號安全與 API versioning。</li><li><span class="box">☑</span>驗收標準：<code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.slnx -v:minimal --no-incremental</code> 可成功建置；目前摘要為 56 warnings、0 errors。</li><li><span class="box">☑</span>相關檔案：<code>src/KnowledgeExtraction/KnowledgeExtraction.slnx</code>、<code>src/KnowledgeExtraction/KnowledgeExtraction.Web</code>、<code>src/KnowledgeExtraction/KnowledgeExtraction.Dtos</code>、<code>src/KnowledgeExtraction/KnowledgeExtraction.Tests</code>、<code>.github/workflows/dotnet-ci.yml</code>。</li><li><span class="box">☑</span>備註風險：目前仍有 .NET preview SDK 訊息與 0 個 build warning；<code>Program.cs</code> 已初步拆分，預設種子帳號已改為可透過 <code>BootstrapSettings</code> 覆寫。</li></ul>
+<h2 id="後續定位待辦" class="t3">後續定位待辦</h2>
+<ul class="check"><li><span class="box">☑</span>將此腳手架整理成新專案建立流程，包含改名、資料庫路徑、JWT signing key、預設管理員帳號與部署設定替換步驟。文件：<code>docs/guides/腳手架新專案啟動流程.md</code>。</li><li><span class="box">☑</span>補充 SQL Server 切換教學，但保留 SQLite 作為預設開發資料庫。文件：<code>docs/guides/SQL Server 切換說明.md</code>。</li><li><span class="box">☑</span>建立 release checklist，避免腳手架被複製後仍沿用開發用 secret 或預設帳密。文件：<code>docs/operations/正式部署與安全檢查清單.md</code>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（已歸檔）</h3><ul><li><a href="../../docs/archive/02-todo-3f55bf3e.html">現有架構盤點 TODO</a></li><li><a href="../../docs/archive/03-todo-4317ce18.html">缺口與風險清單 TODO</a></li><li><a href="../../docs/archive/04-webapi-jwt-apiresult-todo-63b775bd.html">WebAPI JWT ApiResult 設計 TODO</a></li><li><a href="../../docs/archive/05-todo-e50e4e40.html">腳手架補強實作路線圖 TODO</a></li><li><a href="../../docs/archive/06-todo-55e99cf3.html">開發與文件維護規範 TODO</a></li><li><a href="../../docs/archive/10-todo-2aadf980.html">知識頁審核與問答疑問釐清及需求（階段三起點）</a></li><li><a href="../../docs/archive/11-68d22fc1.html">系統功能與文件同步審計</a></li><li><a href="../../docs/archive/rag-ef495a4d.html">RAG 補強修正測試指南</a></li></ul></div></div></main></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/archive/01-專案總覽與定位-TODO.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

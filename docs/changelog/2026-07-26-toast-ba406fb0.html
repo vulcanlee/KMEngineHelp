@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toast 全站清零並補上自動守門，移除範例死碼（1.0.73→1.0.74）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Toast 全站清零並補上自動守門，移除範例死碼（1.0.73→1.0.74）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-26</li><li>版本：1.0.73 → 1.0.74</li><li>類型：UX 一致性修正 ＋ 假宣稱更正 ＋ 死碼移除</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p><code>docs/architecture/開發慣例與限制速查.md</code> 宣稱：</p>
+<blockquote><p>不要用 <code>MessageService</code>……（1.0.24 已全站掃描移除，<strong>僅剩未註冊的 <code>RoleViewViewSample</code> 例外</strong>）</p></blockquote>
+<p><strong>這句話是假的。</strong> 1.0.71 盤點時查出還有 <strong>6 個活著的檔案、18 個呼叫點</strong>在用 <code>MessageService</code>：</p>
+<div class="tw"><table><thead><tr><th>檔案</th><th>呼叫點</th><th>影響</th></tr></thead><tbody><tr><td><code>Commons/ContentEditDialog.razor</code></td><td>9</td><td><strong>被七個頁面共用</strong>，含「已複製到剪貼簿」「已取代 N 處」等高頻 toast</td></tr><tr><td><code>Commons/MarkdownActionBar.razor</code></td><td>4</td><td>複製／PDF 下載提示</td></tr><tr><td><code>Commons/ReportPdfButton.razor</code></td><td>1</td><td>統計報表 PDF 失敗提示</td></tr><tr><td><code>Pages/ChangePassword.razor</code></td><td>1</td><td>變更密碼成功</td></tr><tr><td><code>Pages/Profile.razor</code></td><td>1</td><td>設定 API 密碼成功</td></tr><tr><td><code>Views/TokenUsage/TokenUsageView.razor.cs</code></td><td>1</td><td>Token 用量 PDF 失敗提示</td></tr></tbody></table></div>
+<p>AntDesign 的 message <strong>固定置中頂部、沒有位置選項</strong>，所以這些訊息一直跳在畫面正中上方，而全站其他 209 處通知都在右下角。使用者看到的是同一個系統有兩種不一致的提示位置——而且沒人發現。</p>
+<p><strong>根因不是有人不遵守慣例，是這條鐵則從來沒有守門。</strong> 1.0.24 訂立時只做了一次性 <code>grep</code> 掃描，之後 47 個版本沒有任何機制檢查，於是逐漸回退，文件卻還在宣稱只剩 1 個例外。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="一6-檔清零18-個呼叫點">一、6 檔清零（18 個呼叫點）</h3>
+<p>一律改為內嵌 <code>NotificationConfig</code>（1.0.24 明文決定不另建全域 helper），<code>Placement = NotificationPlacement.BottomRight</code>。高頻短確認用 <code>Duration = 3</code>，錯誤沿用預設。</p>
+<ul><li><code>ChangePassword</code>／<code>Profile</code>：改用具名標題（「變更密碼成功」／「設定 API 密碼成功」）＋ <code>Duration = 5</code>，<strong>與該檔既有的失敗通知對稱</strong>。兩檔原本就已注入 <code>NotificationService</code>，只是成功路徑漏用。</li><li><code>ContentEditDialog</code>（9 處）與 <code>MarkdownActionBar</code>（4 處）：呼叫點多，各收成本地 <code>Notify(description, type, duration)</code>；跨檔仍逐處內嵌。</li><li><code>TokenUsageView</code>：<code>[Inject] MessageService</code> 改為<strong>建構式注入</strong> <code>NotificationService</code>，符合速查慣例（AntDesign 服務走建構式、<code>[Inject]</code> 留給框架類）。</li><li>順修 <code>AccessDatas/Models/PipelineProgressEvent.cs:14</code> 的過時註解（原寫「對應前端 AntDesign MessageService 的四種 toast」）。</li></ul>
+<h3 id="二刪除範例死碼">二、刪除範例死碼</h3>
+<p>刪 <code>Components/Views/Admins/RoleViewViewSample.razor{,.cs,.css}</code>。確認為死碼：<strong>無 <code>@page</code></strong>、全 <code>src/</code> 除自身 <code>partial class</code> 宣告外<strong>零引用</strong>。</p>
+<p>它被 <code>guides/建立一個新 CRUD 操作網頁說明.md</code> 兩處明文點名為「絕對不要當模板」，所以刪除必須連帶改文件，否則讀者會找不到那段警告的對象。而那兩處也宣稱它是「全站唯一還在用 <code>MessageService</code>」——<strong>同樣是假的</strong>，一併更正。</p>
+<h3 id="三補上自動守門本批真正的價值">三、補上自動守門（本批真正的價值）</h3>
+<p>新增 <code>Tests/ToastConventionTests.cs</code>（範本：<code>LoggingConventionTests</code>），掃 <code>src/</code> 全部 <code>.cs</code> <strong>與 <code>.razor</code></strong>，出現 <code>MessageService</code> 即紅燈並列出 <code>檔名:行號</code> 與正確寫法。</p>
+<p><strong>同時掃 <code>.razor</code> 是必要的</strong>：那 6 個回退檔案中有 5 個是把 <code>@inject</code> 寫在 <code>.razor</code> 裡，只掃 <code>.cs</code> 會全部漏掉。</p>
+<p>守門本身已驗證有效：<strong>刻意在 <code>ReportPdfButton.razor</code> 植入一行 <code>@inject MessageService</code>，測試立刻失敗並精準指出 <code>ReportPdfButton.razor:6</code></strong>，還原後恢復綠燈。</p>
+<blockquote><p>若這次只把速查那句話改對而不加守門，同樣的漂移會第三次發生。這是本批做這件事的理由。</p></blockquote>
+<h3 id="四更正兩份文件的假宣稱">四、更正兩份文件的假宣稱</h3>
+<ul><li><code>architecture/開發慣例與限制速查.md</code>：刪掉「僅剩未註冊的 <code>RoleViewViewSample</code> 例外」，改為說明 1.0.74 起由測試強制，並記下「為什麼需要自動守門」的完整經過（含 6 檔 18 點的事實），避免日後又有人以為做一次 grep 就夠。</li><li><code>guides/建立一個新 CRUD 操作網頁說明.md</code>（2 處）：說明該檔已刪除，並更正「全站唯一」的錯誤說法。</li></ul>
+<p><strong>執行順序是刻意的</strong>：先改 6 檔 → 刪死碼 → 加測試（此時才會綠）→ 最後才改文件。順序反了就只是把一句假話換成另一句。</p>
+<h2 id="測試" class="t3">測試</h2>
+<p>708 → <strong>709</strong>（+1，全綠）。新增的是掃描式測試，不是行為測試——它保證「沒有人在用被禁的服務」，不保證每個 toast 的位置參數都正確。</p>
+<h2 id="影響與相容性" class="t4">影響與相容性</h2>
+<ul><li><strong>使用者可見</strong>：上述 18 處提示的顯示位置由畫面正中頂部改為右下角，與全站一致。訊息文字不變（只有 <code>ChangePassword</code>／<code>Profile</code> 兩處多了標題列，與同頁失敗通知一致）。</li><li>刪除的 3 個檔案未註冊路由、零引用，<strong>不影響任何功能</strong>。</li><li>無資料庫 migration、無 API 合約變更。</li></ul>
+<h2 id="版本" class="t5">版本</h2>
+<ul><li><code>appsettings.json</code> <code>SystemVersion</code>：<code>1.0.73</code> → <code>1.0.74</code>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#一6-檔清零18-個呼叫點">一、6 檔清零（18 個呼叫點）</a><a class="l3" href="#二刪除範例死碼">二、刪除範例死碼</a><a class="l3" href="#三補上自動守門本批真正的價值">三、補上自動守門（本批真正的價值）</a><a class="l3" href="#四更正兩份文件的假宣稱">四、更正兩份文件的假宣稱</a><a class="l2" href="#測試">測試</a><a class="l2" href="#影響與相容性">影響與相容性</a><a class="l2" href="#版本">版本</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-26-Toast清零與範例死碼移除.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

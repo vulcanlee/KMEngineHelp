@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>側邊選單名稱全面調整（1.0.57）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>側邊選單名稱全面調整（1.0.57）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-25</li><li>版本：1.0.56 → 1.0.57</li><li>類型：使用體驗調整（僅顯示名稱，無功能變更）</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p>側邊選單多處名稱無法讓一般使用者判斷該畫面用途，三類問題：</p>
+<ol><li><strong>名不符實</strong>：「圖片清單」實際是用視覺 LLM 把圖片讀成文字；「知識蒸餾」實際是知識頁的審核／編修／版本治理，蒸餾動作其實在知識來源頁觸發，該頁連「新增」按鈕都沒有。</li><li><strong>內部術語外洩</strong>：「黃金評測」「RAG評測」「清洗設定檔」「文件萃取」「資料定義」對非開發者無意義。</li><li><strong>難以區分的配對</strong>：「分類清單」vs「專案分類」、「AI 聊天紀錄」vs「對話總覽」、「Token 用量」vs「Token 用量分析」。</li></ol>
+<h2 id="新舊名稱對照" class="t2">新舊名稱對照</h2>
+<h3 id="群組8-組全數檢視調整-2-組">群組（8 組全數檢視，調整 2 組）</h3>
+<div class="tw"><table><thead><tr><th>原名</th><th>新名</th></tr></thead><tbody><tr><td>清洗與蒸餾</td><td><strong>知識庫</strong></td></tr><tr><td>資料定義</td><td><strong>基礎資料設定</strong></td></tr><tr><td>首頁／專案協作／資料匯入／系統管理／統計報表／登出</td><td>*不變*</td></tr></tbody></table></div>
+<p>系統管理底下的三個子分類（權限管理／系統監控與日誌／AI 與整合）亦不變。</p>
+<h3 id="專案協作">專案協作</h3>
+<div class="tw"><table><thead><tr><th>原名</th><th>新名</th></tr></thead><tbody><tr><td>專案項目</td><td>專案管理</td></tr><tr><td>工作項目</td><td>工作任務</td></tr><tr><td>會議記錄</td><td>會議管理</td></tr></tbody></table></div>
+<h3 id="資料匯入">資料匯入</h3>
+<div class="tw"><table><thead><tr><th>原名</th><th>新名</th><th>理由</th></tr></thead><tbody><tr><td>音訊轉錄</td><td>影音轉逐字稿</td><td>原名漏掉「影片」與產出物</td></tr><tr><td>文件萃取</td><td>文件轉文字</td><td>去除術語</td></tr><tr><td>圖片清單</td><td>圖片解讀</td><td>原名完全沒表達「用 AI 讀出圖中內容」</td></tr></tbody></table></div>
+<h3 id="知識庫原清洗與蒸餾">知識庫（原「清洗與蒸餾」）</h3>
+<div class="tw"><table><thead><tr><th>原名</th><th>新名</th><th>理由</th></tr></thead><tbody><tr><td>知識來源管理清單</td><td>知識來源加工</td><td>實為聚合→清洗→審核→蒸餾→索引的加工台，原名像被動清單</td></tr><tr><td>黃金評測</td><td>清洗品質評測</td><td>上游把關</td></tr><tr><td>知識蒸餾</td><td>知識頁審核</td><td>蒸餾動作不在此頁，原名誤導</td></tr><tr><td>知識庫問答</td><td>AI 知識問答</td><td>與「知識百科」的閱讀模式區隔</td></tr><tr><td>RAG評測</td><td>檢索品質評測</td><td>下游把關</td></tr><tr><td>知識瀏覽</td><td>知識百科</td><td>純閱讀，像翻百科</td></tr></tbody></table></div>
+<h3 id="系統管理">系統管理</h3>
+<div class="tw"><table><thead><tr><th>原名</th><th>新名</th></tr></thead><tbody><tr><td>RAG診斷</td><td>檢索診斷與調校</td></tr><tr><td>日誌等級</td><td>日誌等級切換</td></tr><tr><td>AI 聊天紀錄</td><td>問答稽核明細</td></tr><tr><td>對話總覽</td><td>完整對話紀錄</td></tr><tr><td>Token 用量</td><td>Token 用量明細</td></tr><tr><td>MCP金鑰管理</td><td>MCP 金鑰管理（補空格）</td></tr><tr><td>使用者管理／角色管理／系統健康監控／資料一致性巡檢／日誌下載</td><td>*不變*</td></tr></tbody></table></div>
+<p>「問答稽核明細」一列＝一輪問答（含信心／topScore／滿意度）；「完整對話紀錄」一列＝一整段多輪對話。</p>
+<h3 id="基礎資料設定原資料定義">基礎資料設定（原「資料定義」）</h3>
+<div class="tw"><table><thead><tr><th>原名</th><th>新名</th></tr></thead><tbody><tr><td>分類清單</td><td>知識庫分類</td></tr><tr><td>團隊清單</td><td>團隊管理</td></tr><tr><td>提示詞清單</td><td>AI 提示詞</td></tr><tr><td>清洗設定檔</td><td>清洗規則設定</td></tr><tr><td>專案分類</td><td>*不變*（與「知識庫分類」配對後已足夠可辨）</td></tr></tbody></table></div>
+<h3 id="統計報表">統計報表</h3>
+<div class="tw"><table><thead><tr><th>原名</th><th>新名</th></tr></thead><tbody><tr><td>Token 用量分析</td><td>Token 用量統計</td></tr><tr><td>使用者回饋分析</td><td>AI 回答滿意度</td></tr><tr><td>問答量與使用行為</td><td>問答使用統計</td></tr><tr><td>檢索品質分析</td><td>檢索品質統計</td></tr><tr><td>內容清點統計</td><td>*不變*</td></tr></tbody></table></div>
+<p>「Token 用量明細」（系統管理，逐筆帳）與「Token 用量統計」（統計報表，彙總可匯出 PDF）形成明細／統計配對。</p>
+<h2 id="既有角色權限完全不受影響" class="t3">既有角色權限完全不受影響</h2>
+<p>角色權限存於 <code>RoleView.TabViewJson</code>，內容是 <code>MagicObjectHelper.角色_xxx</code> 的<strong>值</strong>，不是選單顯示名。選單顯示名只在 <code>Menu.json</code>；執行期的權限判定由 <code>SidebarMenuService</code> 以<strong>位置索引</strong>注入 <code>PermissionName</code>，與顯示名無關。</p>
+<p>因此本次<strong>只改顯示名</strong>，<code>MagicObjectHelper</code> 與 <code>RolePermissionService</code> <strong>完全未異動</strong>，不需要資料庫 migration，既有角色的可見選單與頁面授權一如既往。</p>
+<blockquote><p>⚠️ 承上：<code>MagicObjectHelper.角色_xxx</code> 的字面值<strong>永遠不可更動</strong>。一旦更動，所有既有 <code>RoleView.TabViewJson</code> 的字串會失配（<code>RolePermissionService</code> 以 Ordinal 比對），所有非管理員角色瞬間掉權限，而且<strong>沒有任何測試抓得到</strong>（測試皆透過常數引用，會跟著一起變綠）。</p></blockquote>
+<h2 id="顯示名與權限名的對應表" class="t4">顯示名與權限名的對應表</h2>
+<p>改名後兩者大量分離，<code>MenuPermissionAlignmentTests.DisplayNameToPermissionName</code> 由 1 筆擴充為 16 筆，並從「既有例外」重新定位為<strong>顯示名 ↔ 權限名的正式對應表</strong>。日後更名選單只需在此補一筆，測試仍能守住「選單子項 ↔ 權限」的位置索引不變量。</p>
+<h2 id="影響範圍" class="t5">影響範圍</h2>
+<ul><li><code>Menu.json</code>：<strong>只改 <code>name</code></strong>，順序／<code>id</code>／<code>icon</code>／<code>adminOnly</code> 一律未動（順序一動就會觸發位置索引不變量）。</li><li>23 個頁面的 <code>&lt;PageTitle&gt;</code> 同步更新，順帶消除既有的不一致（選單「專案項目」vs 標題「專案管理」、<code>RAG評測</code> vs <code>RAG 評測</code> 等）。</li><li>畫面上方標題列讀 <code>Menu.json</code> 的 name，會一併顯示新名稱。</li><li>無資料庫 migration、無邏輯變更、無 API 變更。</li><li>PRD 與歷史 changelog 屬歷史紀錄，維持原用語未追改。</li></ul>
+<h2 id="驗證" class="t6">驗證</h2>
+<ol><li>守護測試先紅後綠：只改 <code>Menu.json</code>、未補白名單時 <code>EverySubMenuItem_PairsWith_ItsOwnPermissionName</code> 如期失敗並列出 16 項待對應；補上後轉綠。</li><li><code>dotnet test</code> 通過：643 個測試全數通過。</li><li><code>git diff</code> 確認 <code>MagicObjectHelper.cs</code> 與 <code>RolePermissionService.cs</code> <strong>零變更</strong>；<code>Menu.json</code> 的 diff <strong>只有 <code>name</code> 行</strong>。</li><li>實機（需重啟站台，選單有 <code>sidebar:menu:raw</code> 快取）：管理員逐一點開 8 個群組確認名稱與頁面皆可進入；另以非管理員角色登入，確認可見選單與改名前完全相同。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#新舊名稱對照">新舊名稱對照</a><a class="l3" href="#群組8-組全數檢視調整-2-組">群組（8 組全數檢視，調整 2 組）</a><a class="l3" href="#專案協作">專案協作</a><a class="l3" href="#資料匯入">資料匯入</a><a class="l3" href="#知識庫原清洗與蒸餾">知識庫（原「清洗與蒸餾」）</a><a class="l3" href="#系統管理">系統管理</a><a class="l3" href="#基礎資料設定原資料定義">基礎資料設定（原「資料定義」）</a><a class="l3" href="#統計報表">統計報表</a><a class="l2" href="#既有角色權限完全不受影響">既有角色權限完全不受影響</a><a class="l2" href="#顯示名與權限名的對應表">顯示名與權限名的對應表</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-選單名稱全面調整.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

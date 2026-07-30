@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文件版本標註校正：現行/對應系統版本 1.1.0 → 1.0.11｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>文件版本標註校正：現行/對應系統版本 1.1.0 → 1.0.11</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-17</li><li>版本：1.0.11（不升版；本次為文件標註對齊，非建置內容異動）</li><li>類型：文件（版本標註一致性校正）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>先前「文件庫全面同步」曾把多份文件的「現行/對應系統版本」標為 <code>1.1.0</code>，但其後 <code>appsettings.json</code> <code>SystemVersion</code> 回退並改採 1.0.x patch 線（現為 <strong>1.0.11</strong>），造成文件版本標註與程式實際版本不一致。本次把這些<strong>現況版本標記</strong>校正為 <code>1.0.11</code>。</p>
+<h2 id="變更" class="t2">變更</h2>
+<p>以精確字串取代（<code>utf-8-sig</code> 保 BOM／<code>.html</code> 無 BOM），共 71 處：</p>
+<ul><li><strong>33 份個別 PRD</strong> 與 <code>prd/系統健康監控-prd.md</code>：<code>現行系統版本：1.1.0</code> → <code>1.0.11</code>（<code>音訊影片轉錄服務PRD.md</code> 為表格式）。</li><li><code>prd/README.md</code>：header 現行系統版本 ＋ 覆蓋矩陣「核對版本」欄（23 列）→ <code>1.0.11</code>。</li><li><code>docs/README.md</code>：新手/Hands-on 描述「對應 1.1.0」、PRD 主控台「1.1.0 完整基線」→ <code>1.0.11</code>。</li><li><code>guides/README.md</code>、<code>guides/完整操作手冊.md</code>、<code>guides/新手完整操作指南.md</code>、<code>guides/實作練習手冊-Hands-on Lab.md</code>（含內文「對應系統/顯示/系統 1.1.0」共 4 處）→ <code>1.0.11</code>。</li><li><code>strategy/系統功能與特色清單-20項.md</code>（對應版本）與同名 <code>.html</code>（<code>v1.1.0</code> 兩處）→ <code>1.0.11</code>。</li><li><code>planning/11-系統功能與文件同步審計.md</code>：第 9 行現況標記 → <code>1.0.11</code>。</li></ul>
+<h2 id="不動歷史紀錄" class="t3">不動（歷史紀錄）</h2>
+<ul><li><code>changelog/2026-07-17-文件庫全面同步1.1.0.md</code> 本體與其索引列（記錄 1.1.0 同步事件本身）。</li><li><code>planning/11</code> §6「1.0.x–1.1.0 功能與文件同步」稽核敘述。</li><li><code>operations/外部工具安裝與路徑設定.md</code> 的 <code>1.1.1.1</code>（Cloudflare DNS，非版本）。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ol><li><code>git diff</code> 逐檔確認：每檔僅版本字串行變動、中文完好、<strong>無「對→應」等損毀</strong>（改用 Python 腳本精確取代，避開先前 PowerShell 損毀路徑）。</li><li><code>grep</code> 確認 docs 中「現況版本 1.1.0」殘留歸零（僅保留上述歷史檔）。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠（<code>.md</code> UTF-8 含 BOM、無亂碼）；<code>.html</code> 維持無 BOM。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l2" href="#不動歷史紀錄">不動（歷史紀錄）</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-17-文件版本標註校正1.0.11.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

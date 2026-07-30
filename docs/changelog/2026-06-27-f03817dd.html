@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>系統功能與文件同步審計（0.2.139）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>系統功能與文件同步審計（0.2.139）</h1></header><div class="docwrap"><main><h2 id="版本" class="t1">版本</h2>
+<ul><li><code>appsettings.json</code>：<code>SystemSettings.SystemInformation.SystemVersion</code> 由 <code>0.2.138 (2026/06/27)</code> 遞增為 <code>0.2.139 (2026/06/27)</code>。</li></ul>
+<h2 id="異動內容" class="t2">異動內容</h2>
+<ul><li>新增 <a href="../../docs/archive/11-68d22fc1.html">系統功能與文件同步審計</a>，盤點正式選單功能、API Controller、Entity、七條背景管線、文件覆蓋、不一致項與後續功能建議。</li><li>更新 <a href="../../docs/architecture/architecture-overview.html">架構總覽</a>：背景管線由早期四條修正為現況七條，音訊管線名稱改為實際的 <code>ITranscriptionQueue</code> / <code>TranscriptionBackgroundService</code>，並補上蒸餾、嵌入索引、技能產生、RAG/Embedding 相關服務。</li><li>更新 <a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a>：同步目前 <code>appsettings.json</code> 欄位，補 <code>SkillOutputPath</code>、<code>WikiOutputPath</code>、<code>Distillation</code>、<code>Retrieval</code>、Embedding 設定、<code>KnowledgeBaseSystem</code>、<code>DistillationGenerate</code> 與 MarkItDown 設定段落。</li><li>更新 <a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a>：統一抖音助手描述為「系統自動呼叫，但需互動式桌面」。</li><li>更新 <a href="../../docs/operations/maintenance-rules.html">維護規範</a>：修正文件編碼規則，明確要求 <code>docs/*.md</code> 為 UTF-8 BOM 並通過 <code>scripts/Test-DocsEncoding.ps1</code>。</li><li>同步根 <code>README.md</code>、<a href="../../docs/docs-index.html">docs/README</a>、<a href="../../docs/planning/readme-04c0bd48.html">planning/README</a> 與本 changelog 索引。</li></ul>
+<h2 id="影響範圍" class="t3">影響範圍</h2>
+<ul><li>本次只更新文件與版本號，不變更 API、DTO、Entity、migration、路由或 UI 行為。</li><li>明確標註 <code>WeatherForecastController</code>、<code>/weather</code>、<code>/counter</code> 為樣板/非正式選單功能，避免文件審計時誤列為產品功能。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#版本">版本</a><a class="l2" href="#異動內容">異動內容</a><a class="l2" href="#影響範圍">影響範圍</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-27-系統功能文件審計.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

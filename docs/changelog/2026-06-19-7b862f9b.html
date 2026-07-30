@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>抖音下載保留原始影片（0.2.89）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>抖音下載保留原始影片（0.2.89）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-19</li><li>版本：0.2.88 → 0.2.89</li><li>類型：功能新增</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>抖音下載原本只保留轉錄用的 mp3，<strong>不保留原始影片</strong>。助手腳本攔截音訊串流轉 mp3 後即刪除中介檔，<code>DouyinAudioDownloader</code> 回傳的 <code>OriginalMediaRelativePath</code> 恆為 <code>null</code>。需求是讓抖音下載也能保留原始影片（與 yt-dlp 路徑一致，落地於 <code>OriginalMediaPath</code>）。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="助手腳本-toolsdouyin-audioget-douyin-audiomjs">助手腳本 <code>tools/douyin-audio/get-douyin-audio.mjs</code></h3>
+<ul><li>新增 <code>--out-video &lt;mp4完整路徑&gt;</code> 參數。</li><li>下載重試迴圈抽成可重用的 <code>downloadBuffer(url, label)</code>；在關閉瀏覽器前一併取得影片所需位元組（下載需 context cookie）。</li><li>影片來源優先序與組裝：</li><li><strong>合併式來源</strong>（含影音）→ 直接落地為 mp4（與 mp3 來源同網址時重用已下載位元組，不重複下載）。</li><li><strong>DASH 分流</strong> → 下載純視訊軌，並在有純音訊軌時以 <code>ffmpeg -c:v copy -c:a aac</code> 合流為單一 mp4。</li><li><strong>僅音訊無視訊</strong> → 不產生影片。</li><li>成功時於 stdout 印出 <code>VIDEO_PATH=</code>。<strong>影片保留為加值功能，任何失敗只記錄於 stderr，不影響 mp3 與離開碼。</strong></li></ul>
+<h3 id="c-douyinaudiodownloadercs--transcriptionprocessorcs">C# <code>DouyinAudioDownloader.cs</code> / <code>TranscriptionProcessor.cs</code></h3>
+<ul><li><code>DownloadAudioAsync</code> 新增 <code>originalMediaRootPath</code> 參數；非空時以 <code>--out-video</code> 指向 <code>OriginalMediaPath/{yyyy}/{guid}.mp4</code>，並解析 <code>VIDEO_PATH=</code>、檔案存在則回填 <code>OriginalMediaRelativePath</code>（否則 null）。</li><li><code>TranscriptionProcessor</code> 抖音分支改傳 <code>originalMediaRootPath</code>；既有第 184 行已會將 <code>OriginalMediaRelativePath</code> 寫入紀錄並存檔。</li></ul>
+<h2 id="影響範圍" class="t3">影響範圍</h2>
+<ul><li>變更檔案：<code>tools/douyin-audio/get-douyin-audio.mjs</code>、<code>tools/douyin-audio/README.md</code>、<code>DouyinAudioDownloader.cs</code>、<code>TranscriptionProcessor.cs</code>、<code>docs/operations/外部工具安裝與路徑設定.md</code>、<code>docs/operations/日誌與設定檔說明.md</code>、<code>docs/prd/音訊影片轉錄服務PRD.md</code>、<code>appsettings.json</code>（版本號）。</li><li><code>OriginalMediaRelativePath</code> 欄位早已存在，<strong>不需 migration</strong>。</li><li>不改動 mp3／轉錄主流程行為。</li></ul>
+<h2 id="重要前提" class="t4">重要前提</h2>
+<p><code>appsettings.json</code> 的 <code>OpenAISettings:DouyinHelperScript</code> 必須指向<strong>更新後</strong>的 <code>get-douyin-audio.mjs</code>，否則行為不變。</p>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>node --check tools/douyin-audio/get-douyin-audio.mjs</code> 語法正確；<code>dotnet build</code> 通過。</li><li><code>node tools/douyin-audio/get-douyin-audio.mjs "&lt;抖音連結&gt;" --out &lt;暫存.mp3&gt; --out-video &lt;暫存.mp4&gt;</code> 同時產出 mp3 與可播放（有聲）的 mp4，stdout 含 <code>MP3_PATH=</code> 與 <code>VIDEO_PATH=</code>。</li><li>系統「音訊轉錄」貼抖音連結，轉錄完成後確認 mp3 在 <code>MediaUpload</code>、原始 mp4 在 <code>OriginalMedia</code>、該筆 <code>OriginalMediaRelativePath</code> 已填值。</li><li>僅音訊／攔不到視訊的情境，mp3 仍成功、未產出影片、流程不中斷。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#助手腳本-toolsdouyin-audioget-douyin-audiomjs">助手腳本 tools/douyin-audio/get-douyin-audio.mjs</a><a class="l3" href="#c-douyinaudiodownloadercs--transcriptionprocessorcs">C# DouyinAudioDownloader.cs / TranscriptionProcessor.cs</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#重要前提">重要前提</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-19-抖音保留原始影片.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>產品需求文件（PRD）：專案分類（WorkCategory）管理｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>產品需求文件（PRD）：專案分類（WorkCategory）管理</h1><p class="sub">定義「專案分類」主檔的需求、資料欄位、與「知識庫分類」的分工邊界，以及既有資料自動搬移機制</p></header><div class="docwrap"><main><ul><li>文件用途：定義「專案分類」主檔的需求、資料欄位、與「知識庫分類」的分工邊界，以及既有資料自動搬移機制</li><li>主要讀者：產品、開發、導入顧問</li><li>文件版本：1.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.61</li><li>首次實作版本：1.0.18</li><li>建立日期：2026/07/20</li><li>最後核對日期：2026/07/25</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>上層 PRD：<a href="../../docs/prd/prd-e9230a97.html">專案協作模組強化 PRD</a>（第二階段） 相關：<a href="../../docs/prd/prd-e188d641.html">知識庫分類（Category）管理 PRD</a>、<a href="../../docs/prd/prd-dcd2b331.html">專案管理</a>、<a href="../../docs/prd/prd-3631982f.html">工作任務</a>、<a href="../../docs/prd/prd-6dd4645a.html">會議管理</a></p></blockquote>
+<hr>
+<h2 id="一背景與目的" class="t1">一、背景與目的</h2>
+<p>專案、工作、會議的「分類」欄位原本共用 <code>Category</code>（知識庫分類），但那份清單的定位是<strong>知識庫主題標籤</strong>——知識來源、Wiki、三條匯入管線、問答篩選、內容清點報表共 7 處都吃它。兩種語意混在同一份清單，導致下拉選單越長越雜，且任一邊調整都會污染另一邊。</p>
+<p>1.0.18 起新增獨立的 <strong><code>WorkCategory</code>（專案分類）</strong> 主檔，專供「專案管理／工作任務／會議管理」使用，與知識庫分類徹底脫鉤。</p>
+<hr>
+<h2 id="二分工邊界最重要" class="t2">二、分工邊界（最重要）</h2>
+<div class="tw"><table><thead><tr><th>清單</th><th>路由</th><th>權限常數</th><th>供哪些頁面的分類下拉使用</th></tr></thead><tbody><tr><td><strong>專案分類</strong>（本 PRD）</td><td><code>/work-categories</code></td><td><code>角色_專案分類</code></td><td>專案管理、工作任務、會議管理（含專案內「工作與會議」對話窗）</td></tr><tr><td><strong>知識庫分類</strong></td><td><code>/categories</code></td><td><code>角色_分類清單</code></td><td>知識來源加工、知識百科、Wiki 頁、影音轉逐字稿、文件轉文字、圖片解讀、內容清點統計報表</td></tr></tbody></table></div>
+<p>兩份清單<strong>資料完全獨立</strong>，同名項目彼此無關聯，各自維護。兩頁各有一行說明文字提醒使用者用途差異。</p>
+<hr>
+<h2 id="三需求決策" class="t3">三、需求決策</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>決策</th></tr></thead><tbody><tr><td>欄位</td><td>與 <code>Category</code> 完全相同：名稱（唯一、必填）、描述（選填）、啟用狀態、建立時間、更新時間</td></tr><tr><td>名稱唯一性</td><td><strong>忽略大小寫 + 去頭尾空白</strong>（新增與編輯皆生效，編輯時排除自身）</td></tr><tr><td>預設排序</td><td>依「更新時間」由新到舊</td></tr><tr><td>停用狀態</td><td>停用者不供新資料選用（下拉不顯示），既有紀錄的字串標籤仍保留</td></tr><tr><td>刪除方式</td><td>實體刪除</td></tr><tr><td>既有資料</td><td><strong>啟動時自動搬移</strong>（見第六節）</td></tr><tr><td>REST API</td><td>完整提供（見第五節）</td></tr></tbody></table></div>
+<hr>
+<h2 id="四資料模型" class="t4">四、資料模型</h2>
+<p>新增實體 <code>WorkCategory</code>（<code>KnowledgeExtraction.AccessDatas/Models/WorkCategory.cs</code>）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>Id</td><td>int</td><td>主鍵，自動遞增</td></tr><tr><td>Name</td><td>string</td><td>專案分類名稱（必填、唯一）</td></tr><tr><td>Description</td><td>string?</td><td>描述（選填）</td></tr><tr><td>IsEnabled</td><td>bool</td><td>是否啟用（預設 <code>true</code>）</td></tr><tr><td>CreatedAt</td><td>DateTime</td><td>建立時間</td></tr><tr><td>UpdatedAt</td><td>DateTime</td><td>最後更新時間</td></tr></tbody></table></div>
+<ul><li><code>DbSet&lt;WorkCategory&gt;</code> 註冊於 <code>BackendDBContext</code>，<strong>無 <code>modelBuilder</code> 特別設定</strong>（比照 <code>Category</code> 走慣例）。</li><li>名稱唯一性以<strong>應用層</strong>檢查為主（服務層 <code>ValidateNameUniqueAsync</code> 與 Repository <code>ExistsByNameAsync</code>），資料庫層無唯一索引。</li><li><strong>雙 provider migration</strong>：<code>AddWorkCategory</code>（SQLite <code>20260720031350</code> / SQL Server <code>20260720031235</code>），兩份皆僅 <code>CreateTable</code>，無任何 rename／drop。</li></ul>
+<h3 id="41-三種協作紀錄的儲存格式未變更">4.1 三種協作紀錄的儲存格式未變更</h3>
+<p><code>Project</code>／<code>MyTask</code>／<code>Meeting</code> 的 <code>Categories</code> 欄位<strong>儲存格式完全不變</strong>——仍是 <code>TagStringHelper</code> 產生的 <code>\n</code> 包夾字串（如 <code>"\nA\nB\n"</code>），AutoMapper 的 <code>ForMember</code> 轉換不動，<code>BuildContainsAnyPredicate</code> 的精確成員比對不動。本次<strong>只換了「哪一張表填充下拉選單」</strong>，沒有任何資料轉換。</p>
+<hr>
+<h2 id="五api-端點" class="t5">五、API 端點</h2>
+<p><code>WorkCategoryController</code>（<code>api/[controller]</code> + <code>api/v1/[controller]</code>，JWT 授權，比照 <code>CategoryController</code>）：</p>
+<ul><li><code>POST {base}/workcategory/search</code>：接收 <code>WorkCategorySearchRequestDto</code>，回傳分頁結果（預設依 <code>UpdatedAt</code> 降冪）</li><li><code>GET {base}/workcategory/{id}</code>：取得單筆</li><li><code>POST {base}/workcategory</code>：新增；名稱重複回 <strong>409 Conflict</strong></li><li><code>PUT {base}/workcategory/{id}</code>：編輯；路由 id 與 payload id 不一致回 400；名稱重複（排除自身）回 <strong>409 Conflict</strong></li><li><code>DELETE {base}/workcategory/{id}</code>：刪除</li></ul>
+<p>排序參數字串（<code>name</code>／<code>isenabled</code>／<code>createdat</code>／<code>updatedat</code>）與知識庫分類 API 一致。</p>
+<hr>
+<h2 id="六既有資料自動搬移" class="t6">六、既有資料自動搬移</h2>
+<p><code>WorkCategoryBootstrapSeeder</code>（<code>Business/Services/Other/</code>），掛在 <code>Program.cs</code> 既有的 migration／seeding 區塊內（<code>Database.Migrate()</code> 之後、與預設角色／預設帳號同一個 scope）。</p>
+<p>流程：</p>
+<pre><code>掃 Project.Categories + MyTask.Categories + Meeting.Categories（AsNoTracking + Distinct）
+→ TagStringHelper.ToList 攤平 → Trim → 濾掉空白 → 忽略大小寫去重
+→ 與 WorkCategory 既有名稱（忽略大小寫）比對，缺的批次新增（IsEnabled = true）
+→ 記錄 ScannedCount / InsertedCount</code></pre>
+<p><strong>設計取捨與不變量：</strong></p>
+<ul><li><strong>每次啟動都執行（冪等）</strong>，不使用一次性旗標。三個單欄 <code>SELECT DISTINCT</code> 成本可忽略，而且能持續吸收「直接改資料庫」或「還原舊備份」帶進來的新分類值。</li><li>以名稱（忽略大小寫）判斷是否已存在，與服務層唯一性檢查一致，故 seeder <strong>絕不會塞進 UI 會判為重複的列</strong>。</li><li><strong>失敗不中斷啟動</strong>：整段以 try/catch 包住，例外時 <code>LogError</code> 後回傳 0（依日誌鐵則不得靜默吞掉）。</li><li>採<strong>同步</strong>實作，以配合 <code>Program.cs</code> 該區塊全程同步（使用 <code>SaveChanges</code>）的既有風格，避免 sync-over-async。</li><li>既有紀錄的 <code>Categories</code> 字串<strong>完全不動</strong>。</li></ul>
+<hr>
+<h2 id="七選單與權限" class="t7">七、選單與權限</h2>
+<ul><li><code>MagicObjectHelper.角色_專案分類 = "專案分類"</code></li><li><code>RolePermissionService</code>：附加於「基礎資料設定」群組<strong>最末端</strong>（<code>角色_清洗設定檔</code> 之後）</li><li><code>Menu.json</code>：「基礎資料設定」（id 6）<code>subMenu</code> 最末端，id 65、圖示 <code>label</code>、路由 <code>/work-categories</code></li></ul>
+<p>三處以<strong>位置索引</strong>對應；本次僅在既有群組尾端追加，不動頂層結構。<code>MenuPermissionAlignmentTests</code>（1.0.17 新增）守護此不變量。</p>
+<hr>
+<h2 id="八已知技術債" class="t8">八、已知技術債</h2>
+<p><code>MyTask.Category</code>（<strong>單值、<code>Required</code>、自由輸入文字</strong>）是早期欄位，與多值 <code>Categories</code> 並存，目前供關鍵字搜尋、排序，以及對外 API 的精確過濾使用（<code>MyTaskRepository</code>／<code>MyTaskController</code> 皆有契約）。</p>
+<p><strong>本階段完全不動它。</strong> 它是非空欄位且有對外 API 過濾契約，改動＝migration ＋ API 破壞性變更 ＋ 回填每一列，且用途（單值標籤供排序過濾）與多值標籤本就不同。若要退場應另開 PRD。</p>
+<hr>
+<h2 id="九驗收條件" class="t1">九、驗收條件</h2>
+<ol><li>選單「基礎資料設定 → 專案分類」出現且位於「清洗規則設定」之後；無權限角色看不到、無法進入。</li><li><code>/work-categories</code> 可完整 CRUD；名稱重複（<code>abc</code> vs <code>ABC </code>）被拒並顯示友善訊息；API 回 409。</li><li>列表預設依更新時間新到舊；可搜尋、分頁、排序；可切換啟用狀態。</li><li>以<strong>有真實資料的資料庫副本</strong>啟動：日誌出現回填筆數，<code>/work-categories</code> 列出既有紀錄用過的所有分類值。</li><li>再次啟動：新增筆數為 0（冪等）。全新空資料庫啟動不報錯。</li><li><code>/projects</code>、<code>/Task</code>、<code>/meeting</code> 及專案內「工作與會議」對話窗的分類下拉顯示<strong>專案分類</strong>，停用項不出現。</li><li>知識來源、知識百科、三條匯入、內容清點報表的分類下拉<strong>仍讀知識庫分類</strong>。</li><li>存一筆兩個分類的專案 → 資料庫該列 <code>Categories</code> 仍為 <code>\nA\nB\n</code>；篩選為精確成員比對（「團隊」不誤中「團隊2」）。</li><li>SQLite 與 SQL Server 兩份 migration 皆可套用。</li></ol>
+<hr>
+<h2 id="十涉及檔案" class="t2">十、涉及檔案</h2>
+<p><strong>新增：</strong> <code>AccessDatas/Models/WorkCategory.cs</code>、雙 migration、<code>Models/AdapterModel/WorkCategoryAdapterModel.cs</code>、<code>Dtos/Models/WorkCategoryDto.cs</code>＋<code>WorkCategoryCreateUpdateDto.cs</code>、<code>Dtos/Commons/WorkCategorySearchRequestDto.cs</code>、<code>Business/Repositories/WorkCategoryRepository.cs</code>、<code>Business/Services/DataAccess/WorkCategoryService.cs</code>、<code>Business/Services/Other/WorkCategoryBootstrapSeeder.cs</code>、<code>Web/Controllers/WorkCategoryController.cs</code>、<code>Web/Components/Pages/WorkCategories/WorkCategoryPage.razor</code>、<code>Web/Components/Views/WorkCategories/WorkCategoryViewView.razor(.cs/.css)</code>、<code>Tests/WorkCategoryServiceTests.cs</code>、<code>Tests/WorkCategoryBootstrapSeederTests.cs</code></p>
+<p><strong>修改：</strong> <code>BackendDBContext.cs</code>、<code>AutoMapping.cs</code>、<code>ServiceCollectionExtensions.cs</code>、<code>MagicObjectHelper.cs</code>、<code>RolePermissionService.cs</code>、<code>Menu.json</code>、<code>Program.cs</code>、<code>MenuIconTests.cs</code>、5 個 Projects 檢視、<code>CategoryViewView.razor(.css)</code>、<code>appsettings.json</code></p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li><li><a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景與目的">一、背景與目的</a><a class="l2" href="#二分工邊界最重要">二、分工邊界（最重要）</a><a class="l2" href="#三需求決策">三、需求決策</a><a class="l2" href="#四資料模型">四、資料模型</a><a class="l3" href="#41-三種協作紀錄的儲存格式未變更">4.1 三種協作紀錄的儲存格式未變更</a><a class="l2" href="#五api-端點">五、API 端點</a><a class="l2" href="#六既有資料自動搬移">六、既有資料自動搬移</a><a class="l2" href="#七選單與權限">七、選單與權限</a><a class="l2" href="#八已知技術債">八、已知技術債</a><a class="l2" href="#九驗收條件">九、驗收條件</a><a class="l2" href="#十涉及檔案">十、涉及檔案</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/專案分類-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

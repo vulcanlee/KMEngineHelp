@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph RAG 文件債補正（純文件，不升版）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Graph RAG 文件債補正（純文件，不升版）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-27</li><li>版本：1.0.88（<strong>不變</strong>）</li><li>類型：文件修正（補齊索引、修正過時敘述、補寫功能說明）</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>Graph RAG P1～P6 在 2026-07-27 單日連續交付六個版本（1.0.83 → 1.0.88），程式與 migration 都完整，但<strong>文件層落後</strong>。盤點後確認四類落差：</p>
+<ol><li><strong>索引沒跟上</strong>：<code>docs/README.md</code> 的 changelog 分區最新只到 1.0.80——GraphRAG 六篇＋分析報告篇＋ 1.0.81／1.0.82 共九筆<strong>完全沒有索引條目</strong>；<code>docs/changelog/README.md</code> 反而是齊的。<code>docs/guides/EFCore.md</code> 的 migration 清單只有 P5／P6 兩筆，缺 P1／P2／P3 三筆。</li><li><strong>索引描述過時</strong>：三處都寫「P1～P3 實作藍圖」，但該藍圖實際已寫到 P6。</li><li><strong>策略文件敘述已被實作推翻</strong>：四份文件仍寫著「GraphRAG 為未來選配／非近期範圍」「待補關聯查詢／知識圖譜」「唯一缺口是跨文件多跳推理」「非目標（YAGNI）」；<code>docs/planning/12</code> 的 <code>DIS-3 連結圖資料表</code> 仍標 ⬜，但該項實質已由 P1 的 <code>GraphEdge</code> 完成。</li><li><strong>核心技術文件零覆蓋</strong>：<code>docs/architecture/知識庫RAG設計與執行.md</code> 完全未提圖檢索，但 <code>RetrievalService</code> 的融合式早已改為三路；根 <code>README.md</code> 除一條文件連結外沒有任何 Graph RAG 功能介紹；<code>docs/features/知識百科與WikiLink.md</code> 未說明 <code>LinkTitles</code> 的下游用途。</li></ol>
+<p><strong>這類落差的風險是「讀者會相信文件而不去核對程式」</strong>——例如照 <code>EFCore.md</code> 的清單盤點 migration 會漏掉三筆、看 <code>03-知識庫架構研究與建議</code> 會以為圖譜還沒做。</p>
+<h2 id="變更" class="t2">變更</h2>
+<ol><li><strong><code>docs/README.md</code></strong>：changelog 分區補上 1.0.81 ～ 1.0.88 共九筆（GraphRAG P1～P6、導入分析報告、資料表使用狀況頁、儀表板移入系統管理），以 <code>docs/changelog/README.md</code> 為權威來源對齊；藍圖條目「P1～P3」→「P1～P6（已於 1.0.83～1.0.88 全數實作）」。</li><li><strong><code>docs/guides/EFCore.md</code></strong>：migration 清單補 <code>AddGraphEdge</code>(P1)／<code>AddGraphExtraction</code>(P2)／<code>AddGraphCommunity</code>(P3) 三筆，含雙庫時間戳與欄位摘要。</li><li><strong><code>docs/strategy/2026-07-27-Graph-RAG導入分析與實作藍圖.md</code></strong>：本文是「導入前」的分析報告，<strong>刻意保留原貌以存證判斷過程</strong>，改以追記方式對齊——文首加「⚠️ 實作現況」區塊（P1～P6 全數完成、以及仍未實作的四項）；§2 現況盤點表下標註為導入前盤點並附實作後狀態；§1 摘要第 3 點、§4.4、§8 對照表、§10 優先序、§11 結論各加一句實作現況追記；§9 表格後新增「P7 之後」段落，列出 1 跳遍歷、圖譜視覺化、MCP／API 暴露、半成品接線與熱路徑索引等缺口。</li><li><strong><code>docs/strategy/README.md</code>／根 <code>README.md</code></strong>：藍圖描述同步為 P1～P6。</li><li><strong>過時敘述追記</strong>：<code>03-知識庫架構研究與建議.md</code>（GraphRAG 未來選配）、<code>09-企業應用情境型錄.md</code>（待補關聯查詢/知識圖譜）、<code>系統功能與特色清單-20項.md</code>（唯一缺口是跨文件多跳推理）、<code>2026-07-01-知識型態抽象與版本化時效性-design.md</code>（非目標 YAGNI）各補一則追記，說明已實作範圍與<strong>仍為 1 跳</strong>的限制。</li><li><strong><code>docs/planning/12-RAG系統補強總彙整與優先序.md</code></strong>：<code>DIS-3 連結圖資料表</code> ⬜ → ✅（1.0.83, Graph RAG P1），§〇 追蹤表與 §末統計（已完成 17 → 18 項、需 migration 清單）一併同步。</li><li><strong><code>docs/architecture/知識庫RAG設計與執行.md</code></strong>（本次內容補寫最多）：§一 流程圖加圖抽取與建邊兩條分支、核心程式清單補三個 Graph 服務；§四 參數表加 <code>GraphWeight</code>（預設 0.2、設 0 關閉）、檢索路徑「兩條」→「三條」、融合公式加 <code>+ GraphWeight * GraphScore</code>；新增 <strong>§4.2 圖檢索第三路</strong>（種子頁／1 跳鄰域兩來源／回映 chunk 三步驟、四層 <code>leak=0</code> 紅線、目前限制）與 <strong>§4.3 全域問答</strong>（社群摘要 map-reduce、<code>GlobalCommunityCap=20</code>、<strong>社群 ACL 採更嚴的子集判定</strong>）；文件版本 1.3 → 1.4、對應版本 0.2.146 → 1.0.88。</li><li><strong><code>docs/features/知識百科與WikiLink.md</code></strong>：新增 §2.1「下游用途：<code>LinkTitles</code> 是知識圖譜的邊」，說明 <code>GraphEdgeService</code> 的重建時機、無 LLM、解析不到目標頁時 <code>TargetWikiPageId = 0</code> 的懸空邊語意，以及「多寫一個正確的 <code>[[概念]]</code> 就是替圖譜補一條邊」。</li><li><strong><code>docs/architecture/開發慣例與限制速查.md</code>「文件同步」條目補兩則不變量</strong>（防止同類債再發生）：①<strong>新增 changelog 必須寫兩份索引</strong>（<code>docs/changelog/README.md</code> 與 <code>docs/README.md</code>），兩者<strong>無任何守門測試</strong>、只漏一份完全靜默——這正是本次九筆缺漏的成因；同理新增 migration 要補 <code>EFCore.md</code> 清單。②<strong>既有分析／設計文件被後續實作推翻時優先「追記」而非改寫</strong>，以保留當時的決策脈絡。</li></ol>
+<h2 id="安全與相容" class="t3">安全與相容</h2>
+<ul><li><strong>純文件變更</strong>：未動任何程式、資料庫或設定；<code>SystemVersion</code> 維持 1.0.88（比照 <code>2026-07-27-Graph-RAG導入分析報告.md</code> 的純文件先例，版本欄記「—」）。</li><li>藍圖與現況盤點表<strong>不改寫原始判斷</strong>，僅以追記標註，避免事後修文抹除當時的評估依據。</li></ul>
+<h2 id="已知限制未來增量" class="t4">已知限制（未來增量）</h2>
+<ul><li>本次只補「Graph RAG 相關」的文件債。同表的 <code>DIS-4 溯源鏈 UI 呈現</code> 等其他 ⬜ 項目未處理。</li><li><code>docs/guides/</code> 下 22 份操作手冊仍對版 1.0.71，<strong>未涵蓋知識圖譜審核頁與全域問答的操作說明</strong>——那是一次獨立的全量對版工作，不併入本次。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ul><li><code>scripts/Test-DocsEncoding.ps1</code>：390 份文件全部 <code>BOM=True ReplacementCharacter=False</code>，<strong>0 失敗</strong>（無亂碼、UTF-8 含 BOM）。</li><li>人工核對：<code>docs/README.md</code> 的 changelog 條目與 <code>docs/changelog/README.md</code> 逐筆對齊至 1.0.81；<code>EFCore.md</code> 五筆 Graph migration 與 <code>AccessDatas/Migrations</code>、<code>AccessDatas.SqlServerMigrations/Migrations</code> 目錄實際檔名逐一比對相符。</li><li>未執行 <code>dotnet build</code>／<code>dotnet test</code>：本次無程式碼變更。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#變更">變更</a><a class="l2" href="#安全與相容">安全與相容</a><a class="l2" href="#已知限制未來增量">已知限制（未來增量）</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-27-GraphRAG文件債補正.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

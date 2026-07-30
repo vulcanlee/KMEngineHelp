@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>外部工具安裝與路徑設定｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 部署與維運</p><header class="hero"><div class="kicker">部署與維運</div><h1>外部工具安裝與路徑設定</h1></header><div class="docwrap"><main><h2 id="文件目的" class="t1">文件目的</h2>
+<p>本系統的「影音轉逐字稿」與「文件轉文字」功能會以 <code>System.Diagnostics.Process</code> 呼叫數個<strong>本機外部命令列工具</strong>完成工作。這些工具<strong>不隨專案 NuGet 還原一起安裝</strong>，必須由部署者於作業系統層級另行安裝，並在 <code>appsettings.json</code> 設定其執行檔位置。</p>
+<p>本文件列出：</p>
+<ol><li>系統用到哪些外部工具、各自用途與在程式中的呼叫位置。</li><li>路徑解析規則（設定空白 → 走 PATH；否則用設定的完整路徑）。</li><li>每個工具的安裝方式（Windows）。</li><li><strong>如何找到工具的「真正完整執行路徑」</strong>，填回 <code>appsettings.json</code>。</li><li>安裝後的驗證方式與常見錯誤訊息對照。</li></ol>
+<blockquote><p>設定欄位的總表與其他區段，另見 <a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a> 第 4.8 節。</p></blockquote>
+<hr>
+<h2 id="1-外部工具總覽" class="t2">1. 外部工具總覽</h2>
+<p>系統本體（C# 以 <code>Process</code> 呼叫）使用三個核心工具：</p>
+<div class="tw"><table><thead><tr><th>工具</th><th>用途</th><th>用於功能</th><th>設定節</th><th>設定項</th><th>預設值</th></tr></thead><tbody><tr><td><strong>yt-dlp</strong></td><td>從影片連結僅抽取音訊並轉 mp3（YouTube／小紅書等 yt-dlp 支援平台）</td><td>影音轉逐字稿（影片連結來源）</td><td><code>OpenAISettings</code></td><td><code>YtDlpPath</code></td><td><code>yt-dlp</code></td></tr><tr><td><strong>ffmpeg</strong></td><td>取得媒體時長、大檔依時間分段、供 yt-dlp 抽音訊編碼、下載後原始影片轉碼（HEVC/VP9 等 → H.264/AAC MP4）</td><td>影音轉逐字稿</td><td><code>OpenAISettings</code></td><td><code>FfmpegPath</code></td><td><code>ffmpeg</code></td></tr><tr><td><strong>markitdown</strong></td><td>將 PDF／Word／Excel／PowerPoint／圖片等轉為 Markdown</td><td>文件轉文字</td><td><code>MarkItDownSettings</code></td><td><code>MarkItDownPath</code></td><td><code>markitdown</code></td></tr></tbody></table></div>
+<p>抖音影片連結另走 <strong>Node.js + Playwright 助手腳本</strong>。此流程已整合進系統：偵測到抖音網址時，後端會依 <code>OpenAISettings.NodePath</code>、<code>OpenAISettings.DouyinHelperScript</code>、<code>OpenAISettings.DouyinTimeoutSeconds</code> 自動呼叫 <code>tools/douyin-audio/get-douyin-audio.mjs</code>；必要時仍會跳出可見瀏覽器讓使用者人工驗證或登入。所需工具鏈如下：</p>
+<div class="tw"><table><thead><tr><th>工具</th><th>用途</th><th>用於功能</th><th>路徑設定</th></tr></thead><tbody><tr><td><strong>Node.js</strong></td><td>執行助手腳本 <code>get-douyin-audio.mjs</code></td><td>抖音音訊抓取（半自動）</td><td><code>OpenAISettings.NodePath</code>，預設走 PATH（<code>node</code>）</td></tr><tr><td><strong>@playwright/cli</strong>（含 Chromium、playwright-core）</td><td>開啟登入瀏覽器、攔截抖音音訊串流</td><td>同上</td><td>腳本內以絕對路徑引用，見第 3.3／第 8 節</td></tr><tr><td><strong>ffmpeg</strong></td><td>將下載的音訊轉 mp3</td><td>同上</td><td>腳本內 <code>ffmpeg</code> 變數（與上表同一支 ffmpeg）</td></tr></tbody></table></div>
+<blockquote><p><strong>平台辨識與下載方式</strong>：yt-dlp 支援 1000+ 站台，平台辨識交給 yt-dlp，系統不限制網域。但各平台防護不同——<strong>小紅書免 cookies 直接可用；抖音無法用 yt-dlp（簽章問題，cookies 無效），須改用抖音助手腳本</strong>。詳見第 8 節。</p></blockquote>
+<p>呼叫位置（原始碼）：</p>
+<ul><li>yt-dlp：<span class="docref" title="../../src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription/MediaUrlDownloader.cs"><code>MediaUrlDownloader.cs</code></span></li><li>ffmpeg：<span class="docref" title="../../src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription/MediaChunker.cs"><code>MediaChunker.cs</code></span>（時長偵測與分段）、<code>MediaUrlDownloader.cs</code>（以 <code>--ffmpeg-location</code> 指向 ffmpeg 所在目錄）、<span class="docref" title="../../src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription/VideoTranscoder.cs"><code>VideoTranscoder.cs</code></span>（下載後原始影片轉碼為 H.264/AAC MP4）</li><li>markitdown：<span class="docref" title="../../src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DocumentExtractions/MarkItDownConverter.cs"><code>MarkItDownConverter.cs</code></span></li><li>抖音助手：<span class="docref" title="../../tools/douyin-audio/get-douyin-audio.mjs"><code>tools/douyin-audio/get-douyin-audio.mjs</code></span>（另見同目錄 <span class="docref" title="../../tools/douyin-audio/README.md">README</span>）</li></ul>
+<hr>
+<h2 id="2-路徑解析規則" class="t3">2. 路徑解析規則</h2>
+<p>三個工具的解析邏輯一致（見各 Service 建構式）：</p>
+<pre><code>// 例：YouTubeDownloader.cs
+this.ytDlpPath = string.IsNullOrWhiteSpace(ytDlpPath) ? "yt-dlp" : ytDlpPath;
+this.ffmpegPath = string.IsNullOrWhiteSpace(ffmpegPath) ? "ffmpeg" : ffmpegPath;</code></pre>
+<ul><li><strong>設定為空白</strong> → 使用預設名稱（<code>yt-dlp</code> / <code>ffmpeg</code> / <code>markitdown</code>），交由作業系統從 <strong>PATH 環境變數</strong>尋找。</li><li><strong>設定為完整路徑</strong> → 直接使用該絕對路徑啟動，<strong>不依賴 PATH</strong>。</li></ul>
+<blockquote><p><strong>建議</strong>：正式部署填<strong>完整絕對路徑</strong>，避免「在終端機可執行、但服務帳號的 PATH 找不到」的問題（IIS 應用程式集區、Windows 服務常以不同帳號執行，PATH 與登入使用者不同）。</p></blockquote>
+<p>ffmpeg 的特例（<code>YouTubeDownloader.ResolveFfmpegLocation()</code>）：當 <code>FfmpegPath</code> 不是預設值 <code>ffmpeg</code> 時，系統會取其<strong>所在目錄</strong>透過 <code>--ffmpeg-location "&lt;目錄&gt;"</code> 傳給 yt-dlp。因此 <code>FfmpegPath</code> 請填到 <code>ffmpeg.exe</code> 本身，系統會自動換算目錄。</p>
+<hr>
+<h2 id="3-安裝方式windows" class="t4">3. 安裝方式（Windows）</h2>
+<h3 id="30-一鍵安裝與檢測腳本建議起點">3.0 一鍵安裝與檢測腳本（建議起點）</h3>
+<p>專案提供兩支 PowerShell 腳本（位於 <code>scripts/</code>），可大幅簡化首次安裝與驗證：</p>
+<div class="tw"><table><thead><tr><th>腳本</th><th>用途</th></tr></thead><tbody><tr><td><span class="docref" title="../../scripts/Install-ExternalTools.ps1"><code>scripts/Install-ExternalTools.ps1</code></span></td><td>自動安裝核心工具（ffmpeg、Python、yt-dlp、markitdown）與抖音鏈（Node.js、@playwright/cli、Chromium）。<strong>以 winget/pip/npm 安裝，工具落在使用者 Home 目錄</strong>（適合開發機、以互動帳號執行）。</td></tr><tr><td><span class="docref" title="../../scripts/Test-ExternalTools.ps1"><code>scripts/Test-ExternalTools.ps1</code></span></td><td>檢測<strong>平台前置需求（.NET 10 ASP.NET Core Runtime、PowerShell 版本）</strong>與各外部工具（含 npm）是否已安裝、可執行（顯示版本訊息），並輸出可貼入 <code>appsettings.json</code> 的路徑片段與環境變數指令。缺 .NET 10 執行時會以阻斷狀態（結束碼 1）提示先安裝；PowerShell 版本過低僅警告。</td></tr><tr><td><span class="docref" title="../../scripts/Install-PortableTools.ps1"><code>scripts/Install-PortableTools.ps1</code></span></td><td><strong>可攜版</strong>安裝：直接下載到固定目錄（預設 <code>C:\KMEngineTools</code>）並授權給 IIS 身分。<strong>IIS／服務帳號情境用此法</strong>（避開使用者 Home 目錄存取問題）。詳見 <a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定</a>。</td></tr><tr><td><span class="docref" title="../../scripts/Test-PortableTools.ps1"><code>scripts/Test-PortableTools.ps1</code></span></td><td>驗證可攜安裝的工具並檢查 IIS 身分 ACL；支援 <code>-InstallDir</code>／<code>-AppSettingsPath</code>／<code>-AppPoolName</code>。</td></tr></tbody></table></div>
+<blockquote><p><strong>IIS／服務帳號部署請改走可攜安裝</strong>：因應用程式集區身分無法存取安裝使用者 Home 目錄，請用 <code>Install-PortableTools.ps1</code> 裝到 <code>C:\KMEngineTools</code>，完整說明見 <a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定</a>。</p></blockquote>
+<pre><code># 1) 安裝（預設全部安裝；僅核心可加 -SkipDouyin）
+pwsh -File scripts/Install-ExternalTools.ps1
+# 安裝 Python / Node.js 後若提示 SKIPPED，請關閉並重開終端機再執行一次（PATH 需更新）。
+
+# 2) 檢測並取得各工具絕對路徑
+pwsh -File scripts/Test-ExternalTools.ps1</code></pre>
+<blockquote><p>腳本依賴 <strong>winget（App Installer）</strong>。安裝腳本<strong>不會自動修改 <code>appsettings.json</code></strong>；請依檢測腳本輸出的片段，手動填入設定（見第 5 節）或以環境變數覆寫。 檢測腳本對每個工具會顯示「版本訊息」：例如 ffmpeg 印出 <code>ffmpeg version ...</code>、yt-dlp 印出版本號、markitdown 印出 <code>markitdown x.y.z</code>，即代表該工具安裝與路徑無誤。</p></blockquote>
+<p>以下各小節為手動安裝步驟與細節（腳本即依此實作；如需逐項操作或排錯時參考）。</p>
+<h3 id="31-ffmpeg">3.1 ffmpeg</h3>
+<p>建議用 WinGet 安裝：</p>
+<pre><code>winget install --id Gyan.FFmpeg -e</code></pre>
+<p>安裝後 WinGet 會在 <code>C:\Users\&lt;使用者&gt;\AppData\Local\Microsoft\WinGet\Links\</code> 放一個 <code>ffmpeg.exe</code> 連結（shim），並通常已加入 PATH。</p>
+<blockquote><p>替代方案：至 https://www.gyan.dev/ffmpeg/builds/ 下載 <code>ffmpeg-release-essentials.zip</code>，解壓到固定目錄（如 <code>C:\tools\ffmpeg\</code>），<code>ffmpeg.exe</code> 位於其 <code>bin\</code> 子目錄。</p></blockquote>
+<h3 id="32-yt-dlp-與-markitdown皆為-python-套件">3.2 yt-dlp 與 markitdown（皆為 Python 套件）</h3>
+<p>兩者皆透過 Python 的 pip 安裝，需先安裝 Python 3（建議 3.10 以上）。</p>
+<pre><code>python -m pip install --upgrade yt-dlp
+python -m pip install --upgrade "markitdown[all]"</code></pre>
+<blockquote><p><code>markitdown[all]</code> 會一併安裝 PDF、Office、圖片等各格式的相依套件，避免轉特定檔案時缺套件而失敗。</p></blockquote>
+<p>安裝後執行檔（<code>.exe</code> 包裝器）會放在 Python 的 <strong>Scripts</strong> 目錄，例如：</p>
+<pre><code>C:\Users\&lt;使用者&gt;\AppData\Local\Python\pythoncore-3.14-64\Scripts\yt-dlp.exe
+C:\Users\&lt;使用者&gt;\AppData\Local\Python\pythoncore-3.14-64\Scripts\markitdown.exe</code></pre>
+<p>實際目錄依 Python 安裝方式（官方安裝程式、Microsoft Store、pyenv 等）而不同，務必以第 4 節方法查出<strong>自己機器上的真實路徑</strong>，不要直接照抄。</p>
+<h3 id="33-抖音助手工具鏈nodejs--playwrightcli--chromium">3.3 抖音助手工具鏈（Node.js + @playwright/cli + Chromium）</h3>
+<p>僅在需要轉錄<strong>抖音</strong>影片時才需要（YouTube／小紅書不需要）。</p>
+<ol><li>安裝 <strong>Node.js</strong>（建議最新 LTS；v22 以上皆可，已驗證 v22、v24）：</li></ol>
+<pre><code>   winget install --id OpenJS.NodeJS.LTS -e</code></pre>
+<ol><li>全域安裝 <strong>@playwright/cli</strong>（內含 playwright-core）：</li></ol>
+<pre><code>   npm install -g @playwright/cli</code></pre>
+<p>安裝後封裝器位於 <code>C:\Users\&lt;使用者&gt;\AppData\Roaming\npm\playwright-cli.cmd</code>，套件本體在 <code>...\npm\node_modules\@playwright\cli</code>。</p>
+<ol><li>下載 Playwright 的 <strong>Chromium</strong> 瀏覽器（助手用它載入抖音頁面）：</li></ol>
+<pre><code>   playwright-cli open https://example.com   # 首次執行會自動下載瀏覽器；或用下列指令
+   npx playwright install chromium</code></pre>
+<p>瀏覽器快取預設在 <code>C:\Users\&lt;使用者&gt;\AppData\Local\ms-playwright\chromium-&lt;版號&gt;\</code>。助手腳本會<strong>自動挑用最新一版已安裝的 Chromium</strong>，毋須手動指定版號。</p>
+<blockquote><p>助手腳本引用 <code>@playwright/cli</code> 內建的 playwright-core 與 Chromium。<strong>位置優先讀環境變數</strong>：<code>KMENGINE_PLAYWRIGHT_CORE</code>（playwright-core 路徑）與 <code>PLAYWRIGHT_BROWSERS_PATH</code>（Chromium 快取目錄）；未設定才退回開發機預設（<code>%APPDATA%\npm\...</code> 與 <code>%LOCALAPPDATA%\ms-playwright</code>）。可攜安裝（<code>Install-PortableTools.ps1</code>）會自動設定此兩變數；手動安裝且路徑不同時，設定環境變數或調整 <span class="docref" title="../../tools/douyin-audio/get-douyin-audio.mjs"><code>tools/douyin-audio/get-douyin-audio.mjs</code></span> 頂部變數皆可。</p></blockquote>
+<hr>
+<h2 id="4-如何找到真正完整執行路徑" class="t5">4. 如何找到「真正完整執行路徑」</h2>
+<p>安裝完成後，用以下 PowerShell 指令查出每個工具的實際絕對路徑，再填回 <code>appsettings.json</code>。</p>
+<h3 id="41-get-command最推薦">4.1 <code>Get-Command</code>（最推薦）</h3>
+<pre><code>(Get-Command yt-dlp).Source
+(Get-Command ffmpeg).Source
+(Get-Command markitdown).Source</code></pre>
+<p>各會印出一行完整路徑，例如：</p>
+<pre><code>C:\Users\vulca\AppData\Local\Python\pythoncore-3.14-64\Scripts\yt-dlp.exe</code></pre>
+<h3 id="42-whereexe會列出-path-中所有同名命中">4.2 <code>where.exe</code>（會列出 PATH 中所有同名命中）</h3>
+<pre><code>where.exe yt-dlp
+where.exe ffmpeg
+where.exe markitdown</code></pre>
+<p>若印出<strong>多行</strong>，代表機器上有多份同名工具；請挑選你要使用的那一份的完整路徑填入設定，以排除版本不一致的風險。</p>
+<h3 id="43-pip-套件專用查-scripts-目錄">4.3 pip 套件專用：查 Scripts 目錄</h3>
+<p>針對 yt-dlp / markitdown，也可直接問 pip 安裝到哪：</p>
+<pre><code>python -m pip show -f yt-dlp        # Location 欄 + Files 中的 ../../Scripts/yt-dlp.exe
+python -c "import sysconfig; print(sysconfig.get_path('scripts'))"</code></pre>
+<p>第二行會印出目前 Python 的 Scripts 目錄，<code>yt-dlp.exe</code> 與 <code>markitdown.exe</code> 即在其中。</p>
+<h3 id="44-反斜線轉義重要">4.4 反斜線轉義（重要）</h3>
+<p><code>appsettings.json</code> 為 JSON 格式，路徑中的反斜線 <code>\</code> 必須寫成 <code>\\</code>：</p>
+<pre><code>"YtDlpPath": "C:\\Users\\vulca\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\yt-dlp.exe"</code></pre>
+<hr>
+<h2 id="5-填入設定檔" class="t6">5. 填入設定檔</h2>
+<p>檔案：<span class="docref" title="../../src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json"><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json</code></span></p>
+<pre><code>{
+  "OpenAISettings": {
+    // ...其他欄位...
+    "FfmpegPath": "C:\\Users\\vulca\\AppData\\Local\\Microsoft\\WinGet\\Links\\ffmpeg.exe",
+    "YtDlpPath":  "C:\\Users\\vulca\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\yt-dlp.exe",
+    "YtDlpCookiesFile": "",            // 選用：需要 cookie 的平台用的 cookies.txt 路徑（見第 8 節）
+    "YtDlpCookiesFromBrowser": ""      // 選用：或從瀏覽器讀取，例：edge / chrome / firefox
+  },
+  "MarkItDownSettings": {
+    "MarkItDownPath": "C:\\Users\\vulca\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\markitdown.exe",
+    "TimeoutSeconds": 600
+  }
+}</code></pre>
+<blockquote><p>這些路徑<strong>不是機密</strong>，可寫入版控的 <code>appsettings.json</code>；但不同機器路徑會不同，建議於各環境的 <code>appsettings.{Environment}.json</code> 或環境變數覆寫。階層鍵改寫為雙底線： <code>OpenAISettings:FfmpegPath</code> → 環境變數 <code>OpenAISettings__FfmpegPath</code>、 <code>MarkItDownSettings:MarkItDownPath</code> → 環境變數 <code>MarkItDownSettings__MarkItDownPath</code>。</p></blockquote>
+<hr>
+<h2 id="6-驗證" class="t7">6. 驗證</h2>
+<blockquote><p><strong>最快方式</strong>：執行 <code>pwsh -File scripts/Test-ExternalTools.ps1</code>，一次檢測所有工具並顯示版本訊息與解析路徑（見第 3.0 節）。以下為手動驗證方式。</p></blockquote>
+<h3 id="61-在終端機直接驗證工具">6.1 在終端機直接驗證工具</h3>
+<pre><code>&amp; "C:\Users\vulca\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe" -version
+&amp; "C:\Users\vulca\AppData\Local\Python\pythoncore-3.14-64\Scripts\yt-dlp.exe" --version
+&amp; "C:\Users\vulca\AppData\Local\Python\pythoncore-3.14-64\Scripts\markitdown.exe" --help</code></pre>
+<p>能印出版本／說明即代表路徑正確、工具可執行。</p>
+<h3 id="62-在系統內驗證">6.2 在系統內驗證</h3>
+<ul><li><strong>ffmpeg / yt-dlp / 抖音助手</strong>：到「影音轉逐字稿」頁，分別以本機音檔（驗證 ffmpeg 時長偵測／分段）、影片連結（貼 YouTube 或小紅書網址驗證 yt-dlp 抽音訊）與抖音連結（驗證系統自動呼叫 playwright 助手）各新增一筆，確認背景轉錄成功。抖音仍需互動式桌面與可用的 <code>DouyinHelperScript</code>，見第 8 節。</li><li><strong>markitdown</strong>：到「文件轉文字」頁上傳一個 PDF 或 Word，確認背景萃取產出 Markdown。</li></ul>
+<hr>
+<h2 id="7-常見錯誤訊息對照" class="t8">7. 常見錯誤訊息對照</h2>
+<div class="tw"><table><thead><tr><th>錯誤訊息</th><th>原因</th><th>處理</th></tr></thead><tbody><tr><td><code>無法啟動 yt-dlp，請確認已安裝並設定 OpenAISettings:YtDlpPath。</code></td><td>找不到 yt-dlp 執行檔</td><td>依第 4 節查出路徑填入 <code>YtDlpPath</code></td></tr><tr><td><code>無法啟動 FFmpeg，請確認已安裝並設定 OpenAISettings:FfmpegPath。</code></td><td>找不到 ffmpeg 執行檔</td><td>填入 <code>FfmpegPath</code> 完整路徑</td></tr><tr><td><code>無法啟動 MarkItDown，請確認已安裝並設定 MarkItDownSettings:MarkItDownPath。</code></td><td>找不到 markitdown 執行檔</td><td>填入 <code>MarkItDownPath</code> 完整路徑</td></tr><tr><td><code>yt-dlp 已執行但找不到輸出的音訊檔，請確認連結與 ffmpeg 設定。</code></td><td>yt-dlp 抽音訊時找不到 ffmpeg</td><td>確認 <code>FfmpegPath</code> 正確（yt-dlp 需要 ffmpeg 才能轉 mp3）</td></tr><tr><td><code>yt-dlp 執行失敗 (ExitCode=...)</code></td><td>連結無效、需登入、地區限制等</td><td>查看訊息附帶的 stderr；更新 yt-dlp 版本</td></tr><tr><td><code>[generic] ... Read timed out (read timeout=20.0)</code>（小紅書）</td><td>本機/ISP DNS 把 <code>www.xiaohongshu.com</code> 劫持到錯誤位址，連線卡到逾時——非 yt-dlp 問題</td><td>改用公用 DNS（<code>8.8.8.8</code>/<code>1.1.1.1</code>）；排查步驟見第 8.1 節</td></tr><tr><td><code>[Douyin] ... Fresh cookies (not necessarily logged in) are needed</code></td><td>抖音 web API 需要其 JS 即時計算的簽章（<code>a_bogus</code>／<code>msToken</code>），yt-dlp 無法產生——<strong>與 cookie 無關，帶完整登入 cookie 仍會失敗</strong>（已實測）</td><td>抖音改用第 8 節的 playwright 助手腳本，勿嘗試用 cookies 解決</td></tr><tr><td><code>MarkItDown 轉換逾時</code></td><td>檔案過大或轉換過久</td><td>提高 <code>MarkItDownSettings:TimeoutSeconds</code></td></tr></tbody></table></div>
+<blockquote><p>服務帳號（IIS／Windows 服務）若沿用 PATH 解析卻找不到工具，最快的解法是改填<strong>完整絕對路徑</strong>，徹底繞過 PATH。</p></blockquote>
+<hr>
+<h2 id="8-各影片平台下載方式小紅書抖音" class="t1">8. 各影片平台下載方式（小紅書／抖音）</h2>
+<blockquote><p>本節為實測結論（2026/06）。不同平台對自動化下載的防護差異很大，請依平台選對方式。</p></blockquote>
+<h3 id="81-小紅書--影片連結來源yt-dlp免-cookies">8.1 小紅書 — 影片連結來源（yt-dlp，免 cookies）</h3>
+<p>小紅書<strong>可直接用「影片連結」來源</strong>：yt-dlp 會自動跟隨 <code>xhslink.com</code> 短連結轉址、辨識平台並抽取音訊，<strong>不需要 cookies</strong>。直接於「影音轉逐字稿」頁貼上連結（或整段分享文字）即可。</p>
+<ul><li>限制：小紅書許多貼文是<strong>圖文（無影片）</strong>，沒有音訊可轉錄，會以失敗呈現。</li></ul>
+<blockquote><p><strong>疑難排解：下載出現 <code>Read timed out (read timeout=20.0)</code> 多半是 DNS 被導錯，非 yt-dlp 問題。</strong> 曾實測本機/ISP 的 DNS 把 <code>www.xiaohongshu.com</code> 劫持解析到錯誤位址（如台灣 TANet <code>140.111.246.32</code>），yt-dlp 連向死位址而卡到 20 秒逾時，錯誤如：</p>
+<pre><code>ERROR: [generic] Unable to download webpage: HTTPSConnectionPool(host='www.xiaohongshu.com', port=443): Read timed out. (read timeout=20.0)</code></pre>
+<p>排查：比對本機與公用 DNS 的解析結果——</p>
+<pre><code>Resolve-DnsName www.xiaohongshu.com                  # 本機 DNS
+Resolve-DnsName www.xiaohongshu.com -Server 8.8.8.8  # 公用 DNS（正解應為 ...eo.dnse0.com → 43.170.214.x）</code></pre>
+<p>若本機解析到 <code>140.111.x</code> 之類錯誤位址，把執行 App 那台機器的系統/路由器 DNS 改為 <code>8.8.8.8,1.1.1.1</code>（<code>Set-DnsClientServerAddress -InterfaceAlias "&lt;網卡名&gt;" -ServerAddresses 8.8.8.8,1.1.1.1</code>），下載即恢復。此為 DNS／網路問題，與 cookies、yt-dlp 版本無關。</p></blockquote>
+<h3 id="82-抖音--系統自動觸發-playwright-助手無法走-yt-dlp">8.2 抖音 — 系統自動觸發 playwright 助手（無法走 yt-dlp）</h3>
+<p><strong>抖音無法以 yt-dlp 下載。</strong> 抖音 web API 需要由其混淆 JS 即時計算的簽章參數（<code>a_bogus</code>／<code>msToken</code>），yt-dlp 算不出，會回報：</p>
+<pre><code>ERROR: [Douyin] xxxxxxxx: Fresh cookies (not necessarily logged in) are needed</code></pre>
+<p>此訊息<strong>與 cookie 無關</strong>——實測即使匯入完整登入 cookie（含 <code>ttwid</code>／<code>sessionid</code>）仍是同樣錯誤。因此抖音改採瀏覽器路線：用已登入的真實瀏覽器載入影片頁、攔截實際音訊 CDN 串流並下載。</p>
+<p><strong>自 0.2.27 起此流程已整合進系統（建議用法）</strong>：於「影音轉逐字稿」→「影片連結」來源<strong>貼上抖音連結或整段分享文字即可</strong>，系統偵測到抖音網址會自動呼叫助手腳本下載音訊，後續轉錄與一般流程相同，<strong>無須手動上傳</strong>。</p>
+<p><strong>自 0.2.89 起亦會保留原始影片</strong>：系統以 <code>--out-video</code> 一併要求助手保留原始 mp4 至 <code>OriginalMediaPath/{yyyy}/{guid}.mp4</code>（合併檔直接存、DASH 分流則以 ffmpeg 合流視訊軌+音訊軌；僅有音訊無視訊時略過）。影片保留屬加值，失敗不影響 mp3 與轉錄。</p>
+<ul><li>前提：<code>OpenAISettings:DouyinHelperScript</code> 指向 <code>get-douyin-audio.mjs</code> 絕對路徑、<code>NodePath</code> 指向 Node（設定說明見 <a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a> §4.8）。</li><li>下載期間瀏覽器視窗會跳出；若出現驗證頁請當場手動通過；逾時則該筆標記失敗可重試。</li><li><strong>僅限有桌面的本機</strong>（助手需可見瀏覽器與人工驗證，無頭伺服器不適用，見 §9.1）。</li></ul>
+<h4 id="獨立手動執行選用">獨立手動執行（選用）</h4>
+<p>亦可不透過系統、直接用命令列產出 mp3（除錯或未整合環境），再以「檔案上傳」轉錄。詳見 <span class="docref" title="../../tools/douyin-audio/README.md"><code>tools/douyin-audio/README.md</code></span>：</p>
+<pre><code>node tools/douyin-audio/get-douyin-audio.mjs "0.05 复制打开抖音 … https://v.douyin.com/xxxxx/ …"</code></pre>
+<p>首次會開啟可見瀏覽器；若出現驗證頁，於視窗內手動通過並登入抖音（登入由持久設定檔記住）。</p>
+<h3 id="83-cookies-設定選用給其他需-cookie-的平台">8.3 cookies 設定（選用，給其他需 cookie 的平台）</h3>
+<p><code>OpenAISettings</code> 仍提供兩個 cookies 設定，供<strong>其他真正靠 cookie 即可下載</strong>的平台使用；<strong>YouTube／小紅書不需要，抖音則無效</strong>（屬簽章問題，非 cookie 問題）。兩者皆設定時以 <code>YtDlpCookiesFile</code> 優先；皆空白則不帶 cookies。</p>
+<div class="tw"><table><thead><tr><th>設定項</th><th>對應 yt-dlp 參數</th><th>說明</th></tr></thead><tbody><tr><td><code>YtDlpCookiesFile</code></td><td><code>--cookies "&lt;檔路徑&gt;"</code></td><td>指向 Netscape 格式的 <code>cookies.txt</code>。伺服器部署建議用此法（不依賴本機瀏覽器）。</td></tr><tr><td><code>YtDlpCookiesFromBrowser</code></td><td><code>--cookies-from-browser &lt;瀏覽器&gt;</code></td><td>從本機瀏覽器讀取，例：<code>edge</code>、<code>chrome</code>、<code>firefox</code>。注意較新版 Edge／Chrome 採 App-Bound Encryption，yt-dlp 可能無法解密（<code>Failed to decrypt with DPAPI</code>）；Windows 上以 Firefox 較穩。</td></tr></tbody></table></div>
+<p>cookies.txt 含登入憑證，<strong>屬機密</strong>，請勿進版控；建議以環境變數 <code>OpenAISettings__YtDlpCookiesFile</code> 指定路徑，或放在受保護目錄。</p>
+<hr>
+<h2 id="9-佈署與注意事項" class="t2">9. 佈署與注意事項</h2>
+<h3 id="91-可否在伺服器無頭環境執行">9.1 可否在伺服器（無頭環境）執行</h3>
+<div class="tw"><table><thead><tr><th>工具／功能</th><th>伺服器（IIS／服務帳號、無桌面）</th><th>說明</th></tr></thead><tbody><tr><td>ffmpeg / yt-dlp（YouTube、小紅書）/ markitdown</td><td>✅ 可</td><td>填<strong>完整絕對路徑</strong>避免 PATH 問題（見第 2 節）。服務帳號需有讀寫 <code>ExternalFileSystem</code> 各目錄的權限。</td></tr><tr><td><strong>抖音助手腳本</strong></td><td>不建議</td><td>需要<strong>互動式桌面 + 可見瀏覽器</strong>讓人工通過驗證／登入，無頭服務帳號無法操作；若部署於本機桌面環境，可由系統自動呼叫。</td></tr></tbody></table></div>
+<blockquote><p><strong>IIS／服務帳號部署</strong>：工具若裝在安裝使用者的 Home 目錄，應用程式集區身分會<strong>讀不到</strong>。請改用可攜安裝把工具集中到 <code>C:\KMEngineTools</code> 並授權集區身分，完整步驟見 <a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定</a>。</p></blockquote>
+<p><strong>抖音為半自動、僅限本機桌面</strong>：建議用法是在「影音轉逐字稿」頁貼上抖音連結，由系統自動呼叫助手腳本下載音訊與原始影片；若助手需要驗證，使用者需在跳出的瀏覽器中完成。若部署環境無互動式桌面，則改用命令列於有桌面的機器執行助手產出 mp3，再以「檔案上傳」匯入系統。</p>
+<h3 id="92-抖音助手的狀態與輸出位置">9.2 抖音助手的狀態與輸出位置</h3>
+<div class="tw"><table><thead><tr><th>項目</th><th>路徑（預設，可於腳本參數調整）</th><th>是否機密／進版控</th></tr></thead><tbody><tr><td>登入設定檔（持久 Chromium profile）</td><td><code>C:\KMEngineTools\cookies\pw-douyin-profile</code></td><td><strong>含登入 session，屬機密，勿進版控</strong></td></tr><tr><td>產出 mp3</td><td><code>C:\temp\KnowledgeExtraction\DouyinAudio</code></td><td>否（轉錄完可刪）</td></tr></tbody></table></div>
+<ul><li>這些路徑皆在 repo 之外（登入設定檔於 <code>C:\KMEngineTools\cookies</code>、mp3 於 <code>C:\temp</code>），不會誤入版控。</li><li>抖音登入會過期、平台也可能改版；屆時重跑助手、於視窗內重新登入即可（設定檔會更新）。</li><li><code>@playwright/cli</code> 互動模式會在<strong>當前工作目錄</strong>產生 <code>.playwright-cli\</code> 快照／日誌夾；本 repo 已於 <code>.gitignore</code> 排除，但若在他處執行請自行清理。</li></ul>
+<h3 id="93-版本相依注意">9.3 版本相依注意</h3>
+<ul><li>yt-dlp 對小紅書等平台的支援會隨平台改版而變動，建議定期 <code>python -m pip install --upgrade yt-dlp</code>（或 <code>--pre</code> nightly）。抖音助手所用的 yt-dlp/瀏覽器同理需偶爾更新。</li><li><code>@playwright/cli</code> 內建的 playwright-core 期望特定版號的 Chromium；升級後若報「Executable doesn't exist at chromium-&lt;新版號&gt;」，執行 <code>npx playwright install chromium</code> 補下載即可（助手腳本會自動挑最新已安裝版）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>導入顧問：我要把系統部署到客戶的機器</li></ul></div><div class="card"><h3>同類文件（部署與維運）</h3><ul><li><a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定（C:\KMEngineTools）</a></li><li><a href="../../docs/operations/rag-troubleshooting.html">RAG 問題診斷手冊（維運用）</a></li><li><a href="../../docs/operations/fresh-machine-sop.html">全新機器部署 SOP</a></li><li><a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a></li><li><a href="../../docs/operations/help-site-build.html">文件說明網站：產生與佈署</a></li><li><a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a></li><li><a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a></li><li><a href="../../docs/operations/maintenance-rules.html">維護規範</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#文件目的">文件目的</a><a class="l2" href="#1-外部工具總覽">1. 外部工具總覽</a><a class="l2" href="#2-路徑解析規則">2. 路徑解析規則</a><a class="l2" href="#3-安裝方式windows">3. 安裝方式（Windows）</a><a class="l3" href="#30-一鍵安裝與檢測腳本建議起點">3.0 一鍵安裝與檢測腳本（建議起點）</a><a class="l3" href="#31-ffmpeg">3.1 ffmpeg</a><a class="l3" href="#32-yt-dlp-與-markitdown皆為-python-套件">3.2 yt-dlp 與 markitdown（皆為 Python 套件）</a><a class="l3" href="#33-抖音助手工具鏈nodejs--playwrightcli--chromium">3.3 抖音助手工具鏈（Node.js + @playwright/cli + Chromium）</a><a class="l2" href="#4-如何找到真正完整執行路徑">4. 如何找到「真正完整執行路徑」</a><a class="l3" href="#41-get-command最推薦">4.1 Get-Command（最推薦）</a><a class="l3" href="#42-whereexe會列出-path-中所有同名命中">4.2 where.exe（會列出 PATH 中所有同名命中）</a><a class="l3" href="#43-pip-套件專用查-scripts-目錄">4.3 pip 套件專用：查 Scripts 目錄</a><a class="l3" href="#44-反斜線轉義重要">4.4 反斜線轉義（重要）</a><a class="l2" href="#5-填入設定檔">5. 填入設定檔</a><a class="l2" href="#6-驗證">6. 驗證</a><a class="l3" href="#61-在終端機直接驗證工具">6.1 在終端機直接驗證工具</a><a class="l3" href="#62-在系統內驗證">6.2 在系統內驗證</a><a class="l2" href="#7-常見錯誤訊息對照">7. 常見錯誤訊息對照</a><a class="l2" href="#8-各影片平台下載方式小紅書抖音">8. 各影片平台下載方式（小紅書／抖音）</a><a class="l3" href="#81-小紅書--影片連結來源yt-dlp免-cookies">8.1 小紅書 — 影片連結來源（yt-dlp，免 cookies）</a><a class="l3" href="#82-抖音--系統自動觸發-playwright-助手無法走-yt-dlp">8.2 抖音 — 系統自動觸發 playwright 助手（無法走 yt-dlp）</a><a class="l3" href="#83-cookies-設定選用給其他需-cookie-的平台">8.3 cookies 設定（選用，給其他需 cookie 的平台）</a><a class="l2" href="#9-佈署與注意事項">9. 佈署與注意事項</a><a class="l3" href="#91-可否在伺服器無頭環境執行">9.1 可否在伺服器（無頭環境）執行</a><a class="l3" href="#92-抖音助手的狀態與輸出位置">9.2 抖音助手的狀態與輸出位置</a><a class="l3" href="#93-版本相依注意">9.3 版本相依注意</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/operations/外部工具安裝與路徑設定.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

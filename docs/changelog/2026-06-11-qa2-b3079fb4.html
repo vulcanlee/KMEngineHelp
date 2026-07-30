@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗 QA-2：LLM 自評信心分數 + 自動門檻（0.2.62）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>清洗 QA-2：LLM 自評信心分數 + 自動門檻（0.2.62）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-11</li><li>版本：0.2.61 → 0.2.62</li><li>對應路線圖：<a href="../../docs/planning/07-todo-f1c7d6cc.html">資料清洗開發代辦清單 第四階段 QA-2</a>、設計 <a href="../../docs/strategy/cleaning-stage-design.html">strategy/08</a></li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>清洗管線新增 QA-2：LLM 對清洗結果<strong>自評信心分數</strong>，依<strong>門檻自動路由</strong>—— 高信心自動「已清洗」、低信心轉「待審核」，把人力集中在有疑慮的來源。</p>
+<h2 id="內容" class="t2">內容</h2>
+<ul><li><strong>資料模型</strong>：<code>KnowledgeSource</code> 新增 <code>ConfidenceScore</code>（<code>decimal?</code>，null=未評估）；新增狀態「待審核」</li></ul>
+<p>（<code>KnowledgeSourceAdapterModel.StatusReviewPending</code>）。雙 provider migration <code>AddKnowledgeSourceConfidence</code>（可空、免回填）。</p>
+<ul><li><strong>設定</strong>：<code>SystemSettings.Cleaning.ConfidenceThreshold</code>（預設 <strong>0.7</strong>，<code>appsettings.json</code> 可調）。</li><li><strong><code>CleaningEnhancer</code></strong>：在去重→遮罩→分類→摘要之後新增第 5 步「<strong>信心自評</strong>」（對遮罩後本文），</li></ul>
+<p>可降級；提示詞程式內預設、可由 <code>Prompt</code> 清單同名 <code>清洗-信心</code> 覆寫。新增純函式 <code>ParseConfidence</code> （支援 <code>0.85</code>、<code>85</code>(視為百分比)、夾帶文字取首個數字，超界→null）。</p>
+<ul><li><strong><code>CleaningProcessor</code> 路由</strong>：寫檔後依信心決定狀態——</li></ul>
+<p>未啟用 LLM（Skipped）→ 已清洗（未評估）；信心 null（自評失敗/無法解析）→ <strong>待審核</strong>（保守）； 信心 ≥ 門檻 → 已清洗；信心 &lt; 門檻 → 待審核。清洗檔在「待審核」時仍會產出、仍可檢視。</p>
+<ul><li><strong>UI</strong>：知識來源清單新增「信心」欄（百分比，未評估顯示「—」）；「檢視清洗結果」對「待審核」亦開放；</li></ul>
+<p>「待審核」可用「清洗」按鈕重新清洗。</p>
+<ul><li><strong>測試</strong>：<code>CleaningEnhancerTests</code>（信心自評、<code>ParseConfidence</code>、降級、ApiKey 空）與</li></ul>
+<p><code>CleaningProcessorTests</code>（高信心→已清洗、低信心→待審核且檔案產出可讀、遮罩失敗→失敗）；全測試 193 筆綠燈。</p>
+<ul><li>不影響既有安全不變量（遮罩失敗仍整筆失敗、Teams 不動、標題不送 LLM）。</li></ul>
+<h2 id="未納入後續-qa-3" class="t3">未納入（後續 QA-3）</h2>
+<p>人工審核關卡（待審核 → 核准/退回/校正 → 已清洗）與 <code>ReviewedBy</code>/<code>ReviewedAt</code> 欄位、審核 UI； 黃金評測集（QA-4）以校準門檻。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#內容">內容</a><a class="l2" href="#未納入後續-qa-3">未納入（後續 QA-3）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-11-清洗QA2信心門檻.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

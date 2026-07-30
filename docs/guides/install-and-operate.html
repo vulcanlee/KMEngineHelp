@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>使用者安裝與操作手冊（本機單機）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>使用者安裝與操作手冊（本機單機）</h1><p class="sub">讓使用者把系統安裝起來並跑起來——下載程式、安裝必要元件與第三方工具、啟動、第一次登入、設定檔與排錯，並以企業情境故事說明導入樣貌。完整的逐畫面操作（欄位／狀態機／問答／評測）請看 完整操作手冊。</p></header><div class="docwrap"><main><ul><li>文件用途：讓使用者把系統<strong>安裝起來並跑起來</strong>——下載程式、安裝必要元件與第三方工具、啟動、第一次登入、設定檔與排錯，並以企業情境故事說明導入樣貌。<strong>完整的逐畫面操作（欄位／狀態機／問答／評測）請看 <a href="../../docs/guides/complete-manual.html">完整操作手冊</a>。</strong></li><li>主要讀者：一般操作人員（不需工程背景）</li><li>文件版本：1.4（更正 PDF 需金鑰；補可攜版安裝腳本；名詞對版）</li><li>建立日期：2026/06/17</li><li>更新日期：2026/07/26</li><li>對應系統版本：1.0.71（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li><li>適用範圍：<strong>本機單機、快速上手</strong>（預設 SQLite 資料庫、HTTP）。正式部署（SQL Server、HTTPS 憑證、安全強化）請見第 9 節連結。</li></ul>
+<blockquote><p>想從零完整操作整套系統，看 <a href="../../docs/guides/complete-manual.html">完整操作手冊</a>（自足、逐站逐欄位）；想快速找導覽地圖，看 <a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a>。本手冊聚焦<strong>安裝與啟動</strong>。</p></blockquote>
+<hr>
+<h2 id="0-這份手冊能幫你做到什麼" class="t1">0. 這份手冊能幫你做到什麼</h2>
+<p>讀完你將能：①在一台 Windows 電腦上把系統跑起來；②用預設帳號登入並建立自己的帳號/角色/團隊/分類；③把音訊、文件、圖片匯入並轉成文字；④把多筆素材彙整、清洗成乾淨可用的知識；⑤用清洗品質評測檢查清洗品質；⑥遇到問題時自己排查。</p>
+<blockquote><p>想先看真實情境怎麼用、能帶來什麼成效，可直接跳到 <a href="#75-情境故事企業這樣用">§7.5 情境故事：企業這樣用</a>。</p></blockquote>
+<blockquote><p><strong>名詞速覽</strong>：常用術語（知識來源／成員／清洗／遮罩／蒸餾／嵌入／索引／檢索／出處／團隊權控／清洗品質評測／檢索品質評測）見 <a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a> 的 §七「名詞速覽」。</p></blockquote>
+<hr>
+<h2 id="1-系統需求與事前準備" class="t2">1. 系統需求與事前準備</h2>
+<ul><li><strong>作業系統</strong>：Windows 10/11（64 位元）。</li><li><strong>必裝：.NET 10 ASP.NET Core 執行時（Runtime）</strong>。本程式為「相依框架」發佈，<strong>沒有內含 .NET 執行時</strong>，未安裝會無法啟動。</li><li>安裝（擇一）：</li><li>winget：<code>winget install Microsoft.DotNet.AspNetCore.10</code></li><li>或到微軟官網下載「.NET 10 → ASP.NET Core Runtime（Hosting/Runtime）」安裝。</li><li>確認版本：開 PowerShell 執行 <code>dotnet --info</code>，能看到 10.x 的 <code>Microsoft.AspNetCore.App</code> 即可。</li><li>一鍵確認：若有 repo，可執行 <code>pwsh -File scripts/Test-ExternalTools.ps1</code>，它會檢測 <strong>.NET 10 執行時、PowerShell 版本與所有外部工具</strong>；缺 .NET 10 執行時會明確標示「系統將無法執行」並提示安裝指令。</li><li><strong>選配：第三方工具與 OpenAI 金鑰</strong>（依你要用的功能，見第 3 節對照表）。<strong>不裝也能登入與操作系統</strong>，但「轉錄／文件轉文字／圖片解讀／LLM 清洗」需要對應元件。</li><li><strong>選配（建議）：PowerShell 7+（pwsh）</strong>。<strong>程式本身不需要 PowerShell</strong>；但專案附的便利腳本（一鍵安裝/檢測外部工具 <code>scripts/Install-ExternalTools.ps1</code>、<code>scripts/Test-ExternalTools.ps1</code>，與文件編碼檢查 <code>scripts/Test-DocsEncoding.ps1</code>）建議用 PowerShell 7 以上執行。Windows 內建的是 Windows PowerShell 5.1，<strong>建議另裝 7.x</strong> 以求一致。</li><li>安裝（擇一）：</li><li>winget：<code>winget install --id Microsoft.PowerShell -e</code></li><li>或到微軟官網下載 PowerShell 7.x 安裝。</li><li>確認版本：<strong>新開</strong>一個 pwsh 視窗執行 <code>pwsh --version</code>（或 <code>$PSVersionTable.PSVersion</code>），看到 <code>7.x</code> 即可。</li></ul>
+<blockquote><p>沒有 OpenAI 金鑰也能用：清洗會只做「彙整＋繁體化」，跳過 LLM 的去重/遮罩/分類/摘要（並標註略過）。</p>
+<p>不裝 pwsh 也能照第 2～7 節手動操作系統；只是無法直接使用本手冊中 <code>pwsh -File scripts/...</code> 的便利腳本。</p></blockquote>
+<hr>
+<h2 id="2-安裝解壓與設定檔" class="t3">2. 安裝（解壓與設定檔）</h2>
+<ol><li>取得壓縮檔（內容為 <code>publish</code> 資料夾）。</li><li><strong>解壓到一個你有完整讀寫權限的目錄</strong>，建議用純英文路徑，例如 <code>C:\KnowledgeExtraction\app</code>（避免放在「Program Files」等需要系統管理權限的位置）。</li><li>認識設定檔 <code>appsettings.json</code>（用記事本即可開），重點：</li><li><code>SystemSettings.DatabaseProvider</code>：預設 <code>Sqlite</code>（單機免安裝資料庫，建議維持）。</li><li><code>SystemSettings.ExternalFileSystem.*</code>：各種檔案存放根目錄，預設都在 <code>C:\temp\KnowledgeExtraction\...</code>（資料庫、轉錄、文件、圖片、清洗結果）。<strong>第一次啟動會自動建立這些資料夾與資料庫</strong>，你不必先手動建立。</li><li><code>NLog:BasePath</code>：記錄檔位置，預設 <code>C:\temp\Logs</code>。</li><li>（選配）<code>OpenAISettings:ApiKey</code>：要用轉錄/圖片解讀/LLM 清洗時填入你的金鑰。</li><li>（選配）工具路徑 <code>OpenAISettings:FfmpegPath</code>、<code>OpenAISettings:YtDlpPath</code>、<code>MarkItDownSettings:MarkItDownPath</code>：<strong>出貨預設值指向 <code>C:\KMEngineTools\...</code></strong>（可攜版的標準位置，見 §3.5）。若你用 winget/pip 裝在使用者家目錄，就要改成你自己的實際路徑（見第 3 節）。</li></ol>
+<blockquote><p>小提醒：若想把資料/記錄改放別的磁碟，改上述路徑即可；改完重新啟動才生效。</p></blockquote>
+<hr>
+<h2 id="3-第三方工具安裝與檢測依需求" class="t4">3. 第三方工具安裝與檢測（依需求）</h2>
+<h3 id="功能--需要的元件-對照">功能 ↔ 需要的元件 對照</h3>
+<div class="tw"><table><thead><tr><th>功能</th><th>需要的工具</th><th>需要 OpenAI 金鑰？</th></tr></thead><tbody><tr><td>影音轉逐字稿（本機檔案）</td><td>ffmpeg</td><td>✅</td></tr><tr><td>影音轉逐字稿（YouTube 等連結）</td><td>ffmpeg、yt-dlp</td><td>✅</td></tr><tr><td>抖音（Douyin）影片轉錄</td><td>Node.js＋@playwright/cli＋Chromium、ffmpeg</td><td>✅</td></tr><tr><td>文件轉文字：<strong>PDF</strong></td><td>（出貨設定走 LLM，失敗才降級 markitdown）</td><td><strong>✅ 建議填</strong>（見下方說明）</td></tr><tr><td>文件轉文字：<strong>PDF 以外</strong>（Word/Excel/PPT/txt…）</td><td>markitdown</td><td>❌（本機執行）</td></tr><tr><td>圖片解讀（圖片→文字）</td><td>（無外部工具）</td><td>✅（視覺模型）</td></tr><tr><td>知識清洗的 LLM 強化（去重/遮罩/分類/摘要/信心）</td><td>（無外部工具）</td><td>✅（未設則略過 LLM）</td></tr></tbody></table></div>
+<blockquote><p><strong>關於 PDF 需不需要金鑰（1.0.54 起有變）</strong>：本專案的出貨設定（<code>MarkItDownSettings.PdfUseLlm = true</code>）是<strong>先把整份 PDF 送給大語言模型</strong>轉 Markdown，所以 <strong>PDF 會用到金鑰、也會計入 Token 用量</strong>；好處是表格與圖表判讀好很多。</p>
+<p><strong>沒填金鑰不會壞掉</strong> —— 系統會自動降級改用 markitdown、狀態仍是「已完成」，只是會在該筆留下訊息 <code>AI 解析 PDF 失敗，已自動改用 MarkItDown 轉換：{原因}</code>，品質與 AI 路徑不同。若你就是要純本機、不外送內容，把 <code>PdfUseLlm</code> 設成 <code>false</code>（程式屬性的預設值本來就是 <code>false</code>）。<strong>PDF 以外的格式一律走本機 markitdown，完全不需要金鑰。</strong></p></blockquote>
+<blockquote><p><strong>關於影片連結</strong>：YouTube／小紅書用 yt-dlp 即可、<strong>不需 Node</strong>；唯獨<strong>抖音</strong>因平台簽章限制（yt-dlp 無法下載）改走瀏覽器助手，故需 Node 工具鏈，且<strong>僅限有桌面的本機</strong>（下載時需人工通過驗證），無頭伺服器不適用。安裝見下方「抖音轉錄工具鏈」。</p></blockquote>
+<h3 id="安裝指令powershell">安裝指令（PowerShell）</h3>
+<pre><code>winget install Gyan.FFmpeg            # ffmpeg
+winget install Python.Python.3.12     # Python（提供 pip）
+# 安裝完 Python 請「關閉再重開」PowerShell 讓 PATH 生效，再執行：
+pip install yt-dlp                     # 影片連結下載
+pip install "markitdown[all]"          # 文件轉文字</code></pre>
+<h3 id="找到工具路徑並填入設定檔">找到工具路徑並填入設定檔</h3>
+<p>安裝後查出每個工具的實際位置，填回 <code>appsettings.json</code>：</p>
+<pre><code>(Get-Command ffmpeg).Source      # → 填 OpenAISettings:FfmpegPath
+(Get-Command yt-dlp).Source      # → 填 OpenAISettings:YtDlpPath
+(Get-Command markitdown).Source  # → 填 MarkItDownSettings:MarkItDownPath</code></pre>
+<blockquote><p><strong>重要</strong>：缺工具<strong>不會</strong>讓系統開不了機，而是在你「實際使用該功能」時才失敗（例如沒裝 ffmpeg → 第一次轉錄時報錯）。所以裝完務必先檢測。</p>
+<p>若你手上有原始程式碼（repo），可用便利腳本一鍵安裝與檢測：<code>pwsh -File scripts/Install-ExternalTools.ps1</code>、<code>pwsh -File scripts/Test-ExternalTools.ps1</code>（後者會印出可直接貼回 appsettings 的路徑）。深入說明見 <a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a>。</p></blockquote>
+<h3 id="35-可攜版安裝伺服器iis-建議走這條">3.5 可攜版安裝（伺服器／IIS 建議走這條）</h3>
+<p>上面那組腳本是用 winget／pip 安裝，工具會落在<strong>使用者家目錄</strong>。這在自己的桌機沒問題，但<strong>部署到 IIS 時會出事</strong>：IIS 應用程式集區用的是服務帳號，讀不到你的家目錄。</p>
+<p>伺服器情境請改用<strong>可攜版</strong>腳本，它會把所有工具集中安裝到 <strong><code>C:\KMEngineTools</code></strong>（正好是 <code>appsettings.json</code> 的出貨預設路徑，裝完不必改設定）：</p>
+<pre><code># 安裝到 C:\KMEngineTools
+pwsh -File scripts/Install-PortableTools.ps1 -InstallDir C:\KMEngineTools
+
+# 檢測，並順便檢查 IIS 應用程式集區身分有沒有讀取權限
+pwsh -File scripts/Test-PortableTools.ps1 -InstallDir C:\KMEngineTools -AppPoolName KMEngineAppPool</code></pre>
+<p><code>-AppPoolName</code> 是關鍵：它會檢查該應用程式集區身分對工具目錄的 ACL，這正是「本機跑得動、部署到 IIS 就轉檔失敗」最常見的原因。</p>
+<blockquote><p>完整的 IIS 部署步驟見 <a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定</a> 與 <a href="../../docs/guides/windows-server-2025.html">Windows Server 2025 安裝與設定手冊</a>。</p>
+<p>上述 <code>pwsh -File scripts/...</code> 需先裝 PowerShell 7（見第 1 節「選配（建議）」）。</p></blockquote>
+<h3 id="抖音轉錄工具鏈nodejsplaywrightchromium">抖音轉錄工具鏈（Node.js＋playwright＋Chromium）</h3>
+<p><strong>只在要轉錄「抖音」影片時才需要</strong>（YouTube／小紅書不需要）。安裝指令（PowerShell）：</p>
+<pre><code>winget install --id OpenJS.NodeJS.LTS -e   # Node.js（建議 LTS，已驗證 v22）
+# 安裝完 Node 請「關閉再重開」終端機讓 PATH 生效，再執行：
+npm install -g @playwright/cli              # 內含 playwright-core
+npx playwright install chromium             # 下載 Playwright 用的 Chromium</code></pre>
+<p>檢查是否裝好：</p>
+<pre><code>node -v                       # 顯示 Node 版本（如 v22.x）
+npm -v                        # 顯示 npm 版本
+playwright-cli --version      # 顯示 @playwright/cli 版本</code></pre>
+<blockquote><p><strong>最省事的檢測</strong>：執行 <code>pwsh -File scripts/Test-ExternalTools.ps1</code> 會一併檢測 Node／@playwright/cli／Chromium／抖音助手腳本（此鏈缺少<strong>只警告、不影響</strong>核心工具的檢測結果）。</p>
+<p><strong>設定</strong>：抖音整合需在 <code>appsettings.json</code> 填 <code>OpenAISettings:NodePath</code>（Node 絕對路徑）與 <code>OpenAISettings:DouyinHelperScript</code>（指向 <code>tools/douyin-audio/get-douyin-audio.mjs</code>）；<code>Test-ExternalTools.ps1</code> 會輸出可直接貼上的片段。</p>
+<p><strong>重要</strong>：抖音為<strong>半自動、僅限本機</strong>——下載時會跳出瀏覽器，可能需當場手動通過驗證／登入。不轉錄抖音者<strong>完全不需要</strong>安裝此鏈。完整說明見 <a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a>（§3.3 安裝、§8 抖音下載方式、§9 無頭環境限制）。</p></blockquote>
+<hr>
+<h2 id="4-啟動系統" class="t5">4. 啟動系統</h2>
+<p>在解壓目錄開 PowerShell，執行（<strong>本機建議只綁 HTTP</strong>）：</p>
+<pre><code>.\KnowledgeExtraction.Web.exe --urls "http://localhost:5080"</code></pre>
+<p>看到主控台出現「Now listening on: http://localhost:5080」即代表啟動成功。<strong>停止系統</strong>：在該視窗按 <code>Ctrl + C</code>。</p>
+<h3 id="--urls-參數怎麼用"><code>--urls</code> 參數怎麼用</h3>
+<ul><li>格式：<code>scheme://host:port</code>，多個用分號 <code>;</code> 串接。</li><li><code>host</code>：</li><li><code>localhost</code>（或 <code>127.0.0.1</code>）＝<strong>只有本機</strong>連得到。</li><li><code>0.0.0.0</code>＝<strong>所有網卡</strong>，同區網其他電腦可用 <code>http://你的電腦IP:5080</code> 連入（需放行 Windows 防火牆對應連接埠）。</li><li><code>port</code>：可改成未被占用的埠，例如 <code>--urls "http://localhost:8080"</code>。</li><li>範例（區網分享）：<code>--urls "http://0.0.0.0:5080"</code>。</li></ul>
+<h3 id="關於-https你看到的-5443">關於 HTTPS（你看到的 5443）</h3>
+<ul><li>本程式以正式（Production）模式執行，<strong>綁 HTTPS 需要有效的伺服器憑證</strong>。若直接用 <code>--urls "...;https://0.0.0.0:5443"</code> 而機器上<strong>沒有憑證，啟動會失敗</strong>。</li><li><strong>本機快速上手請只用 HTTP</strong>（如上）。需要 HTTPS 時，請改用憑證或在前方架反向代理（IIS/Nginx）負責 HTTPS，作法見 <a href="../../docs/operations/fresh-machine-sop.html">全新機器部署 SOP</a>、<a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a>。</li><li>開機自動啟動、背景常駐等，請見 <a href="../../docs/operations/fresh-machine-sop.html">全新機器部署 SOP</a>。</li></ul>
+<hr>
+<h2 id="5-第一次登入" class="t6">5. 第一次登入</h2>
+<ol><li>開瀏覽器輸入 <code>http://localhost:5080</code>，系統會導向登入頁。</li><li>輸入預設帳號密碼並填寫畫面上的<strong>驗證碼</strong>：</li><li>帳號：<code>support</code></li><li>密碼：<code>1qaz@WSX</code></li><li>可勾「記住我」維持登入。</li><li><strong>登入後會直接落在「AI 知識問答」頁</strong>（<code>/knowledge-base-chat</code>），不是首頁。要看統計儀表板請點左側選單的「首頁」。（剛裝好還沒有任何知識，這一頁問什麼都會回「查無相關依據」，這是正常的。）</li></ol>
+<blockquote><p><strong>安全提醒</strong>：<code>support</code> 是系統內建管理帳號，密碼由設定檔控制、<strong>每次啟動會被重設且不可在介面變更</strong>。請<strong>先建立你自己的管理員帳號</strong>（第 6 節）日常使用；正式環境請於設定檔 <code>BootstrapSettings</code> 調整或停用預設帳號（見 <a href="../../docs/operations/production-checklist.html">安全檢查清單</a>）。</p></blockquote>
+<hr>
+<h2 id="6-基礎設定建議依序完成" class="t7">6. 基礎設定（建議依序完成）</h2>
+<p>登入後請依序建立基礎資料：<strong>團隊 <code>/teams</code> → 知識庫分類 <code>/categories</code> → 專案分類 <code>/work-categories</code> → 角色 <code>/roleviews</code>（勾權限樹＋預設團隊）→ 使用者 <code>/myusers</code>（指派一個角色）</strong>。</p>
+<blockquote><p>⚠️ 兩件容易漏的事：①<strong>分類有兩份獨立主檔</strong> —— <code>/categories</code> 給知識庫用、<code>/work-categories</code> 給專案／工作／會議用；②<strong>權限樹上的項目名稱與選單不一樣</strong>（例如選單「知識百科」＝權限樹「知識瀏覽」），設角色前先看 <a href="../../docs/guides/complete-manual.html#%E9%81%B8%E5%96%AE%E5%90%8D%E8%88%87%E6%AC%8A%E9%99%90%E6%A8%B9%E5%90%8D%E5%B0%8D%E7%85%A7%E8%A1%A8">完整操作手冊 §3.1 對照表</a>。</p></blockquote>
+<blockquote><p><strong>團隊權控觀念（重要）</strong>：非管理員只看得到「沒有指定團隊（公開）」或「與自己角色團隊有交集」的紀錄；管理員不受限。要看得到資料，角色的預設團隊需與紀錄團隊相符。</p></blockquote>
+<p>各畫面的<strong>完整欄位表與輸入說明</strong>見 <a href="../../docs/guides/complete-manual.html">完整操作手冊</a> 的 §五「基礎設定」；深入的權限樹與團隊權控見 <a href="../../docs/guides/setup-guide.html">基礎設定指南</a>。</p>
+<hr>
+<h2 id="7-核心流程匯入--檢視--清洗--評量簡述" class="t8">7. 核心流程：匯入 → 檢視 → 清洗 → 評量（簡述）</h2>
+<p>裝好系統後，日常操作的主軸是四個階段：</p>
+<ol><li><strong>匯入</strong>：三條管線把素材轉成文字——影音轉逐字稿 <code>/media-transcription</code>、文件轉文字 <code>/document-extraction</code>、圖片解讀 <code>/image-recognition</code>（背景作業，失敗可重試、處理中可取消）。</li><li><strong>檢視/編修</strong>：每筆完成後預覽並可線上編修文字（清洗前先把人名、料號等關鍵字改對，下游品質更佳）。</li><li><strong>清洗</strong>：到 <strong>知識來源加工 <code>/knowledge-sources</code></strong> 新增來源、加入成員、按「清洗」；依信心分數路由為「已清洗／待審核」，必要時由具「知識審核」權限者人工核准。</li><li><strong>評量</strong>：到 <strong>清洗品質評測 <code>/golden-samples</code></strong> 量測清洗品質、校準信心門檻。</li></ol>
+<blockquote><p>以上每個畫面的<strong>完整欄位表、狀態機與逐步操作</strong>，以及後續的<strong>蒸餾 → 索引 → AI 知識問答 → 檢索品質評測</strong>，見 <a href="../../docs/guides/complete-manual.html">完整操作手冊</a> 的 §六–§十二。</p></blockquote>
+<h3 id="迷你完整範例">迷你完整範例</h3>
+<p>上傳一段會議錄音到 <code>/media-transcription</code> → 完成後得到逐字稿 → 到 <code>/knowledge-sources</code> 新增「2026 產品會議」並加入該逐字稿 → 按「清洗」（選預設）→ 信心 0.83 → 自動「已清洗」→ 開「檢視清洗結果」確認 → 完成一筆乾淨、可檢索的會議知識。</p>
+<hr>
+<h2 id="75-情境故事企業這樣用" class="t1">7.5 情境故事：企業這樣用</h2>
+<p>前面把「匯入 → 檢視 → 清洗 → 評量」一個鍵一個鍵走過一遍，可能還是有點抽象。其實<strong>同一套流程</strong>，套到不同部門就解不同的痛——差別只在「用哪一組清洗配方」和「把關鬆或緊」。下面用三個常見情境，把你剛學到的步驟對應到真實工作，並看看做完能得到什麼。</p>
+<blockquote><p>以下成效為示意（依素材與設定不同而異），用意是讓你想像導入後的工作樣貌，不是保證數字。</p></blockquote>
+<h3 id="情境一把每週會議變成查得到的決議會議知識留存">情境一：把每週會議變成查得到的決議（會議知識留存）</h3>
+<p><strong>主角</strong>：PMO 專案經理 Wendy，每週要主持跨工程、業務的產品週會。 <strong>她的痛</strong>：會議決議和待辦只活在錄音檔和某個人的記憶裡。新人接手就反覆問「上次到底決議什麼？」，老問題重複討論，找一條去年的決定要翻半天。</p>
+<p>Wendy 決定讓系統幫她把會議「資產化」。她照著四個階段走：</p>
+<p><strong>① 匯入</strong> — 她把這次週會的錄音上傳到 <strong>影音轉逐字稿 <code>/media-transcription</code></strong>，按下去就回去忙別的。清單上那筆從「等待中」變「處理中」再變「已完成」，背景就把一個半小時的錄音轉成了逐字稿。</p>
+<blockquote><p><strong>建議：</strong> 很長的會議可以先分段上傳（也比較好對照議程）；檔名取得有辨識度，例如「2026Q2-產品週會-0612」。若要直接貼線上會議的錄影連結，記得先裝好 <code>yt-dlp</code>（見 §3）。</p></blockquote>
+<p><strong>② 檢視／編修</strong> — 她打開逐字稿快速掃一遍，把幾個被聽錯的人名、產品代號和料號改正後存回。</p>
+<blockquote><p><strong>建議：</strong> 清洗前先把「關鍵字」修對（人名、料號、專案代號），下游的摘要和分類會明顯更準——錯字會一路被帶到最後。</p></blockquote>
+<p><strong>③ 清洗</strong> — 她到 <strong>知識來源加工 <code>/knowledge-sources</code></strong> 建一筆「2026 Q2 產品週會」，用「管理成員」把剛剛的逐字稿加進來，按「<strong>清洗</strong>」並選一個她在 <code>/cleaning-profiles</code> 建好、要求摘要輸出「決議／待辦／負責人」三段的設定檔。系統在背景產出一份乾淨的 Markdown，信心 <strong>0.83 ≥ 0.70</strong>，自動歸到「已清洗」。</p>
+<blockquote><p><strong>建議：</strong> 摘要提示詞可以明確要求格式（例如「請分『決議』『待辦』『負責人』三段條列」），產出就會穩定好讀。若這台機器<strong>沒有設定 OpenAI 金鑰</strong>，清洗只會做彙整＋繁體化、跳過去重/遮罩/分類/摘要（並標註略過）——會議情境通常希望有摘要，記得先把金鑰填好（§2、§3）。</p></blockquote>
+<p><strong>④ 評量（選用）</strong> — Wendy 想知道「這組設定到底準不準」，於是到 <strong>清洗品質評測 <code>/golden-samples</code></strong> 放一兩筆標準答案（例如一段含決議與人名的會議片段），按「評測」看摘要涵蓋率、分類 F1，以及系統建議的自動放行門檻。</p>
+<blockquote><p><strong>建議：</strong> 清洗品質評測算出的門檻是<strong>建議值</strong>，要實際生效得改 <code>appsettings.json</code> 的 <code>SystemSettings.Cleaning.ConfidenceThreshold</code>（預設 0.70）。把它當「出貨前抽驗」，定期跑、累積對品質的信心。</p></blockquote>
+<p><strong>成效</strong>：原本每次會後要花一兩個小時整理、決議還是散落各處；現在<strong>分鐘級</strong>就產出一份可檢索的會議知識。新人一句話就查到歷次決議與待辦，知識不再因為某個人離職而斷層。</p>
+<h3 id="情境二讓新進客服也答得又快又準客服知識庫">情境二：讓新進客服也答得又快又準（客服知識庫）</h3>
+<p><strong>主角</strong>：客服組長 Amy。<strong>她的痛</strong>：客戶問題一直重複，答案卻散在通話錄音和一堆 FAQ 文件裡，新人上線慢、答案還不一致。</p>
+<p>Amy 把客服的<strong>通話錄音</strong>丟進轉錄、把<strong>退款 FAQ 文件</strong>丟進文件轉文字，快速檢視修正後，在知識來源建一筆「客服－退款流程」，並用一個偏向「<strong>遮罩客戶姓名／電話／Email、分類偏客服與財務</strong>」的清洗規則設定清洗。為了安心，她拿一筆相近的黃金樣本評測，確認「<strong>該遮的（客戶個資）遮掉、該留的（退款、計費規則）留住</strong>」。</p>
+<blockquote><p><strong>建議：</strong> 客服情境最該盯的指標是<strong>遮罩召回率</strong>（個資別漏）和<strong>必保留詞</strong>（關鍵流程詞別被誤刪）。常見問題可以拆成多筆知識來源分主題管理（退款、帳務、物流…），日後查找與維護都更輕鬆。</p></blockquote>
+<p><strong>成效</strong>：一個個資已遮、可檢索的客服知識庫。新人遇到客戶問退款，查一下就答得出來，答案還一致。</p>
+<h3 id="情境三高敏感資料先讓人把關才放行人資合約">情境三：高敏感資料，先讓人把關才放行（人資／合約）</h3>
+<p><strong>主角</strong>：人資經理 David，和法務一起整理供應商合約與員工名冊。<strong>他的痛</strong>：這些檔案含身分證、金融帳號、密碼等高敏資料——不整理不行，整理又怕外洩，而且必須留下可稽核的紀錄。</p>
+<p>David 把合約 PDF 和員工名冊匯入、檢視後，建一筆知識來源，套用一個「<strong>高敏感遮罩設定檔</strong>」（強化遮罩身分證、金融帳號、密碼、統一編號，並要求保留合約關鍵條款用語）。清洗後信心 <strong>0.6 &lt; 0.70</strong>，系統自動把它放到「<strong>待審核</strong>」；接著由具「<strong>知識審核</strong>」權限的同仁開啟，確認個資都遮乾淨、條款完整後核准（或退回並填理由）。</p>
+<blockquote><p><strong>建議：</strong> 高敏感場景<strong>門檻要訂保守</strong>，刻意讓多數結果走人工關卡，比全自動更安心。另外系統的安全設計是「<strong>遮罩失敗＝整筆清洗失敗</strong>」——寧可重跑，也不讓沒遮乾淨的內容外流。</p></blockquote>
+<p><strong>成效</strong>：一份可信任、可稽核、個資合規的知識資產；而且「誰在什麼時候核准的」清清楚楚，責任歸屬明確。</p>
+<h3 id="同一流程怎麼適配不同部門">同一流程，怎麼適配不同部門</h3>
+<div class="tw"><table><thead><tr><th>情境</th><th>用的清洗配方重點</th><th>把關方式</th><th>得到什麼</th></tr></thead><tbody><tr><td>會議知識（情境一）</td><td>摘要分「決議／待辦／負責人」</td><td>信心達標自動放行</td><td>可檢索的會議決議與待辦</td></tr><tr><td>客服知識庫（情境二）</td><td>遮客戶個資、保留流程詞</td><td>清洗品質評測確認召回率</td><td>一致、可查的客服答案</td></tr><tr><td>人資／合約（情境三）</td><td>強化遮罩、門檻保守</td><td>人工審核核准/退回</td><td>合規、可稽核的知識資產</td></tr></tbody></table></div>
+<p>一句話總結：<strong>同一條流程，換不同配方（清洗規則設定）＋不同把關（信心門檻／人工審核），就能適配不同部門的需求。</strong></p>
+<blockquote><p>想看更完整的端到端原理與注意事項，見 <a href="../../docs/guides/import-to-knowledge-flow.html">從匯入到知識的操作流程</a>；清洗品質評測的欄位與價值見 <a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：價值與行銷</a>。</p></blockquote>
+<hr>
+<h2 id="8-faq問題排除" class="t2">8. FAQ／問題排除</h2>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>解法</th></tr></thead><tbody><tr><td>雙擊/執行 exe 立刻關閉或報缺少框架</td><td>未裝 .NET 10 ASP.NET Core Runtime</td><td>依第 1 節安裝；<code>dotnet --info</code> 確認</td></tr><tr><td>啟動失敗、訊息提到 HTTPS/憑證</td><td>綁了 <code>https://...</code> 但機器無憑證</td><td>本機改只綁 HTTP（第 4 節）；要 HTTPS 走憑證/反向代理</td></tr><tr><td>啟動失敗、訊息提到 address in use / 連接埠被占用</td><td>5080 已被其他程式使用</td><td>換埠：<code>--urls "http://localhost:8081"</code></td></tr><tr><td>瀏覽器連不上</td><td>系統未啟動／埠不符／防火牆</td><td>確認主控台 listening 訊息；區網存取要放行防火牆</td></tr><tr><td>登入失敗</td><td>帳密或驗證碼錯</td><td>帳號 <code>support</code>、密碼 <code>1qaz@WSX</code>，重新輸入驗證碼</td></tr><tr><td>轉錄/連結下載失敗</td><td>缺 ffmpeg/yt-dlp、路徑沒填、格式或大小超限、逾時</td><td>第 3 節安裝並填路徑；確認格式/大小；可重試</td></tr><tr><td>抖音下載偶發失敗（<code>other side closed</code>／socket 中斷）</td><td>抖音 CDN 中途關閉連線（瞬時網路／限流）</td><td>系統會自動重試數次；仍失敗時直接按該筆「重試轉錄」即可重新排入（0.2.85 起<strong>無須重新整理網頁</strong>）</td></tr><tr><td>文件轉文字失敗</td><td>缺 markitdown 或路徑沒填、檔案格式不支援</td><td>安裝 markitdown 並填路徑；換支援格式</td></tr><tr><td>想看詳細錯誤</td><td>—</td><td>記錄檔在 <code>C:\temp\Logs\</code>；管理員可開健康頁 <code>/system-health</code> 看最近紀錄</td></tr></tbody></table></div>
+<blockquote><p>上表聚焦<strong>安裝/啟動/工具</strong>。操作面 FAQ（看不到選單與權限、團隊權控看不到紀錄、清洗無摘要、找不到清洗檔案等）見 <a href="../../docs/guides/complete-manual.html">完整操作手冊</a> 的 §十八。容量/格式/逾時的完整數值見 <a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a>。</p></blockquote>
+<hr>
+<h2 id="9-進階正式部署連結不在本手冊展開" class="t3">9. 進階／正式部署（連結，不在本手冊展開）</h2>
+<ul><li><a href="../../docs/operations/fresh-machine-sop.html">全新機器部署 SOP</a>（含開機自動執行、HTTPS、SQL Server）</li><li><a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a>（預設帳號、JWT、HTTPS、備份等上線前必做）</li><li><a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a>（每個 appsettings 設定與環境變數覆寫）</li><li><a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a>（檔案大小/格式/逾時）</li><li><a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a>（ffmpeg/yt-dlp/markitdown 深入）</li><li><a href="../../docs/guides/import-to-knowledge-flow.html">從匯入到知識的操作流程</a>、<a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測價值說明</a></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li><li><a href="../../docs/guides/import-to-knowledge-flow.html">從客戶匯入到完成知識：操作流程指南</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#0-這份手冊能幫你做到什麼">0. 這份手冊能幫你做到什麼</a><a class="l2" href="#1-系統需求與事前準備">1. 系統需求與事前準備</a><a class="l2" href="#2-安裝解壓與設定檔">2. 安裝（解壓與設定檔）</a><a class="l2" href="#3-第三方工具安裝與檢測依需求">3. 第三方工具安裝與檢測（依需求）</a><a class="l3" href="#功能--需要的元件-對照">功能 ↔ 需要的元件 對照</a><a class="l3" href="#安裝指令powershell">安裝指令（PowerShell）</a><a class="l3" href="#找到工具路徑並填入設定檔">找到工具路徑並填入設定檔</a><a class="l3" href="#35-可攜版安裝伺服器iis-建議走這條">3.5 可攜版安裝（伺服器／IIS 建議走這條）</a><a class="l3" href="#抖音轉錄工具鏈nodejsplaywrightchromium">抖音轉錄工具鏈（Node.js＋playwright＋Chromium）</a><a class="l2" href="#4-啟動系統">4. 啟動系統</a><a class="l3" href="#--urls-參數怎麼用">--urls 參數怎麼用</a><a class="l3" href="#關於-https你看到的-5443">關於 HTTPS（你看到的 5443）</a><a class="l2" href="#5-第一次登入">5. 第一次登入</a><a class="l2" href="#6-基礎設定建議依序完成">6. 基礎設定（建議依序完成）</a><a class="l2" href="#7-核心流程匯入--檢視--清洗--評量簡述">7. 核心流程：匯入 → 檢視 → 清洗 → 評量（簡述）</a><a class="l3" href="#迷你完整範例">迷你完整範例</a><a class="l2" href="#75-情境故事企業這樣用">7.5 情境故事：企業這樣用</a><a class="l3" href="#情境一把每週會議變成查得到的決議會議知識留存">情境一：把每週會議變成查得到的決議（會議知識留存）</a><a class="l3" href="#情境二讓新進客服也答得又快又準客服知識庫">情境二：讓新進客服也答得又快又準（客服知識庫）</a><a class="l3" href="#情境三高敏感資料先讓人把關才放行人資合約">情境三：高敏感資料，先讓人把關才放行（人資／合約）</a><a class="l3" href="#同一流程怎麼適配不同部門">同一流程，怎麼適配不同部門</a><a class="l2" href="#8-faq問題排除">8. FAQ／問題排除</a><a class="l2" href="#9-進階正式部署連結不在本手冊展開">9. 進階／正式部署（連結，不在本手冊展開）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/使用者安裝與操作手冊.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

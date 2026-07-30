@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAG 系統補強：待辦總彙整、re-rank 分析、Wiki/Cleaned 角色差異、診斷手冊（文件）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>RAG 系統補強：待辦總彙整、re-rank 分析、Wiki/Cleaned 角色差異、診斷手冊（文件）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-08</li><li>版本：—（純文件，無程式／無 migration／無版本號變更）</li><li>類型：文件（分析與規劃）</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>針對「RAG 是否需要 re-rank、如何讓維運更快診斷問題、系統散落的 RAG 待辦如何逐一處理」的需求，盤點全 docs 目錄後產出四份文件，並釐清 Wiki 與 Cleaned 的角色差異。本次不改任何程式。</p>
+<h2 id="新增文件" class="t2">新增文件</h2>
+<ul><li><code>docs/planning/12-RAG系統補強總彙整與優先序.md</code>：把散落在 planning/08、strategy/03–06/13、architecture、prd、guides 的所有 RAG 待辦／未實作／缺口去重彙整成單一清單（34 項），以「重要性 P0/P1/P2 × 類別（安全/檢索/規模化/版本化時效/蒸餾/評測診斷/文件一致性/工程韌性）」雙軸排列，每項含出處與「是否需重建索引／migration」。</li><li><code>docs/architecture/RAG-rerank是否導入分析.md</code>：釐清「RejectThreshold 是回合級判定、非逐 chunk 過濾」的前提；分析在現況（向量+關鍵字融合）下 re-rank 的效益／成本／插入點；建議列為<strong>評測驅動的有條件 P2</strong>（先建評測基線與 topScore 分佈，若排序不足再導入）。</li><li><code>docs/architecture/Wiki與Cleaned角色差異.md</code>：收斂散見說明為單一參照——兩層並存且都索引、蒸餾輸入是 Cleaned、Wiki 僅核准後進索引、問答 Wiki 前 Cleaned 後、去敏須在清洗階段等維運關鍵。</li><li><code>docs/operations/RAG問題診斷手冊.md</code>：把使用者提供的診斷流程樹強化為「症狀→檢查→建議調整→是否重建索引」決策手冊（四大症狀 A–D + 問題歸屬分流表），並附兩個設計提案：系統內「RAG 診斷網頁」（EVAL-4）與「參數化設定 UI」（EVAL-5）。</li></ul>
+<h2 id="一併提交的提示詞原稿" class="t3">一併提交的提示詞原稿</h2>
+<ul><li><code>docs/prompts/圖片清單可以使用壓縮檔案上傳.md</code>、<code>docs/prompts/RAG 的機制討論與調整.md</code>（本次需求原稿，供回溯）。</li></ul>
+<h2 id="索引更新" class="t4">索引更新</h2>
+<ul><li><code>docs/README.md</code>（planning／architecture／operations 三區）、<code>docs/changelog/README.md</code>、<code>docs/prompts/README.md</code>。</li></ul>
+<h2 id="重點結論摘要" class="t5">重點結論摘要</h2>
+<ol><li><strong>re-rank</strong>：現階段不導入，列有條件的 P2；當務之急是評測基線 + topScore 分佈 + 門檻校準。</li><li><strong>文件一致性</strong>：對外簡報宣稱「混合檢索 + rerank」與實作（尚無 rerank）有落差，列 P1 待校正（清單 DOC-1）。</li><li><strong>資安紅線 P0</strong>：間接 prompt injection／內容投毒防護（SEC-1）、確認遮罩在 embedding 之前（SEC-2）。</li></ol>
+<h2 id="驗證" class="t6">驗證</h2>
+<ul><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠（新文件 UTF-8 含 BOM、無亂碼）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#新增文件">新增文件</a><a class="l2" href="#一併提交的提示詞原稿">一併提交的提示詞原稿</a><a class="l2" href="#索引更新">索引更新</a><a class="l2" href="#重點結論摘要">重點結論摘要</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-08-RAG系統補強彙整與診斷手冊.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

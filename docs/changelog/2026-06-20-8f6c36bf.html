@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>將「清洗設定檔」選單從「清洗與蒸餾」移至「資料定義」（0.2.103）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>將「清洗設定檔」選單從「清洗與蒸餾」移至「資料定義」（0.2.103）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-20</li><li>版本：0.2.102 → 0.2.103</li><li>類型：選單/權限結構調整</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>將「清洗設定檔」(<code>/cleaning-profiles</code>) 在側邊功能表上的位置，從「清洗與蒸餾」子功能表移至「資料定義」子功能表（放在最後，提示詞清單之後）。</p>
+<h2 id="變更選單與權限三處同步" class="t2">變更（選單與權限三處同步）</h2>
+<p>選單與權限以<strong>位置索引</strong>對應（<code>SidebarMenuService.ApplyPermissionStructure/ApplyChildPermissionStructure</code>），三處同步調整：</p>
+<ul><li><strong><code>Datas/Menu.json</code></strong>：</li><li>「清洗與蒸餾」(id 3) 移除「清洗設定檔」(原 id 33)；其後「AI技能產生器」id 34 → 33（補回連號，維持 <code>群組×10+序</code> 慣例）。</li><li>「資料定義」(id 5) 末端新增「清洗設定檔」(id 54，icon <code>tune</code>，<code>/cleaning-profiles</code>)。</li><li><strong><code>RolePermissionService.GetRoleListPermissionAllName()</code></strong>：</li><li>清洗與蒸餾群組（外層索引 2）移除 <code>角色_清洗設定檔</code>；動作型 <code>角色_知識審核</code> 仍排在所有頁面型權限之後，索引對齊不變。</li><li>資料定義群組（外層索引 4）於 <code>角色_提示詞清單</code> 之後加入 <code>角色_清洗設定檔</code>。</li><li><strong><code>MagicObjectHelper</code></strong>：<code>角色_清洗設定檔</code> 常數值不變（<code>"清洗設定檔"</code>），僅將定義位置移至 <code>角色_提示詞清單</code> 之後以對齊新順序。</li></ul>
+<h2 id="影響範圍與相容性" class="t3">影響範圍與相容性</h2>
+<ul><li>權限以字串值 <code>"清洗設定檔"</code> 儲存於角色（<code>RoleView.TabViewJson</code>），值未變更 → <strong>既有角色授權不受影響</strong>，<strong>無需資料庫 migration</strong>（選單/權限非 DB 實體）。</li><li><code>Menu.json</code> 的 <code>id</code> 為裝飾性欄位（程式以陣列位置對應，未當鍵使用）。</li><li><code>MenuIconTests</code>：「清洗設定檔」沿用 <code>tune</code>（已在允許清單），移動後仍通過。</li></ul>
+<h2 id="文件同步更新" class="t4">文件同步更新</h2>
+<ul><li><code>docs/prd/清洗設定檔-prd.md</code>：管理頁歸屬由「清洗與蒸餾」群組改為「資料定義」群組。</li><li><code>docs/security/認證授權與權限機制.md</code>：「資料定義」表新增 <code>角色_清洗設定檔</code> 列並更正既存錯誤 id（4/41/42/43 → 5/51/52/53/54）；「清洗與蒸餾」表補列 <code>角色_AI技能產生器</code>、加註清洗設定檔已移出。</li><li><code>docs/architecture/開發慣例與限制速查.md</code>：位置索引陷阱範例改寫為仍正確的敘述。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>dotnet build</code> 通過；<code>dotnet test</code> 全綠（含 <code>MenuIconTests</code>）。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 通過（UTF-8 含 BOM、無亂碼）。</li><li>登入後側邊選單：「清洗與蒸餾」不再有「清洗設定檔」；「資料定義」最後一項為「清洗設定檔」，點擊進入 <code>/cleaning-profiles</code>。</li><li>既有角色仍可正常存取 <code>/cleaning-profiles</code>。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更選單與權限三處同步">變更（選單與權限三處同步）</a><a class="l2" href="#影響範圍與相容性">影響範圍與相容性</a><a class="l2" href="#文件同步更新">文件同步更新</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-20-清洗設定檔選單移至資料定義.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

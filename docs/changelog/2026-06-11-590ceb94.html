@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-11</li><li>版本：0.2.63 → 0.2.64</li><li>類型：Bug 修正</li></ul>
+<h2 id="症狀" class="t1">症狀</h2>
+<p>「知識來源管理清單」頁的工具列，分類過濾、團隊過濾、搜尋關鍵字、搜尋鈕呈<strong>垂直堆疊</strong>， 與其他清單頁（如「文件萃取」）的<strong>單列、左側新增/重整、右側過濾與搜尋</strong>版面不一致。</p>
+<h2 id="根本原因" class="t2">根本原因</h2>
+<p>工具列版面用的 <code>.project-view-toolbar</code>／<code>-left</code>／<code>-right</code>／<code>-search-input</code>／<code>-icon-button</code> 是 <strong>Blazor scoped CSS</strong>，各清單 View 於自身 <code>.razor.css</code> 各帶一份（DocumentExtraction、 ImageRecognition、MediaTranscription、ProjectView 皆有）。scoped CSS 不跨元件套用。 新建的 <code>KnowledgeSourceView.razor.css</code> 只放了成員管理用的 <code>.ks-*</code> 樣式，<strong>漏掉 <code>.project-view-*</code></strong>， 導致工具列類別無樣式、退回 block 預設而垂直堆疊。</p>
+<h2 id="修正" class="t3">修正</h2>
+<ul><li><code>KnowledgeSourceView.razor.css</code>：補上 <code>.project-view-toolbar</code>（flex、space-between）、</li></ul>
+<p><code>-left</code>/<code>-right</code>（flex、gap）、<code>-search-input</code>（width:260px）、<code>-icon-button</code>，與其他清單頁一致。</p>
+<h2 id="備註" class="t4">備註</h2>
+<p>此為各 View scoped CSS 重複的既有模式；新建清單頁時，記得連同 <code>.project-view-*</code> 工具列樣式一併帶入 <code>.razor.css</code>。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-qa2-b3079fb4.html">清洗 QA-2：LLM 自評信心分數 + 自動門檻（0.2.62）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#症狀">症狀</a><a class="l2" href="#根本原因">根本原因</a><a class="l2" href="#修正">修正</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-11-修正知識來源工具列版面.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

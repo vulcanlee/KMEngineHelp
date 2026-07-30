@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識庫 RAG 設計與執行｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 系統架構</p><header class="hero"><div class="kicker">系統架構</div><h1>知識庫 RAG 設計與執行</h1><p class="sub">說明目前系統「AI 知識問答」的 RAG 實作現況、可調參數、索引生命週期、LLM 互動、權控與品質調整方式</p></header><div class="docwrap"><main><ul><li>文件用途：說明目前系統「AI 知識問答」的 RAG 實作現況、可調參數、索引生命週期、LLM 互動、權控與品質調整方式</li><li>主要讀者：開發者、維運人員、導入顧問、需要調整 RAG 品質的系統負責人</li><li>文件版本：1.7</li><li>建立日期：2026/06/28</li><li>對應版本：1.0.100（1.4 版補上 Graph RAG 圖檢索第三路與全域問答，見 §4.2／§4.3；1.5 版補上可設定的 Graph 成本上限；1.6 版改寫 §4.2 為多跳 BFS 並新增 §4.4 圖譜瀏覽；1.7 版追記 P10～P13）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>本文件以程式現況為準。早期藍圖見 <a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格</a>；操作驗收見 <a href="../../docs/guides/rag-poc-acceptance.html">知識庫 RAG：PoC 端到端執行與驗收指南</a>。</p></blockquote>
+<blockquote><p><strong>Graph RAG P10～P13 追記（1.0.92～1.0.96）</strong> —— 本文 §4.2～§4.4 的設計未變，以下四項為其後的增量，細節見各篇 changelog，使用者操作見 <a href="../../docs/guides/knowledge-graph.html">知識圖譜（Graph RAG）使用指南</a>：</p>
+<ul><li><strong>P10（1.0.92）圖檢索評測</strong>：<code>/rag-evaluation</code> 新增四個指標（圖召回增益／圖參與率／圖獨有命中／平均取用社群數）與 <code>EvalMode=global</code> 評測模式；基線會記錄當時的 <code>GraphWeight</code>／<code>GraphMaxHops</code>／<code>GraphHopDecay</code>，未記錄時顯示「未記錄」而非 0。⚠️ <strong>圖召回增益是保守下界</strong>（融合重排效應不計入）；global 模式會呼叫 LLM 故非確定性。</li><li><strong>P11（1.0.94）檢索熱路徑快取</strong>：<code>SearchGraphAsync</code> 原本每次檢索都跑三個全表查詢（已核可別名／錨頁節點／已核可三元組），改由 Singleton 的 <code>IGraphRetrievalCache</code> 快取，寫入動作（核可/退回/編修三元組、核可/新增別名、抽取完成）即時失效，並有 300 秒絕對逾時兜底。⚠️ 多執行個體部署時失效只影響本行程。</li><li><strong>P12（1.0.95）全域作業狀態表</strong>：新增 <code>GraphJobState</code>，讓社群摘要重建與 LLM 別名建議這兩條<strong>全域單例</strong>作業可於 <code>/pipeline-jobs</code> 觀測、取消與重啟復原；審核頁另新增「待抽取來源」分頁。⚠️ 這兩條作業<strong>刻意不進 <code>PipelineNames</code></strong>（見 <a href="../../docs/architecture/architecture-overview.html">架構總覽 §3</a>）。</li><li><strong>P13（1.0.96）圖譜唯讀 Web API</strong>：<code>KnowledgeGraphController</code> 把 §4.3 全域問答與 §4.4 圖譜瀏覽對等開放給 REST（<code>global-ask</code>／<code>neighbors</code>），身分解析重用 <code>McpIdentityResolver</code>、權控交給既有服務。<strong>無寫入端點</strong>；<code>maxHops</code> 超界回 400（不像 MCP 靜默夾住）、LLM 未設定回 503。詳見 <a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南 §13</a>。</li></ul></blockquote>
+<h2 id="一rag-全流程" class="t1">一、RAG 全流程</h2>
+<p>AI 知識問答採 Retrieval-Augmented Generation（RAG）：先從已索引的知識庫找出相關 chunk，再把這些 chunk 以附出處 context 的形式交給 LLM 產生回答。</p>
+<pre><code>flowchart TD
+    A["知識來源已清洗"] --&gt; B["知識蒸餾產生 WikiPage"]
+    B --&gt; C["DistillationProcessor 觸發 EmbeddingIndexQueue"]
+    C --&gt; D["EmbeddingIndexProcessor 讀取 Cleaned 與已完成 Wiki"]
+    D --&gt; E["Chunker 依段落、標題、overlap 切塊"]
+    E --&gt; F["IEmbeddingClient 批次產生 embedding"]
+    F --&gt; G["VectorEmbedding 儲存 chunk、metadata、byte[] 向量"]
+    H["使用者提問"] --&gt; I["KnowledgeBaseChatService 取最近對話"]
+    I --&gt; I2["Query Rewrite 視需要補全查詢"]
+    I2 --&gt; J["RetrievalService 混合檢索：向量 + 關鍵字 + 圖鄰域"]
+    G --&gt; J
+    B --&gt; GE["GraphEdgeService 由 LinkTitles 建 GraphEdge"]
+    B --&gt; GX["圖抽取：LLM 三元組 → 人工審核 → GraphNode/GraphTriple"]
+    GE --&gt; J
+    GX --&gt; J
+    J --&gt; K["套團隊權控後取 TopK"]
+    K --&gt; KT{"兩段式門檻：依最高分判定信心"}
+    KT --&gt;|查無依據| KX["程式層直接回覆查無依據，不呼叫 LLM"]
+    KT --&gt;|信心不足/足夠| L["組附出處 context：Wiki 優先，Cleaned 佐證"]
+    L --&gt; M["IChatConversationClient 串流呼叫 LLM（信心不足者於回答前加註提示）"]
+    M --&gt; N["回答 + 出處鑽取 + 原始檔下載"]</code></pre>
+<p>核心程式：</p>
+<ul><li><code>Chunker</code>：段落/標題感知切塊。</li><li><code>EmbeddingIndexProcessor</code>：建立或更新 <code>VectorEmbedding</code>。</li><li><code>DualDbVectorStore</code>：以 DB 中的 <code>byte[]</code> 向量做應用層 cosine 搜尋。</li><li><code>RetrievalService</code>：向量、關鍵字與圖鄰域三路混合檢索（見 §4.2）。</li><li><code>GraphEdgeService</code>／<code>GraphExtractionProcessor</code>／<code>GraphCommunityBuilder</code>：Graph RAG 的建邊、三元組抽取與社群摘要（見 §4.2／§4.3）。</li><li><code>KnowledgeBaseQueryRewriteService</code>：在短問句或多輪代詞情境下補全檢索 query。</li><li><code>KnowledgeBaseChatService</code>：每輪取權限、檢索、組 context、呼叫 LLM。</li></ul>
+<h2 id="二切塊與索引" class="t2">二、切塊與索引</h2>
+<p>切塊輸入有兩層：</p>
+<ul><li><code>Cleaned</code>：知識來源清洗後 Markdown，保留較完整的事實與條款內容。</li><li><code>Wiki</code>：知識頁審核後的已完成 Wiki 頁，作為概念導引與摘要式命中。</li></ul>
+<p><code>Chunker</code> 不是固定字數硬切。它會：</p>
+<ul><li>以空行切段落，盡量不拆斷段落。</li><li>追蹤最近的 Markdown 標題，寫入 <code>AnchorRef</code>，供出處定位。</li><li>累積到目標字元數後 flush。</li><li>若單段超過硬上限，依硬上限切段。</li><li>flush 後把上一個 chunk 尾端字元帶入下一塊，形成 overlap。</li></ul>
+<p>切塊參數位於 <code>SystemSettings.Retrieval</code>：</p>
+<div class="tw"><table><thead><tr><th>參數</th><th>預設</th><th>何時生效</th><th>說明</th></tr></thead><tbody><tr><td><code>ChunkTargetChars</code></td><td>800</td><td>建立索引時</td><td>chunk 目標字元數，累積到此長度後切塊。</td></tr><tr><td><code>ChunkMaxChars</code></td><td>1200</td><td>建立索引時</td><td>單一 chunk 硬上限，超長段落會依此切開。</td></tr><tr><td><code>ChunkOverlapChars</code></td><td>120</td><td>建立索引時</td><td>相鄰 chunk 保留的尾段重疊字元數。</td></tr></tbody></table></div>
+<p>調整切塊參數後，既有 <code>VectorEmbedding</code> 不會自動改變。必須重新蒸餾，或在「知識來源加工」對來源按「建立索引／重建索引」（見下節），新的 chunk 與 embedding 才會套用新規則。</p>
+<blockquote><p><strong>重要：索引只在「蒸餾完成當下」自動觸發。</strong> 若內容在嵌入索引管線上線前就已蒸餾、或當時尚未設定嵌入，<code>VectorEmbedding</code> 會是空的，導致問答一律「查無相關依據」。此時不需重蒸餾——到「知識來源加工」對已清洗來源按「<strong>建立索引</strong>」即可（<code>KnowledgeSourceService.TriggerEmbeddingIndexAsync</code> → <code>IEmbeddingIndexQueue</code> → <code>EmbeddingIndexProcessor</code> 增量建立）。<code>/system-health</code> 的「向量索引涵蓋率」檢查會在索引為空或未設定嵌入時示警。</p></blockquote>
+<h3 id="21-更新策略成員異動後如何重整變多變少都正確汰換">2.1 更新策略：成員異動後如何重整（變多/變少都正確汰換）</h3>
+<p>當知識來源的成員有異動（新增/移除/重排），既有清洗、蒸餾、索引會變陳舊。系統採「<strong>重跑管線、各步驟自動汰換產物</strong>」策略，<strong>不需手動刪除</strong>：</p>
+<div class="tw"><table><thead><tr><th>階段</th><th>策略</th><th>內容變多</th><th>內容變少</th></tr></thead><tbody><tr><td>清洗（Cleaning）</td><td>覆蓋</td><td>重新彙整、覆寫 Cleaned Markdown（刪舊檔寫新檔）</td><td>同左</td></tr><tr><td>蒸餾（Distillation）</td><td>版本化（VER-1，0.3.14）</td><td>重蒸餾產生新版頁；自動核可即成 current</td><td><strong>不再刪除舊版</strong>：舊 current→superseded（保留＋標記），新版成 current（概念鍵＝來源+標題）</td></tr><tr><td>索引（Embedding）</td><td>增量 diff（現行感知）</td><td>新 chunk 進 <code>toAdd</code> → 新增（<code>IsCurrent=true</code>）</td><td>現行版消失的 chunk 進 <code>toDelete</code> → 刪除；superseded 向量 <code>IsCurrent=false</code> 保留不刪</td></tr></tbody></table></div>
+<blockquote><p>「增量」是 <strong>diff（新增＋刪孤兒＋不變保留）</strong>；diff 只作用於 <code>IsCurrent=true</code> 的現行版 chunk。索引以 <code>(SourceLayer, WikiPageId, ContentHash)</code> 為鍵比對。<strong>VER-1（0.3.14）起重蒸餾/核可保留舊版並標 superseded</strong>（見下與 <a href="../../docs/architecture/knowledge-type-versioning.html">版本化設計 §十二</a>）。</p></blockquote>
+<p><strong>成員異動的過期提示</strong>：成員新增/移除/重排會把該來源標記 <code>ContentStale = true</code>，清單頁顯示「內容已變更，建議重新清洗→蒸餾」；重新清洗成功完成後旗標清除。<strong>建議重跑順序</strong>：重新清洗 →（清洗完成後手動）蒸餾 →（蒸餾完成自動）建立索引。註：成員的「原始內容」若在其他頁面被編輯，系統不會自動偵測，請一樣重新清洗。</p>
+<p><strong>Wiki 內容變更事件觸發自動重索引（VER-2，0.3.12）</strong>：Wiki 頁<strong>線上編修</strong>（已核可頁）與<strong>核可</strong>（待審→已完成）後，系統會自動排入該來源重索引（<code>WikiPageService.TryEnqueueSourceReindexAsync</code> → <code>IEmbeddingIndexQueue</code>，走同一增量 diff 引擎），縮短「編修/核可後內容尚未進向量庫」的 staleness gap；守衛同 <code>TriggerEmbeddingIndexAsync</code>（來源須已清洗、非 in-flight）。</p>
+<p><strong>版本化與只取現行版 + as-of（VER-1/VER-2，0.3.14）</strong>：<code>WikiPage</code> 有版本鏈與 <code>EffectiveStatus</code>（current/superseded）；重蒸餾/核可保留舊版並標 superseded、其向量 <code>VectorEmbedding.IsCurrent=false</code>（保留不刪）。<strong>檢索以 <code>EffectiveVersionFilter</code> 疊加在權控之上</strong>：預設只回現行版（<code>IsCurrent</code>）；<code>RetrievalQuery.AsOf</code> 取時點現行 Wiki 版本（Cleaned 不版本化、恆納入）。生效狀態過濾<strong>疊加不取代</strong>權控——越權洩漏仍須為 0。</p>
+<p><strong>查詢期範圍篩選（0.3.22；團隊維度 0.3.36）</strong>：<code>RetrievalQuery</code>/<code>VectorQuery</code> 新增 <code>SourceIds</code>（知識來源）、<code>Categories</code>（分類）與 <code>Teams</code>（團隊）可選篩選，向量路徑（<code>DualDbVectorStore</code>）與關鍵字路徑（<code>RetrievalService</code>）皆套用（分類、團隊皆用 <code>TagStringHelper.BuildContainsAnyPredicate</code> 精確成員比對）。<strong>同樣疊加在團隊權控之上、只縮不放</strong>；留空＝不限（維持現狀）。AI 知識問答頁提供「限定知識來源／分類／團隊」多選以支援「多客戶／多系統／多團隊」精準問答；其中分類下拉只列「可存取知識中實際用到的分類」（<code>KnowledgeBaseChatService.GetFilterCategoriesAsync</code>）、團隊下拉只列「登入者可存取團隊」（<code>GetFilterTeamsAsync</code>；管理員為全部啟用團隊）。<strong>團隊篩選只能在可存取集合內再縮小、無法擴權</strong>（下拉僅列可存取團隊，且 <code>BuildTeamAccessPredicate</code> 存取述詞仍先套）。</p>
+<p>設定驗證規則：</p>
+<ul><li><code>ChunkTargetChars &gt; 0</code></li><li><code>ChunkMaxChars &gt;= ChunkTargetChars</code></li><li><code>ChunkOverlapChars &gt;= 0</code></li><li><code>ChunkOverlapChars &lt; ChunkTargetChars</code></li></ul>
+<p>違反規則時 <code>Chunker</code> 會丟出 <code>InvalidOperationException</code>，避免產生品質不明的索引。</p>
+<h2 id="三embedding-與向量儲存" class="t3">三、Embedding 與向量儲存</h2>
+<p>Embedding 設定位於 <code>OpenAISettings</code>：</p>
+<div class="tw"><table><thead><tr><th>參數</th><th>預設</th><th>說明</th></tr></thead><tbody><tr><td><code>EmbeddingProvider</code></td><td><code>Cloud</code></td><td>空白時沿用 <code>GenerationProvider</code>；可設 <code>Cloud</code> 或 <code>Local</code>。倉庫現值為 <code>Cloud</code>。</td></tr><tr><td><code>EmbeddingModel</code></td><td><code>text-embedding-3-large</code></td><td>雲端嵌入模型。</td></tr><tr><td><code>EmbeddingDimensions</code></td><td>1024</td><td>雲端 dimensions 參數；目前系統把 1024 維視為文件與查詢向量必須一致的運作約定。</td></tr><tr><td><code>LocalEmbeddingModel</code></td><td><code>bge-m3</code></td><td>地端 OpenAI 相容端點使用的嵌入模型。</td></tr></tbody></table></div>
+<p>目前落地方式：</p>
+<ul><li>文件 chunk 與查詢使用同一 embedding 模型。</li><li>向量會 L2 normalize。</li><li>向量以 float32 打包成 <code>byte[]</code> 存在 <code>VectorEmbedding.Embedding</code>。</li><li><code>DualDbVectorStore</code> 先用團隊權控縮小候選，再在應用層 decode 向量並計算 cosine。</li><li>目前沒有使用 pgvector、sqlite-vec 或 SQL Server VECTOR；<code>IVectorStore</code> 保留未來替換路徑。</li></ul>
+<p>換 <code>EmbeddingModel</code>、<code>LocalEmbeddingModel</code> 或 <code>EmbeddingProvider</code> 後，舊向量與新向量不應混用，需要重建索引。改 <code>EmbeddingDimensions</code> 風險更高，除了重建索引外，也必須確認所有既有向量已清除或重建，避免 cosine 比對時維度不一致。</p>
+<h2 id="四混合檢索" class="t4">四、混合檢索</h2>
+<p>檢索設定位於 <code>SystemSettings.Retrieval</code>：</p>
+<div class="tw"><table><thead><tr><th>參數</th><th>預設</th><th>何時生效</th><th>說明</th></tr></thead><tbody><tr><td><code>TopK</code></td><td>10</td><td>查詢時</td><td>最終送進問答 context 的命中數上限。</td></tr><tr><td><code>CandidateTopK</code></td><td>50</td><td>查詢時</td><td>向量路徑與關鍵字路徑各自取回的候選上限。向量路徑依 cosine 排序取前 N；關鍵字路徑依命中詞數排序取前 N（1.0.16 起，見下方說明）。</td></tr><tr><td><code>VectorWeight</code></td><td>0.7</td><td>查詢時</td><td>融合分數中的向量相似度權重。</td></tr><tr><td><code>KeywordWeight</code></td><td>0.3</td><td>查詢時</td><td>融合分數中的關鍵字命中權重。</td></tr><tr><td><code>GraphWeight</code></td><td>0.2</td><td>查詢時</td><td>融合分數中的<strong>圖鄰域</strong>權重（Graph RAG P1，1.0.83）。<strong>設 0 即完全關閉圖檢索路徑</strong>（連查詢都不發）。</td></tr><tr><td><code>GraphMaxHops</code></td><td><strong>2</strong></td><td>查詢時</td><td>圖鄰域擴展跳數（P8，1.0.90）。<strong>設 1 即為 1.0.89 之前的單跳行為</strong>。範圍 1～3；可於 <code>/rag-diagnostics</code> 熱調。</td></tr><tr><td><code>GraphHopDecay</code></td><td>0.5</td><td>查詢時</td><td>跳數衰減：第 h 跳強度＝種子強度 × <code>decay^(h-1)</code>（<strong>第 1 跳不衰減</strong>）。範圍 [0,1]；可熱調。</td></tr><tr><td><code>GraphMaxNodes</code></td><td>200</td><td>查詢時</td><td>單次檢索的鄰居頁總數上限（安全閥）。達上限即停止擴展並記 log。<strong>無 DB 覆寫、只讀 appsettings、改了要重啟</strong>。</td></tr><tr><td><code>GraphGlobalCommunityCap</code></td><td>20</td><td>查詢時</td><td>全域問答 map-reduce 取用的社群摘要上限（<strong>每個社群一次 LLM，直接決定成本</strong>）。1.0.89 起可設定。</td></tr><tr><td><code>GraphMaxCommunities</code></td><td>50</td><td>重建社群時</td><td>社群摘要重建保留的社群數上限（每群一次 LLM；超出者取成員數最大的前 N 群並記 log）。1.0.89 起可設定。</td></tr><tr><td><code>GraphAliasNameCap</code></td><td>300</td><td>別名建議時</td><td>LLM 別名建議送出的實體名上限（超出者取出現次數最多者並記 log）。1.0.89 起可設定。</td></tr><tr><td><code>MinScore</code></td><td>0.0</td><td>查詢時</td><td>逐筆最低融合分數門檻（低於則濾除單一命中）。</td></tr><tr><td><code>RejectThreshold</code></td><td>0.15</td><td>查詢時</td><td>整體信心下限：最高分命中低於此值即視為查無依據（見第五節之一）。</td></tr><tr><td><code>LowConfidenceThreshold</code></td><td>0.30</td><td>查詢時</td><td>信心不足門檻：最高分介於兩門檻之間時照答但加註提示（見第五節之一）。</td></tr></tbody></table></div>
+<blockquote><p>⚠️ <strong><code>GraphGlobalCommunityCap</code>／<code>GraphMaxCommunities</code>／<code>GraphAliasNameCap</code>／<code>GraphMaxNodes</code> 這四個只讀 appsettings，沒有 DB 覆寫、改了要重啟</strong>（與 <code>GraphWeight</code>／<code>GraphMaxHops</code>／<code>GraphHopDecay</code> 等查詢期參數不同——那些走 <code>RetrievalParamOverride</code> 可在 <code>/rag-diagnostics</code> 熱套用）。它們是低頻的成本閘門與安全閥，刻意不為此再開 migration。四者皆以 <code>Math.Max(1, 設定值)</code> 夾住，填 0 或負數會退回 1 而不是靜默停擺；<code>GraphMaxHops</code>／<code>GraphHopDecay</code> 亦在讀取時夾住上下界（appsettings 直接填超界值時 <code>SetParamsAsync</code> 的驗證擋不到）。</p></blockquote>
+<p><code>RetrievalService</code> 會執行三條路徑：</p>
+<ul><li>向量路徑：對使用者問題即時 embedding，呼叫 <code>IVectorStore.SearchAsync</code>，以 cosine 排序。</li><li>關鍵字路徑：把問句依空白與常見標點切詞，並保留完整問句，對 <code>ChunkText</code> 做 <code>Contains</code> 查詢。</li><li><strong>圖檢索路徑（Graph RAG，<code>GraphWeight &gt; 0</code> 時才執行）</strong>：見下方「4.0 圖檢索第三路」。</li></ul>
+<blockquote><p><strong>關鍵字路徑的候選集排序（1.0.16）。</strong> 命中述詞是 <strong>OR</strong>（含任一詞即入選），符合條件的列數常遠大於 <code>CandidateTopK</code>。因此截斷前必須先排序：<code>SearchKeywordAsync</code> 在 DB 端以「命中詞數」（<code>CASE WHEN ChunkText LIKE '%詞%' THEN 1 ELSE 0 END</code> 的加總）<code>OrderByDescending</code>，再以 <code>Id</code> 做決定性 tie-break，最後才 <code>Take(CandidateTopK)</code>。</p>
+<p>在此之前為無序 <code>Take</code>，取回哪幾筆由資料庫回傳順序決定（實務上接近主鍵順序）——<strong>命中全部詞的高相關 chunk，只要 <code>Id</code> 較大就永遠進不了候選集，連被打分的機會都沒有</strong>。這是召回層缺陷，任何下游排序改善（含未來的 rerank）都無法補救。</p>
+<p>DB 端的 LIKE 大小寫／定序語意隨資料庫而異，屬<strong>近似排名</strong>，僅用於挑選候選；最終 <code>KeywordScore = 命中詞數 / 總詞數</code> 仍以記憶體端 <code>OrdinalIgnoreCase</code> 重算，跨 Sqlite/SQL Server 一致，分數語意與既有門檻校準基準不變。</p></blockquote>
+<p>融合公式：</p>
+<pre><code>Score = VectorWeight * VectorScore + KeywordWeight * KeywordScore + GraphWeight * GraphScore</code></pre>
+<p>缺少某一路分數時以 0 計。最後依融合分數排序、套 <code>MinScore</code>、取 <code>TopK</code>。</p>
+<p>未設定 embedding 時，向量路徑會略過或失敗後退回 keyword-only。這能讓頁面繼續運作，但不等於完整跨來源語意檢索；PoC 與正式導入仍應先設定 embedding 並完成索引。</p>
+<h3 id="41-兩段式信心門檻與查無依據攔截">4.1 兩段式信心門檻與查無依據攔截</h3>
+<p><code>MinScore</code> 是「逐筆」下限（過濾個別低分命中），預設 0.0 等於不過濾。為避免「知識庫其實沒有相關內容、但 RAG 仍撈出弱相關 chunk 導致 LLM 答非所問或臆造」，<code>KnowledgeBaseChatService</code> 另以「最高分命中」的融合分數做整體信心判定（門檻判定放在編排層，不放在通用的 <code>RetrievalService</code>）。</p>
+<p>依排序後最高分命中的融合分數 <code>topScore</code> 分三段：</p>
+<div class="tw"><table><thead><tr><th>區間</th><th>信心（<code>RetrievalConfidence</code>）</th><th>系統行為</th></tr></thead><tbody><tr><td><code>topScore &lt; RejectThreshold</code> 或命中數 = 0</td><td><code>Insufficient</code></td><td>程式層直接回覆固定訊息「您的問題在知識庫中查無相關依據…」，<strong>不呼叫 LLM</strong>，不附出處（不洩漏低品質內容）。</td></tr><tr><td><code>RejectThreshold ≤ topScore &lt; LowConfidenceThreshold</code></td><td><code>LowConfidence</code></td><td>照常呼叫 LLM 回答，但由程式層在回答最前面加上固定提示「⚠️ 信心不足…」，仍附出處。</td></tr><tr><td><code>topScore ≥ LowConfidenceThreshold</code></td><td><code>Sufficient</code></td><td>正常回答。</td></tr></tbody></table></div>
+<p>兩段訊息由程式層常數（<code>KnowledgeBaseChatService.InsufficientMessage</code> / <code>LowConfidencePrefix</code>）保證，不依賴 LLM 自律。</p>
+<blockquote><p><strong>門檻值須以真實資料校準。</strong> 融合分數分佈依資料而定，<code>RejectThreshold=0.15</code>、<code>LowConfidenceThreshold=0.30</code> 僅為起點。<code>KnowledgeBaseChatService.RetrieveAsync</code> 的稽核已持久化到 <code>KnowledgeBaseQueryAudit</code>（EVAL-2），可據此回填校準。</p></blockquote>
+<blockquote><p><strong>執行期可覆蓋（0.3.3）。</strong> 兩段式門檻可於管理員頁 <code>/rag-diagnostics</code> 依 topScore 分佈檢視建議值與效果模擬後<strong>直接套用並熱生效</strong>（免改 appsettings、免重啟）。機制：<code>RetrievalSettingOverride</code> 單列覆蓋表 + <code>IRetrievalSettingsProvider</code>（解析優先序：<strong>DB 覆蓋 → appsettings → 程式預設</strong>）；<code>RetrieveAsync</code> 每輪取「有效門檻」用於判定與稽核記錄。可於該頁「回復預設」清除覆蓋。詳見 <a href="../../docs/planning/12-rag-b561e5d2.html">RAG 補強總彙整</a>（EVAL-3／RQ-1／EVAL-5）與 <a href="../../docs/operations/rag-troubleshooting.html">RAG 問題診斷手冊</a>。</p></blockquote>
+<h3 id="42-圖檢索第三路graph-rag10831090">4.2 圖檢索第三路（Graph RAG，1.0.83～1.0.90）</h3>
+<p><code>RetrievalService.SearchGraphAsync</code> 在向量與關鍵字之外加第三路「圖鄰域加分」。<strong><code>GraphWeight = 0</code> 時整條路徑不執行</strong>（連 DB 查詢都不發）。</p>
+<p>流程：</p>
+<ol><li><strong>種子頁</strong>：取 vector ∪ keyword 命中中屬「Wiki 層」的 chunk，其所屬 <code>WikiPage</code> 即為種子；種子強度＝該頁最佳 chunk 的<strong>融合前</strong>分數 <code>VectorWeight*v + KeywordWeight*k</code>。</li><li><strong>BFS 逐跳擴展</strong>（P8，共 <code>GraphMaxHops</code> 跳、預設 2）——每一層的鄰居來源有二：</li><li><strong>概念連結邊</strong>（P1）：<code>GraphEdge</code>，由蒸餾產物 <code>WikiPage.LinkTitles</code> 的 <code>[[標題]]</code> 冪等重建（<code>GraphEdgeService</code>，<strong>不呼叫 LLM</strong>）。此查詢與 frontier 相依，<strong>每一層都要重查</strong>。</li><li><strong>已核可三元組</strong>（P2＋P4/P5）：<code>GraphTriple</code>（<code>Status = 已完成</code>）的兩端實體，經 <code>EntityNameNormalizer.Canonical</code>（Trim＋<code>FormKC</code>＋小寫）與 <code>EntityAliasResolver.Resolve</code>（已核可別名的 union-find 傳遞閉包）解析後，對應到「跨來源頁集合」<code>pagesByCanon</code>，展開成無向的「頁↔頁」邊。<strong>只處理與當前 frontier 有交集的三元組</strong>（控成本）。別名對照、<code>pagesByCanon</code> 與已套 ACL 的三元組清單皆與 frontier 無關，<strong>在 BFS 迴圈外只建一次</strong>。</li></ol>
+<p>第 h 跳的傳播強度＝種子強度 × <code>GraphHopDecay^(h-1)</code>，<strong>故第 1 跳不衰減</strong>（<code>GraphMaxHops=1</code> 時即 1.0.89 之前的單跳行為）；多路徑到同一頁<strong>取 max</strong>；已走訪過的頁不重複加分。鄰居總數達 <code>GraphMaxNodes</code> 時取強度最高者填滿並停止擴展，<strong>且記 <code>LogInformation</code>（不靜默截斷）</strong>。</p>
+<ol><li><strong>回映 chunk</strong>：鄰居頁的「現行 Wiki 層」chunk 以該強度加分，並套與另兩路一致的 as-of 版本與查詢期篩選（<code>SourceIds</code>／<code>Categories</code>／<code>Teams</code>）。此步驟在迴圈外只做一次。</li></ol>
+<p><strong><code>leak=0</code> 紅線</strong>：邊、節點（<code>GraphNode</code>）、三元組、鄰居 chunk <strong>四層查詢各自都套</strong> <code>TagStringHelper.BuildTeamAccessPredicate</code>；其中<strong>邊的權控每一跳都要套</strong>。特別是——他隊的三元組即使兩端頁面本身公開也<strong>不得</strong>用來加分（關係本身即是知識），他隊節點的錨頁也<strong>不得</strong>進入 <code>pagesByCanon</code>。這些已由測試釘住。</p>
+<blockquote><p>⚠️ <strong>多跳不得成為越權的旁路</strong>：他隊的邊被濾掉後，其目標頁就不會進入 frontier，因此<strong>下一跳也無法借道該頁繼續走</strong>——整條路徑在該處斷開。已由測試釘住（A 公開 →[他隊邊]→ B →[公開邊]→ C，非管理員查 A 時 B 與 C 都不得出現）。</p></blockquote>
+<p><code>/rag-diagnostics</code> 的「試檢索」面板另有「圖分」欄，可單獨觀察此路貢獻；<code>GraphWeight</code>／<code>GraphMaxHops</code>／<code>GraphHopDecay</code> 走與其他查詢期參數相同的覆蓋鏈（DB 覆蓋 → appsettings → 程式預設）並熱生效。</p>
+<p><strong>目前限制</strong>：跳數上限 3（再深請先評估專用圖庫，見 <a href="../../docs/strategy/graph-rag-blueprint.html">Graph RAG 藍圖</a> §4.4）、無節點/社群摘要嵌入。</p>
+<h3 id="43-全域問答社群摘要-map-reducep3">4.3 全域問答（社群摘要 map-reduce，P3）</h3>
+<p>AI 知識問答頁另有「一般／全域」切換。<strong>全域模式不走上述三路檢索</strong>，改對 <code>GraphCommunity</code>（已核可三元組以 Label Propagation 分群後、每群由 LLM 產出的標題與摘要）做 map-reduce：每個可存取社群各一次 LLM 取重點（map），再彙整成答（reduce），上限為 <code>Retrieval.GraphGlobalCommunityCap</code>（預設 20）。答案末尾附「參考社群」，<strong>不產出 chunk 層出處引用</strong>；無可用社群時直接回「查無依據」。</p>
+<blockquote><p>⚠️ <strong>社群摘要的 ACL 比一般權控更嚴</strong>：社群摘要混合了多個成員節點的知識，因此判定為「社群 <code>Teams</code> <strong>聯集 ⊆ 使用者團隊</strong>（子集，非交集）或社群純公開」（<code>GraphCommunityService.IsAccessible</code>）。這與其他所有紀錄的「交集即可」不同，是刻意的收緊。</p></blockquote>
+<p>社群為<strong>全域衍生聚合</strong>、整批重建、無審核，由管理員在 <code>/knowledge-graph-review</code> 手動觸發；該工作刻意<strong>不進</strong> <code>PipelineNames</code>，故不出現在 <code>/pipeline-jobs</code>。</p>
+<h3 id="44-圖譜瀏覽p81090">4.4 圖譜瀏覽（P8，1.0.90）</h3>
+<p><code>/knowledge-graph-review</code> 的「圖譜瀏覽」分頁可輸入實體名稱、檢視其 N 跳鄰域（關係表格 ＋ inline SVG 放射狀圖；<strong>不引入任何外部前端圖庫</strong>，符合無 CDN 依賴的前提）。</p>
+<blockquote><p>⚠️ <strong>這與檢索的圖遍歷是兩張不同的圖</strong>：檢索遍歷的是<strong>頁</strong>（<code>WikiPage</code>），本分頁遍歷的是<strong>實體</strong>（正規化名稱），兩者刻意不共用程式碼（<code>GraphTripleService.GetNeighborhoodAsync</code>）。</p></blockquote>
+<ul><li>輸入名稱先經 <code>Canonical</code> 再經已核可別名 <code>Resolve</code>（故查「TSMC」等同查「台積電」），與檢索／社群偵測的三個 canonical 點語意一致。</li><li>只取<strong>已核可</strong>三元組；<strong>三元組與兩端節點兩層都套團隊權控</strong>——任一端節點越權，整條關係就不出現。</li><li>跳數上限 3、節點上限 100；達上限時以 <code>Truncated</code> 回報並在畫面顯示警告（不靜默截斷）。</li><li>可見性沿用「知識圖譜審核」頁權（<code>角色_知識圖譜審核</code>），<strong>不新增權限常數、不動選單三處同步</strong>。</li></ul>
+<blockquote><p>圖譜的資料模型、審核流程與各階段取捨詳見 <a href="../../docs/strategy/graph-rag-blueprint.html">Graph RAG 導入分析與實作藍圖</a> §9 與各篇 <a href="../../docs/changelog/readme-436e4418.html">changelog</a>。</p></blockquote>
+<h2 id="五query-rewrite-與-llm-回答" class="t5">五、Query Rewrite 與 LLM 回答</h2>
+<p>AI 知識問答在檢索前會先判斷是否需要 Query Rewrite。預設只在 <code>Auto</code> 模式下，且最近對話存在、問題過短或含「它／這個／剛剛／上述」等上下文標記時啟用。清楚完整的問題會直接用原始 query 檢索。</p>
+<p>Query Rewrite 使用 <code>OpenAISettings.QueryRewriteModel</code>，預設 <code>gpt-5.4-mini</code>，逾時由 <code>OpenAISettings.QueryRewriteTimeoutSeconds</code> 控制。地端模式可用 <code>LocalQueryRewriteModel</code> 指定小模型，留空則沿用 <code>LocalGenerationModel</code>。提示詞鍵為 <code>知識庫-查詢改寫</code>，同樣走四層解析。</p>
+<p>改寫結果只用於 <code>IRetrievalService.RetrieveAsync</code>；<code>BuildMessagesAsync</code> 仍把使用者原始問題放入本輪 user 訊息。若改寫失敗、逾時或輸出空白，預設回退原始 query，不中斷問答。</p>
+<p><code>KnowledgeBaseChatService.RetrieveAsync</code> 每輪都會重新取得 <code>IRecordAccessScopeProvider.GetAsync()</code>，再把 scope 交給 <code>IRetrievalService</code>。命中結果會先排 <code>Wiki</code>，再排 <code>Cleaned</code>，同層依分數排序。</p>
+<p>送入 LLM 的 context 格式類似：</p>
+<pre><code>【來源：員工手冊｜蒸餾頁｜健康檢查福利】
+chunk 文字...
+
+【來源：員工手冊｜清洗內容｜第三章】
+chunk 文字...</code></pre>
+<p><code>BuildMessagesAsync</code> 會組成：</p>
+<ul><li>system：知識庫系統提示詞 + 回答詳簡 + 附出處參考資料。</li><li>history：先前 user/assistant 多輪訊息。</li><li>user：本輪問題。</li></ul>
+<p>提示詞走四層解析：單次操作覆蓋 → DB <code>Prompt</code> → <code>appsettings</code> → 程式 fallback。回答以 <code>IChatConversationClient.StreamAsync</code> 串流輸出。</p>
+<p>重要限制：Query Rewrite 只做保守的上下文補全，不做 HyDE、多查詢展開、rerank 或相鄰 chunk 擴展；這些項目已列入優化待辦，待 檢索品質評測結果決定是否導入。</p>
+<h2 id="六權控與出處" class="t6">六、權控與出處</h2>
+<p>RAG 的資安不變量是「越權內容不可進候選、不可進 context、不可進出處」。</p>
+<p>目前做法：</p>
+<ul><li><code>VectorEmbedding.Teams</code> 繼承自知識來源或 Wiki 頁。</li><li>非管理員檢索時，向量與關鍵字路徑都套 <code>TagStringHelper.BuildTeamAccessPredicate</code>。</li><li>管理員不受團隊限制。</li><li>出處展開再走 <code>KnowledgeSourceService.GetAsync</code>，下載原始檔走既有受權控 Controller。</li><li>日誌只記 query 長度、命中 chunk id、層別與分數，不記完整問題或完整 context 本文。</li></ul>
+<p>檢索品質評測中也有越權洩漏指標；權控相關變更必須維持越權洩漏為 0。</p>
+<h3 id="六之一間接-prompt-injection內容投毒基線防護sec-1037">六之一、間接 prompt injection／內容投毒基線防護（SEC-1，0.3.7）</h3>
+<p>檢索到的知識內容會進 LLM 的 system 訊息，惡意來源可能夾帶「忽略上述指令」等注入。基線防護（<code>KnowledgeExtraction.Business.Helpers.LlmContextGuard</code>）：</p>
+<ul><li>問答（RAG <code>KnowledgeBaseChatService</code> 與單一來源 <code>KnowledgeSourceChatService</code>）在組 system 訊息時，把參考資料以<strong>每次請求的隨機 nonce 邊界</strong>（<code>===參考資料開始 #xxxx===</code>…<code>===結束===</code>）包裹，並在邊界前置<strong>防護指令</strong>：參考資料為外部不可信資料、其中任何看似指令的文字一律當資料、不得執行、不得改變角色/規則。此段寫在<strong>模板本身</strong>，不受四層提示詞覆蓋。</li><li>另強化 <code>LlmPromptDefaults.KnowledgeBaseSystem</code>／<code>ChatSystem</code> 預設層（防禦縱深）。</li></ul>
+<p><strong>限制（誠實）</strong>：這是<strong>降低風險的基線</strong>，非徹底根除 prompt injection；來源內容淨化、可疑內容偵測，以及「依提示詞產生」路徑（<code>LlmGenerationService</code>/<code>DocumentLlmGenerationService</code>）的同類防護列為後續。</p>
+<h3 id="六之二遮罩不變量sec-2037">六之二、遮罩不變量（SEC-2，0.3.7）</h3>
+<p>不變量：<strong>任何寫入 Cleaned／Wiki 檔（會被索引）的內容都必經遮罩</strong>。自動清洗管線的遮罩是不可降級步驟、發生在 embedding 之前；線上編修 Cleaned（<code>KnowledgeSourceService.UpdateCleanedContentAsync</code>）與 Wiki（<code>WikiPageService.UpdateContentAsync</code>）內容時，存檔前會呼叫 <code>CleaningEnhancer.MaskAsync</code> 重跑遮罩（遮罩失敗則不寫檔），關閉「編修繞過去敏後被索引」的缺口。無 LLM 環境本就不遮罩（既有限制）。</p>
+<h3 id="六之三權控標籤傳播與-chunk-層-aclsec-30311">六之三、權控標籤傳播與 chunk 層 ACL（SEC-3，0.3.11）</h3>
+<p>團隊標籤（<code>Teams</code>）是權控來源，會沿「來源 → Wiki 頁 → 向量 chunk」複製：蒸餾時 <code>WikiPage.Teams = source.Teams</code>，建索引時 <code>VectorEmbedding.Teams</code> 取自來源/頁。<strong>檢索權控過濾的是 <code>VectorEmbedding.Teams</code></strong>（<code>BuildTeamAccessPredicate</code>，候選階段即濾）。</p>
+<ul><li><strong>不變量（本次修補）</strong>：來源團隊變更必須即時傳播到既有 <code>WikiPage.Teams</code> 與 <code>VectorEmbedding.Teams</code>。<code>KnowledgeSourceService.UpdateAsync</code> 於團隊變更時以 <code>ExecuteUpdateAsync</code> 直接改子表標籤（免重嵌，只改 ACL）。否則「把來源改嚴」後舊向量仍帶舊（較寬鬆）團隊 → <strong>過度曝露</strong>，且 RagEval 的越權檢查用同一舊值、內部一致而抓不到。</li><li><strong>粒度現況</strong>：<code>VectorEmbedding.Teams</code> 本就是 <strong>per-chunk 欄位</strong>，檢索與評測（<code>RagEvaluator.LeakHits</code>）皆已 per-chunk 運作；資料模型<strong>已足以支援 chunk 層 ACL</strong>。目前每個 chunk 的 <code>Teams</code> 一律繼承自來源，尚無「同一來源不同段落不同存取權」的產生路徑。</li><li><strong>決策</strong>：完整「段落層」差異化標記（需切塊器輸出標籤、UI 標記入口、增量鍵納入 Teams、回應層 PEP 二次驗證）<strong>待具體 JTBD 再導入</strong>；現階段維持來源/團隊層，並以 檢索品質評測「越權洩漏＝0」守底線。</li></ul>
+<h2 id="七參數調整指引" class="t7">七、參數調整指引</h2>
+<div class="tw"><table><thead><tr><th>問題</th><th>優先檢查/調整</th><th>是否需重建索引</th></tr></thead><tbody><tr><td>答案一律查無依據</td><td>先查 <code>/system-health</code> 的「向量索引涵蓋率」；多半是索引從未建立。到「知識來源加工」對已清洗來源按「建立索引」；並確認 embedding 已設定。管理員在問答頁也會看到診斷提示。</td><td>不需（建立索引即可）</td></tr><tr><td>召回不到相關段落</td><td>增加 <code>TopK</code> 或 <code>CandidateTopK</code>；檢查 embedding 模型；調整 chunk 目標大小/overlap。</td><td>改 chunk 或模型需重建</td></tr><tr><td>命中太多雜訊</td><td>提高 <code>MinScore</code>；調整 <code>VectorWeight</code>/<code>KeywordWeight</code>；縮小 <code>TopK</code>。</td><td>不需</td></tr><tr><td>庫外問題仍硬答 / 答非所問</td><td>提高 <code>RejectThreshold</code>（更易判為查無依據）；視需要調整 <code>LowConfidenceThreshold</code>。先查日誌的「最高分」分佈再校準。</td><td>不需</td></tr><tr><td>正常問題被誤判查無依據</td><td>降低 <code>RejectThreshold</code>；確認 embedding 已設定且索引完整。</td><td>不需</td></tr><tr><td>關鍵詞精確命中差</td><td>提高 <code>KeywordWeight</code>；改善使用者問句或資料標題。</td><td>不需</td></tr><tr><td>語意相近但關鍵詞不同</td><td>提高 <code>VectorWeight</code>；確認 embedding 模型品質。</td><td>換模型需重建</td></tr><tr><td>chunk 太小導致上下文不足</td><td>增加 <code>ChunkTargetChars</code> 或 <code>ChunkOverlapChars</code>。</td><td>需要</td></tr><tr><td>chunk 太大導致答案混雜</td><td>降低 <code>ChunkTargetChars</code> 或 <code>ChunkMaxChars</code>。</td><td>需要</td></tr><tr><td>出處不準</td><td>檢查 <code>AnchorRef</code>、Wiki 頁內容、Cleaned 內容與切塊參數。</td><td>改內容/切塊需重建</td></tr></tbody></table></div>
+<p>已實作的索引維運：</p>
+<ul><li>手動建立／重建索引：「知識來源加工」每列對「已清洗」來源提供「建立索引／重建索引」按鈕（<code>TriggerEmbeddingIndexAsync</code>），不需重蒸餾即可建立或更新 <code>VectorEmbedding</code>（以 ContentHash 增量）。</li><li>索引涵蓋率健康檢查：<code>/system-health</code> 的「向量索引涵蓋率」會在「有已清洗來源但索引為空」或「未設定嵌入」時示警。</li><li>問答查無依據診斷：管理員在問答查無依據時，會看到原因提示（嵌入未設定／索引為空）；一般使用者僅看到通用訊息。</li><li>問答稽核紀錄持久化（0.3.2）：每輪問答檢索寫入一列 <code>KnowledgeBaseQueryAudit</code>（最高分 <code>TopScore</code>、信心、命中數、命中明細 JSON、當下門檻值、問句長度）。<strong>隱私邊界</strong>：只存長度與分數，不存問句本文、context 本文或 chunk 文字。由 <code>KnowledgeBaseChatService.RetrieveAsync</code> 三分支寫入，稽核失敗以 try/catch 隔離、不影響回答。此表是 topScore 分佈統計與門檻校準的資料基礎（見 <a href="../../docs/planning/12-rag-b561e5d2.html">RAG 補強總彙整</a> EVAL-2）。</li></ul>
+<p>尚未實作但常見的下一步增強：</p>
+<ul><li>adjacent chunk expansion：命中 chunk 後自動補前後 chunk。</li><li>rerank：用 cross-encoder 或 reranker 重新排序候選（分析見 <a href="../../docs/architecture/rag-rerank-analysis.html">RAG rerank 是否導入分析</a>）。</li><li>query rewrite / multi-query：把使用者問題改寫成多個查詢增加召回。</li></ul>
+<h2 id="八變更檢查清單" class="t8">八、變更檢查清單</h2>
+<p>調整 RAG 參數或程式時，至少檢查：</p>
+<ul><li><code>ChunkerTests</code></li><li><code>EmbeddingIndexProcessorTests</code></li><li><code>RetrievalServiceTests</code></li><li><code>KnowledgeBaseChatServiceTests</code></li><li><code>RagEvaluationServiceTests</code></li><li><code>dotnet test ...KnowledgeExtraction.slnx</code></li><li><code>scripts/Test-DocsEncoding.ps1</code></li></ul>
+<p>新增 <code>appsettings.json</code> 欄位時，需同步更新 <a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a>、本文件、<code>docs/README.md</code> 與根 <code>README.md</code>。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：問答結果不如預期，我要找出原因</li><li>導入顧問：我要清楚知道這套系統做不到什麼</li></ul></div><div class="card"><h3>同類文件（系統架構）</h3><ul><li><a href="../../docs/architecture/two-stage-threshold.html">AI 知識問答：兩段式相似度門檻與查無依據攔截（設計文件）</a></li><li><a href="../../docs/architecture/knowledge-type-versioning.html">知識型態抽象 × 版本化 × 時效性（設計文件）</a></li><li><a href="../../docs/architecture/api-versioning.html">API Versioning 策略</a></li><li><a href="../../docs/architecture/dto-boundaries.html">DTO 與模型邊界規範</a></li><li><a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a></li><li><a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a></li><li><a href="../../docs/architecture/rag-rerank-analysis.html">RAG 是否導入 Re-rank（二階重排）分析與建議</a></li><li><a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例</a></li><li><a href="../../docs/architecture/wiki-vs-cleaned.html">Wiki 與 Cleaned 的角色差異</a></li><li><a href="../../docs/architecture/architecture-overview.html">架構總覽</a></li><li><a href="../../docs/architecture/data-model.html">資料模型與資料庫</a></li><li><a href="../../docs/architecture/data-lifecycle.html">資料生命週期與維護（更新、刪除、級聯與孤兒）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一rag-全流程">一、RAG 全流程</a><a class="l2" href="#二切塊與索引">二、切塊與索引</a><a class="l3" href="#21-更新策略成員異動後如何重整變多變少都正確汰換">2.1 更新策略：成員異動後如何重整（變多/變少都正確汰換）</a><a class="l2" href="#三embedding-與向量儲存">三、Embedding 與向量儲存</a><a class="l2" href="#四混合檢索">四、混合檢索</a><a class="l3" href="#41-兩段式信心門檻與查無依據攔截">4.1 兩段式信心門檻與查無依據攔截</a><a class="l3" href="#42-圖檢索第三路graph-rag10831090">4.2 圖檢索第三路（Graph RAG，1.0.83～1.0.90）</a><a class="l3" href="#43-全域問答社群摘要-map-reducep3">4.3 全域問答（社群摘要 map-reduce，P3）</a><a class="l3" href="#44-圖譜瀏覽p81090">4.4 圖譜瀏覽（P8，1.0.90）</a><a class="l2" href="#五query-rewrite-與-llm-回答">五、Query Rewrite 與 LLM 回答</a><a class="l2" href="#六權控與出處">六、權控與出處</a><a class="l3" href="#六之一間接-prompt-injection內容投毒基線防護sec-1037">六之一、間接 prompt injection／內容投毒基線防護（SEC-1，0.3.7）</a><a class="l3" href="#六之二遮罩不變量sec-2037">六之二、遮罩不變量（SEC-2，0.3.7）</a><a class="l3" href="#六之三權控標籤傳播與-chunk-層-aclsec-30311">六之三、權控標籤傳播與 chunk 層 ACL（SEC-3，0.3.11）</a><a class="l2" href="#七參數調整指引">七、參數調整指引</a><a class="l2" href="#八變更檢查清單">八、變更檢查清單</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/architecture/知識庫RAG設計與執行.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

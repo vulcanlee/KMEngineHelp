@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>實體名詞用法統一 55 處：選單叫新名、訊息叫舊名的分裂收尾（1.0.75→1.0.76）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>實體名詞用法統一 55 處：選單叫新名、訊息叫舊名的分裂收尾（1.0.75→1.0.76）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-26</li><li>版本：1.0.75 → 1.0.76</li><li>類型：一致性修正（純顯示字串）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>1.0.57 改選單名、1.0.58／1.0.70 補齊顯示標籤，但那三批的規則都是「只改<strong>值剛好等於舊選單名</strong>的標籤」，所以<strong>實體名詞用法</strong>一直沒動：使用者在選單看到「工作任務」，操作失敗時卻看到「新增<strong>工作項目</strong>失敗。」；表單標題寫「清洗規則設定」，刪除確認卻問「確定要刪除這筆<strong>清洗設定檔</strong>嗎？」。</p>
+<p>這批把這個分裂收掉。</p>
+<h2 id="變更" class="t2">變更</h2>
+<div class="tw"><table><thead><tr><th>舊名</th><th>新名</th><th>處數</th></tr></thead><tbody><tr><td><code>工作項目</code></td><td><code>工作任務</code></td><td>UI 12 ＋ <code>MyTasService</code> 訊息 10</td></tr><tr><td><code>文件萃取</code></td><td>「…資料」→<code>文件</code>／動作→<code>文件轉文字</code></td><td><code>DocumentExtractionService</code> 11 ＋ <code>DocumentLlmGenerationService</code> 1</td></tr><tr><td><code>清洗設定檔</code></td><td><code>清洗規則</code></td><td>UI 7（含 4 處裸詞）＋ <code>CleaningProfileService</code> 訊息 6</td></tr><tr><td><code>會議記錄</code>（<strong>記</strong>）</td><td>依語境（<code>會議管理</code>／<code>會議資料</code>）</td><td>UI 3</td></tr><tr><td><code>專案項目</code></td><td><code>專案管理</code></td><td>UI 2</td></tr><tr><td><code>黃金評測樣本</code></td><td><code>黃金樣本</code></td><td>4</td></tr><tr><td><code>RAG 評測樣本</code></td><td><strong>不動</strong></td><td>0</td></tr></tbody></table></div>
+<p>共 <strong>55 處</strong>，19 檔，<code>+80/-68</code>。</p>
+<h3 id="service-訊息的命名規則沿用手足服務既有寫法非新創">Service 訊息的命名規則（沿用手足服務既有寫法，非新創）</h3>
+<p><code>MediaTranscriptionService</code> 早就寫「找不到要修改的<strong>轉錄</strong>資料。」而不是「音訊轉錄資料」；<code>ImageRecognitionService</code> 寫「重試<strong>圖片解讀</strong>失敗。」（新頁名）。本批沿用同一套：</p>
+<ul><li><strong>「…資料」類用中性實體名詞</strong>：「找不到要修改的<strong>文件</strong>資料。」（不是「文件轉文字資料」，那樣讀起來很怪）</li><li><strong>動作類用新頁名</strong>：「重試<strong>文件轉文字</strong>失敗。」「取消<strong>文件轉文字</strong>失敗。」</li></ul>
+<h3 id="rag-評測樣本-為何不動"><code>RAG 評測樣本</code> 為何不動</h3>
+<p><code>RAG</code> 是產業標準技術詞，全庫另有 20+ 處合理的技術用法；而舊選單名嚴格說是 <code>RAG評測</code>（<strong>無空格</strong>），<code>RAG 評測</code>（有空格）從來不是選單名。這正好符合 1.0.58 對「黃金樣本」的同一套豁免邏輯，因此 11 處全部保留。</p>
+<h3 id="黃金評測樣本-為何改成黃金樣本而不是清洗品質評測樣本"><code>黃金評測樣本</code> 為何改成「黃金樣本」而不是「清洗品質評測樣本」</h3>
+<p>那 4 處講的是「這筆資料叫什麼」而非「這一頁叫什麼」。對齊依據是既有程式：<code>DashboardService</code> 的儀表板卡片標籤已是「黃金樣本」，<code>GoldenSampleService</code> 的 11 處訊息全部是「黃金樣本」。</p>
+<h2 id="四個硬排除全部以-git-diff-驗證" class="t3">⚠️ 四個硬排除（全部以 <code>git diff</code> 驗證）</h2>
+<p>這批的風險不在改了什麼，在<strong>不能改什麼</strong>。全程逐處手改、<strong>禁止跨檔全域取代</strong>。</p>
+<div class="tw"><table><thead><tr><th>#</th><th>排除對象</th><th>為什麼</th><th>驗證</th></tr></thead><tbody><tr><td>1</td><td><code>MagicObjectHelper.cs</code>、<code>RolePermissionService.cs</code></td><td>常數<strong>值</strong>寫在每個角色的 <code>RoleView.TabViewJson</code>。而 7 個識別字（<code>角色_工作項目</code>／<code>角色_圖片清單</code>／<code>角色_分類清單</code>／<code>角色_團隊清單</code>／<code>角色_提示詞清單</code>／<code>角色_清洗設定檔</code>／<code>角色_知識來源管理清單</code>）<strong>文字上包含</strong>本批要取代的舊名 —— 全域取代會波及它們（編譯失敗，好結果），但「順手改識別字讓它編過」就會連值一起改掉＝所有既有角色掉權限</td><td><code>git diff --stat</code> 兩檔<strong>無輸出</strong> ✓</td></tr><tr><td>2</td><td><code>會議紀錄</code>（<strong>紀</strong>）約 100 處</td><td>那是 AI 產出的<strong>會議紀要文件</strong>，與選單改名無關。只有 <code>會議記錄</code>（<strong>記</strong>）才是舊選單名</td><td><code>git diff</code> 中含「會議紀錄」的唯一一行，兩側<strong>逐字相同</strong>（該行只有 <code>工作項目</code>→<code>工作任務</code> 在變）✓</td></tr><tr><td>3</td><td><code>MeetingService</code> 掛載會議錄音的 <code>Description</code></td><td>它會 <code>SaveChanges</code> <strong>落地到 <code>MediaTranscription.Description</code> 資料列</strong>。它同時顯示在「影音轉逐字稿」清單描述欄，<strong>長得像 UI 標籤</strong>，但改了會讓新舊資料列分歧且無法回溯</td><td>未改，並在行內加註說明 ✓</td></tr><tr><td>4</td><td><code>LlmPromptDefaults.cs</code> 的 <code>MeetingMinutes</code></td><td><strong>送給 LLM 的提示詞</strong>，改字會改變模型行為。而且同一個字串內「會議<strong>記</strong>錄助理」與「會議<strong>紀</strong>錄」<strong>兩種寫法都有</strong></td><td>提示詞本體未改，僅新增 <code>&lt;remarks&gt;</code> 說明 ✓</td></tr></tbody></table></div>
+<p>另外 <code>MediaTranscriptionView.razor</code> 的「需於<strong>設定檔</strong>設定 DouyinHelperScript」指的是 <code>appsettings.json</code>，與清洗設定檔無關，不可改（本批未動）。</p>
+<p><strong>註解／XML doc／log 樣板刻意不改</strong>（1.0.71 起的既有原則）：混進來會讓 diff 從 80 行膨脹到 130 行，反而遮蔽真正有風險的那幾行。</p>
+<h2 id="測試" class="t4">測試</h2>
+<p>712 → <strong>712（不變，全綠）</strong>。這批是純顯示字串，事前已確認 <code>Tests/</code> 內沒有任何斷言命中這些訊息。</p>
+<p>1.0.75 剛落地的 <code>PermissionConstantCanaryTests</code> 三條全綠 —— 它是本批的結構性防護，且<strong>已在 1.0.75 實證過</strong>：注入「只改值不改識別字」的變更後，<code>MenuPermissionAlignmentTests</code> 4 條依然全綠、金絲雀立刻紅燈。</p>
+<h3 id="殘留稽核">殘留稽核</h3>
+<p>改完後全庫仍有 95 處舊名字面命中，逐一分類確認<strong>全部屬於刻意排除</strong>：<code>角色_*</code> 常數值與識別字、註解／XML doc、<code>#region</code>、日誌樣板、上述四個硬排除、<code>RAG 評測樣本</code>、以及一處測試用的 DB 權限值（<code>SidebarMenuServiceTests</code> 的 <code>PermissionName = "專案項目"</code>）。</p>
+<h2 id="影響與相容性" class="t5">影響與相容性</h2>
+<ul><li><strong>使用者可見</strong>：上述 55 處標籤、Placeholder、視窗標題、確認對話窗與錯誤訊息改用新名。</li><li><strong>無任何行為變更</strong>：純字串，不涉邏輯、資料或 API。</li><li>無資料庫 migration；既有角色權限完全不受影響（權限常數值零變更）。</li></ul>
+<h2 id="文件同步" class="t6">文件同步</h2>
+<p><code>architecture/開發慣例與限制速查.md</code> §1.2 新增不變量「<strong>選單／實體名詞改名的四個硬排除</strong>」，含安全 regex 與驗收指令，供日後任何改名沿用；<code>planning/08</code> 該項打勾。</p>
+<h2 id="版本" class="t7">版本</h2>
+<ul><li><code>appsettings.json</code> <code>SystemVersion</code>：<code>1.0.75</code> → <code>1.0.76</code>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#service-訊息的命名規則沿用手足服務既有寫法非新創">Service 訊息的命名規則（沿用手足服務既有寫法，非新創）</a><a class="l3" href="#rag-評測樣本-為何不動">RAG 評測樣本 為何不動</a><a class="l3" href="#黃金評測樣本-為何改成黃金樣本而不是清洗品質評測樣本">黃金評測樣本 為何改成「黃金樣本」而不是「清洗品質評測樣本」</a><a class="l2" href="#四個硬排除全部以-git-diff-驗證">⚠️ 四個硬排除（全部以 git diff 驗證）</a><a class="l2" href="#測試">測試</a><a class="l3" href="#殘留稽核">殘留稽核</a><a class="l2" href="#影響與相容性">影響與相容性</a><a class="l2" href="#文件同步">文件同步</a><a class="l2" href="#版本">版本</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-26-實體名詞用法統一.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

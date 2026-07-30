@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>計畫範圍與遠景｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 策略與規劃</p><header class="hero"><div class="kicker">策略與規劃</div><h1>計畫範圍與遠景</h1><p class="sub">知識庫計畫的範圍界定與整體遠景</p></header><div class="docwrap"><main><ul><li>文件用途：知識庫計畫的範圍界定與整體遠景</li><li>主要讀者：決策層、產品與開發團隊、潛在合作夥伴</li><li>文件版本：1.2（同步至系統版本 0.3.14）</li><li>建立日期：2026/06/08</li><li>最後更新：2026/07/05</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>本文是 <code>docs/strategy/</code> 策略文件集的總綱。商業價值與行銷見 <a href="../../docs/strategy/business-value.html">02-商業價值與行銷策略</a>、架構建議見 <a href="../../docs/strategy/architecture-research.html">03-知識庫架構研究與建議</a>、路線圖見 <a href="../../docs/strategy/dev-roadmap.html">04-開發建議與路線圖</a>。</p></blockquote>
+<hr>
+<h2 id="一一句話定位" class="t1">一、一句話定位</h2>
+<blockquote><p>將分散的資訊轉換成可搜尋、可理解、可運用的企業智慧資產，並透過 AI 與 Agent 持續創造更大的商業價值。</p></blockquote>
+<p>整個計畫是一個<strong>完整閉環</strong>：</p>
+<pre><code>資料匯入  →  資料清洗  →  建立知識庫  →  附加應用
+  (收集整合)   (結構化/去蕪存菁)  (可搜尋可推理)   (轉成商業價值)
+      ▲                                                │
+      └──────────────  價值回饋、持續擴充  ◀───────────┘</code></pre>
+<p>本專案（KnowledgeExtraction.AI）是實踐此計畫的<strong>第一個步驟</strong>：先把「匯入」與「清洗」的基礎能力做穩，再往「知識庫」與「附加應用」延伸。</p>
+<hr>
+<h2 id="二四階段範圍定義" class="t2">二、四階段範圍定義</h2>
+<p>下表逐段定義每個階段「做什麼、產出什麼、本計畫近期納入/不納入」。近期＝未來 3–6 個月（見 <a href="../../docs/strategy/dev-roadmap.html">04 路線圖</a>）。</p>
+<h3 id="階段一資料匯入收集與整合知識來源">階段一：資料匯入（收集與整合知識來源）</h3>
+<ul><li><strong>目標</strong>：把企業內外部各種資料匯入系統。</li><li><strong>資料來源（願景全集）</strong>：Word、Excel、PowerPoint、PDF、電子郵件、影片、音訊、會議錄音、網頁內容、檔案伺服器、資料庫、聊天記錄（Teams、LINE、Slack 等）、OCR 圖片文字辨識。</li><li><strong>產出</strong>：標準化的原始內容與中繼資料（來源、時間、權屬、格式）。</li><li><strong>近期納入</strong>：延續並穩固現有的音訊/影片（上傳、YouTube、抖音、yt-dlp）與文件（PDF/Word/PPT/Excel）匯入。</li><li><strong>近期不納入</strong>：Email/IM 聊天記錄、檔案伺服器/資料庫直連、OCR 圖片辨識（列為後續擴充，已在願景內預留）。</li></ul>
+<h3 id="階段二資料清洗轉換成可被-ai-理解的知識">階段二：資料清洗（轉換成可被 AI 理解的知識）</h3>
+<ul><li><strong>目標</strong>：產出高品質、結構化的知識內容，並過濾或移除沒有價值的資料。</li><li><strong>能力（願景全集）</strong>：重複內容移除、敏感資訊遮罩、分類、標籤、摘要產生、重點/實體擷取、格式正規化、上下文補足、<strong>知識頁審核（distillation，把原始內容蒸餾為精煉、真實可用的知識）</strong>。</li><li><strong>產出</strong>：乾淨、分段、可索引的知識單元，以及<strong>蒸餾後的精煉知識</strong>（含分類/標籤/摘要與遮罩後內容）。</li><li><strong>近期納入</strong>：摘要與關鍵資訊擷取、分類與標籤自動化、敏感資訊遮罩、去重與品質過濾，<strong>外加知識頁審核</strong>——萃取出真實可用的知識而非僅原文搬運。</li><li><strong>現況</strong>：上述清洗能力（去重、遮罩、分類/標籤、摘要、品質過濾）<strong>均已實作</strong>（<code>CleaningEnhancer</code>，0.2.60–0.2.68），並已完成知識頁審核（蒸餾為互連 Wiki 實體頁，0.2.117）；不再只是「語音轉文字／文件轉 Markdown」的格式轉換。</li></ul>
+<h3 id="階段三建立知識庫讓知識可被快速搜尋與理解">階段三：建立知識庫（讓知識可被快速搜尋與理解）</h3>
+<ul><li><strong>目標</strong>：產出可搜尋、可推理、可擴充的企業知識庫。</li><li><strong>關鍵待研究</strong>：採單一架構或混合式架構（純向量檢索 / 關鍵字 / 混合檢索 / 圖譜）——詳見 <a href="../../docs/strategy/architecture-research.html">03 架構研究</a>。</li><li><strong>企業環境必備</strong>：權控、遮罩、存取日誌（稽核）。</li><li><strong>產出</strong>：知識庫索引（向量＋關鍵字）、權控檢索 API、稽核紀錄。</li><li><strong>近期納入</strong>：切塊、Embedding、向量索引、延續團隊權控的檢索 API（中型規模：數萬文件、數百使用者）。</li><li><strong>現況</strong>：切塊（<code>Chunker</code>）、Embedding（雲端 text-embedding-3-large／地端 bge-m3）、向量索引、混合檢索（向量＋關鍵字加權融合）、團隊層權控檢索（檢索層即過濾）與 檢索品質評測<strong>均已實作</strong>（階段三，0.2.123–0.2.128 起）。向量目前存於關聯式 DB 並於應用層計算 cosine；pgvector/sqlite-vec 為 <code>IVectorStore</code> 之未來抽換點。</li></ul>
+<h3 id="階段四附加應用將知識轉換成實際商業價值">階段四：附加應用（將知識轉換成實際商業價值）</h3>
+<ul><li><strong>目標</strong>：基於知識庫發展各種應用，提升附加價值。</li><li><strong>應用（願景全集）</strong>：AI 智慧問答、企業知識助理、文件自動摘要、SOP 查詢助手、客服問答系統、專案管理助理、專家知識傳承系統、AI Agent 自動化工作流。</li><li><strong>本計畫旗艦應用（聚焦兩個）</strong>：</li><li><strong>AI 智慧問答／企業知識助理</strong>——最通用、最容易展示價值的入口。</li><li><strong>AI Agent 自動化工作流</strong>——長期願景，價值最高。</li><li><strong>近期納入</strong>：旗艦應用一的 MVP（KB 問答助理）；旗艦應用二先做雛形與可行性驗證。</li><li><strong>現況</strong>：旗艦應用一「AI 知識問答助理」<strong>已實作</strong>（跨來源問答、串流回答、Query Rewrite、出處鑽取、兩段式相似度門檻、回答詳簡切換），另有「知識來源 AI 對話」。旗艦應用二「Agent 自動化工作流」的內建工作流引擎尚未實作，仍屬長期願景。</li></ul>
+<hr>
+<h2 id="三終局遠景" class="t3">三、終局遠景</h2>
+<ul><li>企業日常營運不斷產生的資訊（文件、會議、影音、信件、聊天、系統資料）都能被<strong>自動收斂為知識資產</strong>。</li><li>員工以<strong>自然語言提問</strong>即可取得帶出處、帶權限、可稽核的答案，而非靠人工翻找或詢問特定人員。</li><li>知識資產驅動一層層應用：問答 → 助理 → SOP/客服 → 專案管理 → 專家傳承 → Agent 自動化工作流。</li><li>最終效益：<strong>提升效率、降低人力成本、加速知識傳承與決策品質</strong>。</li></ul>
+<hr>
+<h2 id="四雙路線定位" class="t4">四、雙路線定位</h2>
+<p>本計畫同時走兩條路線（兩者皆是）：</p>
+<div class="tw"><table><thead><tr><th>路線</th><th>對象</th><th>價值主張</th><th>成功衡量</th></tr></thead><tbody><tr><td><strong>內部自用</strong></td><td><strong>開發人員自身</strong></td><td>開發人員自己使用這些功能，把自身蒐集的資料/知識資產化；同時作為最佳 dogfooding，邊用邊驗證產品</td><td>自身查找效率、功能可用性、缺陷發現速度</td></tr><tr><td><strong>對外商品化</strong></td><td>其他企業／通路夥伴</td><td>可私有部署、企業級權控與遮罩的知識庫方案</td><td>客戶數、營收、續約率</td></tr></tbody></table></div>
+<blockquote><p>「內部自用」指<strong>開發人員自己要用的功能</strong>（非泛指公司全員）：開發者天天使用，最能驗證價值、最快發現問題，再對外商品化。</p></blockquote>
+<blockquote><p>兩條路線共用同一套核心系統；差異主要在部署模式、計費與行銷包裝，詳見 <a href="../../docs/strategy/business-value.html">02-商業價值與行銷策略</a>。</p></blockquote>
+<p>部署上<strong>地端與雲端皆須支援</strong>：地端/私有部署是面對「資料不可外流」企業的關鍵賣點，雲端則以速度與功能為先。</p>
+<blockquote><p><strong>近期進場楔子假設（office-hours 2026/06/08，待驗證）</strong>：對外商品化的最尖銳切入點假設為<strong>知識傳承</strong>（老手流失/新人接不起來），先以人工 concierge 試點驗證真實需求再決定是否全面收斂定位。詳見 <a href="../../docs/strategy/open-questions-risks.html">05 §〇 需求驗證</a>。</p></blockquote>
+<hr>
+<h2 id="五與現有系統的關係" class="t5">五、與現有系統的關係</h2>
+<p>KnowledgeExtraction.AI 目前是成熟的 .NET 10 / Blazor Server 平台（v0.3.14、約 340+ 個 C# 檔，不含 migrations），匯入 → 清洗 → 知識庫 → 附加應用的四階段閉環已大致貫通。</p>
+<div class="tw"><table><thead><tr><th>階段</th><th>現況</th><th>待補</th></tr></thead><tbody><tr><td>匯入</td><td>✅ 音訊/影片、文件、圖片辨識（OCR/LLM 視覺）已可用</td><td>Email/IM、檔案伺服器/DB 直連</td></tr><tr><td>清洗</td><td>✅ 格式轉換＋去重、遮罩、分類/標籤、摘要、品質過濾，並含知識頁審核</td><td>—</td></tr><tr><td>知識庫</td><td>✅ 向量庫、切塊、Embedding、索引、混合檢索、問答 RAG（含 Query Rewrite）、檢索品質評測、團隊層權控檢索（檢索層過濾）、知識型態版本化/時效性（版本狀態機＋as-of 時點檢索）</td><td>結構化 PDF 專屬 RAG</td></tr><tr><td>附加應用</td><td>✅ AI 知識問答助理、知識來源 AI 對話</td><td>內建 Agent 自動化工作流引擎</td></tr><tr><td>權控基礎</td><td>✅ 團隊權控、角色、Category/Team 標籤，檢索層即過濾（越權不外洩）</td><td>—</td></tr></tbody></table></div>
+<blockquote><p>可重用的既有元件與改造切入點（背景佇列服務、文件轉文字處理器、<code>TagStringHelper</code> 權控等）詳見 <a href="../../docs/strategy/dev-roadmap.html">04 開發建議與路線圖</a>的「初步技術驗證」。</p></blockquote>
+<hr>
+<h2 id="六範圍邊界避免誤解" class="t6">六、範圍邊界（避免誤解）</h2>
+<ul><li>本策略文件集<strong>只界定範圍與方向</strong>，不含程式碼變更。</li><li>「近期」聚焦在把<strong>匯入 → 清洗 → 知識庫</strong>三能力補齊並產出高品質知識庫；附加應用以旗艦問答助理 MVP 為主。</li><li>願景全集（全資料來源、全應用）為<strong>長期方向</strong>，逐步擴充，不在近期一次到位。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（策略與規劃）</h3><ul><li><a href="../../docs/strategy/business-value.html">商業價值與行銷策略</a></li><li><a href="../../docs/strategy/architecture-research.html">知識庫架構研究與建議</a></li><li><a href="../../docs/strategy/dev-roadmap.html">開發建議與路線圖</a></li><li><a href="../../docs/strategy/open-questions-risks.html">待釐清問題與技術風險清單</a></li><li><a href="../../docs/strategy/expected-deliverables.html">期望產出清單</a></li><li><a href="../../docs/strategy/gstack-playbook.html">以 gstack 技能精煉計畫的執行流程（Playbook）</a></li><li><a href="../../docs/strategy/cleaning-stage-design.html">資料清洗階段設計與分析</a></li><li><a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a></li><li><a href="../../docs/strategy/source-cleaning-value.html">知識來源管理與資料清洗：功能、價值與行銷</a></li><li><a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：功能、欄位、價值與行銷</a></li><li><a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格</a></li><li><a href="../../docs/strategy/market-analysis.html">知識庫產品市場分析與擴展方向</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一一句話定位">一、一句話定位</a><a class="l2" href="#二四階段範圍定義">二、四階段範圍定義</a><a class="l3" href="#階段一資料匯入收集與整合知識來源">階段一：資料匯入（收集與整合知識來源）</a><a class="l3" href="#階段二資料清洗轉換成可被-ai-理解的知識">階段二：資料清洗（轉換成可被 AI 理解的知識）</a><a class="l3" href="#階段三建立知識庫讓知識可被快速搜尋與理解">階段三：建立知識庫（讓知識可被快速搜尋與理解）</a><a class="l3" href="#階段四附加應用將知識轉換成實際商業價值">階段四：附加應用（將知識轉換成實際商業價值）</a><a class="l2" href="#三終局遠景">三、終局遠景</a><a class="l2" href="#四雙路線定位">四、雙路線定位</a><a class="l2" href="#五與現有系統的關係">五、與現有系統的關係</a><a class="l2" href="#六範圍邊界避免誤解">六、範圍邊界（避免誤解）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/strategy/01-計畫範圍與遠景.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

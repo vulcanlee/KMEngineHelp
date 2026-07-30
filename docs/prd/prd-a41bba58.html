@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>產品需求文件（PRD）：AI 提示詞（Prompt）管理｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>產品需求文件（PRD）：AI 提示詞（Prompt）管理</h1></header><div class="docwrap"><main><ul><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.63</li><li>首次實作版本：0.2.43</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026-06-09</li><li>狀態：已實作（系統版本 0.2.43）</li><li>編碼：UTF-8（繁體中文）</li></ul>
+<hr>
+<h2 id="一背景與目的" class="t1">一、背景與目的</h2>
+<p>本系統具備影音轉逐字稿、文件轉文字等紀錄，未來需透過 LLM 將這些內容轉換為衍生產出（例如：將錄音文稿轉成會議紀錄、工作待辦清單等）。為此需要一個可集中維護、可重複使用的「提示詞（Prompt）」基礎資料，讓使用者預先建立並管理各種提示詞，供日後透過 LLM 產生相關內容時選用。</p>
+<p>本功能為一個標準 CRUD 頁面，需具備側邊選單項目、<code>Menu.json</code> 設定與角色權限控制。</p>
+<h3 id="設計範本">設計範本</h3>
+<p>本功能 <strong>以 <code>ProjectPage</code> 的設計方式為範本</strong>，並與程式碼庫中結構最相近的現成功能 <strong>「知識庫分類」(<code>CategoryPage</code> / <code>CategoryViewView</code>)</strong> 同構，沿用其分層架構（Entity → Repository → Service → Controller → DTO → AdapterModel → Blazor View）。</p>
+<p>AI 提示詞與知識庫分類的唯一資料差異：新增一個 <strong>「提示詞本文」(<code>Content</code>)</strong> 長文字欄位，用以儲存實際要餵給 LLM 的指令文字。</p>
+<p>對應現成可重用模式：</p>
+<ul><li>名稱唯一性檢查：<code>CategoryRepository.ExistsByNameAsync(name, excludeId)</code> / <code>CategoryService.ValidateNameUniqueAsync</code>（新增與編輯皆呼叫，編輯時排除自身）。</li><li>分頁／搜尋／排序：<code>CategoryRepository.GetPagedAsync(request)</code> 與 <code>CategoryService.GetAsync(DataRequest)</code>，預設排序為 <code>OrderByDescending(x =&gt; x.UpdatedAt)</code>。</li><li>名稱重複回應：Controller 回傳 <code>409 Conflict</code> 與友善訊息。</li><li>Blazor UI：工具列 + Ant Design <code>Table</code>（遠端資料來源、分頁）+ 新增／編輯 <code>Modal</code>（<code>EditForm</code> + <code>DataAnnotationsValidator</code>）。</li></ul>
+<hr>
+<h2 id="二需求決策" class="t2">二、需求決策</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>決策</th></tr></thead><tbody><tr><td>範圍</td><td>AI 提示詞 CRUD，以及已啟用提示詞供各條 LLM 流程依槽位鍵解析選用（首次實作為影音／文件／圖片／清洗／問答，後續擴充見第十六、十七節）</td></tr><tr><td>提示詞範圍</td><td>單一共用清單（不依用途分群、不分團隊）</td></tr><tr><td>團隊權控</td><td><strong>不套用團隊權控</strong>（與知識庫分類／團隊管理一致，為全系統共用之基礎資料設定）</td></tr><tr><td>欄位</td><td>名稱（唯一、必填）、提示詞本文（必填）、描述／用途（選填）、啟用狀態（IsEnabled）、建立時間、更新時間</td></tr><tr><td>名稱唯一性比對</td><td><strong>忽略大小寫 + 去頭尾空白</strong>（新增與編輯皆須生效；編輯時排除自身）</td></tr><tr><td>預設排序</td><td>依「更新時間」(<code>UpdatedAt</code>) 由新到舊（最近更新排最前）</td></tr><tr><td>啟用狀態用途</td><td>可停用而不刪除提示詞；停用者供未來其他頁面下拉時過濾，本管理頁仍完整顯示</td></tr><tr><td>刪除方式</td><td>實體刪除（與知識庫分類一致）</td></tr><tr><td>選單位置</td><td>既有「資料定義」主選單下，接於「分類清單」、「團隊清單」之後</td></tr><tr><td>路由</td><td><code>/prompts</code></td></tr><tr><td>UI 框架</td><td>Blazor Server + Ant Design（沿用 <code>ProjectPage</code> / <code>CategoryViewView</code> 模式）</td></tr></tbody></table></div>
+<hr>
+<h2 id="三功能概述" class="t3">三、功能概述</h2>
+<p>新增「AI 提示詞」管理頁面，提供提示詞項目的新增、查詢、編輯、刪除（CRUD）。每筆提示詞包含名稱、提示詞本文、描述與啟用狀態。提示詞名稱在系統內為唯一值（忽略大小寫並去除頭尾空白後比對）。列表預設依更新時間由新到舊呈現，最近更新的紀錄排在最前面。</p>
+<p>0.3.34 現況已將提示詞串接至影音／文件衍生內容、圖片辨識、清洗與問答；本 PRD 同時規範 CRUD 與跨流程選用邊界。</p>
+<hr>
+<h2 id="四使用者流程" class="t4">四、使用者流程</h2>
+<ol><li>進入「AI 提示詞」頁面（路由 <code>/prompts</code>）；權限不足者不顯示選單、不可進入頁面（顯示「你沒有權限存取此頁面」）。</li><li>列表預設依「更新時間」由新到舊排序，最近更新者在最上方；支援關鍵字搜尋與分頁。</li><li>點「新增」，於 Modal 中輸入名稱（必填）、提示詞本文（必填）、描述（選填），並設定是否啟用（預設啟用）。</li><li>送出時驗證名稱唯一性（忽略大小寫 + 去頭尾空白）：</li><li>名稱重複：拒絕儲存，顯示「提示詞名稱已存在」之類的友善訊息（API 回 409 Conflict）。</li><li>通過：建立紀錄，設定建立時間與更新時間，回到列表。</li><li>點「編輯」載入單筆資料，可修改名稱、提示詞本文、描述、啟用狀態；名稱唯一性同樣須通過（比對時排除自身）。</li><li>點「刪除」出現確認對話框，確認後實體刪除該提示詞。</li><li>任何新增或編輯成功皆更新 <code>UpdatedAt</code>，故該紀錄會回到列表最前方。</li></ol>
+<hr>
+<h2 id="五資料模型" class="t5">五、資料模型</h2>
+<p>新增實體 <code>Prompt</code>（<code>KnowledgeExtraction.AccessDatas/Models/Prompt.cs</code>）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>Id</td><td>int</td><td>主鍵，自動遞增</td></tr><tr><td>Name</td><td>string</td><td>提示詞名稱（必填、唯一）</td></tr><tr><td>Content</td><td>string</td><td>提示詞本文（必填、長文字）</td></tr><tr><td>Description</td><td>string?</td><td>描述／用途（選填）</td></tr><tr><td>IsEnabled</td><td>bool</td><td>是否啟用（預設 <code>true</code>）</td></tr><tr><td>CreatedAt</td><td>DateTime</td><td>建立時間（自動設定）</td></tr><tr><td>UpdatedAt</td><td>DateTime</td><td>最後更新時間（自動設定）</td></tr></tbody></table></div>
+<ul><li>DbSet <code>Prompt</code> 註冊於 <code>BackendDBContext</code>，並新增對應 EF Core Migration。</li><li><strong>雙 provider migration</strong>：須各產生一次 —— Sqlite 於 <code>KnowledgeExtraction.AccessDatas</code>；SQL Server 於 <code>KnowledgeExtraction.AccessDatas.SqlServerMigrations</code>（產生時設 <code>SystemSettings__DatabaseProvider=SqlServer</code>）。</li><li>名稱唯一性以應用層檢查為主（<code>PromptRepository.ExistsByNameAsync</code> / <code>PromptService</code> 前置檢查）；比對前先 <code>Trim()</code> 並以忽略大小寫方式比較，確保「測試」與「測試 」、<code>ABC</code> 與 <code>abc</code> 視為重複。</li><li>欄位長度（比照知識庫分類慣例）：名稱 100、描述 2000、提示詞本文 8000。長度驗證以 DataAnnotations 標註在 <code>PromptAdapterModel</code> 與 <code>PromptCreateUpdateDto</code>，<strong>實體 <code>Prompt</code> 本身不設 <code>StringLength</code></strong>（分類、團隊亦同此慣例）。</li></ul>
+<hr>
+<h2 id="六設定appsettingsjson" class="t6">六、設定（appsettings.json）</h2>
+<p>本功能不需新增外部路徑或服務設定，但<strong>有一個專屬設定區段</strong> <code>LlmPrompts</code>（繫結至 <code>LlmPromptsSettings</code>）：它是四層提示詞解析（見第十七節）的第三層「平台預設」，位於本清單（DB <code>Prompt</code>）之下、程式內建預設之上。</p>
+<ul><li>每個槽位鍵對應一個屬性，<strong>值留空＝沿用程式內建預設</strong>（<code>LlmPromptDefaults</code>）。</li><li>改本區段需重啟；改本管理頁的 DB 紀錄則<strong>免重啟即時生效</strong>——這是本清單相對於設定檔的主要價值。</li></ul>
+<ul><li>依專案規範（CLAUDE.md）：實作完成建置時，<code>SystemSettings.SystemInformation.SystemVersion</code> 版本號 +1（以實作當下版本為基準遞增），並於 commit message 說明版本號變更。</li></ul>
+<hr>
+<h2 id="七架構與元件比照-category-垂直切片" class="t7">七、架構與元件（比照 Category 垂直切片）</h2>
+<p>各層需新增的元件如下（命名與分層比照既有 <code>Category*</code>）：</p>
+<ul><li><strong>Entity</strong> <code>Prompt</code>（<code>KnowledgeExtraction.AccessDatas/Models/Prompt.cs</code>）</li><li><strong>Repository</strong> <code>PromptRepository</code>（<code>KnowledgeExtraction.Business/Repositories/PromptRepository.cs</code>）</li><li><code>GetPagedAsync(PromptSearchRequestDto request)</code>：分頁／搜尋／排序，<strong>預設 <code>OrderByDescending(x =&gt; x.UpdatedAt)</code></strong>；支援以名稱／描述關鍵字搜尋。</li><li><code>GetByIdAsync(int id)</code>、<code>AddAsync</code>、<code>UpdateAsync</code>（保留原 <code>CreatedAt</code>、更新 <code>UpdatedAt</code>）、<code>DeleteAsync(int id)</code>。</li><li><code>ExistsByNameAsync(string name, int? excludeId = null)</code>：<strong>Trim + 忽略大小寫</strong> 比對；<code>excludeId</code> 用於編輯時排除自身。</li><li><strong>Service</strong> <code>PromptService</code>（<code>KnowledgeExtraction.Business/Services/DataAccess/PromptService.cs</code>）：提供 Blazor UI 端使用的查詢（<code>GetAsync(DataRequest)</code> / <code>GetAsync(int id)</code>）、新增、編輯、刪除與前置檢查方法（<code>BeforeAddCheckAsync</code> / <code>BeforeUpdateCheckAsync</code> / <code>BeforeDeleteCheckAsync</code>），含名稱唯一性驗證；Update/Delete 前呼叫 <code>CleanTrackingHelper.Clean&lt;Prompt&gt;(context)</code>。</li><li><strong>DTO</strong>（<code>KnowledgeExtraction.Dtos</code>）：</li><li><code>PromptDto</code>（回應）</li><li><code>PromptCreateUpdateDto</code>（新增／編輯；含名稱、提示詞本文必填驗證）</li><li><code>PromptSearchRequestDto</code>（繼承 <code>SearchRequestBaseDto</code>，含關鍵字、分頁、排序欄位、<code>IsEnabled</code> 過濾）</li><li><strong>AdapterModel</strong> <code>PromptAdapterModel</code>（<code>KnowledgeExtraction.Models/AdapterModel/PromptAdapterModel.cs</code>）：前端綁定用，實作 <code>ICloneable</code>，含 DataAnnotations 驗證。</li><li><strong>Controller</strong> <code>PromptController</code>（<code>KnowledgeExtraction.Web/Controllers/PromptController.cs</code>）：比照 <code>CategoryController</code>。</li><li><strong>AutoMapper</strong>：於 <code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code> 新增 <code>Prompt</code> ↔ <code>PromptAdapterModel</code> / <code>PromptDto</code> / <code>PromptCreateUpdateDto</code> 映射。</li><li><strong>DI 註冊</strong>（<code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs</code>）：</li><li><code>services.AddScoped&lt;PromptService&gt;();</code></li><li><code>services.AddScoped&lt;PromptRepository&gt;();</code></li></ul>
+<hr>
+<h2 id="八uiblazor-server--ant-design" class="t8">八、UI（Blazor Server + Ant Design）</h2>
+<ul><li>頁面 <code>PromptPage.razor</code>（<code>@page "/prompts"</code>、<code>@layout MainLayout</code>、<code>&lt;PageTitle&gt;提示詞清單&lt;/PageTitle&gt;</code>），內嵌 <code>&lt;PromptViewView /&gt;</code>。</li><li>位置：<code>KnowledgeExtraction.Web/Components/Pages/Prompts/PromptPage.razor</code></li><li>檢視元件 <code>PromptViewView</code>（<code>.razor</code> / <code>.razor.cs</code> / <code>.razor.css</code>，比照 <code>CategoryViewView</code>）：</li><li>位置：<code>KnowledgeExtraction.Web/Components/Views/Prompts/</code></li><li>注入方式：<code>PromptService</code> / <code>ILogger</code> / <code>ModalService</code> / <code>MessageService</code> / <code>NotificationService</code> 採<strong>建構式注入</strong>；<code>AuthenticationStateHelper</code> / <code>AuthenticationStateProvider</code> / <code>NavigationManager</code> 採 <code>[Inject]</code> 屬性注入。</li><li><code>OnInitializedAsync</code> 先 <code>await AuthenticationStateHelper.Check(...)</code>，再以 <code>AuthenticationStateHelper.CheckAccessPage(MagicObjectHelper.角色_提示詞清單)</code> 控管權限；無權限顯示 <code>你沒有權限存取此頁面</code>。</li><li>工具列：新增按鈕、重新整理按鈕、關鍵字搜尋輸入框 + 搜尋按鈕。</li><li>表格欄位：<strong>名稱、描述、啟用狀態（Tag）、更新時間、操作（編輯／刪除）</strong>；遠端資料來源、可分頁；<strong>預設依更新時間新到舊</strong>（<code>UpdatedAt</code> 欄 <code>DefaultSortOrder="SortDirection.Descending"</code>）。</li><li>新增／編輯 Modal：<code>EditForm</code> + <code>DataAnnotationsValidator</code> + <code>ValidationSummary</code> + <code>InputWatcher</code>：</li><li>名稱：<code>Input</code>（必填）</li><li>提示詞本文：<code>TextArea</code>（必填、多行，建議 <code>Rows</code> 較大）</li><li>描述：<code>TextArea</code>（選填）</li><li>啟用狀態：<code>Switch</code>（預設啟用）</li><li>編輯前對列資料 <code>Clone()</code>，避免雙向綁定污染來源清單。</li><li>刪除：使用 <code>ModalService.ConfirmAsync()</code> 確認後刪除。</li></ul>
+<hr>
+<h2 id="九api-端點" class="t1">九、API 端點</h2>
+<p>新增 <code>PromptController</code>（比照 <code>CategoryController</code>，<code>api/[controller]</code> + <code>api/v1/[controller]</code>，沿用既有 JWT 授權機制）：</p>
+<ul><li><code>POST {base}/prompt/search</code>：接收 <code>PromptSearchRequestDto</code>，回傳分頁結果（預設依 <code>UpdatedAt</code> 降冪）。</li><li><code>GET {base}/prompt/{id}</code>：取得單筆。</li><li><code>POST {base}/prompt</code>：新增；名稱重複回 <code>409 Conflict</code>。</li><li><code>PUT {base}/prompt/{id}</code>：編輯；驗證路由 id 與 payload id 一致；名稱重複（排除自身）回 <code>409 Conflict</code>。</li><li><code>DELETE {base}/prompt/{id}</code>：刪除。</li></ul>
+<hr>
+<h2 id="十選單與權限三處同步" class="t2">十、選單與權限（三處同步）</h2>
+<blockquote><p><strong>本節為首次實作當時的選單結構，保留原貌。</strong> 現況為「基礎資料設定」(id 6)，子項含知識庫分類 61、團隊管理 62、專案分類 63、AI 提示詞 64、清洗規則設定 65 共 5 項，權限群組為 6 個常數，登出為 id 8；一律以 <code>Menu.json</code> 與 <code>RolePermissionService</code> 為準。<strong>權限常數的「值」刻意保留舊選單名（<code>角色_提示詞清單 = "提示詞清單"</code>），不得變更</strong>——權限以名稱字串存於 <code>RoleView.TabViewJson</code>，改值等同清空所有既有角色的權限。</p></blockquote>
+<blockquote><p>「資料定義」主選單群組<strong>已存在</strong>（<code>Menu.json</code> 中 id 4，含分類清單 id 41、團隊清單 id 42），故本次<strong>無需新增主選單、無需重排 id</strong>，僅在既有群組末端追加一個子項與對應權限。</p></blockquote>
+<ol><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code>：新增權限常數</li><li><code>角色_提示詞清單 = "提示詞清單"</code></li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code>：</li></ol>
+<p>於 <code>GetRoleListPermissionAllName()</code> 既有「資料定義」群組 <code>[角色_資料定義, 角色_分類清單, 角色_團隊清單]</code> 末端加入 <code>角色_提示詞清單</code>，成為 <code>[角色_資料定義, 角色_分類清單, 角色_團隊清單, 角色_提示詞清單]</code>。</p>
+<ol><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code>：於「資料定義」(id 4) 的 <code>subMenu</code> 中，接在「團隊清單」(id 42) 之後新增：</li></ol>
+<pre><code>   {
+     "id": 43,
+     "name": "提示詞清單",
+     "icon": "edit_note",
+     "url": "/prompts"
+   }</code></pre>
+<ol><li>建立頁面與檢視元件（見第八節）。</li></ol>
+<blockquote><p>權限機制說明：本系統授權以選單為基礎。<code>Menu.json</code> 的子項 <code>name</code>（「提示詞清單」）必須對應 <code>MagicObjectHelper</code> 中的權限常數值；<code>RolePermissionService.GetRoleListPermissionAllName()</code> 回傳之二維陣列的群組順序與群組內順序，須以<strong>位置索引</strong>對齊 <code>Menu.json</code>（<code>SidebarMenuService.ApplyPermissionStructure</code> 以位置索引串接，非靠名稱比對）。 角色實際勾選的權限存於資料庫 <code>RoleView.TabViewJson</code>，既有角色若要存取新頁面，須由角色管理頁重新勾選後生效。</p></blockquote>
+<hr>
+<h2 id="十一測試" class="t3">十一、測試</h2>
+<p>比照 <code>KnowledgeExtraction.Tests/CategoryServiceTests.cs</code>，採 SQLite in-memory fixture，為 <code>PromptService</code> 補測試：</p>
+<ul><li>新增成功、依 Id 取得、更新、刪除。</li><li>名稱唯一性：新增重複名稱被拒；編輯時排除自身可通過；大小寫與頭尾空白視為重複。</li><li>預設排序：依 <code>UpdatedAt</code> 由新到舊。</li></ul>
+<hr>
+<h2 id="十二編碼需求" class="t4">十二、編碼需求</h2>
+<ul><li>所有新增的程式碼檔與本 PRD 文件皆以 <strong>UTF-8（繁體中文）</strong> 撰寫，不得有亂碼。</li><li>本 PRD 及其他 <code>docs/*.md</code> 須為 <strong>UTF-8 含 BOM</strong>；提交前以 <code>pwsh -File scripts/Test-DocsEncoding.ps1</code> 驗證全綠。</li><li><code>Menu.json</code> 等含中文之設定檔維持 UTF-8 編碼，確保選單名稱顯示正確。</li></ul>
+<hr>
+<h2 id="十三驗收條件" class="t5">十三、驗收條件</h2>
+<ol><li>選單在「資料定義」群組出現「提示詞清單」，且位於「分類清單」、「團隊清單」之後；無權限角色看不到、無法進入頁面。</li><li>列表預設依「更新時間」由新到舊排序，最近新增／編輯的提示詞排在最前面。</li><li>新增提示詞：名稱與提示詞本文必填；名稱與既有提示詞重複（忽略大小寫、去頭尾空白後）時被拒絕並顯示友善訊息。</li><li>編輯提示詞：可修改名稱、提示詞本文、描述、啟用狀態；名稱唯一性比對排除自身；儲存後該筆回到列表最前方。</li><li>刪除提示詞：確認後實體刪除。</li><li>啟用狀態可於新增／編輯切換，列表正確顯示啟用／停用。</li><li>雙 provider migration（Sqlite 與 SqlServer）皆已產生並可套用。</li><li><code>dotnet build</code> 與 <code>dotnet test</code> 綠燈；<code>scripts/Test-DocsEncoding.ps1</code> 綠燈。</li><li><code>appsettings.json</code> 版本號於實作建置時 +1，相關文件同步更新。</li></ol>
+<hr>
+<h2 id="十四涉及檔案實作階段參考" class="t6">十四、涉及檔案（實作階段參考）</h2>
+<p><strong>新增：</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/Models/Prompt.cs</code></li><li>EF Core Migration：<code>KnowledgeExtraction.AccessDatas/Migrations/*_AddPrompt.cs</code>（Sqlite）與 <code>KnowledgeExtraction.AccessDatas.SqlServerMigrations/Migrations/*_AddPrompt.cs</code>（SqlServer）</li><li><code>KnowledgeExtraction.Models/AdapterModel/PromptAdapterModel.cs</code></li><li><code>KnowledgeExtraction.Dtos/Models/PromptDto.cs</code>、<code>PromptCreateUpdateDto.cs</code></li><li><code>KnowledgeExtraction.Dtos/Commons/PromptSearchRequestDto.cs</code></li><li><code>KnowledgeExtraction.Business/Repositories/PromptRepository.cs</code></li><li><code>KnowledgeExtraction.Business/Services/DataAccess/PromptService.cs</code></li><li><code>KnowledgeExtraction.Web/Controllers/PromptController.cs</code></li><li><code>KnowledgeExtraction.Web/Components/Pages/Prompts/PromptPage.razor</code></li><li><code>KnowledgeExtraction.Web/Components/Views/Prompts/PromptViewView.razor</code>（<code>.razor.cs</code>、<code>.razor.css</code>）</li><li><code>KnowledgeExtraction.Tests/PromptServiceTests.cs</code></li></ul>
+<p><strong>修改：</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/BackendDBContext.cs</code>（新增 <code>DbSet&lt;Prompt&gt;</code>）</li><li><code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code></li><li><code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs</code></li><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code></li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code></li><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code></li><li><code>KnowledgeExtraction.Web/appsettings.json</code>（版本號 +1）</li></ul>
+<hr>
+<h2 id="十五歷史原始範圍已由下節-0334-現況校正取代" class="t7">十五、歷史原始範圍（已由下節 0.3.34 現況校正取代）</h2>
+<ul><li>將提示詞串接至影音轉逐字稿／會議紀錄等流程，於實際 LLM 內容生成時選用提示詞（屆時可依 <code>IsEnabled</code> 過濾僅顯示啟用中的提示詞）。</li><li>提示詞的用途分類／標籤、版本控管、變數樣板（如 <code>{{transcript}}</code> 佔位符）。</li><li>提示詞的批次匯入／匯出。</li></ul>
+<p>以上為原始版本的範圍紀錄；現況以下節為準。</p>
+<h2 id="十六現況與規劃中需求1063-核對" class="t8">十六、現況與規劃中需求（1.0.63 核對）</h2>
+<ul><li>已實作：提示詞串接影音／文件衍生內容、圖片解讀、清洗五步、知識來源與跨庫問答，另有<strong>知識庫查詢改寫、知識頁生成、會議紀錄生成、PDF 轉 Markdown</strong>（1.0.54 新增）四條，完整槽位鍵見第十七節。</li><li>清洗全域提示詞以固定 <code>清洗-*</code> 名稱解析；清洗規則設定有獨立優先序。</li><li>規劃中：用途分類／標籤、版本控管、變數樣板及批次匯入／匯出。</li></ul>
+<hr>
+<h2 id="十七提示詞槽位鍵與四層解析" class="t1">十七、提示詞槽位鍵與四層解析</h2>
+<p>本清單不是自由文字庫，而是以<strong>固定槽位鍵</strong>接進各條 LLM 流程。解析器為 <code>LlmPromptResolver.ResolveAsync</code>，優先序由高到低四層，任一層非空白即採用、否則往下退：</p>
+<ol><li><strong>單次操作覆蓋</strong> —— 對話頁輸入、清洗規則設定的 <code>CustomPromptText</code> 等。</li><li><strong>DB <code>Prompt</code> 表</strong>（即本管理頁，依鍵比對）—— 可線上編輯、<strong>免重啟</strong>。</li><li><strong>appsettings <code>LlmPrompts</code> 區段</strong> —— 平台預設，改檔需重啟。</li><li><strong>程式 fallback</strong>（<code>LlmPromptDefaults</code>）—— 最底層保險。</li></ol>
+<p>槽位鍵目前共 <strong>14 個</strong>，涵蓋清洗五步、對話四種語氣、知識庫系統與查詢改寫、知識頁生成、會議紀錄生成、PDF 轉 Markdown。</p>
+<blockquote><p><strong>完整鍵名對照表（中文鍵 ⇄ appsettings 屬性名 ⇄ 用途）以 <a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a> 為權威來源</strong>，本 PRD 不重列，以免兩份清單各自漂移。新增槽位時需同步四處：<code>LlmPromptKeys</code>、<code>LlmPromptsSettings.Get</code>、<code>appsettings.json</code> 的 <code>LlmPrompts</code>、<code>LlmPromptDefaults</code>。</p>
+<p>轉錄提示詞是例外：它不走本機制，沿用 <code>OpenAISettings.Prompt</code>。</p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景與目的">一、背景與目的</a><a class="l3" href="#設計範本">設計範本</a><a class="l2" href="#二需求決策">二、需求決策</a><a class="l2" href="#三功能概述">三、功能概述</a><a class="l2" href="#四使用者流程">四、使用者流程</a><a class="l2" href="#五資料模型">五、資料模型</a><a class="l2" href="#六設定appsettingsjson">六、設定（appsettings.json）</a><a class="l2" href="#七架構與元件比照-category-垂直切片">七、架構與元件（比照 Category 垂直切片）</a><a class="l2" href="#八uiblazor-server--ant-design">八、UI（Blazor Server + Ant Design）</a><a class="l2" href="#九api-端點">九、API 端點</a><a class="l2" href="#十選單與權限三處同步">十、選單與權限（三處同步）</a><a class="l2" href="#十一測試">十一、測試</a><a class="l2" href="#十二編碼需求">十二、編碼需求</a><a class="l2" href="#十三驗收條件">十三、驗收條件</a><a class="l2" href="#十四涉及檔案實作階段參考">十四、涉及檔案（實作階段參考）</a><a class="l2" href="#十五歷史原始範圍已由下節-0334-現況校正取代">十五、歷史原始範圍（已由下節 0.3.34 現況校正取代）</a><a class="l2" href="#十六現況與規劃中需求1063-核對">十六、現況與規劃中需求（1.0.63 核對）</a><a class="l2" href="#十七提示詞槽位鍵與四層解析">十七、提示詞槽位鍵與四層解析</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/提示詞清單-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>開發建議與路線圖｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 策略與規劃</p><header class="hero"><div class="kicker">策略與規劃</div><h1>開發建議與路線圖</h1><p class="sub">初步技術驗證（現有可重用點）與 3–6 個月分階段開發路線圖</p></header><div class="docwrap"><main><ul><li>文件用途：初步技術驗證（現有可重用點）與 3–6 個月分階段開發路線圖</li><li>主要讀者：開發團隊、技術負責人、決策層</li><li>文件版本：1.0</li><li>建立日期：2026/06/08</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>架構選型見 <a href="../../docs/strategy/architecture-research.html">03-知識庫架構研究與建議</a>；待釐清問題見 <a href="../../docs/strategy/open-questions-risks.html">05</a>；應產出成果物見 <a href="../../docs/strategy/expected-deliverables.html">06</a>。</p></blockquote>
+<hr>
+<h2 id="一初步技術驗證現有可重用點與改造切入點" class="t1">一、初步技術驗證：現有可重用點與改造切入點</h2>
+<p>本節只盤點、不寫程式。目的是讓後續開發<strong>立基於既有慣例</strong>，降低風險與工時。</p>
+<h3 id="1-非同步佇列--背景服務可重用為清洗索引管線">1. 非同步佇列 ＋ 背景服務（可重用為清洗/索引管線）</h3>
+<ul><li>既有：<code>TranscriptionBackgroundService</code>、<code>DocumentExtractionBackgroundService</code>（位於 <code>KnowledgeExtraction.Web/BackgroundServices/</code>）搭配 <code>ITranscriptionQueue</code> / <code>IDocumentExtractionQueue</code>。</li><li>模式：入列 → 背景服務取出 → Processor 處理 → 更新狀態/進度(0–100%)/錯誤訊息。</li><li><strong>改造切入</strong>：新增「清洗佇列」與「索引佇列」沿用同一模式，加入清洗階段（去重/遮罩/分類標籤/摘要）與向量索引階段。</li></ul>
+<h3 id="2-文件轉文字處理器清洗階段的輸入來源">2. 文件轉文字處理器（清洗階段的輸入來源）</h3>
+<ul><li>既有：<code>DocumentExtractionProcessor</code>（MarkItDown 產出 <code>.md</code>）與轉錄逐字稿（OpenAI＋OpenCC 繁體化）。</li><li><strong>改造切入</strong>：把這些 Markdown／逐字稿作為清洗管線輸入，串接「蒸餾為 Wiki 實體頁 → 切塊 → Embedding → 索引」。既有產物本就是 Markdown，與 LLM 知識 Wiki（同為 Markdown）天然契合。</li></ul>
+<h3 id="3-團隊權控延伸至知識單元檢索">3. 團隊權控（延伸至知識單元檢索）</h3>
+<ul><li>既有：<code>TagStringHelper</code>（<code>BuildTeamAccessPredicate</code> / <code>IsTeamAccessible</code>）＋ <code>IRecordAccessScopeProvider</code>，標籤以分隔字串精確比對。</li><li><strong>改造切入</strong>：chunk 繼承來源文件 Teams 標籤；檢索查詢時即帶入團隊範圍過濾（檢索層過濾，非取回後再濾）。</li></ul>
+<h3 id="4-既有工程慣例直接沿用">4. 既有工程慣例（直接沿用）</h3>
+<ul><li><strong>雙資料庫 migration</strong>（SQLite <code>AccessDatas</code> 與 SQL Server <code>AccessDatas.SqlServerMigrations</code> 各一）。</li><li><strong>AutoMapper</strong>（<code>List</code>⇄分隔字串以 <code>ForMember</code> 處理）、編輯前 <code>Clone()</code>、Update/Delete 前 <code>CleanTrackingHelper.Clean&lt;T&gt;()</code>。</li><li><strong>設定驅動切換</strong>（OpenAI 金鑰由環境變數注入、快取 Memory↔Redis 可切換）——延用於 Embedding/LLM 供應商與地端/雲端切換。</li><li><strong>CRUD 腳手架</strong>與既有 Category/Team 標籤體系——清洗的「分類標籤自動化」可直接套用既有標籤模型。</li><li><strong>健康檢查/系統健康頁、NLog</strong>——擴充為清洗/索引/問答的監控與稽核。</li></ul>
+<blockquote><p>注意既有命名陷阱：<code>DbSet</code> 名稱 <code>MyTas</code> ≠ Entity <code>MyTask</code>；新增頁面權限三處同步（MagicObjectHelper、RolePermissionService、Menu.json）；模型變更要產雙 migration。</p></blockquote>
+<hr>
+<h2 id="二36-個月分階段路線圖" class="t2">二、3–6 個月分階段路線圖</h2>
+<p>每階段格式：目標 → 主要工作項 → 驗收標準。版本號於每次可建置產出時 +1（依專案慣例）。</p>
+<blockquote><p>註：原「階段一：清洗強化」已依五階段流程（資料匯入 → <strong>資料清洗 → 知識頁審核</strong> → 建立知識庫 → 智慧應用）拆為兩個獨立階段。資料清洗的完整設計見 <a href="../../docs/strategy/cleaning-stage-design.html">08-資料清洗階段設計與分析</a>。</p></blockquote>
+<h3 id="階段一約-1-個月資料清洗">階段一（約 1 個月）：資料清洗</h3>
+<ul><li><strong>目標</strong>：把匯入後零散、破碎的原始內容，整理成乾淨、彙整、具主題、可權控的「來源級資料」。</li><li><strong>工作項</strong>：</li><li><strong>知識來源（KnowledgeSource）</strong>：新增來源實體 + 跨型別成員關聯，把多筆零散素材（逐字稿/萃取/圖片解讀）聚合成一個完整來源；清洗以「來源」為單位。</li><li>去重與品質過濾（移除重複/低價值內容）。</li><li>正規化（格式統一、修正轉錄錯字、OpenCC 繁體統一）。</li><li>敏感資訊遮罩（PII/機密辨識與遮罩，遮罩後內容才往下走）。</li><li>分類與標籤自動化（套用既有 Category/Team 標籤）。</li><li>摘要與關鍵資訊/實體擷取。</li><li>沿用背景佇列模式新增「清洗佇列」。</li><li>品質保證分階段疊加：全自動 → 信心分數門檻 → 人工審核關卡 → 清洗品質評測集。</li><li><strong>驗收</strong>：</li><li>既有轉錄/萃取產物可聚合為來源並進入清洗管線，產出帶分類/標籤/摘要/遮罩的彙整內容。</li><li>遮罩對抽樣樣本達可接受準確率（門檻於 [05] 確認）。</li><li>清洗狀態/進度/錯誤可於 UI 追蹤；權控正確（非授權團隊看不到來源）。</li></ul>
+<h3 id="階段二約-051-個月知識頁審核--已實作02117">階段二（約 0.5–1 個月）：知識頁審核　✅ 已實作（0.2.117）</h3>
+<blockquote><p>落地說明見 <a href="../../docs/prd/prd-5c4f7f11.html">知識頁審核 PRD</a> 與 <a href="../../docs/changelog/2026-06-24-65d3322a.html">changelog 2026-06-24</a>。一來源蒸餾為多個互連 Wiki 實體頁、繼承 Teams 標籤、完整信心門檻與人工核准/退回關卡。</p></blockquote>
+<ul><li><strong>目標</strong>：把清洗後的來源蒸餾為精煉、可推理的知識。</li><li><strong>工作項</strong>：</li><li><strong>知識頁審核</strong>：LLM 將清洗後內容蒸餾為精煉的 Wiki 實體頁（Markdown，一概念一頁、以 <code>[[wiki-links]]</code> 互連），萃取真實可用知識而非原文搬運。</li><li>Wiki 實體頁繼承來源 Teams 標籤。</li><li><strong>驗收</strong>：</li><li>能由已清洗來源蒸餾出 Wiki 實體頁並正確互連、繼承 Teams 標籤。</li><li>蒸餾產物品質可由抽樣人工檢視確認。</li></ul>
+<h3 id="階段三約-152-個月建立知識庫">階段三（約 1.5–2 個月）：建立知識庫</h3>
+<ul><li><strong>目標</strong>：知識可被快速、權控地搜尋。</li><li><strong>工作項</strong>：</li><li>切塊（chunk，繼承來源 Teams 標籤）。</li><li>Embedding 供應商抽象（雲端/地端可切換）。</li><li>PostgreSQL ＋ pgvector 向量索引 ＋ 關鍵字索引（<strong>Wiki 實體頁與 chunk 皆索引</strong>）。</li><li>混合檢索 ＋ rerank；查詢<strong>先讀 Wiki 精煉條目、必要時回退 chunk 檢索取證據</strong>。</li><li>Wiki 維護（lint/maintain）流程：一致性健檢、補缺、發掘連結。</li><li>權控檢索 API（檢索層即套團隊過濾）＋ 存取稽核。</li><li><strong>驗收</strong>：</li><li>給定查詢可回傳帶出處、且<strong>符合提問者團隊權限</strong>的結果。</li><li>非授權團隊內容不會出現在檢索結果或 LLM 上下文（以測試驗證）。</li><li>數萬文件規模下檢索延遲在可接受範圍。</li><li>每次查詢留有稽核軌跡。</li></ul>
+<h3 id="階段四約-152-個月旗艦應用-mvp">階段四（約 1.5–2 個月）：旗艦應用 MVP</h3>
+<ul><li><strong>目標</strong>：旗艦一（KB 問答助理）可用；旗艦二（Agent 工作流）出雛形。</li><li><strong>工作項</strong>：</li><li>KB 問答助理：自然語言提問 → 權控檢索 → 帶出處答案 → 答案遮罩。</li><li>問答 UI（沿用 Blazor／AntDesign 慣例與建構式注入）。</li><li>AI Agent 自動化工作流：先做單一情境可行性雛形（PoC）。</li><li><strong>驗收</strong>：</li><li>問答助理能對知識庫內容回答並標示出處，越權內容不外洩。</li><li>內部選定情境（如會議知識留存或 SOP 查詢）可實測 ROI 指標。</li><li>Agent 雛形能完成一個多步驟任務的端到端示範。</li></ul>
+<hr>
+<h2 id="三開發原則" class="t3">三、開發原則</h2>
+<ul><li><strong>立基既有慣例</strong>：沿用佇列/背景服務、團隊權控、雙 migration、設定驅動切換，不另起爐灶。</li><li><strong>權控不可後補</strong>：檢索層即過濾，從第一版就驗證越權不外洩。</li><li><strong>供應商抽象</strong>：Embedding/LLM 以介面切換雲端/地端，避免綁死單一供應商。</li><li><strong>小步驗收</strong>：每階段有明確、可測的驗收標準，能獨立驗證再進下一階段。</li><li><strong>文件同步</strong>：每次異動同步更新相關文件（專案慣例）。</li></ul>
+<hr>
+<h2 id="四風險與相依" class="t4">四、風險與相依</h2>
+<ul><li>地端 LLM/Embedding 的品質與算力是最大不確定性（見 <a href="../../docs/strategy/open-questions-risks.html">05</a>）。</li><li>向量庫拓樸（與現有 SQLite/SQL Server 的關係）需先定案。</li><li>遮罩準確率、混合檢索調校、成本控管為持續調優項。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（策略與規劃）</h3><ul><li><a href="../../docs/strategy/scope-and-vision.html">計畫範圍與遠景</a></li><li><a href="../../docs/strategy/business-value.html">商業價值與行銷策略</a></li><li><a href="../../docs/strategy/architecture-research.html">知識庫架構研究與建議</a></li><li><a href="../../docs/strategy/open-questions-risks.html">待釐清問題與技術風險清單</a></li><li><a href="../../docs/strategy/expected-deliverables.html">期望產出清單</a></li><li><a href="../../docs/strategy/gstack-playbook.html">以 gstack 技能精煉計畫的執行流程（Playbook）</a></li><li><a href="../../docs/strategy/cleaning-stage-design.html">資料清洗階段設計與分析</a></li><li><a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a></li><li><a href="../../docs/strategy/source-cleaning-value.html">知識來源管理與資料清洗：功能、價值與行銷</a></li><li><a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：功能、欄位、價值與行銷</a></li><li><a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格</a></li><li><a href="../../docs/strategy/market-analysis.html">知識庫產品市場分析與擴展方向</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一初步技術驗證現有可重用點與改造切入點">一、初步技術驗證：現有可重用點與改造切入點</a><a class="l3" href="#1-非同步佇列--背景服務可重用為清洗索引管線">1. 非同步佇列 ＋ 背景服務（可重用為清洗/索引管線）</a><a class="l3" href="#2-文件轉文字處理器清洗階段的輸入來源">2. 文件轉文字處理器（清洗階段的輸入來源）</a><a class="l3" href="#3-團隊權控延伸至知識單元檢索">3. 團隊權控（延伸至知識單元檢索）</a><a class="l3" href="#4-既有工程慣例直接沿用">4. 既有工程慣例（直接沿用）</a><a class="l2" href="#二36-個月分階段路線圖">二、3–6 個月分階段路線圖</a><a class="l3" href="#階段一約-1-個月資料清洗">階段一（約 1 個月）：資料清洗</a><a class="l3" href="#階段二約-051-個月知識頁審核--已實作02117">階段二（約 0.5–1 個月）：知識頁審核　✅ 已實作（0.2.117）</a><a class="l3" href="#階段三約-152-個月建立知識庫">階段三（約 1.5–2 個月）：建立知識庫</a><a class="l3" href="#階段四約-152-個月旗艦應用-mvp">階段四（約 1.5–2 個月）：旗艦應用 MVP</a><a class="l2" href="#三開發原則">三、開發原則</a><a class="l2" href="#四風險與相依">四、風險與相依</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/strategy/04-開發建議與路線圖.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

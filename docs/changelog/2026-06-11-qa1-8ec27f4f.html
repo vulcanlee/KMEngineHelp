@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗管線（QA-1 端到端最小可用）（0.2.60）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>清洗管線（QA-1 端到端最小可用）（0.2.60）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-11</li><li>版本：0.2.59 → 0.2.60</li><li>對應路線圖：<a href="../../docs/planning/07-todo-f1c7d6cc.html">資料清洗開發代辦清單 第三階段</a>、設計 <a href="../../docs/strategy/cleaning-stage-design.html">strategy/08</a></li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>知識來源（KnowledgeSource）現可被「清洗」：把其底下成員（跨音訊轉錄／文件萃取／圖片清單三管線）的 已萃取文字<strong>彙整 → OpenCC 轉繁體 → 產出清洗後 Markdown</strong>，狀態與進度可追蹤，可取消、重試、檢視結果。 本階段為 <strong>QA-1（先把端到端跑通）</strong>，純程式步驟，尚未接 LLM 的去重／遮罩／分類／摘要。</p>
+<h2 id="內容" class="t2">內容</h2>
+<ul><li><strong>資料模型</strong>：<code>KnowledgeSource</code> 新增 <code>Status</code>（草稿／等待中／處理中／已清洗／失敗／已取消，預設「草稿」）、</li></ul>
+<p><code>ProgressPercentage</code>、<code>ErrorMessage</code>、<code>CleanedContentRelativePath</code>、<code>CleanedAt</code>。雙 provider migration <code>AddKnowledgeSourceCleaning</code>（既有資料 <code>Status</code> 回填「草稿」）。</p>
+<ul><li><strong>清洗管線</strong>（比照既有三管線骨架）：<code>ICleaningQueue</code>／<code>CleaningQueue</code>（<code>Channel&lt;int&gt;</code>，Singleton）、</li></ul>
+<p><code>CleaningBackgroundService</code>（出列、建 scope、<code>IPipelineCancellationRegistry</code> 取消、重啟把「等待中／處理中」重新入列）、 <code>CleaningProcessor</code>（彙整成員文字＋OpenCC 繁體＋產出 <code>{yyyy}/{guid}.md</code> 於 <code>CleanedSourcePath</code>， <code>PipelineRetryHelper</code> 自動重試）。成員只取「已完成」者，未完成略過；全無可用成員則標記失敗。 OpenCC 只套用於成員內文，標題保留原文（避免 <code>文件</code>→<code>檔案</code> 之類用詞替換改動標題）。</p>
+<ul><li><strong>服務動作</strong>：<code>KnowledgeSourceService</code> 新增 <code>TriggerCleaningAsync</code>／<code>CancelCleaningAsync</code>／</li></ul>
+<p><code>RetryCleaningAsync</code>／<code>GetCleanedContentAsync</code>，全程套團隊權控；觸發需至少一名成員。</p>
+<ul><li><strong>設定</strong>：<code>ExternalFileSystem.CleanedSourcePath</code>（appsettings 與 Program.cs 目錄準備）。</li><li><strong>UI</strong>：知識來源清單新增「狀態」「進度」欄與 清洗／取消／重試／檢視結果 操作、清洗結果 Modal、5 秒輪詢。</li><li><strong>測試</strong>：新增 <code>CleaningProcessorTests</code>（彙整＋轉繁體、略過未完成成員、全無可用→失敗）與服務層</li></ul>
+<p>觸發測試；全測試 176 筆綠燈。</p>
+<h2 id="未納入後續" class="t3">未納入（後續）</h2>
+<p>LLM 去重／敏感資訊遮罩／分類建議／摘要（QA-2 起）、信心分數（QA-2）、人工審核（QA-3）、 黃金評測（QA-4）、知識蒸餾與知識庫。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#內容">內容</a><a class="l2" href="#未納入後續">未納入（後續）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-11-清洗管線QA1.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

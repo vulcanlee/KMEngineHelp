@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="title desc">
+  <title id="title">KnowledgeExtraction.AI 知識閉環流程圖</title>
+  <desc id="desc">匯入、清洗、蒸餾、知識庫、智慧應用的企業知識閉環。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f7fbff"/>
+      <stop offset="54%" stop-color="#edf8f7"/>
+      <stop offset="100%" stop-color="#fff8e8"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#eef9f8"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-20%" width="120%" height="150%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#0f172a" flood-opacity="0.13"/>
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="8" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#0f766e"/>
+    </marker>
+  </defs>
+
+  <rect width="1400" height="760" rx="36" fill="url(#bg)"/>
+  <text x="700" y="84" text-anchor="middle" font-family="Microsoft JhengHei, Noto Sans TC, Arial, sans-serif" font-size="40" font-weight="700" fill="#0f172a">從分散資訊到可用知識，一條龍閉環</text>
+  <text x="700" y="128" text-anchor="middle" font-family="Microsoft JhengHei, Noto Sans TC, Arial, sans-serif" font-size="22" fill="#475569">匯入、清洗、蒸餾、知識庫、智慧應用，讓每一次查找都有出處與權限保護</text>
+
+  <g filter="url(#shadow)">
+    <rect x="82" y="238" width="210" height="196" rx="24" fill="url(#card)" stroke="#99f6e4"/>
+    <rect x="335" y="238" width="210" height="196" rx="24" fill="url(#card)" stroke="#bfdbfe"/>
+    <rect x="588" y="238" width="210" height="196" rx="24" fill="url(#card)" stroke="#fde68a"/>
+    <rect x="841" y="238" width="210" height="196" rx="24" fill="url(#card)" stroke="#a7f3d0"/>
+    <rect x="1094" y="238" width="224" height="196" rx="24" fill="url(#card)" stroke="#c4b5fd"/>
+  </g>
+
+  <g font-family="Microsoft JhengHei, Noto Sans TC, Arial, sans-serif">
+    <circle cx="187" cy="292" r="34" fill="#0f766e"/>
+    <path d="M171 288h32v31h-32z M176 281h23l4 7h-31z" fill="#fff"/>
+    <text x="187" y="356" text-anchor="middle" font-size="30" font-weight="700" fill="#0f172a">匯入</text>
+    <text x="187" y="391" text-anchor="middle" font-size="18" fill="#475569">文件 / 影音 / 圖片</text>
+
+    <circle cx="440" cy="292" r="34" fill="#2563eb"/>
+    <path d="M423 291h34 M429 281h22 M431 303h18" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+    <text x="440" y="356" text-anchor="middle" font-size="30" font-weight="700" fill="#0f172a">清洗</text>
+    <text x="440" y="391" text-anchor="middle" font-size="18" fill="#475569">去重 / 遮罩 / 摘要</text>
+
+    <circle cx="693" cy="292" r="34" fill="#f59e0b"/>
+    <path d="M681 308l12-33 12 33 M686 298h14" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="693" y="356" text-anchor="middle" font-size="30" font-weight="700" fill="#0f172a">蒸餾</text>
+    <text x="693" y="391" text-anchor="middle" font-size="18" fill="#475569">萃取可用知識</text>
+
+    <circle cx="946" cy="292" r="34" fill="#059669"/>
+    <path d="M929 278h34v28h-34z M934 286h24 M934 296h18" stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none"/>
+    <text x="946" y="356" text-anchor="middle" font-size="30" font-weight="700" fill="#0f172a">知識庫</text>
+    <text x="946" y="391" text-anchor="middle" font-size="18" fill="#475569">搜尋 / 出處 / 權控</text>
+
+    <circle cx="1206" cy="292" r="34" fill="#7c3aed"/>
+    <path d="M1190 292h32 M1206 276v32 M1194 304l24-24" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+    <text x="1206" y="356" text-anchor="middle" font-size="30" font-weight="700" fill="#0f172a">智慧應用</text>
+    <text x="1206" y="391" text-anchor="middle" font-size="18" fill="#475569">問答 / SOP / Agent</text>
+  </g>
+
+  <g stroke="#0f766e" stroke-width="5" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.9">
+    <path d="M296 336h35"/>
+    <path d="M549 336h35"/>
+    <path d="M802 336h35"/>
+    <path d="M1055 336h35"/>
+  </g>
+
+  <g font-family="Microsoft JhengHei, Noto Sans TC, Arial, sans-serif">
+    <rect x="220" y="540" width="960" height="92" rx="24" fill="#0f172a" opacity="0.93"/>
+    <text x="700" y="582" text-anchor="middle" font-size="28" font-weight="700" fill="#ffffff">結果：30 秒找到帶出處答案，資料留在公司，權限與稽核同步到位</text>
+    <text x="700" y="617" text-anchor="middle" font-size="20" fill="#cbd5e1">不只是聊天框，而是企業知識基礎建設</text>
+  </g>
+</svg>

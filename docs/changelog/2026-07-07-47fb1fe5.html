@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文件萃取新增「批次上傳壓縮檔（.zip）自動建立記錄」（0.2.161）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>文件萃取新增「批次上傳壓縮檔（.zip）自動建立記錄」（0.2.161）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-07</li><li>版本：0.2.160 → 0.2.161</li><li>類型：新增功能</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>文件萃取原本只能單檔上傳。使用者手上常有一批不同類型的文件，逐一上傳效率低。需求是：提供一個壓縮檔上傳入口，上傳一個 <code>.zip</code>，系統自動為裡面每個文件各建立一筆記錄。</p>
+<p>現行 <code>.zip</code> 已被視為單一文件整包交給 MarkItDown；本功能以<strong>獨立入口</strong>並存，不取代舊行為。</p>
+<h2 id="決策與需求方確認" class="t2">決策（與需求方確認）</h2>
+<ul><li>入口：新增獨立「批次上傳壓縮檔」按鈕／Modal，原單檔上傳不變。</li><li>標題：取自檔名（去副檔名）。</li><li>分類／團隊：上傳時選一組共用標籤，套用到本次所有記錄。</li><li>子資料夾：遞迴所有層級，忽略資料夾結構（僅用檔名）。</li><li>不支援檔：略過並回報清單。</li><li>嵌套 <code>.zip</code>：略過並列入清單（不遞迴解壓）。</li><li>安全上限（防 zip bomb）：檔數 500、解壓總量 2GB，超過整批拒絕。</li><li>不改資料模型、不需 migration。</li></ul>
+<h2 id="變更" class="t3">變更</h2>
+<h3 id="business-層">Business 層</h3>
+<ul><li><code>DocumentExtractionService.AddBatchFromZipAsync(zipStream, categories, teams, maxFileCount, maxUncompressedBytes, ct)</code>：以 <code>System.IO.Compression.ZipArchive</code>（.NET 內建，無需 NuGet）走訪 entries，前置安全檢查（檔數／解壓總量）後，對每個支援 entry 複用既有 <code>AddAsync</code>（存檔＋建記錄＋<code>queue.EnqueueAsync</code>）。單一 entry 失敗記入清單、不中斷其餘。</li><li>新常數 <code>MaxBatchFileCount = 500</code>、<code>MaxBatchUncompressedBytes = 2GB</code>。</li><li>新結果型別 <code>BatchZipImportResult</code>（<code>KnowledgeExtraction.Models/Systems/BatchZipImportResult.cs</code>）：<code>SuccessCount</code> / <code>Skipped</code> / <code>Failed</code> / <code>RejectedWholeBatch</code> / <code>RejectReason</code>。</li></ul>
+<h3 id="ui-層">UI 層</h3>
+<ul><li><code>DocumentExtractionView</code>：工具列新增「批次上傳壓縮檔」按鈕（Icon <code>drive_folder_upload</code>）；新增批次上傳 Modal（共用分類／團隊 ＋ <code>&lt;InputFile accept=".zip"&gt;</code>）與「批次匯入結果」Modal（成功筆數＋略過／失敗清單）。輪詢守衛加入批次視窗狀態。</li></ul>
+<h3 id="測試">測試</h3>
+<ul><li>新增 <code>DocumentExtractionBatchZipTests</code>（8 個）：建記錄／標題取檔名／遞迴子資料夾／略過不支援檔並回報／略過嵌套 zip 並回報／共用分類團隊套用全部／超檔數上限整批拒絕／超解壓總量整批拒絕／損毀 zip 不拋例外／pdf ContentType 推得。</li><li><code>CrudActionIconTests</code> 允許清單新增 <code>drive_folder_upload</code>。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>不動現行單檔上傳與 MarkItDown 轉換邏輯。</li><li>已同步更新 <code>docs/prd/文件萃取-markitdown-prd.md</code>（十二之二）與 <code>docs/operations/容量邊界與限制.md</code>（批次上限）。</li><li><code>appsettings.json</code> SystemVersion 0.2.160 → 0.2.161。無資料庫變更，不需 migration。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>dotnet test --filter DocumentExtractionBatchZipTests</code> 綠燈（8 通過）。</li><li>全專案 <code>dotnet build</code> 成功；既有測試除既存無關失敗外全綠。</li><li><code>/document-extraction</code> 批次上傳混合類型 zip：每個支援檔各建一筆「等待中」記錄、略過清單正確；背景佇列處理後轉「已完成」可預覽。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#決策與需求方確認">決策（與需求方確認）</a><a class="l2" href="#變更">變更</a><a class="l3" href="#business-層">Business 層</a><a class="l3" href="#ui-層">UI 層</a><a class="l3" href="#測試">測試</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-07-文件萃取批次上傳壓縮檔.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

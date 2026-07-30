@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識庫命名規範－速查卡｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>知識庫命名規範－速查卡</h1><p class="sub">一頁可列印。發給每一個會在系統裡建立資料的人，貼在座位上。完整說明與正反例見 知識庫命名規範與範例。</p></header><div class="docwrap"><main><ul><li>文件用途：<strong>一頁可列印</strong>。發給每一個會在系統裡建立資料的人，貼在座位上。完整說明與正反例見 <a href="../../docs/guides/naming-rules.html">知識庫命名規範與範例</a>。</li><li>主要讀者：所有會建立資料的人</li><li>文件版本：1.0</li><li>建立日期：2026/07/30</li><li>對應系統版本：1.0.107（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="六個格式抄就對了" class="t1">六個格式，抄就對了</h2>
+<div class="tw"><table><thead><tr><th>你要建什麼</th><th>格式</th><th>範例</th></tr></thead><tbody><tr><td><strong>上傳前的檔名</strong></td><td><code>YYYYMMDD_對象_文件族_版次.ext</code>（半形底線分段）</td><td><code>20260311_EPS-3000_機構公差規範_RevC.pdf</code></td></tr><tr><td><strong>素材紀錄標題</strong>（影音／文件／圖片／會議）</td><td><code>文件族｜原始文件或場合｜日期</code></td><td><code>設計規範｜EPS-3000 機構公差規範 Rev.C｜2026-03-11</code></td></tr><tr><td><strong>知識來源（盒子）標題</strong> ⭐</td><td><code>範圍｜對象｜版本或期間｜文件族</code>（四段全填、≤60 字）</td><td><code>眾宇｜EPS-3000 系列｜Rev.C｜設計規範與公差</code></td></tr><tr><td><strong>團隊</strong></td><td>組織或客戶的實際稱法，2～8 字；代號大寫英數</td><td><code>研發工程</code>／<code>ENG</code>、<code>採購</code>／<code>PUR</code></td></tr><tr><td><strong>分類</strong></td><td>單一維度（建議「文件用途」），2～6 字，<strong>10 個以內</strong></td><td><code>設計規範</code>、<code>審查決議</code>、<code>作業標準</code>、<code>異常與矯正</code></td></tr><tr><td><strong>自訂提示詞</strong></td><td><strong>一律加 <code>自訂-</code> 前綴</strong></td><td><code>自訂-審圖重點摘要</code></td></tr></tbody></table></div>
+<p>分隔號一律用<strong>全形 <code>｜</code></strong>，不要用半形 <code>-</code>（連字號在關鍵字比對時會被切開）。</p>
+<hr>
+<h2 id="八條紅線" class="t2">八條紅線</h2>
+<div class="tw"><table><thead><tr><th>#</th><th>紅線</th><th>違反會發生什麼</th></tr></thead><tbody><tr><td>1</td><td><strong>分類、團隊、盒子標題上線後不要改名</strong></td><td>分類／團隊是以<strong>名稱字串</strong>存在每一筆紀錄上。改主檔<strong>不會回寫舊紀錄</strong> → 篩選找不到、團隊權控失準</td></tr><tr><td>2</td><td><strong>盒子標題必須單獨看得懂</strong></td><td>標題會<strong>原文貼進 AI 看到的參考資料前面</strong>。十盒都叫「設計規範」時，AI 分不出型號，<strong>會混著答</strong></td></tr><tr><td>3</td><td><strong>分類只放一個維度</strong>（客戶／型號／環境不要放進分類）</td><td>問答時多選分類是「<strong>或</strong>」不是「且」→ 範圍反而變大，<strong>而且畫面不會提示你</strong></td></tr><tr><td>4</td><td><strong>自訂提示詞加 <code>自訂-</code> 前綴</strong></td><td>誤撞 20 個保留名稱＝<strong>你改到了系統行為</strong>；想覆蓋卻打錯一個字＝<strong>設定靜默不生效</strong>，不會報錯</td></tr><tr><td>5</td><td><strong>標題裡不要放個資、報價金額或機密</strong></td><td><strong>遮罩只作用於內容，不作用於標題</strong>。標題會出現在清單、下拉選單與 AI 參考資料裡</td></tr><tr><td>6</td><td><strong>型號在每個主要段落至少完整寫一次</strong></td><td>章節標題<strong>不會併進內容區塊</strong>，長文件後半段可能完全不含型號 → 問答鎖不到它</td></tr><tr><td>7</td><td><strong>不要用「測試」「暫定」「第一批」「最新版」</strong></td><td>這些會留下來，而且沒人敢刪、沒人分得出哪個是正式的</td></tr><tr><td>8</td><td><strong>評測樣本的「期望命中來源標題」要複製貼上，不要手打</strong></td><td>那是<strong>逐字比對</strong>。打錯一個字，評測分數莫名偏低，<strong>不會有任何錯誤訊息</strong></td></tr></tbody></table></div>
+<hr>
+<h2 id="三個最常犯的錯" class="t3">三個最常犯的錯</h2>
+<p><strong>① 想用分類做二維篩選</strong> 以為同時選「客戶 A」＋「佈署文件」會得到交集。實際是<strong>聯集</strong>（客戶 A 的全部文件 ∪ 所有客戶的佈署文件），範圍比只選一個還大。 → <strong>客戶／型號放盒子標題，用問答頁的「限定知識來源」硬篩選。</strong></p>
+<p><strong>② 上線後才想改分類或團隊名稱</strong> 改了主檔，舊紀錄上的字串不動。於是有些資料「明明在那裡卻篩不出來」，權控也可能因此漏。 → <strong>上線前訂完。改名的代價遠高於一開始多花兩小時討論。</strong></p>
+<p><strong>③ 自訂提示詞取名時撞到保留字</strong> 取名 <code>清洗-摘要</code> → 全系統的清洗行為被你改掉了，而且不會有任何警告。 → <strong>一律加 <code>自訂-</code>。要覆蓋系統行為時，從下表複製貼上。</strong></p>
+<hr>
+<h2 id="20-個系統保留提示詞名稱逐字不要手打" class="t4">20 個系統保留提示詞名稱（逐字，不要手打）</h2>
+<pre><code>清洗-去重      清洗-遮罩      清洗-分類      清洗-摘要      清洗-信心
+對話-系統      對話-簡潔      對話-標準      對話-詳細
+知識庫-系統    知識庫-查詢改寫
+蒸餾-生成
+圖譜-三元組抽取  圖譜-社群摘要  圖譜-全域map   圖譜-全域reduce  圖譜-別名建議
+會議-紀錄生成
+文件-PDF轉Markdown
+轉錄-提示</code></pre>
+<p>比對是<strong>逐字精確</strong>的——大小寫、空白、破折號種類都不寬鬆。差一個字元就靜默失效。</p>
+<hr>
+<h2 id="統一寫法全公司一致" class="t5">統一寫法（全公司一致）</h2>
+<div class="tw"><table><thead><tr><th>對象</th><th>寫法</th></tr></thead><tbody><tr><td>型號</td><td><code>EPS-3000</code>（帶連字號），與中文之間留一個<strong>半形空白</strong>：<code>EPS-3000 散熱片</code></td></tr><tr><td>版次</td><td><code>Rev.C</code> <strong>或</strong> <code>v3</code>，全公司二選一，<strong>不混用</strong></td></tr><tr><td>日期</td><td>標題與內容用 <code>2026-03-11</code>；檔名用 <code>20260311</code></td></tr><tr><td>期間</td><td><code>2024-2026</code>、<code>2026H1</code>、<code>2026Q3</code></td></tr><tr><td>英數大小寫</td><td>固定一種寫法，不要依賴系統忽略大小寫</td></tr></tbody></table></div>
+<hr>
+<h2 id="建立資料前的三個自問" class="t6">建立資料前的三個自問</h2>
+<ol><li><strong>遮住其他欄位，只念這個標題</strong>——我分得出它是什麼嗎？（分不出來，AI 也分不出來）</li><li><strong>這個名字三個月後還成立嗎？</strong>（人名、專案名、「最新」都不成立）</li><li><strong>這是名字該承載的資訊，還是描述欄位該承載的？</strong>（過程、免責、補充說明都放描述）</li></ol>
+<hr>
+<blockquote><p>完整版：<a href="../../docs/guides/naming-rules.html">知識庫命名規範與範例</a>｜設定內容怎麼寫：<a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南</a>｜返回 <a href="../../docs/guides/guides-index.html">guides 目錄索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：匯入正式資料前，要先訂好命名與分類詞庫</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#六個格式抄就對了">六個格式，抄就對了</a><a class="l2" href="#八條紅線">八條紅線</a><a class="l2" href="#三個最常犯的錯">三個最常犯的錯</a><a class="l2" href="#20-個系統保留提示詞名稱逐字不要手打">20 個系統保留提示詞名稱（逐字，不要手打）</a><a class="l2" href="#統一寫法全公司一致">統一寫法（全公司一致）</a><a class="l2" href="#建立資料前的三個自問">建立資料前的三個自問</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/知識庫命名規範-速查卡.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

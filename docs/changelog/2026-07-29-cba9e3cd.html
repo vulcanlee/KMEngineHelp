@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>多客戶、多客製、多型號的知識庫規劃分析（1.0.104）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>多客戶、多客製、多型號的知識庫規劃分析（1.0.104）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-29</li><li>版本：1.0.103 → <strong>1.0.104</strong></li><li>類型：策略分析文件新增。<strong>純文件＋版本字串，無程式邏輯變更、無新表、無 migration</strong></li></ul>
+<h2 id="起因" class="t1">起因</h2>
+<p>導入端提出三個實務問題，既有文件都沒有直接回答：</p>
+<ol><li>同一套系統賣給不同客戶，每家有客製、用不同資料庫、裝在不同作業系統上，還要收使用手冊、工程維運、系統設定、佈署文件與規劃會議／PM 文件——<strong>要用分類來區分嗎？命名規則是什麼？一份大文件維護不易，那要拆幾份？問答時怎麼自動找到指定客戶的內容？</strong></li><li>同類商品不同型號、型號間有功能差異，<strong>同樣的問題加上不同型號代碼，有沒有機會找到正確來源？這套系統做不做得到？</strong></li><li>更多真實情境的操作建議與規劃做法，以及<strong>誠實的準確率預估</strong>。</li></ol>
+<h2 id="產出" class="t2">產出</h2>
+<p>新增 <code>docs/strategy/2026-07-29-多客戶多型號知識庫規劃分析.md</code>（378 行），編為 strategy 第 16 篇。定位為 <a href="../../docs/strategy/tech-route-analysis.html">14-企業知識庫技術路線分析</a> 的續篇——那一篇已處理 RAG 技術定位與 Karpathy LLM Wiki 對照，<strong>本文刻意不重寫</strong>，只補它沒談的一層：多客戶、多型號時知識該怎麼切。</p>
+<h2 id="論證基礎13-條查證過的事實" class="t3">論證基礎：13 條查證過的事實</h2>
+<p>全文所有主張都對回程式碼行號或權威文件，不是推測。其中五條是這次讀原始碼才確認、而且<strong>決定了結論走向</strong>的：</p>
+<div class="tw"><table><thead><tr><th>事實</th><th>出處</th></tr></thead><tbody><tr><td><strong>分類多選是「或」不是「且」</strong></td><td><code>TagStringHelper.cs:76-105</code>（<code>BuildContainsAnyPredicate</code> 的定義就是「包含任一」）</td></tr><tr><td><strong>章節標題只存進 <code>AnchorRef</code> 中繼欄位，不併進 chunk 本文</strong>；標題那一行落在該節第一塊，第二塊之後只帶 120 字重疊尾巴</td><td><code>Chunker.cs:76,79-85</code></td></tr><tr><td><strong>切詞分隔符包含連字號</strong>，<code>EPS-3000</code> 被切成 <code>EPS</code> ＋ <code>3000</code></td><td><code>RetrievalService.cs:420-425</code></td></tr><tr><td>融合分數 <code>= 0.7×向量 + 0.3×關鍵字 + 0.2×圖</code>，關鍵字路權重上限 0.3</td><td><code>RetrievalService.cs:80-81</code></td></tr><tr><td>交給 LLM 的參考資料每段前綴 <code>【來源：{知識來源標題}｜{層別}｜{章節錨點}】</code>——<strong>命名本身就是給 LLM 的辨識訊號</strong></td><td><code>KnowledgeBaseChatService.cs:235</code></td></tr></tbody></table></div>
+<h2 id="三個核心結論" class="t4">三個核心結論</h2>
+<ol><li><strong>想用分類做「客戶 × 文件類型」的二維切分，做不到</strong>。同時選「客戶-客戶A」與「文件-佈署」得到的是<strong>聯集</strong>（客戶A 的所有文件 ∪ 所有客戶的佈署文件），範圍比只選一個還大——而且畫面不會有任何提示。這是一個踩了不會自己發現的坑。</li><li><strong>光在問句加型號代碼不可靠</strong>。文中用實際機制算出：查 <code>EPS-3000 的保固期是多久</code> 時，正確型號與錯誤型號的融合分數差距<strong>只有 0.075</strong>，足以把正確內容往前推、<strong>不足以把錯誤內容排除在前 10 名之外</strong>；而且該節第二塊之後的 chunk 根本不含型號字樣。</li><li><strong>要 100% 找對對象，唯一可靠的做法是硬篩選</strong>（「限定知識來源」是資料庫層的過濾條件）。文件寫法與型號別名是加分項，不是保證。</li></ol>
+<h2 id="建議的三層切分模型" class="t5">建議的三層切分模型</h2>
+<div class="tw"><table><thead><tr><th>層</th><th>工具</th><th>負責維度</th></tr></thead><tbody><tr><td>誰能看</td><td><strong>團隊</strong></td><td>客戶／租戶邊界（系統唯一的硬權限）</td></tr><tr><td>問答鎖定範圍</td><td><strong>知識來源盒子</strong></td><td>客戶 × 系統 × 大版本 × 文件族</td></tr><tr><td>主題篩選</td><td><strong>分類</strong></td><td><strong>只放文件用途</strong>（單一扁平維度，上限 10 個）</td></tr></tbody></table></div>
+<p>關鍵主張：<strong>把「客戶」放進知識來源盒子，不要放進分類</strong>——盒子的篩選是硬過濾、盒子標題會進 LLM 的參考資料，而且盒子本來就是清洗／蒸餾／索引的處理單位。</p>
+<h2 id="準確率的處理方式" class="t6">準確率的處理方式</h2>
+<p><strong>刻意不給單一總體數字</strong>，改為分四種情境給區間並附推理依據，且全部明標為<strong>推論值而非實測</strong>：</p>
+<div class="tw"><table><thead><tr><th>情境</th><th>對象正確率</th></tr></thead><tbody><tr><td>A 什麼都不做、多客戶多型號混一盒</td><td>約 20%～50%（N＝3～5 時）。⚠️ <strong>最危險的不是低準確率，而是它不會被兩段式門檻攔截</strong>——主題確實相關、最高分很高，所以會很有自信地答錯</td></tr><tr><td>B 只在問句加客戶名／型號</td><td>約 50%～75%（chunk 帶名時）／幾乎無提升（chunk 不帶名時）</td></tr><tr><td>C 用「限定知識來源」硬篩</td><td><strong>100%</strong>——這不是推論而是定義</td></tr><tr><td>D 硬篩 ＋ 每節帶名 ＋ 型號別名</td><td>對象 100%，段落正確率回到一般 RAG 水準</td></tr></tbody></table></div>
+<p>另附<strong>驗收門檻建議起點</strong>（<code>LeakageTotal</code> 必須為 0 是紅線；<code>AvgRecallAtK ≥ 0.80</code> 等）並標明是起點不是保證值，以及一段最實用的量測法：<strong>只要照建議把「一個客戶／一個型號 ＝ 一個知識來源盒子」，<code>/rag-evaluation</code> 既有的 <code>PrecisionAtK</code>／<code>RecallAtK</code> 就直接等於「有沒有找對客戶／型號」的準確率</strong>，不需要另建量測機制。</p>
+<h2 id="其他內容" class="t7">其他內容</h2>
+<ul><li><strong>11 個會出錯的反例</strong>（獨立小節）：一盒裝十家客戶、分類爆炸成兩百個、<strong>用分類做客戶隔離＝資安事故</strong>、多維標籤誤以為是交集、改完不重建索引、把可調參數寫進手冊、<strong>會議紀錄與手冊同盒導致 AI 拿被推翻的討論當現行規格</strong>、型號用連字號、只靠問句加代碼、沒建索引就驗收、沒出考題全憑感覺調參數。</li><li><strong>三類真實情境</strong>：軟體專案公司實際情境（交接、客訴排查、顧問上手、投標合約、教育訓練、跨客戶經驗複用、版本升級）、跨行業情境（製造／醫療器材／金融／零售連鎖／系統整合商）、以及上述反例。</li><li><strong>需改程式才能解的 6 項限制</strong>與優先序：P1 分類篩選支援「且」語意（效益最高、改動最小）、P2 chunk 前置標題脈絡（效益高但需重建全部索引）、P3 切詞不切連字號（⚠️ 會改變分數分布、兩段式門檻要重新校準）、P4 中文斷詞、P5 rerank、P6 多維標籤資料模型（成本最高，<strong>只有 P1 做完仍不夠用時才考慮</strong>）。建議先做 P1，再用基線量 P2 的實際增益。</li><li><strong>四階段落地檢查清單</strong>：先想清楚（不碰系統）→ 建骨架 → <strong>只匯入第一個客戶並驗收，數字可接受才推廣</strong> → 長期維運。</li></ul>
+<h2 id="刻意不做" class="t8">刻意不做</h2>
+<ol><li><strong>不重寫 Karpathy／RAG 技術定位</strong>——14 號文件已完整處理，本文引用它並明寫是續篇，避免兩份文件講同一件事而日後 drift。</li><li><strong>範例一律用泛例</strong>（客戶A、產品線-MES、型號 EPS3000），不含任何內部真實名稱，<strong>文件可直接對客戶或實施顧問呈報</strong>。</li><li><strong>不給單一總體準確率數字</strong>——沒有實測資料時給一個「大約 X%」等同猜測，會被當成承諾。</li><li><strong>不把可調參數的建議值寫成事實</strong>——門檻值只在說明機制時引用，並註明須以真實資料校準。</li><li><strong>本次不改任何程式</strong>——§8 列出的六項限制是分析與建議，是否實作另案決定。</li></ol>
+<h2 id="驗證" class="t1">驗證</h2>
+<ul><li><code>scripts/Test-DocsEncoding.ps1</code>：409 個 OK、0 FAILED（新檔含 UTF-8 BOM）。</li><li>文件內 9 個相對連結逐一確認目標檔存在。</li><li>全文技術斷言逐條對回 F1～F13 的出處；凡推論皆已明標。</li><li>未跑 <code>dotnet test</code>（無程式邏輯變更；版本字串不影響建置）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#起因">起因</a><a class="l2" href="#產出">產出</a><a class="l2" href="#論證基礎13-條查證過的事實">論證基礎：13 條查證過的事實</a><a class="l2" href="#三個核心結論">三個核心結論</a><a class="l2" href="#建議的三層切分模型">建議的三層切分模型</a><a class="l2" href="#準確率的處理方式">準確率的處理方式</a><a class="l2" href="#其他內容">其他內容</a><a class="l2" href="#刻意不做">刻意不做</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-29-多客戶多型號知識庫規劃分析.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

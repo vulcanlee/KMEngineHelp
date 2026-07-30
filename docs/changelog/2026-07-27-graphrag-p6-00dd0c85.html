@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph RAG P6：LLM 自動別名候選（1.0.87 → 1.0.88）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Graph RAG P6：LLM 自動別名候選（1.0.87 → 1.0.88）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-27</li><li>版本：1.0.87 → 1.0.88</li><li>類型：新增功能（Graph RAG 第六階段，把 P5 的人工別名升級為 LLM 自動建議 + 人工審核）</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>P5 的實體別名完全靠<strong>人工</strong>手動建立——管理員得自己想到「台積電＝TSMC」。P6 加 <strong>LLM 自動建議</strong>（仿 P2「LLM 抽取 → 人工審核」）：管理員按鈕觸發背景工作，LLM 掃描既有實體名、提出「別名 → 標準名」同義候選，寫入 <code>GraphEntityAlias</code> 的<strong>待審核</strong>佇列，再由管理員於既有「實體合併」分頁核可/退回。降低人工從零發想的負擔，保留人在迴路治理。</p>
+<p>與使用者確認的決策：信心分數＝<strong>新增 <code>Confidence</code> 欄位儲存</strong>；候選範圍＝<strong>全庫去重實體名</strong>（上限 <code>NameCap=300</code>，超出取出現次數最多者）；執行＝<strong>背景單例工作 + 按鈕</strong>（仿 P3 重建社群摘要，不進 <code>PipelineNames</code>）。</p>
+<h2 id="變更" class="t2">變更</h2>
+<ol><li><strong><code>GraphEntityAlias</code> 加 <code>decimal? Confidence</code></strong>（LLM 自評；人工新增為 null）＋ <code>GraphEntityAliasAdapterModel.Confidence</code>＋服務投影；雙庫 <code>AddGraphEntityAliasConfidence</code> migration。</li><li><strong>新 LLM 提示詞槽位 <code>EntityAliasPropose</code>（<code>圖譜-別名建議</code>）</strong>：4 處同步（<code>LlmPromptKeys</code>+<code>AllKeys</code>、<code>LlmPromptsSettings</code>+<code>Get()</code>、<code>appsettings</code> <code>LlmPrompts</code>、<code>LlmPromptDefaults</code>），<code>LlmPromptSlotTests</code> 守。預設提示詞要求 LLM「只用清單內名稱、找同義實體、只輸出合法 JSON 陣列 <code>[{alias,canonical,confidence}]</code>」。</li><li><strong><code>GraphEntityAliasGenerator</code>（Scoped，仿 <code>GraphExtractionEnhancer</code>）</strong>：載入去重 canonical 實體名（取出現次數前 <code>NameCap=300</code>）→ <code>CompleteStreamingAsync</code> → 純 <code>ParseAliasCandidates</code>（<code>ExtractJsonArray</code>＋DTO＋批內去重＋<code>NormalizeConfidence</code>）→ 生成端<strong>接地過濾</strong>（別名與標準名兩側 canonical 皆須為既有實體名，杜絕幻覺）＋自我對/既有非退回對去重 → 批次插入 <code>待審核</code>＋<code>Confidence</code>（單次存檔）。LLM 未設定或實體 &lt;2 → 回 0。</li><li><strong>背景工作三件套（仿 P3，不進 <code>PipelineNames</code>）</strong>：<code>IGraphAliasCandidateQueue</code>/<code>GraphAliasCandidateQueue</code>（signal-only）、<code>IGraphAliasBuildState</code>/<code>GraphAliasBuildState</code>、<code>GraphAliasGenerationBackgroundService</code>（<code>OperationContext.Push("EntityAliasPropose",…)</code>、scope 解析 generator、<code>finally</code> 復位旗標）。DI：queue/state Singleton、generator Scoped；<code>Program.cs</code> 加 <code>AddHostedService</code>。</li><li><strong>觸發/狀態</strong>：<code>GraphEntityAliasService</code> 注入 queue＋build-state，加 <code>TriggerSuggestionAsync</code>（管理員＋忙碌守門＋樂觀設旗標＋enqueue）與 <code>GetSuggestionStatusAsync</code>（＋record <code>GraphAliasSuggestionStatus</code>，含待審核筆數）。</li><li><strong>Token 作業別</strong> <code>OperationEntityAliasPropose</code> + <code>OperationLabelHelper</code> 「實體別名建議」（<code>OperationLabelTests</code> 守）。</li><li><strong>UI</strong>：「實體合併」分頁（已管理員限定）加狀態列（生成中/上次時間/新增數/待審核數/錯誤）＋「LLM 自動建議別名」按鈕＋「重新整理狀態」（仿重建社群摘要）；別名清單加「信心」欄（null 顯示「—」）。</li><li><code>appsettings.json</code>：SystemVersion 1.0.87 → 1.0.88。</li></ol>
+<h2 id="安全與相容leak0-紅線不變" class="t3">安全與相容（leak=0 紅線不變）</h2>
+<ul><li>別名候選是<strong>全域管理員治理 metadata</strong>（無 Teams），生成為管理員觸發、候選一律<strong>待審核</strong>、不自動核可。核可後的套用仍走 P5 <code>EntityAliasResolver</code>，檢索/社群 ACL 完全不變。</li><li><strong>接地保證</strong>：LLM 幻覺名（不在實體集合者）被丟棄，核可後必能合併到既有節點。</li><li><strong>向後相容</strong>：無 LLM 設定或無實體時回 0；P2~P5 與既有功能不受影響；手動別名（P5）原封不動。</li><li>不進 <code>PipelineNames</code>（沿用 P3 單例全域工作模型），不牽動 <code>/pipeline-jobs</code> 與健康檢查推導；不新增權限常數（沿用 <code>角色_知識圖譜審核</code>、分頁管理員限定）。</li></ul>
+<h2 id="已知限制未來增量" class="t4">已知限制（未來增量）</h2>
+<ul><li>候選僅為<strong>建議</strong>，一律人工核可；信心分數僅輔助排序，<strong>不自動門檻丟棄</strong>（依使用者決策全部收）。</li><li>名稱數超過 <code>NameCap=300</code> 時只看最常出現者（記 log）；本增量以單次（≤cap）LLM 呼叫為主，若名稱清單需分批則跨批同義對可能漏配（留待未來）。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ul><li><code>dotnet build</code> 成功、無新增警告；<code>dotnet test</code> <strong>836 全綠</strong>（既有 822 + 新增 14：<code>GraphEntityAliasGeneratorTests</code> 純解析 5 + 生成 5、<code>GraphEntityAliasServiceTests</code> 觸發/狀態 4）；守護測試 <code>LlmPromptSlotTests</code>/<code>OperationLabelTests</code> 加常數後自動綠。</li><li>重點確認：純解析（合法/圍欄/無效/批內去重/信心正規化）、接地過濾丟棄幻覺名、與既有非退回別名去重、批次插入待審核＋Confidence、LLM 未設定→0、觸發忙碌/管理員守門。</li><li>手動（管理員）：實體合併分頁按「LLM 自動建議別名」→ 背景生成 → 待審核候選（含信心）進清單 → 核可 → 重建社群摘要 → 合併生效；Token 用量頁見「實體別名建議」作業。</li><li>雙庫 <code>AddGraphEntityAliasConfidence</code> 各只加一欄（無漂移）；<code>scripts/Test-DocsEncoding.ps1</code> 0 失敗；版本 1.0.88。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#變更">變更</a><a class="l2" href="#安全與相容leak0-紅線不變">安全與相容（leak=0 紅線不變）</a><a class="l2" href="#已知限制未來增量">已知限制（未來增量）</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-27-GraphRAG-P6.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

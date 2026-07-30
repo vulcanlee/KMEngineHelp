@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>角色導向說明網站產生器（1.0.110 → 1.0.111）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>角色導向說明網站產生器（1.0.110 → 1.0.111）</h1></header><div class="docwrap"><main><ul><li>變更日期：2026/07/30</li><li>版本：1.0.110 → <strong>1.0.111</strong></li><li>性質：<strong>新增三支腳本＋一份維運文件＋版本字串</strong>。無 <code>src/</code> 程式邏輯變更、無新表、無 migration、無 UI 變更。網站輸出<strong>不進版控</strong>。</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="一為什麼做" class="t1">一、為什麼做</h2>
+<p>需求來自 <code>docs/prompts/說明文件的網頁版需求.md</code>（1.0.115 由「網頁板」更正檔名）：<code>docs/</code> 已有 425 份文件、4.1 MB，但既有 <code>README.md</code> 索引是<strong>依目錄分類</strong>（回答「這份文件是什麼」），沒有任何入口回答「<strong>我是誰、我現在的問題該看哪幾份</strong>」。</p>
+<h2 id="二新增" class="t2">二、新增</h2>
+<div class="tw"><table><thead><tr><th>檔案</th><th>內容</th></tr></thead><tbody><tr><td><code>scripts/doc_slug.py</code></td><td><strong>GitHub 相容的標題 slug 計算</strong>（共用模組）。含 6 個取自實際文件的自我驗證案例（<code>python scripts/doc_slug.py</code> 可單獨執行）</td></tr><tr><td><code>scripts/Test-DocLinks.py</code></td><td><strong>docs 的連結與錨點守門</strong>：<code>.md</code>／<code>.html</code> 目標存在性、<strong><code>#錨點</code> 是否對應到某個標題</strong>、目錄連結、指向 repo 檔案的連結</td></tr><tr><td><code>scripts/help_site_data.py</code></td><td>網站的<strong>內容資料</strong>（給人編輯）：3 個角色、<strong>26 個情境</strong>、103 個策展 slug、對內文件清單、目錄顯示名</td></tr><tr><td><code>scripts/Build-HelpSite.py</code></td><td>站台產生器：Markdown→HTML（含標題 id、TOC、七類連結重寫）、搜尋索引、兩種輸出模式、建站報告</td></tr><tr><td><code>docs/operations/文件說明網站產生與佈署.md</code></td><td>怎麼產、產出結構、兩種模式差異、內容改哪裡、連結規則、佈署與維護紀律</td></tr></tbody></table></div>
+<p><strong>產出</strong>（不進版控）：完整版 <code>C:\Users\vulca\Downloads\KMEngineHelp</code>（432 頁／11.7 MB／439 檔）、對外版 <code>…-external</code>（375 頁／10.9 MB／382 檔）。</p>
+<h2 id="三-一個先前的判斷被證明是錯的" class="t3">三、⚠️ 一個先前的判斷被證明是錯的</h2>
+<p>規劃階段我斷定「6 份文件連到 <code>完整操作手冊.md#選單名與權限樹名對照表</code>，但該標題的 GitHub slug 是 <code>31-選單名--權限樹名-對照表…</code>，所以這是壞錨點」，並打算修它。</p>
+<p><strong>寫完守門腳本一跑，錨點失敗數是 0。</strong> 查證後發現：<code>docs/guides/完整操作手冊.md</code> <strong>第 102 行早就有</strong> <code>&lt;a id="選單名與權限樹名對照表"&gt;&lt;/a&gt;</code>，就放在該標題正上方——正是我打算「補上去」的那個技巧。同檔另有兩處相同做法（<code>知識來源列上動作</code>、<code>我的對話</code>），所以 inline HTML 錨點在本專案<strong>已有先例</strong>。</p>
+<p><strong>結論：計畫中的「修壞錨點」項目不需要做，也沒有做。</strong> 全 docs 的 98 個頁內錨點與 1959 個 <code>.md</code> 連結目前<strong>全部解析成功</strong>。先寫守門腳本再動手，避免了去「修」一個沒有壞的東西。</p>
+<h2 id="四關鍵設計決策" class="t4">四、關鍵設計決策</h2>
+<div class="tw"><table><thead><tr><th>決策</th><th>理由</th></tr></thead><tbody><tr><td><strong>slug 演算法抽成共用模組</strong></td><td>文件內約 100 個頁內錨點是照 GitHub 規則手寫的。產生器與守門腳本各自實作的話，會出現「守門說沒問題、產出的頁面卻跳不到」。已用 6 個真實案例驗證（含 <code>14.6 問答稽核明細 (/chat-logs)</code> → <code>146-問答稽核明細-chat-logs</code>、<code>3.1 選單名 ↔ 權限樹名 對照表（**…**）</code> → <code>31-選單名--權限樹名-對照表…</code>）</td></tr><tr><td><strong>全部 425 份都轉，導覽只露策展子集</strong></td><td>文件之間的交叉連結不會斷；changelog 對顧問查版本差異其實有用</td></tr><tr><td><strong><code>.html</code> 連結改指向站內頁，不複製伴生檔</strong></td><td>建站中途實測發現：複製 <code>docs/</code> 的 18 個伴生 HTML 會讓其內部「同目錄兄弟檔」的相對連結<strong>全部斷掉</strong>（實測 32 個死連結）。且 18 個伴生檔<strong>全部都有同名 <code>.md</code></strong>，指回站內頁還能保有麵包屑、章節導覽與搜尋</td></tr><tr><td><strong>對外版是「不產生檔案」而非隱藏連結</strong></td><td>靜態網站沒有權限機制，唯一可靠的隔離就是那個檔案不在資料夾裡。可用檔案存在性驗證</td></tr><tr><td><strong>ASCII slug 檔名＋對照表</strong></td><td>避免中文 URL 編碼問題（<code>SQL Server 切換說明.md</code> 這類含空白的檔名尤其）。策展 103 份手工指定可讀英文名，其餘以「檔名 ASCII 片段＋8 碼雜湊」自動產生</td></tr><tr><td><strong>只做標題與章節搜尋，不做全文</strong></td><td>全文索引會膨脹到 4～5 MB，每位訪客都要下載。現為 337 KB，已能「打一個詞跳到具體章節」</td></tr><tr><td><strong>資料檔路徑一律驗證</strong></td><td><code>CURATED_SLUGS</code>／<code>SCENARIOS</code>／<code>INTERNAL_FILES</code> 任一條打錯或檔案改名，建站<strong>當場失敗並指出哪一條</strong>，不產出半殘網站</td></tr><tr><td><strong>刻意不重構 <code>Build-OnboardingDocsHtml.py</code></strong></td><td>它已 commit 且正常運作、有既有輸出與明確目標檔；改它會讓兩件事同時變動（外科式變更）。整併建議寫進維運文件，未決定前兩支各自維護</td></tr></tbody></table></div>
+<h2 id="五驗證全部實跑" class="t5">五、驗證（全部實跑）</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>結果</th></tr></thead><tbody><tr><td><code>python scripts/doc_slug.py</code></td><td>6 個取自實際文件的 slug 案例<strong>全部通過</strong></td></tr><tr><td><code>python scripts/Test-DocLinks.py</code></td><td>掃 425 份 md：<code>.md</code> 連結 1959、<code>.html</code> 20、目錄連結 18、頁內錨點 98、外部 URL 95、其他檔案 30、應用路由 7 → <strong>硬性失敗 0、提醒 0</strong></td></tr><tr><td><code>Build-HelpSite.py --check</code></td><td>432 頁可轉換、<strong>無法解析的文件連結 0</strong></td></tr><tr><td>兩種模式實際建站</td><td>完整版 432 頁／對外版 375 頁；差 57 頁＝prompts 24＋planning 9＋archive 10＋superpowers 13＋顧問手冊 1 ✅ 數字吻合</td></tr><tr><td>對外版隔離</td><td>以<strong>檔案存在性</strong>驗證：四個對內目錄與 <code>consultant-handbook.html</code> 在對外版皆<strong>不存在</strong></td></tr><tr><td>輸出站內連結完整性</td><td>剔除 <code>&lt;pre&gt;</code>／<code>&lt;code&gt;</code>／<code>&lt;script&gt;</code> 後掃描：完整版 <strong>10208 個 href 失效 0</strong>、對外版 <strong>9025 個失效 0</strong></td></tr><tr><td>HTML 標籤平衡</td><td>抽樣 27 頁（20 份文件＋3 角色頁＋4 頂層頁）× 21 種標籤 → <strong>不平衡 0 處</strong></td></tr><tr><td>標題 id ↔ TOC 錨點</td><td>抽 3 份長文件（55／32／39 個標題）→ <strong>對不上 0</strong></td></tr><tr><td>角色頁結構</td><td>admin 9 情境／consultant 9／sales 8；各頁預設展開 1 個、文件連結 34／36／32、CSS 路徑正確</td></tr><tr><td>深層頁相對路徑</td><td><code>docs/guides/lab-samples/</code> 第 3 層 → <code>../../../assets/site.css</code> ✅</td></tr><tr><td><code>Test-DocsEncoding.ps1</code></td><td>全綠</td></tr></tbody></table></div>
+<h3 id="一項無法完成的驗證">❌ 一項無法完成的驗證</h3>
+<p><strong>視覺實走（用瀏覽器實際點一遍）沒有做。</strong> 環境的 Playwright 未安裝瀏覽器（<code>browse</code> 啟動失敗），而安裝需下載數百 MB，未經同意不執行。</p>
+<p>腳本能驗連結存在與標籤結構，<strong>驗不出「看起來對不對」</strong>。請實開 <code>C:\Users\vulca\Downloads\KMEngineHelp\index.html</code> 走一遍：選角色 → 切幾個情境 → 點進文件 → 點文件內的參考連結 → 用搜尋跳到某個章節。</p>
+<h2 id="六同步更新" class="t6">六、同步更新</h2>
+<ul><li><code>docs/README.md</code>：operations 區新增 1 筆；changelog 區置頂。</li><li><code>docs/operations/README.md</code>：新增 1 列。</li><li><code>docs/changelog/README.md</code>：新增本篇索引列。</li><li><code>appsettings.json</code> 的 <code>SystemVersion</code>：<code>1.0.110</code> → <code>1.0.111 (2026/07/30)</code>。</li></ul>
+<h2 id="七後續不在本次範圍" class="t7">七、後續（不在本次範圍）</h2>
+<ul><li>評估 <code>Build-OnboardingDocsHtml.py</code> 是否改用 <code>doc_slug.py</code> 與站台轉換器，或那 5 份伴生 HTML 是否已被本網站取代。</li><li>把 <code>Test-DocLinks.py</code> 納入 CI／建置流程（目前是手動執行）。</li><li>網站的輸出目錄若要推 GitHub Pages，需另行決定是否納管與用哪個分支。</li></ul>
+<hr>
+<blockquote><p>返回 <a href="../../docs/changelog/readme-436e4418.html">changelog 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一為什麼做">一、為什麼做</a><a class="l2" href="#二新增">二、新增</a><a class="l2" href="#三-一個先前的判斷被證明是錯的">三、⚠️ 一個先前的判斷被證明是錯的</a><a class="l2" href="#四關鍵設計決策">四、關鍵設計決策</a><a class="l2" href="#五驗證全部實跑">五、驗證（全部實跑）</a><a class="l3" href="#一項無法完成的驗證">❌ 一項無法完成的驗證</a><a class="l2" href="#六同步更新">六、同步更新</a><a class="l2" href="#七後續不在本次範圍">七、後續（不在本次範圍）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-30-角色導向說明網站產生器.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>階段三步驟 1：嵌入用戶端與雲端/地端切換（0.2.123）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>階段三步驟 1：嵌入用戶端與雲端/地端切換（0.2.123）</h1></header><div class="docwrap"><main><ul><li>日期：2026/06/26</li><li>版本：0.2.122 → 0.2.123</li><li>對應設計：<a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格 §4</a>；路線圖步驟：strategy/12 §12.2 步驟 1</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>啟動知識庫五階段願景的<strong>階段三「知識庫與 RAG」</strong>第一個小步驟：建立<strong>嵌入（embedding）用戶端</strong>與雲端/地端切換設定，作為後續向量索引（步驟 2）、混合檢索（步驟 4）的基礎。完全沿用既有 <code>OpenAIChatCompletionClient</code>／<code>ResolveChatLlm()</code> 慣例（<code>AddHttpClient</code> + <code>IOptions&lt;OpenAISettings&gt;</code> + Bearer + 靜態方法便於測試 + <code>TokenUsageFormatter</code> 用量日誌 + 介面以 DI 綁定具體型別）。</p>
+<h2 id="設計重點" class="t2">設計重點</h2>
+<ul><li><strong>對稱密集檢索</strong>：文件與查詢用同一模型、同一維度嵌入；維度固定 <strong>1024</strong>（schema 硬承諾 <code>VECTOR(1024)</code>）。</li><li><strong>雲端/地端可互換</strong>：雲端 <code>text-embedding-3-large</code> 帶 <code>dimensions=1024</code>；地端 <code>bge-m3</code> 原生 1024，<strong>不送 dimensions 參數</strong>。兩者皆 1024，切換不動 schema。</li><li><strong>供應者解析</strong>：<code>EmbeddingProvider</code> 留空時沿用 <code>GenerationProvider</code>，可獨立覆寫。</li><li><strong>無金鑰降級基礎</strong>：<code>IsEmbeddingConfigured()</code> 供後續索引管線判斷是否略過索引（步驟 3 接用）。</li></ul>
+<h2 id="變更內容" class="t3">變更內容</h2>
+<ul><li><strong>設定</strong> <code>OpenAISettings</code>（<code>KnowledgeExtraction.Models/Systems/OpenAISettings.cs</code>）：新增 <code>EmbeddingProvider</code>、<code>EmbeddingModel</code>（預設 <code>text-embedding-3-large</code>）、<code>EmbeddingDimensions</code>（預設 1024）、<code>EmbeddingTimeoutSeconds</code>（預設 120）、<code>LocalEmbeddingModel</code>（預設 <code>bge-m3</code>）；新增 <code>GetEmbeddingProvider()</code>／<code>ResolveEmbeddingLlm()</code>／<code>IsEmbeddingConfigured()</code> 與 <code>EmbeddingLlmConfig</code> record（<code>Dimensions</code> 為可空，地端為 null）。<code>appsettings.json</code> 同步新增欄位。</li><li><strong>嵌入用戶端</strong> <code>IEmbeddingClient</code> + <code>OpenAIEmbeddingClient</code>（<code>KnowledgeExtraction.Business/Services/Embeddings/</code>）：<code>POST embeddings</code>、Bearer、批次嵌入（一次多筆 text、回傳依 <code>data[].index</code> 排序）；靜態 <code>BuildRequestBody</code>／<code>ParseEmbeddings</code> 便於單測；輸入為空時不呼叫遠端；無金鑰擲出明確例外；用量走 <code>TokenUsageFormatter</code>。</li><li><strong>DI</strong>：<code>Program.cs</code> 新增 <code>AddHttpClient&lt;OpenAIEmbeddingClient&gt;</code>（BaseAddress/逾時取自 <code>ResolveEmbeddingLlm()</code>）；<code>ServiceCollectionExtensions</code> 以 <code>AddScoped&lt;IEmbeddingClient&gt;(sp =&gt; sp.GetRequiredService&lt;OpenAIEmbeddingClient&gt;())</code> 綁定。</li><li><strong>測試</strong>：新增 <code>OpenAIEmbeddingClientTests</code>（請求建構含/不含 dimensions、回應解析維度正確、依 index 排序、空 data 擲例外）；<code>OpenAISettingsTests</code> 補嵌入供應者解析與 <code>IsEmbeddingConfigured</code>。全套 310 個測試綠燈。</li></ul>
+<h2 id="後續" class="t4">後續</h2>
+<p>依 strategy/12 §12.2，下一步為<strong>步驟 2</strong>：<code>VectorEmbedding</code> 實體 + 雙 migration（SQLite sqlite-vec／SQL Server VECTOR）+ <code>IVectorStore</code>/<code>DualDbVectorStore</code>（單測：upsert/search round-trip）。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#設計重點">設計重點</a><a class="l2" href="#變更內容">變更內容</a><a class="l2" href="#後續">後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-26-階段三嵌入用戶端.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

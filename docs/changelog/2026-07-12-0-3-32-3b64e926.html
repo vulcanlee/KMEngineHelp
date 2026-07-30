@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>實作練習手冊（Hands-on Lab）對齊系統 0.3.32（文件 1.0 → 2.0）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>實作練習手冊（Hands-on Lab）對齊系統 0.3.32（文件 1.0 → 2.0）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-12</li><li>版本：文件 1.0 → 2.0（對應系統 0.2.133 → 0.3.32）</li><li>類型：文件更新</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p><code>docs/guides/實作練習手冊-Hands-on Lab.md</code> 停在系統 0.2.133、文件版本 1.0，已明顯過舊：產品已更名「智庫引擎」、選單重組、新增多個頁面、既有頁新增功能。需求：把這份「按表操課」的練習手冊更新到對齊現行系統 0.3.32，並補上與知識庫煉製主線相關的新功能練習。</p>
+<h2 id="範圍決策與需求者確認" class="t2">範圍決策（與需求者確認）</h2>
+<ol><li><strong>平衡深度</strong>：對齊現況（版本/改名/選單導覽/失效 UI 字串）＋為知識庫煉製相關新功能新增重點練習。</li><li><strong>專案管理群組（專案/工作/會議）不寫</strong>（超出知識庫主線）；但標註匯入三頁現掛在「專案管理」群組下。</li><li><strong>管理員頁</strong>：Token 用量、AI 聊天紀錄（含滿意度）、系統健康監控寫<strong>重點實作</strong>；RAG 診斷、資料一致性巡檢、日誌等級寫<strong>導覽＋指向</strong>。</li><li><strong>UI 字串逐一比對現行 Blazor 元件</strong>後才寫入。</li></ol>
+<h2 id="變更" class="t3">變更</h2>
+<ul><li><strong>前置資訊</strong>：文件版本 1.0→2.0、加更新日期、對應系統 0.3.32、標示系統名「智庫引擎」；功能一覽表改依現行選單群組排列並補齊新頁；參考型手冊並列《新手完整操作指南》。</li><li><strong>登入章（第 4 章）</strong>：改為科技神秘風「身分核驗」畫面，路由更正為 <code>/Auths/Login</code>，錯誤字串更正為「身分驗證失敗，請重新確認帳號與密碼。」，補 Google 登入／待審核頁說明；驗證碼（隨機 4 位數）與內建帳密（<code>support</code>/<code>1qaz@WSX</code>）維持不變。</li><li><strong>基礎資料章（第 5 章）</strong>：加選單群組導覽——團隊/分類/提示詞/清洗設定檔在「資料定義」，使用者/角色在「系統管理」。</li><li><strong>匯入章（第 6 章）</strong>：音訊來源類型改「檔案上傳/影片連結」、語言改「繁體中文/English/自動偵測」、狀態機補「已取消」；文件萃取與圖片清單補「批次上傳壓縮檔」；標註支援副檔名；編修對話窗補「搜尋取代」。</li><li><strong>清洗/蒸餾/索引（第 7–10 章）</strong>：清洗狀態補「已退回」；索引章補「全量重建索引」按鈕。</li><li><strong>新增 9.6 知識瀏覽 <code>/knowledge-wiki</code></strong>：一般讀者閱讀蒸餾 Wiki 的雙欄畫面與 <code>[[概念]]</code> 導覽。</li><li><strong>問答章（第 11 章）</strong>：控制項補限定知識來源/分類、送出/停止、下載 PDF、滿意度回饋（👍/👎）、QueryRewrite 說明；加一則回饋動手步驟。</li><li><strong>新增第 17 章「管理員維運與觀測頁」</strong>：系統健康監控、AI 聊天紀錄（含滿意度查閱）、Token 用量（緊湊數字說明）三節重點實作；RAG 診斷／資料一致性巡檢／日誌等級導覽表。原 FAQ 章順延為第 18 章。</li><li><strong>更新章（第 15 章）</strong>：改用「上傳新版本／版本歷史」素材版本鏈為推薦做法。</li><li><strong>FAQ／延伸閱讀</strong>：新增管理員頁與 Token 表示法問答；延伸閱讀補《新手完整操作指南》。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>僅文件變更，<strong>不動 <code>appsettings.json</code> 系統版本</strong>。</li><li>檔案：<code>docs/guides/實作練習手冊-Hands-on Lab.md</code>（1.0 → 2.0）。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠（UTF-8 含 BOM）。</li><li>文中每個 <code>/route</code> 對照 <code>Menu.json</code> 無死連結、無已移除頁。</li><li>修正的 UI 字串對照現行 <code>*View.razor</code> 元件一致（登入、匯入三頁、知識來源、問答、各管理員頁）。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#範圍決策與需求者確認">範圍決策（與需求者確認）</a><a class="l2" href="#變更">變更</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-12-實作練習手冊更新0.3.32.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

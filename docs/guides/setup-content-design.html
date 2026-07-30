@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</h1><p class="sub">既有 基礎設定指南 教你按鈕在哪，本文教你欄位裡該填什麼。 說明團隊邊界怎麼切、分類詞庫怎麼設計、角色與預設團隊怎麼配、清洗提示詞怎麼寫（含輸出格式契約與寫壞的後果）、評測題庫怎麼出題。</p></header><div class="docwrap"><main><ul><li>文件用途：<strong>既有 <a href="../../docs/guides/setup-guide.html">基礎設定指南</a> 教你按鈕在哪，本文教你欄位裡該填什麼。</strong> 說明團隊邊界怎麼切、分類詞庫怎麼設計、角色與預設團隊怎麼配、清洗提示詞怎麼寫（含輸出格式契約與寫壞的後果）、評測題庫怎麼出題。</li><li>主要讀者：知識庫管理者、導入顧問、要客製提示詞的技術負責人</li><li>文件版本：1.0</li><li>建立日期：2026/07/30</li><li>更新日期：2026/07/30</li><li>對應系統版本：1.0.108（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p><strong>前置閱讀</strong>：<a href="../../docs/guides/naming-rules.html">知識庫命名規範與範例</a>。本文假設你已經知道「名字該怎麼取」，接下來處理「內容該怎麼想」。</p></blockquote>
+<h2 id="與既有文件的分工" class="t1">與既有文件的分工</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>它負責</th></tr></thead><tbody><tr><td><a href="../../docs/guides/setup-guide.html">基礎設定指南</a></td><td>六個設定畫面<strong>怎麼操作</strong>、設定順序、權限樹對照、兩份分類主檔的分工</td></tr><tr><td><a href="../../docs/guides/naming-rules.html">知識庫命名規範與範例</a></td><td>名字的<strong>格式</strong></td></tr><tr><td><a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定使用指南</a></td><td>清洗設定檔畫面的<strong>操作</strong>、五個欄位在哪、13 顆按鈕的出現條件</td></tr><tr><td><strong>本文</strong></td><td>這些欄位的<strong>內容怎麼設計與撰寫</strong>，以及寫錯會發生什麼</td></tr></tbody></table></div>
+<hr>
+<h2 id="一先做一張知識邊界表這是團隊設計的唯一輸入" class="t2">一、先做一張「知識邊界表」——這是團隊設計的唯一輸入</h2>
+<p>最常見的錯誤是<strong>照組織圖建團隊</strong>。組織圖回答的是「誰管誰」，但團隊在這套系統裡回答的是完全不同的問題：<strong>誰不該看到什麼</strong>。</p>
+<p>先不要碰系統，拿一張紙填這張表：</p>
+<div class="tw"><table><thead><tr><th>這類內容</th><th>誰必須看得到</th><th>誰<strong>絕對不能</strong>看到</th><th>給不給公開</th></tr></thead><tbody><tr><td>供應商報價與議價底線</td><td>採購、財務</td><td>業務、現場作業員</td><td>❌</td></tr><tr><td>客戶合約與保固條款</td><td>業務、法務、客服主管</td><td>現場作業員</td><td>❌</td></tr><tr><td>產線作業標準</td><td>製造、品保、工程</td><td>—</td><td>✅ 可公開</td></tr><tr><td>設計規範與公差</td><td>工程、品保</td><td>業務（避免對外承諾未定案規格）</td><td>❌</td></tr><tr><td>員工薪資與考核</td><td>人資、總經理</td><td>其他所有人</td><td>❌</td></tr><tr><td>公司政策與員工手冊</td><td>全員</td><td>—</td><td>✅ 可公開</td></tr></tbody></table></div>
+<p>填完之後有兩個直接產出：</p>
+<ol><li><strong>第三欄有值的每一列，都需要一個團隊</strong>。第三欄空白（誰都能看）的內容，<strong>不要貼任何團隊標籤</strong>——系統的規則是「沒有團隊＝公開」，這比建一個「全員」團隊乾淨得多。</li><li><strong>第三欄相同的列可以合併成同一個團隊</strong>。「供應商報價」與「採購合約」若禁看名單一樣，就不需要兩個團隊。</li></ol>
+<blockquote><p><strong>為什麼要先做這張表</strong>：團隊是系統<strong>唯一的硬權限</strong>，而且團隊名稱一旦寫進紀錄就<strong>改不動</strong>（改主檔不會回寫既有紀錄）。花半小時填表，比上線後重建權控便宜太多。</p></blockquote>
+<hr>
+<h2 id="二團隊怎麼切" class="t3">二、團隊怎麼切</h2>
+<h3 id="21-三種常見切法">2.1 三種常見切法</h3>
+<div class="tw"><table><thead><tr><th>切法</th><th>適用</th><th>失效情境</th></tr></thead><tbody><tr><td><strong>按部門</strong></td><td>單一公司、內部使用者</td><td>跨部門專案的資料不知道歸誰。解法：該專案的內容不貼團隊（公開），或貼上所有相關部門</td></tr><tr><td><strong>按客戶／租戶</strong></td><td>同一套系統服務多個客戶，且<strong>客戶的人會登入</strong></td><td>內部人員需要看全部→靠管理員身分或多團隊角色解決</td></tr><tr><td><strong>按專案</strong></td><td>顧問公司、專案型組織</td><td><strong>專案會結束</strong>。結束後團隊留著佔選單、刪掉紀錄上的字串還在。除非專案週期以年計，否則不建議</td></tr></tbody></table></div>
+<h3 id="22-五條實務準則">2.2 五條實務準則</h3>
+<ol><li><strong>寧可少而清楚</strong>。8 個界線分明的團隊，勝過 25 個語意重疊的團隊。重疊的團隊會讓「該貼哪個」變成每次都要想的問題，而不一致的貼標會讓權控出現破口。</li><li><strong>公開內容不要貼團隊</strong>。沒有團隊就是公開，這是系統的設計，不要用「全員」團隊繞路。</li><li><strong>客戶會登入時，團隊是資安紅線</strong>，不是分類工具。這種情況下，每一筆內容都必須確認團隊標籤，不能有「忘記貼」的。</li><li><strong>不要用人名或暫時性名稱</strong>。<code>王經理的組</code>、<code>新產品專案</code>、<code>測試團隊</code> 三個月後都會變成負債。</li><li><strong>角色的「預設團隊」要設對</strong>。使用者建立資料時會帶入角色的預設團隊——這是防止「忘記貼團隊」最有效的一道保險。</li></ol>
+<h3 id="23-製造業範例8-個團隊">2.3 製造業範例（8 個團隊）</h3>
+<div class="tw"><table><thead><tr><th>名稱</th><th>代號</th><th>對應知識邊界表的哪一列</th></tr></thead><tbody><tr><td>研發工程</td><td><code>ENG</code></td><td>設計規範與公差、審圖決議</td></tr><tr><td>採購</td><td><code>PUR</code></td><td>供應商報價、議價底線</td></tr><tr><td>製造</td><td><code>MFG</code></td><td>產線作業標準（此類多為公開，團隊用於管制未定案的試產參數）</td></tr><tr><td>品保</td><td><code>QA</code></td><td>稽核不符合、客訴分析</td></tr><tr><td>客服業務</td><td><code>CS</code></td><td>客戶合約、客訴往來</td></tr><tr><td>人資行政</td><td><code>HR</code></td><td>薪資、考核、勞資</td></tr><tr><td>法務</td><td><code>LEG</code></td><td>合約、NDA、專利</td></tr><tr><td>經營管理</td><td><code>MGT</code></td><td>經營會議、財務決策</td></tr></tbody></table></div>
+<hr>
+<h2 id="三分類詞庫設計" class="t4">三、分類詞庫設計</h2>
+<h3 id="31-一個不能不知道的限制">3.1 一個不能不知道的限制</h3>
+<p><strong>問答時多選分類是「或」不是「且」。</strong> 同時選「客戶 A」和「佈署文件」，得到的是兩者的<strong>聯集</strong>（範圍反而變大），不是交集，而且<strong>畫面不會提示你</strong>。</p>
+<p>因此：</p>
+<blockquote><p><strong>分類只能承擔一個維度。</strong> 客戶／型號／環境等其他維度，交給知識來源盒子的標題承擔（見 <a href="../../docs/guides/naming-rules.html">命名規範 §3.3</a>）。</p></blockquote>
+<h3 id="32-設計工作法四步">3.2 設計工作法（四步）</h3>
+<p><strong>第一步：先寫「使用者會怎麼問」，不要先寫分類。</strong></p>
+<p>拿紙列 20 個各部門真的會問的問題：</p>
+<pre><code>EPS-3000 的散熱片公差是多少？
+精鋼金屬去年的交期達成率如何？
+錫膏印刷的溫度異常要怎麼處置？
+這個客訴以前發生過嗎？
+新人第一週要看哪些東西？</code></pre>
+<p><strong>第二步：問自己「要回答這一題，我會想先把範圍縮到哪一類文件？」</strong></p>
+<p>上面五題的答案分別是：設計規範／供應商／異常處置／客訴／教育訓練。<strong>這就是你的分類詞庫</strong>——它從實際的篩選需求長出來，不是從文件櫃的分類法抄來的。</p>
+<p><strong>第三步：做互斥性測試。</strong></p>
+<p>拿五份真實文件，讓<strong>三個不同的人</strong>各自貼標。三人貼得不一樣的那些分類，邊界有問題，要改名或合併。</p>
+<p><strong>第四步：為每個分類寫「邊界句」，填進描述欄位。</strong></p>
+<p>格式固定：<code>算：…。不算：…（歸「某分類」）</code></p>
+<p>這一步最常被跳過，但它是日後所有人判斷「該貼哪個標」的唯一依據。而且<strong>分類清單的搜尋吃描述欄位</strong>，寫了就找得到。</p>
+<h3 id="33-三個硬性限制">3.3 三個硬性限制</h3>
+<div class="tw"><table><thead><tr><th>限制</th><th>值</th><th>為什麼</th></tr></thead><tbody><tr><td>數量</td><td><strong>10 個以內</strong>（絕對上限 20）</td><td>超過 20 個之後，貼標籤的人會開始猜，同一種文件被貼成三種標，篩選就不再可靠</td></tr><tr><td>每個名稱長度</td><td>2～6 字（系統上限 100 字）</td><td>下拉選單要看得完</td></tr><tr><td>維度</td><td><strong>只有一個</strong></td><td>多選是「或」語意（§3.1）</td></tr></tbody></table></div>
+<h3 id="34-三套現成詞庫照抄再改">3.4 三套現成詞庫（照抄再改）</h3>
+<p><strong>製造業（8 個）</strong></p>
+<div class="tw"><table><thead><tr><th>分類</th><th>邊界句（填進描述欄位）</th></tr></thead><tbody><tr><td>設計規範</td><td>算：圖學、公差、材質、電氣規格等設計依據。不算：個案審圖結論（歸「審查決議」）</td></tr><tr><td>審查決議</td><td>算：審圖／設計審查會議的結論與待辦。不算：規範本文</td></tr><tr><td>作業標準</td><td>算：現場照著做的步驟與參數。不算：異常處置（歸「異常與矯正」）</td></tr><tr><td>異常與矯正</td><td>算：不符合、客訴、8D、矯正預防措施。不算：例行點檢紀錄</td></tr><tr><td>供應商</td><td>算：評鑑、報價、交期、品質異常。不算：合約條款（歸「合約與法務」）</td></tr><tr><td>合約與法務</td><td>算：合約、NDA、保固與付款條款。不算：報價單（歸「供應商」）</td></tr><tr><td>教育訓練</td><td>算：教材、訓練紀錄、新人手冊、交接文件</td></tr><tr><td>客戶服務</td><td>算：客訴處理、技術支援問答、FAQ</td></tr></tbody></table></div>
+<p><strong>軟體專案公司（8 個）</strong></p>
+<pre><code>使用手冊、工程維運、系統設定、佈署安裝、客製差異、
+規劃會議、專案管理、教育訓練</code></pre>
+<p>（此組出自 <a href="../../docs/strategy/multi-tenant-planning.html">多客戶多型號規劃分析 §3.3</a>，多客戶情境請直接用它。）</p>
+<p><strong>服務業／通用（7 個）</strong></p>
+<pre><code>服務流程、話術與 FAQ、政策與規章、教育訓練、
+客訴與異常、系統操作、會議決議</code></pre>
+<h3 id="35-反例">3.5 反例</h3>
+<div class="tw"><table><thead><tr><th>反例</th><th>症狀</th></tr></thead><tbody><tr><td>同時建 <code>客戶A</code>／<code>佈署</code>／<code>SQLServer</code></td><td>三個維度混在一份詞庫。多選＝聯集，篩選範圍反而變大</td></tr><tr><td><code>其他</code>／<code>雜項</code>／<code>未分類</code></td><td>三個月後裝了一半的資料</td></tr><tr><td>建 35 個分類</td><td>貼標不一致，篩選不可靠</td></tr><tr><td><code>重要</code>／<code>急件</code>／<code>待確認</code></td><td>這是狀態不是分類，沒有客觀邊界</td></tr><tr><td>分類名稱與團隊名稱相同（都叫「採購」）</td><td>使用者會以為貼了分類就有權控。<strong>分類完全不控權限</strong></td></tr></tbody></table></div>
+<h3 id="36--幽靈分類一個一定要知道的行為">3.6 ⚠️ 幽靈分類：一個一定要知道的行為</h3>
+<p>清洗管線的第三步會請 AI 建議分類，而且<strong>AI 建議的分類會直接合併寫回這筆紀錄的分類欄位，系統不會檢查這個名稱是否存在於你的分類主檔</strong>。</p>
+<p>於是會出現這個狀況：</p>
+<div class="tw"><table><thead><tr><th></th><th>讀哪裡</th><th>幽靈分類會出現嗎</th></tr></thead><tbody><tr><td>各清單頁的「分類過濾」下拉</td><td><strong>分類主檔</strong></td><td>❌ 不會</td></tr><tr><td>AI 知識問答的「限定分類」下拉</td><td><strong>實際已索引內容裡真正用到的分類</strong></td><td>✅ <strong>會</strong></td></tr></tbody></table></div>
+<p>也就是說：AI 自己造了一個「機構設計規範」，它會出現在問答頁的下拉裡，但清單頁的下拉找不到它——兩邊詞彙不一致，使用者會困惑，而且你不會收到任何警告。</p>
+<p><strong>解法</strong>：在分類提示詞裡<strong>明列你的詞庫，並要求只能從清單裡挑、不得自創</strong>。寫法見 §5.4。</p>
+<blockquote><p>反過來也有一個正常現象：<strong>剛建好的新分類，若還沒有任何內容用到它，問答頁的下拉不會出現它。</strong> 這不是壞掉。</p></blockquote>
+<hr>
+<h2 id="四角色與預設團隊" class="t5">四、角色與預設團隊</h2>
+<h3 id="41-三個典型角色">4.1 三個典型角色</h3>
+<div class="tw"><table><thead><tr><th>角色</th><th>能進哪些頁</th><th>預設團隊</th><th>適合誰</th></tr></thead><tbody><tr><td><strong>知識庫管理員</strong></td><td>全部（含基礎資料設定、權限管理、系統監控）</td><td>不設（管理員不受團隊限制）</td><td>1～2 人，負責維護詞庫與規範</td></tr><tr><td><strong>知識編輯者</strong></td><td>匯入三站、知識來源加工、清洗、蒸餾、知識頁審核、知識百科、問答</td><td><strong>設為所屬部門</strong></td><td>各部門的知識維護窗口</td></tr><tr><td><strong>知識查詢者</strong></td><td>知識百科、AI 知識問答（唯讀）</td><td><strong>設為所屬部門</strong></td><td>大多數使用者</td></tr></tbody></table></div>
+<h3 id="42-三條準則">4.2 三條準則</h3>
+<ol><li><strong>預設團隊一定要設</strong>（管理員除外）。這是防止「忘記貼團隊」最有效的保險——使用者建立資料時會自動帶入。</li><li><strong>知識審核權限要獨立看</strong>。清洗信心低於門檻的內容會進「待審核」，只有具該權限的人能核准。這個權限不要給所有編輯者，否則品質關卡等於不存在。</li><li><strong>權限樹的名稱與選單名稱不完全一樣</strong>。設定角色前先看 <a href="../../docs/guides/complete-manual.html">完整操作手冊 §3.1</a> 的「選單名 ↔ 權限樹名」對照表，例如權限名是「知識瀏覽」而不是「知識百科」。</li></ol>
+<hr>
+<h2 id="五清洗提示詞怎麼寫本文最重要的一節" class="t6">五、清洗提示詞怎麼寫（本文最重要的一節）</h2>
+<h3 id="51-先搞懂四層覆蓋順序">5.1 先搞懂四層覆蓋順序</h3>
+<p>同一段提示詞有四個可能的來源，<strong>由高到低</strong>：</p>
+<pre><code>① 清洗設定檔的對應欄位（單次清洗選用的設定檔）
+      ↓ 該欄位留空時
+② 提示詞清單裡「同名保留鍵」的那一筆（例如 清洗-摘要）
+      ↓ 沒有同名或未啟用時
+③ appsettings.json 的 LlmPrompts 區段
+      ↓ 空字串時
+④ 程式內建預設值</code></pre>
+<p>實務上有兩個推論：</p>
+<ul><li><strong>要全公司一起改</strong>：改提示詞清單（②），免重啟、即時生效。</li><li><strong>只有某類素材要不同處理</strong>：建清洗設定檔（①），清洗時選用。</li><li><strong>留空不是「不做這一步」，是「用上一層的版本」</strong>。想跳過某一步的話，做不到——只能把提示詞寫成幾乎不動作。</li></ul>
+<h3 id="52-五段提示詞的輸出格式契約">5.2 五段提示詞的輸出格式契約</h3>
+<p>這是最容易寫壞的地方。每一段的輸出都會被程式接手處理，<strong>格式不對就會出事</strong>：</p>
+<div class="tw"><table><thead><tr><th>步驟</th><th>輸出必須是</th><th>破壞契約的後果</th><th>失敗時</th></tr></thead><tbody><tr><td><strong>去重</strong></td><td><strong>清洗後的內容本身</strong>，不要任何說明或前後綴</td><td>AI 回「好的，以下是清理後的內容：…」→ <strong>那句廢話會變成知識內容的一部分</strong>，一路帶進索引與答案</td><td>可降級：沿用未去重的內容並記備註</td></tr><tr><td><strong>遮罩</strong></td><td>遮罩後的內容，敏感資訊以 <code>【已遮罩】</code> 取代</td><td>遮不掉＝<strong>個資外洩</strong></td><td>⚠️ <strong>不可降級——遮罩失敗整筆清洗直接失敗</strong>。這是刻意的安全設計</td></tr><tr><td><strong>分類</strong></td><td>分類名稱、以「、」分隔、<strong>同一行</strong>（取前幾個）</td><td>回成條列或帶編號 → 解析出「1. 設計規範」這種怪標籤，寫回紀錄變幽靈分類（§3.6）</td><td>可降級：不給分類</td></tr><tr><td><strong>摘要</strong></td><td>一段摘要，另起一行以 <code>關鍵實體：</code> 開頭列出重要實體</td><td>格式跑掉不會壞流程，但摘要區塊會變得難讀</td><td>可降級：無摘要</td></tr><tr><td><strong>信心</strong></td><td><strong>只有一個 0 到 1 的小數</strong>（例如 <code>0.85</code>），不要任何其他文字</td><td>回「我有 85% 的信心」→ <strong>解析不出來 → 信心為空 → 整筆轉「待審核」</strong>，等人工處理</td><td>可降級但代價高（全部堆進待審核）</td></tr></tbody></table></div>
+<blockquote><p><strong>實務忠告</strong>：五段裡真正值得客製的是<strong>遮罩</strong>與<strong>分類</strong>。去重、摘要、信心的內建預設已經夠好，改它們的投報率很低而且風險高（尤其信心——格式一破，全部內容堆進待審核）。</p></blockquote>
+<h3 id="53-遮罩提示詞怎麼寫最值得客製的一段">5.3 遮罩提示詞怎麼寫（最值得客製的一段）</h3>
+<p>內建預設只遮通用個資（身分證號、電話、Email、地址、金融帳號、密碼、金鑰）。<strong>它不知道你公司什麼算機密</strong>。</p>
+<p><strong>差的寫法</strong></p>
+<pre><code>請遮罩敏感資訊。</code></pre>
+<p>太抽象。AI 對「敏感」的理解跟你不一樣，結果會不穩定——同一份文件跑兩次遮的東西不同。</p>
+<p><strong>好的寫法（採購／合約類）</strong></p>
+<pre><code>你是資安遮罩助手。請將以下內容中的下列項目以【已遮罩】取代，其餘內容原樣保留，維持繁體中文：
+
+1. 通用個資：身分證號、手機與電話、Email、住址、銀行帳號、密碼、金鑰。
+2. 本公司定義的機密：
+   - 任何單價、總價、折讓與付款條件的具體數字（保留幣別與「單價」等欄位名稱，只遮數字）
+   - 供應商的議價底線與成本結構
+   - 未公開的專案代號與客戶內部聯絡人姓名
+3. 不要遮罩：料號、型號（如 EPS-3000）、規格數值（尺寸、公差、電氣參數）、日期、供應商公司名稱。
+
+直接輸出遮罩後內容，不要任何額外說明。</code></pre>
+<p>三個要點：<strong>逐項列舉</strong>（不要抽象形容）、<strong>明寫不要遮什麼</strong>（漏了這段，AI 常把型號與公差一起遮掉，內容就廢了）、<strong>保留欄位名稱只遮數字</strong>（維持文件結構可讀）。</p>
+<blockquote><p>⚠️ 遮罩是<strong>唯一失敗會讓整筆清洗失敗</strong>的步驟。改完務必先拿一份含敏感資料的樣本試跑，確認：(a) 該遮的都遮了、(b) 不該遮的還在、(c) 沒有整筆失敗。</p></blockquote>
+<h3 id="54-分類提示詞怎麼寫解決幽靈分類">5.4 分類提示詞怎麼寫（解決幽靈分類）</h3>
+<p><strong>差的寫法</strong>（＝內建預設的行為）</p>
+<pre><code>請閱讀以下內容，建議 1-5 個最貼切的主題分類標籤。</code></pre>
+<p>AI 會自由發揮，造出不在你詞庫裡的名稱（§3.6）。</p>
+<p><strong>好的寫法</strong></p>
+<pre><code>請閱讀以下內容，從下列分類清單中挑出 1 到 3 個最貼切的：
+
+設計規範、審查決議、作業標準、異常與矯正、供應商、合約與法務、教育訓練、客戶服務
+
+規則：
+1. 只能使用上列名稱，逐字相符，**不得自創、不得改寫、不得加字**。
+2. 寧少不多：只有明確符合時才給；一個都不明確符合時，只輸出最接近的那一個。
+3. 僅輸出分類名稱、以「、」分隔於同一行，不要編號、不要說明、不要換行。</code></pre>
+<p>三個要點：<strong>把詞庫貼進提示詞</strong>、<strong>逐字相符不得自創</strong>、<strong>維持單行「、」分隔的輸出契約</strong>。</p>
+<blockquote><p>詞庫改了，<strong>這段提示詞要跟著改</strong>。這是分類詞庫「不要超過 10 個」的另一個理由——詞庫小，維護成本才低。</p></blockquote>
+<h3 id="55-圖片解讀與-pdf-萃取提示詞">5.5 圖片解讀與 PDF 萃取提示詞</h3>
+<p>這兩個不在清洗設定檔裡，是另外兩個地方：</p>
+<p><strong>圖片解讀</strong>（匯入圖片時逐筆指定，或設成提示詞清單的一筆）</p>
+<p>差：<code>請描述這張圖片。</code> → 會得到「這是一張機械零件的工程圖」這種毫無用處的答案。</p>
+<p>好（機構圖）：</p>
+<pre><code>這是一張機構件工程圖。請依下列結構輸出繁體中文解讀：
+
+1. 件名與圖號（讀不到就寫「圖上未標示」）
+2. 主要尺寸與公差：逐條列出，格式「部位：尺寸 公差」
+3. 材質與表面處理標註
+4. 圖上的文字註記：原文照抄，不要改寫
+5. 你判讀不確定的地方：明確列出，不要猜
+
+只輸出上述五段，不要加結論或建議。</code></pre>
+<p>要點：<strong>要求結構化輸出</strong>、<strong>要求原文照抄註記</strong>、<strong>要求明列不確定處</strong>（這一項最重要——它讓後續審核的人知道哪裡要人工核對）。</p>
+<p><strong>PDF 轉 Markdown</strong>（PDF 走 LLM 萃取，需要金鑰）</p>
+<p>要點：要求<strong>保留表格結構</strong>、<strong>保留章節編號</strong>（章節編號是日後出處錨點的來源）、<strong>不要摘要或改寫</strong>。PDF 萃取的目標是「忠實轉換」，不是「整理」——整理是清洗階段的事。</p>
+<h3 id="56-三種寫壞提示詞的通病">5.6 三種寫壞提示詞的通病</h3>
+<div class="tw"><table><thead><tr><th>通病</th><th>長什麼樣</th><th>後果</th></tr></thead><tbody><tr><td><strong>要求 AI 說明它做了什麼</strong></td><td>「請說明你遮罩了哪些項目」</td><td>那段說明會變成知識內容的一部分，一路帶進索引與答案</td></tr><tr><td><strong>一段提示詞做兩件事</strong></td><td>在去重提示詞裡順便要求分類</td><td>輸出格式必然衝突，下一步解析失敗</td></tr><tr><td><strong>沒有明寫輸出格式</strong></td><td>只說「請評估信心」</td><td>AI 回自然語言，解析不出數字，整筆轉待審核</td></tr></tbody></table></div>
+<blockquote><p>提示詞本文上限 <strong>8000 字</strong>。實務上一段 300～800 字最好——太短沒有約束力，太長 AI 會忽略中間的規則（把最重要的規則放開頭與結尾）。</p></blockquote>
+<hr>
+<h2 id="六清洗設定檔什麼時候該建什麼時候不該" class="t7">六、清洗設定檔：什麼時候該建，什麼時候不該</h2>
+<p><strong>多數情況不需要建。</strong> 五段留空就是用上一層（提示詞清單或內建預設）。</p>
+<div class="tw"><table><thead><tr><th>該建</th><th>不該建</th></tr></thead><tbody><tr><td>某類素材需要<strong>明顯不同的遮罩強度</strong>（合約類 vs 公開的作業標準）</td><td>只是想微調用字——直接改提示詞清單，全公司一起生效</td></tr><tr><td>不同部門的<strong>分類詞庫子集</strong>不同（採購只用 3 個分類）</td><td>「先建一個備用」——會變成沒人知道用途的設定檔</td></tr><tr><td>要做 A／B 對照</td><td>每個知識來源各建一個——維護會失控</td></tr></tbody></table></div>
+<p><strong>四個現成範本</strong></p>
+<div class="tw"><table><thead><tr><th>名稱</th><th>客製哪幾段</th><th>用途</th></tr></thead><tbody><tr><td><code>供應商合約-最高遮罩</code></td><td>遮罩、分類</td><td>遮掉所有價格與議價底線</td></tr><tr><td><code>工程規範-嚴格遮罩</code></td><td>遮罩、分類</td><td>遮個資但<strong>明確保留型號、尺寸、公差</strong></td></tr><tr><td><code>會議紀錄-寬鬆去重</code></td><td>去重、摘要</td><td>保留發言脈絡，不要過度壓縮</td></tr><tr><td><code>教育訓練-標準</code></td><td>分類</td><td>只限定詞庫，其餘全用預設</td></tr></tbody></table></div>
+<blockquote><p>⚠️ <strong>提示詞寫得再好，也擋不住「一盒塞太多」。</strong> 清洗的去重與遮罩兩步會把<strong>整份彙整內容重新輸出一遍</strong>，所以真正的天花板是模型的輸出上限——超過時內容會被<strong>靜默截斷</strong>（狀態仍是「已清洗」、沒有任何註記）。建盒前請先看 <a href="../../docs/guides/source-scale-limits.html">知識來源分盒與規模上限指南</a>，它有判斷方法與分盒策略。</p></blockquote>
+<blockquote><p>⚠️ <strong>清洗品質評測目前用「全域」提示詞，不會套用你選的清洗設定檔。</strong> 要驗證某個設定檔的效果，得先把該組提示詞設成全域（提示詞清單的 <code>清洗-*</code>）再評測，或以清洗前後結果人工比較。詳見 <a href="../../docs/guides/import-to-knowledge-flow.html">從匯入到知識的操作流程 §二</a>。</p></blockquote>
+<hr>
+<h2 id="七評測題庫怎麼出題" class="t8">七、評測題庫怎麼出題</h2>
+<p>評測不是「上線後有空再做」，它是<strong>你唯一能證明知識庫有效的東西</strong>。建議在匯入第一批資料後就出 20～30 題。</p>
+<h3 id="71-涵蓋設計">7.1 涵蓋設計</h3>
+<div class="tw"><table><thead><tr><th>題型</th><th>題數</th><th>目的</th></tr></thead><tbody><tr><td><strong>日常高頻題</strong></td><td>10～15</td><td>各部門真的每週會問的。這是主力</td></tr><tr><td><strong>邊界題</strong></td><td>3～5</td><td>答案就在兩份文件的交界處（例如同一料件在兩個型號上的差異）</td></tr><tr><td><strong>應該查無的題</strong></td><td>3～5</td><td>知識庫裡<strong>確實沒有</strong>答案的問題。<strong>這類題的正確答案是「查無相關依據」</strong>——用來驗證系統不會亂編</td></tr><tr><td><strong>越權題</strong></td><td>3～5</td><td>模擬某部門身分去問別部門的機密。<strong>洩漏數必須為 0</strong></td></tr><tr><td><strong>同義／簡稱題</strong></td><td>2～3</td><td>用簡稱、英文、口語問法問同一件事，驗證檢索的韌性</td></tr></tbody></table></div>
+<h3 id="72-三個容易漏掉的要點">7.2 三個容易漏掉的要點</h3>
+<ol><li><strong>「期望命中的知識來源標題」要從清單複製貼上</strong>，不要手打。那是逐字比對，打錯一個字分數就莫名偏低，而且<strong>不會有錯誤訊息</strong>。</li><li><strong>越權題要設「模擬團隊」</strong>：留空＝模擬公開使用者（權限最低），這是最嚴格的洩漏測試。</li><li><strong>改任何檢索參數前先存基線</strong>，改完再跑一次比對。沒有基線，你無法判斷調整是變好還是變壞。</li></ol>
+<p>詳細操作見 <a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a> 與 <a href="../../docs/guides/cleaning-eval.html">清洗品質評測使用指南</a>。</p>
+<hr>
+<h2 id="八設定盤點交付表" class="t1">八、設定盤點交付表</h2>
+<p>填完這張表，基礎設定的規劃就完成了。建議印出來，跟各部門主管一起填。</p>
+<p><strong>A. 團隊</strong></p>
+<div class="tw"><table><thead><tr><th>團隊名稱</th><th>代號</th><th>負責的知識邊界（誰不能看）</th><th>負責人</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td></tr></tbody></table></div>
+<p><strong>B. 知識庫分類（10 個以內，單一維度）</strong></p>
+<div class="tw"><table><thead><tr><th>分類名稱</th><th>邊界句：算什麼／不算什麼</th></tr></thead><tbody><tr><td></td><td></td></tr></tbody></table></div>
+<p><strong>C. 專案分類（獨立主檔，通常 3～5 個）</strong></p>
+<div class="tw"><table><thead><tr><th>分類名稱</th><th>用途</th></tr></thead><tbody><tr><td></td><td></td></tr></tbody></table></div>
+<p><strong>D. 角色</strong></p>
+<div class="tw"><table><thead><tr><th>角色名稱</th><th>預設團隊</th><th>有無「知識審核」權限</th><th>給哪些人</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td></tr></tbody></table></div>
+<p><strong>E. 提示詞客製（沒有要客製就寫「用預設」）</strong></p>
+<div class="tw"><table><thead><tr><th>保留鍵或自訂名稱</th><th>為什麼要改</th><th>誰負責維護</th></tr></thead><tbody><tr><td><code>清洗-遮罩</code></td><td></td><td></td></tr><tr><td><code>清洗-分類</code></td><td></td><td></td></tr></tbody></table></div>
+<p><strong>F. 清洗設定檔</strong></p>
+<div class="tw"><table><thead><tr><th>設定檔名稱</th><th>客製哪幾段</th><th>適用哪類素材</th></tr></thead><tbody><tr><td></td><td></td><td></td></tr></tbody></table></div>
+<p><strong>G. 上線前確認</strong></p>
+<ul class="check"><li><span class="box">☐</span>分類詞庫已寫進「分類提示詞」，並要求 AI 只能從清單挑（避免幽靈分類，§3.6）</li><li><span class="box">☐</span>遮罩提示詞已用含敏感資料的真實樣本試跑，確認該遮的遮了、型號與規格沒被誤遮、沒有整筆失敗</li><li><span class="box">☐</span>每個角色的預設團隊都設了（管理員除外）</li><li><span class="box">☐</span>「知識審核」權限只給了該給的人</li><li><span class="box">☐</span>評測題庫已出 20～30 題，含 3～5 題「應該查無」與 3～5 題越權題</li><li><span class="box">☐</span>已指定分類詞庫與提示詞的維護負責人</li></ul>
+<hr>
+<h2 id="九相關文件" class="t2">九、相關文件</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>用途</th></tr></thead><tbody><tr><td><a href="../../docs/guides/naming-rules.html">知識庫命名規範與範例</a>｜<a href="../../docs/guides/naming-cheatsheet.html">速查卡</a></td><td>名字的格式（本文的前置閱讀）</td></tr><tr><td><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊/分類/角色/使用者</a></td><td>六個設定畫面的<strong>操作步驟</strong>與權限樹</td></tr><tr><td><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本</a></td><td>四組部門的實際設定值與操作順序</td></tr><tr><td><a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定使用指南</a></td><td>清洗設定檔畫面操作、五個欄位在哪</td></tr><tr><td><a href="../../docs/guides/import-to-knowledge-flow.html">從匯入到知識的操作流程</a></td><td>清洗／設定檔／清洗品質評測三者關係與注意事項</td></tr><tr><td><a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a>｜<a href="../../docs/guides/cleaning-eval.html">清洗品質評測使用指南</a></td><td>評測題庫的完整操作</td></tr><tr><td><a href="../../docs/guides/complete-manual.html">完整操作手冊</a></td><td>§3.1「選單名 ↔ 權限樹名」對照表（設角色權限前必讀）</td></tr><tr><td><a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a></td><td>提示詞四層解析的完整技術說明</td></tr><tr><td><a href="../../docs/strategy/multi-tenant-planning.html">多客戶、多客製、多型號的知識庫規劃分析</a></td><td>多客戶情境的詞庫與切分建議</td></tr></tbody></table></div>
+<hr>
+<blockquote><p>返回 <a href="../../docs/guides/guides-index.html">guides 目錄索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：匯入正式資料前，要先訂好命名與分類詞庫</li><li>導入顧問：我要幫客戶設計基礎設定與提示詞</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li><li><a href="../../docs/guides/import-to-knowledge-flow.html">從客戶匯入到完成知識：操作流程指南</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#與既有文件的分工">與既有文件的分工</a><a class="l2" href="#一先做一張知識邊界表這是團隊設計的唯一輸入">一、先做一張「知識邊界表」——這是團隊設計的唯一輸入</a><a class="l2" href="#二團隊怎麼切">二、團隊怎麼切</a><a class="l3" href="#21-三種常見切法">2.1 三種常見切法</a><a class="l3" href="#22-五條實務準則">2.2 五條實務準則</a><a class="l3" href="#23-製造業範例8-個團隊">2.3 製造業範例（8 個團隊）</a><a class="l2" href="#三分類詞庫設計">三、分類詞庫設計</a><a class="l3" href="#31-一個不能不知道的限制">3.1 一個不能不知道的限制</a><a class="l3" href="#32-設計工作法四步">3.2 設計工作法（四步）</a><a class="l3" href="#33-三個硬性限制">3.3 三個硬性限制</a><a class="l3" href="#34-三套現成詞庫照抄再改">3.4 三套現成詞庫（照抄再改）</a><a class="l3" href="#35-反例">3.5 反例</a><a class="l3" href="#36--幽靈分類一個一定要知道的行為">3.6 ⚠️ 幽靈分類：一個一定要知道的行為</a><a class="l2" href="#四角色與預設團隊">四、角色與預設團隊</a><a class="l3" href="#41-三個典型角色">4.1 三個典型角色</a><a class="l3" href="#42-三條準則">4.2 三條準則</a><a class="l2" href="#五清洗提示詞怎麼寫本文最重要的一節">五、清洗提示詞怎麼寫（本文最重要的一節）</a><a class="l3" href="#51-先搞懂四層覆蓋順序">5.1 先搞懂四層覆蓋順序</a><a class="l3" href="#52-五段提示詞的輸出格式契約">5.2 五段提示詞的輸出格式契約</a><a class="l3" href="#53-遮罩提示詞怎麼寫最值得客製的一段">5.3 遮罩提示詞怎麼寫（最值得客製的一段）</a><a class="l3" href="#54-分類提示詞怎麼寫解決幽靈分類">5.4 分類提示詞怎麼寫（解決幽靈分類）</a><a class="l3" href="#55-圖片解讀與-pdf-萃取提示詞">5.5 圖片解讀與 PDF 萃取提示詞</a><a class="l3" href="#56-三種寫壞提示詞的通病">5.6 三種寫壞提示詞的通病</a><a class="l2" href="#六清洗設定檔什麼時候該建什麼時候不該">六、清洗設定檔：什麼時候該建，什麼時候不該</a><a class="l2" href="#七評測題庫怎麼出題">七、評測題庫怎麼出題</a><a class="l3" href="#71-涵蓋設計">7.1 涵蓋設計</a><a class="l3" href="#72-三個容易漏掉的要點">7.2 三個容易漏掉的要點</a><a class="l2" href="#八設定盤點交付表">八、設定盤點交付表</a><a class="l2" href="#九相關文件">九、相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/基礎設定內容設計指南-分類詞庫團隊與提示詞撰寫.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>首頁與導覽 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>首頁與導覽 PRD</h1><p class="sub">定義登入後落地頁、/App 首頁（AI 知識問答入口）、側邊選單與基本導覽的產品需求</p></header><div class="docwrap"><main><ul><li>文件用途：定義登入後落地頁、<code>/App</code> 首頁（AI 知識問答入口）、側邊選單與基本導覽的產品需求</li><li>主要讀者：產品、開發、導入顧問</li><li>文件版本：2.1</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.81</li><li>首次實作版本：既有腳手架；統計儀表板完成於 0.3.17</li><li>最後核對日期：2026/07/27</li><li>建立日期：2026/06/28</li><li>對應版本：1.0.81（<code>/App</code> 首頁改為 AI 知識問答；統計儀表板移至「系統管理 &gt; 系統監控 &gt; 統計儀表板」<code>/dashboard</code>，僅管理員）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<h2 id="一目標與範圍" class="t1">一、目標與範圍</h2>
+<p>提供登入後的系統入口。通過驗證後<strong>預設導向 AI 知識問答</strong>（<code>/knowledge-base-chat</code>），讓使用者一進系統就能直接提問；側邊選單「首頁」(<code>/App</code>) 亦為 <strong>AI 知識問答</strong>入口（與 <code>/knowledge-base-chat</code> 同一元件）。<strong>統計儀表板</strong>移至「系統管理 &gt; 系統監控 &gt; 統計儀表板」(<code>/dashboard</code>)，<strong>僅管理員</strong>可見，提供各類資料與資訊的最新統計。並透過側邊選單進入專案管理、資料匯入、清洗蒸餾、系統管理與基礎資料設定頁面。</p>
+<p>本 PRD 範圍包含登入後落地導向、<code>/App</code> 首頁（AI 知識問答入口）、統計儀表板（<code>/dashboard</code>，僅管理員）、側邊選單、使用者選單、登出入口、Profile/API 密碼入口與強制改密碼入口。非範圍包含公開行銷首頁與未登入 landing page，以及 AI 知識問答頁本身的功能需求（見<a href="../../docs/prd/prd-b13bd3af.html">AI 知識問答 PRD</a>）。</p>
+<h2 id="二使用者與入口" class="t2">二、使用者與入口</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>說明</th></tr></thead><tbody><tr><td>首頁路由</td><td><code>/App</code>（內容為 AI 知識問答；登入後落地頁為 <code>/knowledge-base-chat</code>）</td></tr><tr><td>首頁選單</td><td>首頁</td></tr><tr><td>首頁權限</td><td><code>MagicObjectHelper.角色_首頁</code>（問答功能另受 <code>角色_知識庫問答</code> 檢查）</td></tr><tr><td>統計儀表板</td><td><code>/dashboard</code>，選單「系統管理 &gt; 系統監控 &gt; 統計儀表板」，僅管理員</td></tr><tr><td>主要使用者</td><td>所有已登入使用者（統計儀表板限管理員）</td></tr></tbody></table></div>
+<h2 id="三畫面與操作" class="t3">三、畫面與操作</h2>
+<ul><li>登入後落地：通過驗證後預設導向 AI 知識問答（<code>/knowledge-base-chat</code>）。若登入時帶有 <code>ReturnUrl</code>，則優先回到該頁；若使用者被要求強制變更密碼，則先導向 <code>/ChangePassword</code>。</li><li>首頁（AI 知識問答）：由側邊選單「首頁」進入 <code>/App</code>，內容為 AI 知識問答（與 <code>/knowledge-base-chat</code> 同一 <code>KnowledgeBaseChatView</code> 元件）；使用問答功能需 <code>角色_知識庫問答</code> 權限。</li><li>統計儀表板（僅管理員）：由「系統管理 &gt; 系統監控 &gt; 統計儀表板」進入 <code>/dashboard</code>。含三個區塊——(1) 各類資料總量卡片（專案／工作任務／會議管理／影音轉逐字稿／文件轉文字／圖片辨識／知識來源／知識頁／黃金樣本，以及分類與團隊，點擊卡片導向對應清單頁）、(2) 處理管線狀態分布（影音轉逐字稿／文件轉文字／圖片辨識／知識來源的狀態筆數橫條）、(3) 最新資料清單（跨各類資料依建立時間排序）。所有紀錄類統計皆套用團隊權控：非管理員僅計入「無團隊(公開)或所屬團隊」的資料，管理員不受限。</li><li>側邊選單：依 <code>Menu.json</code> 結構顯示頂層與子項。</li><li>使用者選單：變更密碼、設定 API 密碼、登出。</li><li>無權限功能不顯示在選單中；直接開路由仍由頁面本身再次檢查。</li></ul>
+<h2 id="四內部系統運作" class="t4">四、內部系統運作</h2>
+<p>核心流程為 <code>MainLayout → SidebarMenuService → AuthenticationStateHelper</code>。</p>
+<ol><li>使用者登入後，Cookie claims 包含使用者 id。</li><li><code>AuthenticationStateHelper.Check</code> 載入使用者、角色權限與預設團隊。</li><li><code>SidebarMenuService</code> 讀取 <code>Datas/Menu.json</code>，依 <code>CurrentUser.RoleList</code> 過濾可見選單。</li><li>群組權限與子項權限以位置索引對應 <code>RolePermissionService.GetRoleListPermissionAllName()</code>。</li><li>使用者選單提供密碼相關與登出流程。</li></ol>
+<h2 id="五llm--rag-互動" class="t5">五、LLM / RAG 互動</h2>
+<p>本 PRD 範圍（登入導向、側邊選單、統計儀表板）不直接規範 LLM 呼叫；<code>/App</code> 首頁的 AI 知識問答功能見 <a href="../../docs/prd/prd-b13bd3af.html">AI 知識問答 PRD</a>。統計儀表板純由資料庫聚合（<code>CountAsync</code>／<code>GroupBy</code>）而來，不呼叫 LLM、不使用 embedding。導覽負責依權限把使用者導向各 AI 功能頁，例如 AI 知識問答、檢索品質評測。</p>
+<h2 id="六權限與安全" class="t6">六、權限與安全</h2>
+<ul><li>選單過濾只是 UX；每個頁面仍須自行呼叫 <code>AuthenticationStateHelper.CheckAccessPage</code> 或管理員檢查。</li><li><code>Menu.json</code> 與 <code>RolePermissionService</code> 順序必須同步。</li><li>登出必須清除 Cookie，避免返回上一頁仍可操作。</li></ul>
+<h2 id="七錯誤與邊界" class="t7">七、錯誤與邊界</h2>
+<ul><li>角色權限 JSON 無法解析時，登入檢查應拒絕並導出。</li><li>使用者帳號停用時不可載入首頁。</li><li>權限樹新增頁面但未同步選單時，可能造成有權但無入口或入口錯位。</li></ul>
+<h2 id="八驗收與測試" class="t8">八、驗收與測試</h2>
+<ul><li>登入成功後預設導向 <code>/knowledge-base-chat</code>（帳密登入、Google 登入、已登入者開啟 <code>/</code> 三條路徑一致）。</li><li>帶 <code>ReturnUrl</code> 登入時仍回到原本要去的頁面，不被落地頁覆蓋。</li><li>由側邊選單「首頁」可進入 <code>/App</code> AI 知識問答。</li><li>管理員由「系統管理 &gt; 系統監控 &gt; 統計儀表板」可進入 <code>/dashboard</code>；非管理員看不到該項，直接開 <code>/dashboard</code> 會被頁面拒絕。</li><li>不同角色只看到自己有權限的選單。</li><li>直接輸入無權頁面路由會被頁面拒絕。</li><li>使用者選單可進入變更密碼、Profile 與登出。</li></ul>
+<h2 id="九相關程式與文件" class="t1">九、相關程式與文件</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Pages/HomeAuthed.razor</code>（<code>/App</code> 首頁，掛載 <code>KnowledgeBaseChatView</code>＝AI 知識問答）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Pages/DashboardPage.razor</code>（<code>/dashboard</code> 統計儀表板頁，管理員守衛後掛載 <code>DashboardView</code>）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Auths/Login.razor.cs</code>（帳密登入成功後的預設導向）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Controllers/ExternalAuthController.cs</code>（Google 登入成功後的預設導向）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/Commons/SplashView.razor.cs</code>（已登入者開啟 <code>/</code> 的導向）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/Dashboard/DashboardView.razor</code>（統計儀表板檢視）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/DashboardService.cs</code>（統計聚合服務，套團隊權控）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Layout/MainLayout.razor</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Layout/SidebarMenuService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Datas/Menu.json</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Other/AuthenticationStateHelper.cs</code></li><li><a href="../../docs/security/auth-and-permissions.html">認證授權與權限機制</a></li></ul>
+<h2 id="十1081-現況校正" class="t2">十、1.0.81 現況校正</h2>
+<ul><li>登入後預設落地頁為 AI 知識問答（<code>/knowledge-base-chat</code>）。三條導向路徑（帳密登入、Google 登入、已登入者開啟 <code>/</code>）一致。</li><li>側邊選單第一項「首頁」仍指向 <code>/App</code>，但內容改為 AI 知識問答（掛載 <code>KnowledgeBaseChatView</code>）；名稱維持不變。「首頁」與「知識庫 &gt; AI 知識問答」為同一問答頁的兩個入口。</li><li><strong>圖示（1.0.99 追記）</strong>：原為 <code>analytics</code>（沿用儀表板時期的統計圖示），因與「知識庫 &gt; AI 知識問答」的 <code>forum</code> 不一致而造成困惑，1.0.99 起兩處統一為 <strong><code>forum</code></strong>。<code>forum</code> 已在 <code>MenuIconTests.AllowedLeafIcons</code> 內，不需調整白名單。</li><li>統計儀表板移至「系統管理 &gt; 系統監控 &gt; 統計儀表板」(<code>/dashboard</code>)，<strong>僅管理員</strong>可見（頁面以 <code>CheckIsAdmin()</code> 守衛）；內容含資料總量、處理狀態、最新動態、最近 30 天 AI 回答滿意度與 Token 用量，統計依團隊權限過濾。</li><li>選單與角色權限以位置索引對應；新增頁面必須同步 <code>MagicObjectHelper</code>、<code>RolePermissionService</code> 與 <code>Menu.json</code>。惟「統計儀表板」為 adminOnly 葉節點，豁免位置索引權限槽，故本次僅改 <code>Menu.json</code>（與圖示允許清單）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目標與範圍">一、目標與範圍</a><a class="l2" href="#二使用者與入口">二、使用者與入口</a><a class="l2" href="#三畫面與操作">三、畫面與操作</a><a class="l2" href="#四內部系統運作">四、內部系統運作</a><a class="l2" href="#五llm--rag-互動">五、LLM / RAG 互動</a><a class="l2" href="#六權限與安全">六、權限與安全</a><a class="l2" href="#七錯誤與邊界">七、錯誤與邊界</a><a class="l2" href="#八驗收與測試">八、驗收與測試</a><a class="l2" href="#九相關程式與文件">九、相關程式與文件</a><a class="l2" href="#十1081-現況校正">十、1.0.81 現況校正</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/首頁與導覽-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</h1></header><div class="docwrap"><main><ul><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.61</li><li>首次實作版本：0.2.45</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026-06-09</li><li>狀態：已實作（系統版本 0.2.45）</li><li>編碼：UTF-8（繁體中文）</li></ul>
+<hr>
+<h2 id="一背景與目的" class="t1">一、背景與目的</h2>
+<p>系統已具備檔案上傳→產生文字的成熟模式（影音轉逐字稿、文件轉文字），並已整合 OpenAI（含 <code>GenerationModel</code> 視覺模型）與「AI 提示詞（Prompt）」基礎資料。本功能新增「圖片解讀」頁面，讓使用者上傳圖片並做 CRUD 管理；上傳後可選取 AI 提示詞中的提示詞，請 OpenAI 視覺模型解讀圖片並轉成文字。解讀文字以<strong>檔案</strong>形式儲存於可設定的目錄，並依「上傳年度」切分子目錄。</p>
+<p>本功能為標準 CRUD 頁面，需具備側邊選單項目、<code>Menu.json</code> 設定與角色權限控制，位於「專案管理」子選單。</p>
+<h3 id="設計範本">設計範本</h3>
+<p>以 <code>ProjectPage</code> 的設計方式為範本，並與「影音轉逐字稿（MediaTranscription）」同構（檔案上傳、年度切分儲存、團隊權控），再加上先前建立的「依提示詞背景產生」對話窗流程；差別在於 LLM 改用<strong>視覺解讀</strong>，且解讀結果以<strong>檔案</strong>儲存（仿「文件轉文字」的 <code>MarkdownRelativePath</code>）。</p>
+<hr>
+<h2 id="二需求決策" class="t2">二、需求決策</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>決策</th></tr></thead><tbody><tr><td>位置</td><td>側邊選單「專案管理」子選單；路由 <code>/image-recognition</code>，選單名「圖片解讀」</td></tr><tr><td>上傳</td><td>標準 CRUD：上傳圖片並維護標題／描述／分類／團隊</td></tr><tr><td>解讀方式</td><td><strong>背景解讀</strong>：對話窗選提示詞→按「解讀」後關閉並提示「正在請 LLM 解讀圖片」，背景以獨立 DI scope 執行，完成後自動讓「檢視解讀文字」圖示出現</td></tr><tr><td>提示詞</td><td>單選可搜尋下拉（來源為 AI 提示詞啟用中項目），選取後本文帶入可編輯多行文字盒</td></tr><tr><td>模型</td><td><code>OpenAISettings.GenerationModel</code>（預設 <code>gpt-5.4</code>，GPT-5 家族支援視覺）；共用既有 <code>ApiKey</code>／<code>BaseUrl</code>／HttpClient</td></tr><tr><td>結果儲存</td><td><strong>以檔案儲存</strong>於 <code>appsettings.json</code> 指定目錄（<code>ImageRecognitionTextPath</code>），依<strong>上傳年度</strong>切分子目錄；紀錄僅存相對路徑</td></tr><tr><td>結果保留</td><td><strong>只保留最新一筆</strong>解讀文字檔；重新解讀即覆寫（刪舊檔）</td></tr><tr><td>圖片儲存</td><td>上傳圖片存於 <code>ImageUploadPath</code>，依上傳年度切分子目錄</td></tr><tr><td>圖片檢視</td><td>提供「檢視原圖」動作，經團隊權控的 controller 端點串出（新分頁開啟）</td></tr><tr><td>團隊權控</td><td>套用（與影音轉逐字稿一致）：非管理員僅見公開或與自身團隊交集的紀錄</td></tr><tr><td>允許格式</td><td><code>.jpg</code>、<code>.jpeg</code>、<code>.png</code>、<code>.webp</code>、<code>.gif</code></td></tr></tbody></table></div>
+<hr>
+<h2 id="三功能概述" class="t3">三、功能概述</h2>
+<p>新增「圖片解讀」管理頁面，提供圖片的上傳、查詢、編輯、刪除（CRUD）。每筆紀錄包含標題、描述、原始檔名、圖片相對路徑、分類、團隊、上傳時間等。上傳後可由操作區「解讀圖片」開啟對話窗、選取提示詞，請 LLM 視覺模型解讀並把文字存成檔案；可由「檢視解讀文字」開啟結果並複製到剪貼簿，也可「檢視原圖」。列表預設依上傳時間由新到舊呈現。</p>
+<hr>
+<h2 id="四使用者流程" class="t4">四、使用者流程</h2>
+<ol><li>進入「圖片解讀」（路由 <code>/image-recognition</code>）；無權限者不顯示選單、不可進入。</li><li>點「新增」上傳圖片並填標題（必填）、描述、分類、團隊；僅接受允許的圖片格式。</li><li>列表預設依上傳時間新到舊；支援關鍵字搜尋與分類／團隊過濾、分頁。</li><li>點「解讀圖片」開對話窗：選提示詞（本文帶入可編輯文字盒，Enter 換行不送出）→按「解讀」。</li><li>對話窗關閉並提示「正在請 LLM 解讀圖片」；系統在背景以視覺模型解讀，文字寫入 <code>ImageRecognitionTextPath/{上傳年度}/{guid}.txt</code>。</li><li>完成後自動刷新，操作區出現「檢視解讀文字」；開啟唯讀檢視並可「複製到剪貼簿」。重新解讀會覆寫舊結果。</li><li>「檢視原圖」於新分頁開啟原圖（經團隊權控串出）。</li><li>刪除紀錄會一併移除圖片檔與解讀文字檔。</li></ol>
+<hr>
+<h2 id="五資料模型" class="t5">五、資料模型</h2>
+<p>新增實體 <code>ImageRecognition</code>（<code>KnowledgeExtraction.AccessDatas/Models/ImageRecognition.cs</code>）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>Id</td><td>int</td><td>主鍵</td></tr><tr><td>Title</td><td>string</td><td>標題（必填）</td></tr><tr><td>Description</td><td>string?</td><td>描述</td></tr><tr><td>OriginalFileName</td><td>string</td><td>原始檔名</td></tr><tr><td>StoredFileName</td><td>string</td><td>儲存檔名</td></tr><tr><td>ImageRelativePath</td><td>string</td><td>圖片相對路徑 <code>{yyyy}/{guid}.ext</code></td></tr><tr><td>ContentType</td><td>string</td><td>MIME 類型</td></tr><tr><td>FileSize</td><td>long</td><td>檔案大小</td></tr><tr><td>UploadedAt</td><td>DateTime</td><td>上傳時間</td></tr><tr><td>RecognitionTextRelativePath</td><td>string?</td><td>解讀文字檔相對路徑 <code>{yyyy}/{guid}.txt</code>（只保留最新）</td></tr><tr><td>RecognizedAt</td><td>DateTime?</td><td>解讀完成時間</td></tr><tr><td>Categories</td><td>string?</td><td>分類標籤（分隔字串）</td></tr><tr><td>Teams</td><td>string?</td><td>團隊標籤（分隔字串，團隊權控用）</td></tr><tr><td>CreatedAt / UpdatedAt</td><td>DateTime</td><td>建立／更新時間</td></tr></tbody></table></div>
+<ul><li>DbSet <code>ImageRecognition</code> 註冊於 <code>BackendDBContext</code>；<strong>雙 provider migration <code>AddImageRecognition</code></strong>（Sqlite 與 SqlServer 各一）。</li><li><code>ImageRecognitionAdapterModel</code>：<code>Categories</code>/<code>Teams</code> 以 <code>List&lt;string&gt;</code> 呈現（<code>CategoriesText</code>/<code>TeamsText</code> 顯示）；<code>HasRecognitionText</code> 供操作區圖示判斷。</li></ul>
+<hr>
+<h2 id="六設定appsettingsjson" class="t6">六、設定（appsettings.json）</h2>
+<p><code>SystemSettings.ExternalFileSystem</code> 新增兩路徑：</p>
+<pre><code>"ImageUploadPath": "C:\\temp\\KnowledgeExtraction\\ImageUpload",
+"ImageRecognitionTextPath": "C:\\temp\\KnowledgeExtraction\\ImageRecognition"</code></pre>
+<ul><li>兩目錄於 <code>Program.cs</code> 啟動時以 <code>EnsureDirectoryExists</code> 建立。</li><li>視覺解讀使用既有 <code>OpenAISettings.GenerationModel</code>／<code>ApiKey</code>／<code>BaseUrl</code>／<code>GenerationTimeoutSeconds</code>，不另開設定。</li><li>實作建置時版本 +1（→ <code>0.2.45</code>）。</li></ul>
+<hr>
+<h2 id="七架構與元件" class="t7">七、架構與元件</h2>
+<ul><li><strong>驗證</strong> <code>ImageFormatValidator</code>（<code>KnowledgeExtraction.Business/Helpers/</code>）：允許 <code>.jpg/.jpeg/.png/.webp/.gif</code>；<code>IsSupported</code>/<code>AllowedExtensionsText</code>。</li><li><strong>上傳輸入</strong> <code>ImageRecognitionUploadFileInput</code>（FileName/ContentType/FileSize/Content）。</li><li><strong>CRUD 服務</strong> <code>ImageRecognitionService</code>（比照 <code>MediaTranscriptionService</code>，含團隊權控）：清單／單筆／新增（驗格式＋年度切分存圖）／更新（白名單，不動解讀欄位）／刪除（含刪實體檔）／<code>GetImageAsync</code>（串原圖）／<code>GetRecognitionTextAsync</code>（讀解讀文字）。</li><li><strong>背景解讀服務</strong> <code>ImageRecognitionGenerationService</code>（比照 <code>LlmGenerationService</code>，背景安全：僅依賴 <code>BackendDBContext</code> + <code>OpenAIChatCompletionClient</code> + <code>IOptions&lt;SystemSettings&gt;</code>）：<code>RecognizeAsync(id, prompt, imageBytes, mimeType, ct)</code> 呼叫視覺模型→寫年度切分文字檔→更新 <code>RecognitionTextRelativePath</code>/<code>RecognizedAt</code>。</li><li><strong>視覺用戶端</strong>：<code>OpenAIChatCompletionClient</code> 新增 <code>CompleteWithImageAsync(prompt, imageBytes, mimeType, ct)</code> 與靜態 <code>BuildImageRequestBody(model, prompt, dataUrl)</code>（chat/completions，content 為 <code>text</code> + <code>image_url</code>(base64 data URL) 陣列）。</li><li><strong>Controller</strong> <code>ImageRecognitionController</code>：<code>GET {id}/image</code>（串原圖）、<code>GET {id}/text</code>（串解讀文字），團隊權控於 service。</li><li><strong>UI</strong>：<code>ImageRecognitionPage</code> + <code>ImageRecognitionView</code>（工具列、表格、上傳/編輯 Modal、解讀對話窗、結果 Modal、檢視原圖）。背景解讀採 <code>IServiceScopeFactory</code>；剪貼簿用 <code>IJSRuntime</code>。</li><li><strong>DI</strong>：<code>AddScoped&lt;ImageRecognitionService&gt;()</code>、<code>AddScoped&lt;ImageRecognitionGenerationService&gt;()</code>；HttpClient 重用既有 <code>OpenAIChatCompletionClient</code> 註冊。</li></ul>
+<hr>
+<h2 id="八openai-視覺請求格式" class="t8">八、OpenAI 視覺請求格式</h2>
+<p><code>POST chat/completions</code>：</p>
+<pre><code>{ "model": "&lt;GenerationModel&gt;",
+  "messages": [ { "role": "user", "content": [
+      { "type": "text", "text": "&lt;提示詞&gt;" },
+      { "type": "image_url", "image_url": { "url": "data:&lt;mime&gt;;base64,&lt;base64&gt;" } }
+  ] } ] }</code></pre>
+<p>回應解析 <code>choices[0].message.content</code>。</p>
+<hr>
+<h2 id="九選單與權限三處同步位置索引對齊" class="t1">九、選單與權限（三處同步，位置索引對齊）</h2>
+<ol><li><code>MagicObjectHelper</code>：新增 <code>角色_圖片清單 = "圖片清單"</code>（接於 <code>角色_文件萃取</code> 後）。</li><li><code>RolePermissionService.GetRoleListPermissionAllName()</code>：於「專案管理」群組末端加入 <code>角色_圖片清單</code>。</li><li><code>Menu.json</code>：「專案管理」(id 2) subMenu 接於文件轉文字(id 25)後新增 <code>{ "id": 26, "name": "圖片清單", "icon": "image", "url": "/image-recognition" }</code>。</li></ol>
+<blockquote><p>既有角色需於角色管理頁重新勾選「圖片解讀」才看得到。</p></blockquote>
+<hr>
+<h2 id="十測試" class="t2">十、測試</h2>
+<ul><li><code>ImageFormatValidatorTests</code>：支援／不支援副檔名、<code>AllowedExtensionsText</code>。</li><li><code>OpenAIChatCompletionClientTests</code> 增 <code>BuildImageRequestBody</code>：content 為陣列且含 text + image_url(data url)、model 正確。</li><li>檔案系統與視覺 HTTP 端到端走手動驗收（需設定 <code>OpenAISettings:ApiKey</code>）。</li></ul>
+<hr>
+<h2 id="十一驗收條件" class="t3">十一、驗收條件</h2>
+<ol><li>選單「專案管理 &gt; 圖片解讀」出現，無權限角色看不到、不可進入。</li><li>可上傳允許格式的圖片並 CRUD；列表預設依上傳時間新到舊。</li><li>「檢視原圖」可於新分頁開啟（團隊權控）。</li><li>「解讀圖片」選提示詞→背景解讀→完成後「檢視解讀文字」自動出現；內容可複製。</li><li>解讀文字確實以檔案儲存於 <code>ImageRecognitionTextPath/{上傳年度}/</code>，重新解讀覆寫。</li><li>刪除紀錄會移除圖片檔與解讀文字檔。</li><li>雙 provider migration 皆產生；<code>dotnet build</code>／<code>dotnet test</code> 綠燈；版本升至 0.2.45。</li></ol>
+<hr>
+<h2 id="十二編碼需求" class="t4">十二、編碼需求</h2>
+<ul><li>所有新增程式碼與本 PRD 採 UTF-8 繁體中文，不得有亂碼；<code>docs/*.md</code> 須 UTF-8 含 BOM，提交前 <code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ul>
+<hr>
+<h2 id="十三未來延伸out-of-scope" class="t5">十三、未來延伸（Out of Scope）</h2>
+<ul><li>列表縮圖預覽、多圖批次解讀、解讀歷史保留與比較、將解讀文字一鍵建立為其他紀錄、提示詞變數樣板、單檔大小上限與大圖壓縮。</li></ul>
+<hr>
+<h2 id="十四變更紀錄" class="t6">十四、變更紀錄</h2>
+<h3 id="v0256025820260610解讀佇列化重試取消">v0.2.56–0.2.58（2026/06/10）：解讀佇列化＋重試＋取消</h3>
+<p>對應資料清洗前置工作（<a href="../../docs/strategy/cleaning-stage-design.html">strategy/08</a> Part A 的 A1/A2/A3），背景解讀架構調整如下：</p>
+<ul><li><strong>佇列化（取代 <code>Task.Run</code> 直呼）</strong>：解讀改為 <code>IImageRecognitionQueue</code>（<code>Channel&lt;int&gt;</code>）＋ <code>ImageRecognitionBackgroundService</code> ＋ <code>ImageRecognitionProcessor</code>，與文件轉文字／媒體轉錄管線同構。原 <code>ImageRecognitionGenerationService</code> 移除，邏輯併入 Processor（圖片由 Processor 自磁碟讀取；入列於 UI scope 通過團隊權控）。</li><li><strong>狀態機</strong>：<code>ImageRecognition</code> 新增 <code>Status</code>（未解讀／等待中／處理中／已完成／失敗／已取消）、<code>ProgressPercentage</code>、<code>ErrorMessage</code>、<code>RecognitionPrompt</code> 欄位（migration <code>AddImageRecognitionStatus</code>，含既有資料回填）。觸發時機維持手動：上傳後為「未解讀」，點「解讀圖片」選提示詞後入列。</li><li><strong>自動重試</strong>：暫時性錯誤（網路、逾時、IO）自動重試最多 2 次（<code>PipelineRetryHelper</code>）；設定缺漏、檔案不存在、提示詞空白不重試。</li><li><strong>手動重試／取消</strong>：列表操作區新增 重試（🔁，失敗/已取消且留有提示詞）、取消（⏹️，等待中/處理中）、檢視錯誤訊息（⚠️，失敗）；刪除進行中紀錄會先發出取消（<code>IPipelineCancellationRegistry</code>）。</li><li><strong>重啟回復</strong>：應用重啟後，「等待中／處理中」紀錄自動重新入列。</li><li>UI：列表新增「狀態」「進度」欄；解讀中停用解讀按鈕；輪詢改依 <code>Status</code> 判斷。</li></ul>
+<h3 id="v200334-基線校正">v2.0（0.3.34 基線校正）</h3>
+<ul><li>支援 <code>.zip</code> 批次上傳，每個支援圖片建立獨立紀錄；不支援項目回報但不阻斷其他檔案。</li><li>解讀文字可線上原地編修、複製與搜尋取代；更新後標記相關知識來源過時。</li><li>支援素材版本鏈、版本歷史與現行版顯示；下載、內容讀取及編修全路徑套團隊權控。</li><li>上傳 Modal 設 <code>MaskClosable="false"</code>，避免原生檔案選擇返回時誤關閉。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li><li><a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景與目的">一、背景與目的</a><a class="l3" href="#設計範本">設計範本</a><a class="l2" href="#二需求決策">二、需求決策</a><a class="l2" href="#三功能概述">三、功能概述</a><a class="l2" href="#四使用者流程">四、使用者流程</a><a class="l2" href="#五資料模型">五、資料模型</a><a class="l2" href="#六設定appsettingsjson">六、設定（appsettings.json）</a><a class="l2" href="#七架構與元件">七、架構與元件</a><a class="l2" href="#八openai-視覺請求格式">八、OpenAI 視覺請求格式</a><a class="l2" href="#九選單與權限三處同步位置索引對齊">九、選單與權限（三處同步，位置索引對齊）</a><a class="l2" href="#十測試">十、測試</a><a class="l2" href="#十一驗收條件">十一、驗收條件</a><a class="l2" href="#十二編碼需求">十二、編碼需求</a><a class="l2" href="#十三未來延伸out-of-scope">十三、未來延伸（Out of Scope）</a><a class="l2" href="#十四變更紀錄">十四、變更紀錄</a><a class="l3" href="#v0256025820260610解讀佇列化重試取消">v0.2.56–0.2.58（2026/06/10）：解讀佇列化＋重試＋取消</a><a class="l3" href="#v200334-基線校正">v2.0（0.3.34 基線校正）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/圖片清單-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

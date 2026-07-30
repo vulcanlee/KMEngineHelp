@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>favicon 去白邊與透明化紀錄｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>favicon 去白邊與透明化紀錄</h1></header><div class="docwrap"><main><blockquote><p>⚠️ <strong>勘誤（1.0.79 補記）</strong>：本篇的成果宣稱<strong>並未達成</strong>，緊裁基準取錯了。</p>
+<p>第 3 步的「依非透明像素 bbox 緊裁（裁切後約 304×341）」用的是 <strong>alpha bbox</strong>。但來源圖的白色圓角卡片外圍有一層<strong>淺灰柔邊</strong>（幽靈環），它既不夠透明（alpha &gt; 32）也不夠白（min RGB &lt; 235），四角 flood fill 會停在那裡 —— 於是<strong>緊裁到的是卡片，不是標誌</strong>。1.0.79 在記憶體中重跑本篇演算法完整重現：alpha bbox = 328×367（比例 0.894，與本篇自述的「約 304×341」比例 0.891 是同一個東西），而標誌本體的墨色 bbox 是 230×277（比例 0.830）。</p>
+<p>結果是本篇產出的 <code>favicon.png</code> 中，<strong>標誌只佔畫布 57.8% × 70.3%</strong>，「讓 logo 貼齊放大」的目的沒有達到，分頁圖示依然明顯小於其他網站。</p>
+<p>已於 <strong>1.0.79</strong> 改以<strong>墨色 bbox</strong>（<code>alpha &gt; 128 且 (R+G+B)/3 &lt; 200</code>）為緊裁基準並改由版控腳本 <code>scripts/Build-Favicons.py</code> 產生，詳見 <a href="../../docs/changelog/2026-07-26-favicon-01954f2c.html">favicon 多尺寸重生</a>。本篇以下內容保留原貌，僅供追溯。</p></blockquote>
+<h2 id="變更目的" class="t1">變更目的</h2>
+<p>瀏覽器分頁的 favicon 圖示偏小（原為圓角白色底磚 + 約 28% 留白，縮到 16–32px 時 logo 佔比太小）。本次將 favicon 去除白色留白、改透明背景，讓 logo 貼齊放大。</p>
+<h2 id="處理方式" class="t2">處理方式</h2>
+<p>以 Python + PIL 重新處理來源圖：</p>
+<ol><li>轉 RGBA。</li><li>從四個角落 <code>ImageDraw.floodfill</code> 去背（threshold 40）：外圍連通的近白區域填為透明；深藍六邊形形成邊界，<strong>內部白色（盾牌、鑰匙孔、節點中心）完好保留</strong>（未用「全部白→透明」以免挖空內部）。</li><li>依非透明像素 bbox 緊裁（裁切後約 304×341），四周加約 4% 透明 padding、置中於正方形透明畫布。</li><li>縮放為 128×128（LANCZOS），輸出覆蓋 <code>wwwroot/favicon.png</code>（RGBA、透明底）。</li></ol>
+<h2 id="本次修改檔案" class="t3">本次修改檔案</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/wwwroot/favicon.png</code>（重生：透明底、去白邊、放大）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json</code>（版本 0.2.158→0.2.159）</li></ul>
+<h2 id="未變更" class="t4">未變更</h2>
+<ul><li><code>wwwroot/images/app-logo.png</code>（登入頁／Splash 用的白色圓角磚版，維持不變）。</li><li><code>App.razor</code> 的 favicon 連結（已用 <code>@Assets["favicon.png"]</code> 指紋化，重生後自動破快取）。</li></ul>
+<h2 id="備註" class="t5">備註</h2>
+<ul><li>使用者端首次可能仍需 Ctrl+F5 清一次舊 favicon 快取。</li></ul>
+<h2 id="編碼要求" class="t6">編碼要求</h2>
+<ul><li>本次新增文件以 UTF-8（含 BOM）保存，內容為繁體中文、無亂碼。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#變更目的">變更目的</a><a class="l2" href="#處理方式">處理方式</a><a class="l2" href="#本次修改檔案">本次修改檔案</a><a class="l2" href="#未變更">未變更</a><a class="l2" href="#備註">備註</a><a class="l2" href="#編碼要求">編碼要求</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-04-favicon去白邊透明化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

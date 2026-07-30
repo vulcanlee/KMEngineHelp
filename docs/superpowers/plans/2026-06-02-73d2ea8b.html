@@ -1,0 +1,1577 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>音訊／影片轉錄服務 Implementation Plan｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../../index.html">角色首頁</a>
+    <a href="../../../all-docs.html">全部文件</a>
+    <a href="../../../search.html">搜尋</a>
+    <a href="../../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../../all-docs.html">全部文件</a> ／ superpowers/plans</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">superpowers/plans</div><h1>音訊／影片轉錄服務 Implementation Plan</h1></header><div class="docwrap"><main><blockquote><p><strong>Archived historical implementation plan:</strong> 本檔保留當時 agent 執行計畫與脈絡；下列步驟不再作為目前 backlog 追蹤。</p></blockquote>
+<p><strong>Goal:</strong> 新增一個 CRUD 頁面，讓使用者上傳音訊／影片檔案，並透過背景工作呼叫 OpenAI <code>gpt-4o-transcribe</code> 產生繁體中文逐字稿（依年度切分目錄存成文字檔），前端可即時看到轉換進度。</p>
+<p><strong>Architecture:</strong> 沿用既有 ProjectPage 的 Blazor Server + AntDesign + EF Core 分層（Page → View → Service → DbContext / Repository → Entity，DTO + AutoMapper）。新增一條輕量背景管線：<code>Channel&lt;int&gt;</code> 工作佇列（Singleton）+ <code>BackgroundService</code> 消費者，消費者開 scope 取得 <code>TranscriptionProcessor</code>（呼叫 OpenAI、必要時用 FFmpeg 分段），全程更新資料庫狀態欄位；前端以既有「重新整理」流程輪詢狀態。</p>
+<p><strong>Tech Stack:</strong> .NET 10 / ASP.NET Core Blazor Server、AntDesign 1.6、EF Core 10（SQLite + SqlServer 雙 migration assembly）、AutoMapper、<code>System.Threading.Channels</code>、<code>IHttpClientFactory</code>、外部 FFmpeg、xUnit。</p>
+<p><strong>PRD 來源：</strong> <code>docs/prd/音訊影片轉錄服務PRD.md</code></p>
+<hr>
+<h2 id="重要前提與既有慣例" class="t1">重要前提與既有慣例</h2>
+<ul><li><strong>權限種子自動化：</strong> <code>Program.cs:297</code> 每次啟動都會把 <code>RolePermissionService.GetRolePermissionAllNameToJson()</code> 的全部權限寫回預設角色的 <code>TabViewJson</code>。因此只要在 <code>RolePermissionService</code> 與 <code>MagicObjectHelper</code> 加入新權限字串，下次啟動預設角色即自動擁有，<strong>不需</strong>改資料。</li><li><strong>目錄自動建立：</strong> <code>Program.cs:234-239</code> 用 <code>EnsureDirectoryExists(...)</code> 對每個設定路徑建目錄；新路徑要照加。</li><li><strong>既有檔案下載端點未實作：</strong> UI 參照的 <code>/api/project-files/{id}/download</code> 等路由在程式中並無對應 controller（既有未完成連結）。本功能改為實作真正可用的逐字稿檢視／下載端點，不沿用該斷鏈。</li><li><strong>資料模型簡化（YAGNI）：</strong> 一筆轉錄紀錄對應「一個媒體檔 + 一份逐字稿」，因此採<strong>單一資料表</strong> <code>MediaTranscription</code>（媒體與逐字稿皆以相對路徑欄位指向磁碟檔），不另建 <code>*File</code> 子表。</li><li><strong>版本號：</strong> 完成建置時，依 CLAUDE.md 將 <code>appsettings.json</code> 的 <code>SystemSettings.SystemInformation.SystemVersion</code> +1（見最後 Task）。</li></ul>
+<hr>
+<h2 id="file-structure將建立修改的檔案" class="t2">File Structure（將建立／修改的檔案）</h2>
+<p><strong>新建</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/Models/MediaTranscription.cs</code> — EF 實體。</li><li><code>KnowledgeExtraction.Models/AdapterModel/MediaTranscriptionAdapterModel.cs</code> — Blazor ViewModel + 狀態/格式常數。</li><li><code>KnowledgeExtraction.Models/Systems/MediaTranscriptionUploadFileInput.cs</code> — 上傳輸入模型。</li><li><code>KnowledgeExtraction.Models/Systems/OpenAISettings.cs</code> — OpenAI 強型別設定。</li><li><code>KnowledgeExtraction.Dtos/Models/MediaTranscriptionDto.cs</code>、<code>MediaTranscriptionCreateUpdateDto.cs</code></li><li><code>KnowledgeExtraction.Dtos/Commons/MediaTranscriptionSearchRequestDto.cs</code></li><li><code>KnowledgeExtraction.Business/Helpers/MediaFormatValidator.cs</code> — 格式驗證（純函式，TDD）。</li><li><code>KnowledgeExtraction.Business/Services/Transcription/ITranscriptionQueue.cs</code> + <code>TranscriptionQueue.cs</code> — Channel 佇列（Singleton）。</li><li><code>KnowledgeExtraction.Business/Services/Transcription/MediaChunker.cs</code> — FFmpeg 分段（純計畫計算可 TDD）。</li><li><code>KnowledgeExtraction.Business/Services/Transcription/OpenAITranscriptionClient.cs</code> — 呼叫 OpenAI。</li><li><code>KnowledgeExtraction.Business/Services/Transcription/TranscriptionProcessor.cs</code> — 單筆轉錄流程（scoped）。</li><li><code>KnowledgeExtraction.Web/BackgroundServices/TranscriptionBackgroundService.cs</code> — <code>BackgroundService</code> 消費者。</li><li><code>KnowledgeExtraction.Business/Services/DataAccess/MediaTranscriptionService.cs</code> — CRUD + 檔案 I/O + 入列。</li><li><code>KnowledgeExtraction.Web/Controllers/MediaTranscriptionController.cs</code> — API（含逐字稿下載）。</li><li><code>KnowledgeExtraction.Web/Components/Pages/MediaTranscriptions/MediaTranscriptionPage.razor</code></li><li><code>KnowledgeExtraction.Web/Components/Views/MediaTranscriptions/MediaTranscriptionView.razor</code> + <code>.razor.cs</code></li><li><code>KnowledgeExtraction.Tests/MediaFormatValidatorTests.cs</code>、<code>MediaChunkerPlanTests.cs</code></li></ul>
+<p><strong>修改</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/BackendDBContext.cs</code> — 註冊 <code>DbSet</code>。</li><li><code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code> — 新增 mapping profile。</li><li><code>KnowledgeExtraction.Models/Systems/SystemSettings.cs</code> — <code>ExternalFileSystem</code> 新增兩路徑。</li><li><code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs</code> — DI 註冊。</li><li><code>KnowledgeExtraction.Web/Program.cs</code> — <code>Configure&lt;OpenAISettings&gt;</code>、<code>AddHttpClient</code>、<code>AddHostedService</code>、<code>EnsureDirectoryExists</code> 兩路徑。</li><li><code>KnowledgeExtraction.Web/appsettings.json</code> — 路徑 + <code>OpenAISettings</code> + 版本號。</li><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code> — 新增選單項。</li><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code> — 新增權限常數。</li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code> — 加入權限。</li><li>EF Migration（兩個 assembly）。</li><li>文件：<code>docs/prd/...</code>、<code>docs/README.md</code>、<code>readme.md</code>（已於 PRD 階段建立索引；本階段於完成後補功能機制連結）。</li></ul>
+<hr>
+<h2 id="task-1設定模型與-appsettings" class="t3">Task 1：設定模型與 appsettings</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>KnowledgeExtraction.Models/Systems/SystemSettings.cs:43-51</code></li><li>Create: <code>KnowledgeExtraction.Models/Systems/OpenAISettings.cs</code></li><li>Modify: <code>KnowledgeExtraction.Web/appsettings.json</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: <code>ExternalFileSystem</code> 新增兩個路徑屬性</strong></li></ul>
+<p>在 <code>ExternalFileSystem</code> 類別（<code>SystemSettings.cs</code>）尾端 <code>MeetingFilePath</code> 後新增：</p>
+<pre><code>    public string MediaUploadPath { get; set; } = string.Empty;
+    public string TranscriptionFilePath { get; set; } = string.Empty;</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 建立 <code>OpenAISettings.cs</code></strong></li></ul>
+<pre><code>namespace KnowledgeExtraction.Models.Systems;
+
+public class OpenAISettings
+{
+    public const string SectionName = "OpenAISettings";
+
+    public string ApiKey { get; set; } = string.Empty;
+    public string BaseUrl { get; set; } = "https://api.openai.com/v1/";
+    public string Model { get; set; } = "gpt-4o-transcribe";
+    public string Language { get; set; } = "zh";
+    public string Prompt { get; set; } = "請以繁體中文輸出逐字稿。";
+    public int MaxChunkSizeMB { get; set; } = 25;
+    public int TimeoutSeconds { get; set; } = 600;
+    public string FfmpegPath { get; set; } = "ffmpeg";
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: appsettings.json 加入路徑與 OpenAISettings</strong></li></ul>
+<p>在 <code>SystemSettings.ExternalFileSystem</code> 物件內，於 <code>MeetingFilePath</code> 之後加入：</p>
+<pre><code>        "MediaUploadPath": "C:\\temp\\KnowledgeExtraction\\MediaUpload",
+        "TranscriptionFilePath": "C:\\temp\\KnowledgeExtraction\\Transcription"</code></pre>
+<p>在最外層物件（與 <code>SystemSettings</code> 同層、<code>AutoMapper:LicenseKey</code> 之前）加入：</p>
+<pre><code>  "OpenAISettings": {
+    "ApiKey": "",
+    "BaseUrl": "https://api.openai.com/v1/",
+    "Model": "gpt-4o-transcribe",
+    "Language": "zh",
+    "Prompt": "請以繁體中文輸出逐字稿。",
+    "MaxChunkSizeMB": 25,
+    "TimeoutSeconds": 600,
+    "FfmpegPath": "ffmpeg"
+  },</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4: 建置驗證</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Web</code> Expected: 建置成功（PASS）。</p>
+<ul><li>（歷史步驟）<strong>Step 5: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Models src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json
+git commit -m "feat: 新增音訊轉錄設定 OpenAISettings 與儲存路徑"</code></pre>
+<hr>
+<h2 id="task-2實體與資料庫dbset--migration" class="t4">Task 2：實體與資料庫（DbSet + Migration）</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.AccessDatas/Models/MediaTranscription.cs</code></li><li>Modify: <code>KnowledgeExtraction.AccessDatas/BackendDBContext.cs:23</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 建立實體 <code>MediaTranscription.cs</code></strong></li></ul>
+<pre><code>using System.ComponentModel.DataAnnotations;
+
+namespace KnowledgeExtraction.AccessDatas.Models;
+
+public class MediaTranscription
+{
+    public int Id { get; set; }
+
+    [Required]
+    public string Title { get; set; } = string.Empty;
+
+    public string? Description { get; set; }
+
+    [Required]
+    public string OriginalFileName { get; set; } = string.Empty;
+
+    [Required]
+    public string StoredFileName { get; set; } = string.Empty;
+
+    /// &lt;summary&gt;媒體檔相對路徑，格式 {yyyy}/{guid}.ext（依上傳年度切分）&lt;/summary&gt;
+    [Required]
+    public string MediaRelativePath { get; set; } = string.Empty;
+
+    public string ContentType { get; set; } = "application/octet-stream";
+
+    public long FileSize { get; set; }
+
+    public DateTime UploadedAt { get; set; } = DateTime.Now;
+
+    /// &lt;summary&gt;等待中 / 處理中 / 已完成 / 失敗&lt;/summary&gt;
+    [Required]
+    public string Status { get; set; } = "等待中";
+
+    [Range(0, 100)]
+    public int ProgressPercentage { get; set; }
+
+    public string? ErrorMessage { get; set; }
+
+    /// &lt;summary&gt;逐字稿檔相對路徑，格式 {yyyy}/{guid}.txt&lt;/summary&gt;
+    public string? TranscriptRelativePath { get; set; }
+
+    public string Model { get; set; } = string.Empty;
+
+    public string Language { get; set; } = string.Empty;
+
+    public DateTime? CompletedAt { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 註冊 DbSet</strong></li></ul>
+<p>在 <code>BackendDBContext.cs</code> 的 <code>RoleView</code> DbSet 後（第 24 行附近）新增：</p>
+<pre><code>    public virtual DbSet&lt;MediaTranscription&gt; MediaTranscription { get; set; }</code></pre>
+<p>（本實體無關聯子表，沿用 <code>OnModelCreating</code> 預設 Restrict 政策即可，毋須額外 fluent 設定。）</p>
+<ul><li>（歷史步驟）<strong>Step 3: 建置驗證</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas</code> Expected: PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 4: 新增 Migration（預設 SQLite 的 AccessDatas）</strong></li></ul>
+<p>Run:</p>
+<pre><code>dotnet ef migrations add AddMediaTranscription --project src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas --startup-project src/KnowledgeExtraction/KnowledgeExtraction.Web</code></pre>
+<p>Expected: 於 <code>KnowledgeExtraction.AccessDatas/Migrations</code> 產生 <code>*_AddMediaTranscription.cs</code>。</p>
+<ul><li>（歷史步驟）<strong>Step 5: 新增 Migration（SqlServer assembly）</strong></li></ul>
+<p>Run（指定 SqlServer migration assembly；需先將 <code>appsettings.json</code> 的 <code>SystemSettings:DatabaseProvider</code> 暫設為 <code>SqlServer</code>，或以環境變數覆寫後再執行；完成後改回 <code>Sqlite</code>）：</p>
+<pre><code>dotnet ef migrations add AddMediaTranscription --project src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas.SqlServerMigrations --startup-project src/KnowledgeExtraction/KnowledgeExtraction.Web</code></pre>
+<p>Expected: 於 SqlServerMigrations 專案產生對應 migration。</p>
+<blockquote><p>註：若環境僅使用 SQLite，可只做 Step 4，並於 commit message 標註 SqlServer migration 待補。</p></blockquote>
+<ul><li>（歷史步驟）<strong>Step 6: 啟動套用驗證</strong></li></ul>
+<p>Run: <code>dotnet run --project src/KnowledgeExtraction/KnowledgeExtraction.Web</code>（啟動後 <code>Database.Migrate()</code> 會建表） Expected: 啟動日誌出現 <code>Database migrations applied successfully.</code>，無例外；確認 DB 出現 <code>MediaTranscription</code> 資料表後停止。</p>
+<ul><li>（歷史步驟）<strong>Step 7: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas src/KnowledgeExtraction/KnowledgeExtraction.AccessDatas.SqlServerMigrations
+git commit -m "feat: 新增 MediaTranscription 實體與資料庫 Migration"</code></pre>
+<hr>
+<h2 id="task-3格式驗證器tdd" class="t5">Task 3：格式驗證器（TDD）</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Business/Helpers/MediaFormatValidator.cs</code></li><li>Test: <code>KnowledgeExtraction.Tests/MediaFormatValidatorTests.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 撰寫失敗測試</strong></li></ul>
+<p><code>MediaFormatValidatorTests.cs</code>：</p>
+<pre><code>using KnowledgeExtraction.Business.Helpers;
+using Xunit;
+
+namespace KnowledgeExtraction.Tests;
+
+public class MediaFormatValidatorTests
+{
+    [Theory]
+    [InlineData("a.mp3")]
+    [InlineData("A.MP4")]
+    [InlineData("talk.wav")]
+    [InlineData("clip.webm")]
+    [InlineData("voice.m4a")]
+    public void IsSupported_returns_true_for_allowed_extensions(string fileName)
+    {
+        Assert.True(MediaFormatValidator.IsSupported(fileName));
+    }
+
+    [Theory]
+    [InlineData("a.txt")]
+    [InlineData("a.pdf")]
+    [InlineData("noext")]
+    [InlineData("")]
+    public void IsSupported_returns_false_for_unsupported(string fileName)
+    {
+        Assert.False(MediaFormatValidator.IsSupported(fileName));
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 執行測試確認失敗</strong></li></ul>
+<p>Run: <code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests --filter MediaFormatValidatorTests</code> Expected: 編譯失敗或測試失敗（<code>MediaFormatValidator</code> 不存在）。</p>
+<ul><li>（歷史步驟）<strong>Step 3: 實作 <code>MediaFormatValidator.cs</code></strong></li></ul>
+<pre><code>namespace KnowledgeExtraction.Business.Helpers;
+
+public static class MediaFormatValidator
+{
+    // OpenAI 語音轉文字支援之副檔名
+    public static readonly IReadOnlySet&lt;string&gt; AllowedExtensions = new HashSet&lt;string&gt;(StringComparer.OrdinalIgnoreCase)
+    {
+        ".flac", ".m4a", ".mp3", ".mp4", ".mpeg", ".mpga", ".oga", ".ogg", ".wav", ".webm"
+    };
+
+    public static bool IsSupported(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        var ext = Path.GetExtension(fileName);
+        return !string.IsNullOrEmpty(ext) &amp;&amp; AllowedExtensions.Contains(ext);
+    }
+
+    public static string AllowedExtensionsText =&gt; string.Join("、", AllowedExtensions);
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4: 執行測試確認通過</strong></li></ul>
+<p>Run: <code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests --filter MediaFormatValidatorTests</code> Expected: PASS（全部綠燈）。</p>
+<ul><li>（歷史步驟）<strong>Step 5: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Business/Helpers/MediaFormatValidator.cs src/KnowledgeExtraction/KnowledgeExtraction.Tests/MediaFormatValidatorTests.cs
+git commit -m "feat: 新增媒體格式驗證器並補單元測試"</code></pre>
+<hr>
+<h2 id="task-4dtoadaptermodel上傳輸入模型automapper" class="t6">Task 4：DTO、AdapterModel、上傳輸入模型、AutoMapper</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Models/AdapterModel/MediaTranscriptionAdapterModel.cs</code></li><li>Create: <code>KnowledgeExtraction.Models/Systems/MediaTranscriptionUploadFileInput.cs</code></li><li>Create: <code>KnowledgeExtraction.Dtos/Models/MediaTranscriptionDto.cs</code>、<code>MediaTranscriptionCreateUpdateDto.cs</code></li><li>Create: <code>KnowledgeExtraction.Dtos/Commons/MediaTranscriptionSearchRequestDto.cs</code></li><li>Modify: <code>KnowledgeExtraction.Business/Models/AutoMapping.cs:49</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: AdapterModel（含狀態常數）</strong></li></ul>
+<p><code>MediaTranscriptionAdapterModel.cs</code>：</p>
+<pre><code>using System.ComponentModel.DataAnnotations;
+
+namespace KnowledgeExtraction.Models.AdapterModel;
+
+public class MediaTranscriptionAdapterModel
+{
+    public const string StatusPending = "等待中";
+    public const string StatusProcessing = "處理中";
+    public const string StatusCompleted = "已完成";
+    public const string StatusFailed = "失敗";
+
+    public int Id { get; set; }
+
+    [Required(ErrorMessage = "標題 不可為空白")]
+    public string Title { get; set; } = string.Empty;
+
+    public string? Description { get; set; }
+
+    public string OriginalFileName { get; set; } = string.Empty;
+    public string StoredFileName { get; set; } = string.Empty;
+    public string MediaRelativePath { get; set; } = string.Empty;
+    public string ContentType { get; set; } = "application/octet-stream";
+    public long FileSize { get; set; }
+    public DateTime UploadedAt { get; set; }
+    public string Status { get; set; } = StatusPending;
+    public int ProgressPercentage { get; set; }
+    public string? ErrorMessage { get; set; }
+    public string? TranscriptRelativePath { get; set; }
+    public string Model { get; set; } = string.Empty;
+    public string Language { get; set; } = string.Empty;
+    public DateTime? CompletedAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 上傳輸入模型</strong></li></ul>
+<p><code>MediaTranscriptionUploadFileInput.cs</code>（與 <code>ProjectUploadFileInput</code> 同形）：</p>
+<pre><code>namespace KnowledgeExtraction.Models.Systems;
+
+public class MediaTranscriptionUploadFileInput
+{
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = "application/octet-stream";
+    public long FileSize { get; set; }
+    public Stream Content { get; set; } = Stream.Null;
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: DTO 三件</strong></li></ul>
+<p><code>MediaTranscriptionCreateUpdateDto.cs</code>：</p>
+<pre><code>using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+
+namespace KnowledgeExtraction.Dtos.Models;
+
+public class MediaTranscriptionCreateUpdateDto
+{
+    [JsonPropertyName("id")]
+    public int? Id { get; set; }
+
+    [Required(ErrorMessage = "標題 不可為空白")]
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+
+    [StringLength(2000, ErrorMessage = "描述長度不可超過 2000 字元")]
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+}</code></pre>
+<p><code>MediaTranscriptionDto.cs</code>：</p>
+<pre><code>using System.Text.Json.Serialization;
+
+namespace KnowledgeExtraction.Dtos.Models;
+
+public class MediaTranscriptionDto : MediaTranscriptionCreateUpdateDto
+{
+    [JsonPropertyName("originalFileName")]
+    public string OriginalFileName { get; set; } = string.Empty;
+
+    [JsonPropertyName("fileSize")]
+    public long FileSize { get; set; }
+
+    [JsonPropertyName("uploadedAt")]
+    public DateTime UploadedAt { get; set; }
+
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = string.Empty;
+
+    [JsonPropertyName("progressPercentage")]
+    public int ProgressPercentage { get; set; }
+
+    [JsonPropertyName("errorMessage")]
+    public string? ErrorMessage { get; set; }
+
+    [JsonPropertyName("completedAt")]
+    public DateTime? CompletedAt { get; set; }
+}</code></pre>
+<p><code>MediaTranscriptionSearchRequestDto.cs</code>：</p>
+<pre><code>namespace KnowledgeExtraction.Dtos.Commons;
+
+public class MediaTranscriptionSearchRequestDto : SearchRequestBaseDto
+{
+    public string? Status { get; set; }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4: AutoMapper profile</strong></li></ul>
+<p>在 <code>AutoMapping.cs</code> 的 <code>#region Project ... #endregion</code> 之後（第 49 行後）新增：</p>
+<pre><code>        #region MediaTranscription
+        CreateMap&lt;MediaTranscription, MediaTranscriptionAdapterModel&gt;();
+        CreateMap&lt;MediaTranscriptionAdapterModel, MediaTranscription&gt;();
+        CreateMap&lt;MediaTranscription, MediaTranscriptionDto&gt;();
+        CreateMap&lt;MediaTranscriptionDto, MediaTranscription&gt;();
+        CreateMap&lt;MediaTranscription, MediaTranscriptionCreateUpdateDto&gt;();
+        CreateMap&lt;MediaTranscriptionCreateUpdateDto, MediaTranscription&gt;();
+        #endregion</code></pre>
+<ul><li>（歷史步驟）<strong>Step 5: 建置驗證</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Web</code> Expected: PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 6: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Models src/KnowledgeExtraction/KnowledgeExtraction.Dtos src/KnowledgeExtraction/KnowledgeExtraction.Business/Models/AutoMapping.cs
+git commit -m "feat: 新增音訊轉錄 DTO/AdapterModel 與 AutoMapper 映射"</code></pre>
+<hr>
+<h2 id="task-5背景佇列channelsingleton" class="t7">Task 5：背景佇列（Channel，Singleton）</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Business/Services/Transcription/ITranscriptionQueue.cs</code></li><li>Create: <code>KnowledgeExtraction.Business/Services/Transcription/TranscriptionQueue.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 介面</strong></li></ul>
+<pre><code>namespace KnowledgeExtraction.Business.Services.Transcription;
+
+public interface ITranscriptionQueue
+{
+    ValueTask EnqueueAsync(int mediaTranscriptionId, CancellationToken cancellationToken = default);
+    IAsyncEnumerable&lt;int&gt; DequeueAllAsync(CancellationToken cancellationToken);
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 實作</strong></li></ul>
+<pre><code>using System.Threading.Channels;
+
+namespace KnowledgeExtraction.Business.Services.Transcription;
+
+public class TranscriptionQueue : ITranscriptionQueue
+{
+    private readonly Channel&lt;int&gt; channel =
+        Channel.CreateUnbounded&lt;int&gt;(new UnboundedChannelOptions { SingleReader = true });
+
+    public ValueTask EnqueueAsync(int mediaTranscriptionId, CancellationToken cancellationToken = default)
+        =&gt; channel.Writer.WriteAsync(mediaTranscriptionId, cancellationToken);
+
+    public IAsyncEnumerable&lt;int&gt; DequeueAllAsync(CancellationToken cancellationToken)
+        =&gt; channel.Reader.ReadAllAsync(cancellationToken);
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: 建置驗證</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Business</code> Expected: PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 4: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription
+git commit -m "feat: 新增轉錄背景工作佇列 (Channel)"</code></pre>
+<hr>
+<h2 id="task-6ffmpeg-分段計畫tdd-計算--process-切割" class="t8">Task 6：FFmpeg 分段計畫（TDD 計算 + Process 切割）</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Business/Services/Transcription/MediaChunker.cs</code></li><li>Test: <code>KnowledgeExtraction.Tests/MediaChunkerPlanTests.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 撰寫失敗測試（純計算：是否需要分段、段數）</strong></li></ul>
+<p><code>MediaChunkerPlanTests.cs</code>：</p>
+<pre><code>using KnowledgeExtraction.Business.Services.Transcription;
+using Xunit;
+
+namespace KnowledgeExtraction.Tests;
+
+public class MediaChunkerPlanTests
+{
+    [Fact]
+    public void NeedsChunking_false_when_under_limit()
+    {
+        Assert.False(MediaChunker.NeedsChunking(fileSizeBytes: 10L * 1024 * 1024, maxChunkSizeMB: 25));
+    }
+
+    [Fact]
+    public void NeedsChunking_true_when_over_limit()
+    {
+        Assert.True(MediaChunker.NeedsChunking(fileSizeBytes: 30L * 1024 * 1024, maxChunkSizeMB: 25));
+    }
+
+    [Theory]
+    [InlineData(50, 25, 2)]
+    [InlineData(60, 25, 3)]
+    [InlineData(25, 25, 1)]
+    public void EstimateChunkCount_rounds_up(long fileMB, int maxMB, int expected)
+    {
+        Assert.Equal(expected, MediaChunker.EstimateChunkCount(fileMB * 1024 * 1024, maxMB));
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 執行確認失敗</strong></li></ul>
+<p>Run: <code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests --filter MediaChunkerPlanTests</code> Expected: 失敗（<code>MediaChunker</code> 不存在）。</p>
+<ul><li>（歷史步驟）<strong>Step 3: 實作 <code>MediaChunker.cs</code>（計算 + FFmpeg 切割）</strong></li></ul>
+<pre><code>using System.Diagnostics;
+
+namespace KnowledgeExtraction.Business.Services.Transcription;
+
+public class MediaChunker
+{
+    private readonly string ffmpegPath;
+
+    public MediaChunker(string ffmpegPath)
+    {
+        this.ffmpegPath = string.IsNullOrWhiteSpace(ffmpegPath) ? "ffmpeg" : ffmpegPath;
+    }
+
+    public static bool NeedsChunking(long fileSizeBytes, int maxChunkSizeMB)
+        =&gt; fileSizeBytes &gt; (long)maxChunkSizeMB * 1024 * 1024;
+
+    public static int EstimateChunkCount(long fileSizeBytes, int maxChunkSizeMB)
+    {
+        var max = (long)maxChunkSizeMB * 1024 * 1024;
+        if (max &lt;= 0)
+        {
+            return 1;
+        }
+        return (int)Math.Max(1, Math.Ceiling(fileSizeBytes / (double)max));
+    }
+
+    /// &lt;summary&gt;
+    /// 以位元率估算每段秒數，使用 ffmpeg segment 將輸入切成多個音檔片段，回傳片段完整路徑（依序）。
+    /// &lt;/summary&gt;
+    public async Task&lt;List&lt;string&gt;&gt; SplitAsync(
+        string inputFullPath,
+        string outputDirectory,
+        int chunkCount,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(outputDirectory);
+
+        var totalSeconds = await GetDurationSecondsAsync(inputFullPath, cancellationToken);
+        var segmentSeconds = Math.Max(1, (int)Math.Ceiling(totalSeconds / chunkCount));
+        var pattern = Path.Combine(outputDirectory, "chunk_%03d.mp3");
+
+        // 統一輸出為 mp3，確保切割後每段為 Whisper 支援格式且體積可控
+        var args = $"-y -i \"{inputFullPath}\" -f segment -segment_time {segmentSeconds} -vn -acodec libmp3lame -q:a 4 \"{pattern}\"";
+        await RunFfmpegAsync(args, cancellationToken);
+
+        return Directory.GetFiles(outputDirectory, "chunk_*.mp3").OrderBy(x =&gt; x).ToList();
+    }
+
+    private async Task&lt;double&gt; GetDurationSecondsAsync(string inputFullPath, CancellationToken cancellationToken)
+    {
+        // 以 ffmpeg 讀取 stderr 解析時長；失敗則回傳保守值
+        var psi = new ProcessStartInfo
+        {
+            FileName = ffmpegPath,
+            Arguments = $"-i \"{inputFullPath}\"",
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var process = Process.Start(psi)!;
+        var stderr = await process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+
+        var match = System.Text.RegularExpressions.Regex.Match(stderr, @"Duration: (\d+):(\d+):(\d+\.\d+)");
+        if (match.Success)
+        {
+            return int.Parse(match.Groups[1].Value) * 3600
+                 + int.Parse(match.Groups[2].Value) * 60
+                 + double.Parse(match.Groups[3].Value);
+        }
+        return 0;
+    }
+
+    private async Task RunFfmpegAsync(string arguments, CancellationToken cancellationToken)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = ffmpegPath,
+            Arguments = arguments,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var process = Process.Start(psi)
+            ?? throw new InvalidOperationException("無法啟動 FFmpeg，請確認已安裝並設定 OpenAISettings:FfmpegPath。");
+        var stderr = await process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"FFmpeg 執行失敗 (ExitCode={process.ExitCode})：{stderr}");
+        }
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4: 執行確認通過</strong></li></ul>
+<p>Run: <code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests --filter MediaChunkerPlanTests</code> Expected: PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 5: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription/MediaChunker.cs src/KnowledgeExtraction/KnowledgeExtraction.Tests/MediaChunkerPlanTests.cs
+git commit -m "feat: 新增 FFmpeg 媒體分段器與分段計算單元測試"</code></pre>
+<hr>
+<h2 id="task-7openai-轉錄-client" class="t1">Task 7：OpenAI 轉錄 Client</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Business/Services/Transcription/OpenAITranscriptionClient.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 實作 Client</strong></li></ul>
+<pre><code>using System.Net.Http.Headers;
+using Microsoft.Extensions.Options;
+using KnowledgeExtraction.Models.Systems;
+
+namespace KnowledgeExtraction.Business.Services.Transcription;
+
+public class OpenAITranscriptionClient
+{
+    private readonly HttpClient httpClient;
+    private readonly OpenAISettings settings;
+
+    public OpenAITranscriptionClient(HttpClient httpClient, IOptions&lt;OpenAISettings&gt; options)
+    {
+        this.httpClient = httpClient;
+        settings = options.Value;
+    }
+
+    /// &lt;summary&gt;
+    /// 將單一音檔（須小於 API 25MB 上限）送往 OpenAI 取得繁體中文逐字稿純文字。
+    /// &lt;/summary&gt;
+    public async Task&lt;string&gt; TranscribeAsync(string audioFullPath, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ApiKey))
+        {
+            throw new InvalidOperationException("尚未設定 OpenAISettings:ApiKey。");
+        }
+
+        using var form = new MultipartFormDataContent();
+        await using var fileStream = File.OpenRead(audioFullPath);
+        var fileContent = new StreamContent(fileStream);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        form.Add(fileContent, "file", Path.GetFileName(audioFullPath));
+        form.Add(new StringContent(settings.Model), "model");
+        form.Add(new StringContent(settings.Language), "language");
+        form.Add(new StringContent(settings.Prompt), "prompt");
+        form.Add(new StringContent("text"), "response_format");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "audio/transcriptions")
+        {
+            Content = form
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.ApiKey);
+
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"OpenAI 轉錄失敗 (HTTP {(int)response.StatusCode})：{body}");
+        }
+
+        // response_format=text 時回傳純文字逐字稿
+        return body.Trim();
+    }
+}</code></pre>
+<blockquote><p>註：<code>BaseUrl</code>、<code>Timeout</code> 於 Task 10 的 <code>AddHttpClient</code> 設定。</p></blockquote>
+<ul><li>（歷史步驟）<strong>Step 2: 建置驗證</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Business</code> Expected: PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 3: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription/OpenAITranscriptionClient.cs
+git commit -m "feat: 新增 OpenAI 轉錄 HttpClient 用戶端"</code></pre>
+<hr>
+<h2 id="task-8轉錄處理器單筆流程scoped" class="t2">Task 8：轉錄處理器（單筆流程，scoped）</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Business/Services/Transcription/TranscriptionProcessor.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 實作 Processor</strong></li></ul>
+<pre><code>using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using KnowledgeExtraction.AccessDatas;
+using KnowledgeExtraction.AccessDatas.Models;
+using KnowledgeExtraction.Models.AdapterModel;
+using KnowledgeExtraction.Models.Systems;
+
+namespace KnowledgeExtraction.Business.Services.Transcription;
+
+public class TranscriptionProcessor
+{
+    private readonly BackendDBContext context;
+    private readonly OpenAITranscriptionClient client;
+    private readonly OpenAISettings settings;
+    private readonly string mediaRootPath;
+    private readonly string transcriptRootPath;
+    private readonly ILogger&lt;TranscriptionProcessor&gt; logger;
+
+    public TranscriptionProcessor(
+        BackendDBContext context,
+        OpenAITranscriptionClient client,
+        IOptions&lt;OpenAISettings&gt; openAiOptions,
+        IOptions&lt;SystemSettings&gt; systemSettings,
+        ILogger&lt;TranscriptionProcessor&gt; logger)
+    {
+        this.context = context;
+        this.client = client;
+        settings = openAiOptions.Value;
+        mediaRootPath = systemSettings.Value.ExternalFileSystem.MediaUploadPath;
+        transcriptRootPath = systemSettings.Value.ExternalFileSystem.TranscriptionFilePath;
+        this.logger = logger;
+    }
+
+    public async Task ProcessAsync(int id, CancellationToken cancellationToken)
+    {
+        var record = await context.MediaTranscription.FirstOrDefaultAsync(x =&gt; x.Id == id, cancellationToken);
+        if (record is null)
+        {
+            logger.LogWarning("Transcription record not found. Id={Id}", id);
+            return;
+        }
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"transcribe_{id}_{Guid.NewGuid():N}");
+
+        try
+        {
+            await UpdateStatusAsync(record, MediaTranscriptionAdapterModel.StatusProcessing, 0, null, cancellationToken);
+
+            var mediaFullPath = Path.Combine(mediaRootPath, NormalizePath(record.MediaRelativePath));
+            var chunker = new MediaChunker(settings.FfmpegPath);
+
+            List&lt;string&gt; partsToTranscribe;
+            if (MediaChunker.NeedsChunking(record.FileSize, settings.MaxChunkSizeMB))
+            {
+                var chunkCount = MediaChunker.EstimateChunkCount(record.FileSize, settings.MaxChunkSizeMB);
+                logger.LogInformation("Splitting media into {Count} chunks. Id={Id}", chunkCount, id);
+                partsToTranscribe = await chunker.SplitAsync(mediaFullPath, tempDir, chunkCount, cancellationToken);
+            }
+            else
+            {
+                partsToTranscribe = [mediaFullPath];
+            }
+
+            var segments = new List&lt;string&gt;();
+            for (var i = 0; i &lt; partsToTranscribe.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var text = await client.TranscribeAsync(partsToTranscribe[i], cancellationToken);
+                segments.Add(text);
+
+                var progress = (int)Math.Round((i + 1) / (double)partsToTranscribe.Count * 100);
+                await UpdateStatusAsync(record, MediaTranscriptionAdapterModel.StatusProcessing, progress, null, cancellationToken);
+            }
+
+            var transcript = string.Join(Environment.NewLine, segments).Trim();
+            var transcriptRelativePath = await SaveTranscriptAsync(record, transcript, cancellationToken);
+
+            record.TranscriptRelativePath = transcriptRelativePath;
+            record.Model = settings.Model;
+            record.Language = settings.Language;
+            record.CompletedAt = DateTime.Now;
+            await UpdateStatusAsync(record, MediaTranscriptionAdapterModel.StatusCompleted, 100, null, cancellationToken);
+            logger.LogInformation("Transcription completed. Id={Id}", id);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Transcription failed. Id={Id}", id);
+            await UpdateStatusAsync(record, MediaTranscriptionAdapterModel.StatusFailed, record.ProgressPercentage, ex.Message, cancellationToken);
+        }
+        finally
+        {
+            TryDeleteDirectory(tempDir);
+        }
+    }
+
+    private async Task&lt;string&gt; SaveTranscriptAsync(MediaTranscription record, string transcript, CancellationToken cancellationToken)
+    {
+        var year = record.UploadedAt.Year.ToString("0000");
+        var relativePath = Path.Combine(year, $"{Guid.NewGuid():N}.txt");
+        var fullPath = Path.Combine(transcriptRootPath, relativePath);
+        var directory = Path.GetDirectoryName(fullPath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        await File.WriteAllTextAsync(fullPath, transcript, new System.Text.UTF8Encoding(false), cancellationToken);
+        return relativePath.Replace('\\', '/');
+    }
+
+    private async Task UpdateStatusAsync(MediaTranscription record, string status, int progress, string? error, CancellationToken cancellationToken)
+    {
+        record.Status = status;
+        record.ProgressPercentage = progress;
+        record.ErrorMessage = error;
+        record.UpdatedAt = DateTime.Now;
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string NormalizePath(string relativePath)
+        =&gt; relativePath.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+
+    private void TryDeleteDirectory(string dir)
+    {
+        try
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to clean temp dir {Dir}", dir);
+        }
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 建置驗證</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Business</code> Expected: PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 3: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Transcription/TranscriptionProcessor.cs
+git commit -m "feat: 新增單筆轉錄處理流程 (分段/呼叫/寫檔/進度)"</code></pre>
+<hr>
+<h2 id="task-9背景服務backgroundservice-消費者" class="t3">Task 9：背景服務（BackgroundService 消費者）</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Web/BackgroundServices/TranscriptionBackgroundService.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 實作 HostedService</strong></li></ul>
+<pre><code>using KnowledgeExtraction.Business.Services.Transcription;
+
+namespace KnowledgeExtraction.Web.BackgroundServices;
+
+public class TranscriptionBackgroundService : BackgroundService
+{
+    private readonly ITranscriptionQueue queue;
+    private readonly IServiceScopeFactory scopeFactory;
+    private readonly ILogger&lt;TranscriptionBackgroundService&gt; logger;
+
+    public TranscriptionBackgroundService(
+        ITranscriptionQueue queue,
+        IServiceScopeFactory scopeFactory,
+        ILogger&lt;TranscriptionBackgroundService&gt; logger)
+    {
+        this.queue = queue;
+        this.scopeFactory = scopeFactory;
+        this.logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        logger.LogInformation("TranscriptionBackgroundService started.");
+        await foreach (var id in queue.DequeueAllAsync(stoppingToken))
+        {
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var processor = scope.ServiceProvider.GetRequiredService&lt;TranscriptionProcessor&gt;();
+                await processor.ProcessAsync(id, stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unhandled error while processing transcription. Id={Id}", id);
+            }
+        }
+    }
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 建置驗證</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Web</code> Expected: PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 3: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Web/BackgroundServices
+git commit -m "feat: 新增轉錄背景服務消費者"</code></pre>
+<hr>
+<h2 id="task-10di-註冊與-programcs-連接" class="t4">Task 10：DI 註冊與 Program.cs 連接</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs:73</code></li><li>Modify: <code>KnowledgeExtraction.Web/Program.cs</code>（options、httpclient、hosted service、目錄）</li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 在 <code>AddApplicationServices</code> 註冊服務</strong></li></ul>
+<p>於 <code>ServiceCollectionExtensions.AddApplicationServices</code>（<code>MeetingService</code> 註冊之後，<code>return services;</code> 之前）新增：</p>
+<pre><code>        services.AddScoped&lt;MediaTranscriptionService&gt;();
+        services.AddSingleton&lt;ITranscriptionQueue, TranscriptionQueue&gt;();
+        services.AddScoped&lt;TranscriptionProcessor&gt;();</code></pre>
+<p>並在檔案頂端 <code>using</code> 區加入：</p>
+<pre><code>using KnowledgeExtraction.Business.Services.Transcription;</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 在 <code>AddConfiguredOptions</code> 綁定 OpenAISettings</strong></li></ul>
+<p>於 <code>AddConfiguredOptions</code> 內加入：</p>
+<pre><code>        services.Configure&lt;OpenAISettings&gt;(configuration.GetSection(OpenAISettings.SectionName));</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: Program.cs 註冊 HttpClient 與 HostedService</strong></li></ul>
+<p>在 <code>Program.cs</code> 的 <code>builder.Services.AddApplicationServices();</code>（第 247 行）之後新增：</p>
+<pre><code>                #region 轉錄背景工作與 OpenAI HttpClient
+                var openAiSettings = builder.Configuration
+                    .GetSection(OpenAISettings.SectionName)
+                    .Get&lt;OpenAISettings&gt;() ?? new OpenAISettings();
+                builder.Services.AddHttpClient&lt;OpenAITranscriptionClient&gt;(client =&gt;
+                {
+                    client.BaseAddress = new Uri(openAiSettings.BaseUrl);
+                    client.Timeout = TimeSpan.FromSeconds(openAiSettings.TimeoutSeconds);
+                });
+                builder.Services.AddHostedService&lt;TranscriptionBackgroundService&gt;();
+                #endregion</code></pre>
+<p>於 <code>Program.cs</code> 頂端 <code>using</code> 區加入：</p>
+<pre><code>using KnowledgeExtraction.Business.Services.Transcription;
+using KnowledgeExtraction.Web.BackgroundServices;</code></pre>
+<ul><li>（歷史步驟）<strong>Step 4: Program.cs 新增目錄建立</strong></li></ul>
+<p>在 <code>Program.cs:239</code>（<code>EnsureDirectoryExists(... "meeting file");</code> 之後）新增：</p>
+<pre><code>                EnsureDirectoryExists(systemSettings.ExternalFileSystem.MediaUploadPath, "media upload");
+                EnsureDirectoryExists(systemSettings.ExternalFileSystem.TranscriptionFilePath, "transcription");</code></pre>
+<ul><li>（歷史步驟）<strong>Step 5: 建置驗證</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Web</code> Expected: PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 6: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs src/KnowledgeExtraction/KnowledgeExtraction.Web/Program.cs
+git commit -m "feat: 註冊轉錄服務、OpenAI HttpClient 與背景工作"</code></pre>
+<hr>
+<h2 id="task-11應用服務crud--檔案-io--入列" class="t5">Task 11：應用服務（CRUD + 檔案 I/O + 入列）</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Business/Services/DataAccess/MediaTranscriptionService.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 實作 Service</strong></li></ul>
+<p>以 <code>ProjectService</code> 為藍本。完整內容如下：</p>
+<pre><code>using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using KnowledgeExtraction.AccessDatas;
+using KnowledgeExtraction.AccessDatas.Models;
+using KnowledgeExtraction.Business.Factories;
+using KnowledgeExtraction.Business.Helpers;
+using KnowledgeExtraction.Business.Services.Transcription;
+using KnowledgeExtraction.Models.AdapterModel;
+using KnowledgeExtraction.Models.Systems;
+
+namespace KnowledgeExtraction.Business.Services.DataAccess;
+
+public class MediaTranscriptionService
+{
+    public const long MaxUploadFileSize = 1024L * 1024L * 1024L;
+
+    private readonly BackendDBContext context;
+    private readonly ITranscriptionQueue queue;
+    private readonly string mediaRootPath;
+
+    public IMapper Mapper { get; }
+    public ILogger&lt;MediaTranscriptionService&gt; Logger { get; }
+
+    public MediaTranscriptionService(
+        BackendDBContext context,
+        IMapper mapper,
+        ILogger&lt;MediaTranscriptionService&gt; logger,
+        ITranscriptionQueue queue,
+        IOptions&lt;SystemSettings&gt; systemSettings)
+    {
+        this.context = context;
+        Mapper = mapper;
+        Logger = logger;
+        this.queue = queue;
+        mediaRootPath = systemSettings.Value.ExternalFileSystem.MediaUploadPath;
+    }
+
+    public async Task&lt;DataRequestResult&lt;MediaTranscriptionAdapterModel&gt;&gt; GetAsync(DataRequest dataRequest)
+    {
+        DataRequestResult&lt;MediaTranscriptionAdapterModel&gt; result = new();
+        IQueryable&lt;MediaTranscription&gt; dataSource = context.MediaTranscription.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(dataRequest.Search))
+        {
+            var search = dataRequest.Search.Trim();
+            dataSource = dataSource.Where(x =&gt;
+                x.Title.Contains(search) ||
+                (x.Description ?? string.Empty).Contains(search) ||
+                x.OriginalFileName.Contains(search) ||
+                x.Status.Contains(search));
+        }
+
+        // 排序：依 SortField 對應欄位。可排序欄位：Title, Status, FileSize, UploadedAt, CompletedAt, CreatedAt
+        if (!string.IsNullOrWhiteSpace(dataRequest.SortField))
+        {
+            bool? desc = dataRequest.SortDescending;
+            dataSource = (dataRequest.SortField, desc) switch
+            {
+                (nameof(MediaTranscriptionAdapterModel.Title), true) =&gt; dataSource.OrderByDescending(x =&gt; x.Title).ThenByDescending(x =&gt; x.Id),
+                (nameof(MediaTranscriptionAdapterModel.Title), false) =&gt; dataSource.OrderBy(x =&gt; x.Title).ThenBy(x =&gt; x.Id),
+                (nameof(MediaTranscriptionAdapterModel.Status), true) =&gt; dataSource.OrderByDescending(x =&gt; x.Status).ThenByDescending(x =&gt; x.Id),
+                (nameof(MediaTranscriptionAdapterModel.Status), false) =&gt; dataSource.OrderBy(x =&gt; x.Status).ThenBy(x =&gt; x.Id),
+                (nameof(MediaTranscriptionAdapterModel.FileSize), true) =&gt; dataSource.OrderByDescending(x =&gt; x.FileSize).ThenByDescending(x =&gt; x.Id),
+                (nameof(MediaTranscriptionAdapterModel.FileSize), false) =&gt; dataSource.OrderBy(x =&gt; x.FileSize).ThenBy(x =&gt; x.Id),
+                (nameof(MediaTranscriptionAdapterModel.UploadedAt), true) =&gt; dataSource.OrderByDescending(x =&gt; x.UploadedAt).ThenByDescending(x =&gt; x.Id),
+                (nameof(MediaTranscriptionAdapterModel.UploadedAt), false) =&gt; dataSource.OrderBy(x =&gt; x.UploadedAt).ThenBy(x =&gt; x.Id),
+                (nameof(MediaTranscriptionAdapterModel.CompletedAt), true) =&gt; dataSource.OrderByDescending(x =&gt; x.CompletedAt).ThenByDescending(x =&gt; x.Id),
+                (nameof(MediaTranscriptionAdapterModel.CompletedAt), false) =&gt; dataSource.OrderBy(x =&gt; x.CompletedAt).ThenBy(x =&gt; x.Id),
+                (nameof(MediaTranscriptionAdapterModel.CreatedAt), true) =&gt; dataSource.OrderByDescending(x =&gt; x.CreatedAt).ThenByDescending(x =&gt; x.Id),
+                (nameof(MediaTranscriptionAdapterModel.CreatedAt), false) =&gt; dataSource.OrderBy(x =&gt; x.CreatedAt).ThenBy(x =&gt; x.Id),
+                _ =&gt; dataSource
+            };
+        }
+
+        result.Count = await dataSource.CountAsync();
+        dataSource = dataSource.Skip((dataRequest.CurrentPage - 1) * dataRequest.PageSize);
+        if (dataRequest.Take != 0)
+        {
+            dataSource = dataSource.Take(dataRequest.PageSize);
+        }
+
+        var records = await dataSource.ToListAsync();
+        result.Result = Mapper.Map&lt;List&lt;MediaTranscriptionAdapterModel&gt;&gt;(records);
+        return result;
+    }
+
+    public async Task&lt;MediaTranscriptionAdapterModel&gt; GetAsync(int id)
+    {
+        MediaTranscription? item = await context.MediaTranscription
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x =&gt; x.Id == id);
+
+        return item is null
+            ? new MediaTranscriptionAdapterModel()
+            : Mapper.Map&lt;MediaTranscriptionAdapterModel&gt;(item);
+    }
+
+    public Task&lt;VerifyRecordResult&gt; BeforeAddCheckAsync(MediaTranscriptionAdapterModel paraObject, MediaTranscriptionUploadFileInput? uploadFile)
+    {
+        if (string.IsNullOrWhiteSpace(mediaRootPath))
+        {
+            return Task.FromResult(VerifyRecordResultFactory.Build(false, "尚未設定媒體上傳儲存目錄。"));
+        }
+
+        if (uploadFile is null || uploadFile.Content == Stream.Null)
+        {
+            return Task.FromResult(VerifyRecordResultFactory.Build(false, "請選擇要上傳的音訊或影片檔案。"));
+        }
+
+        if (!MediaFormatValidator.IsSupported(uploadFile.FileName))
+        {
+            return Task.FromResult(VerifyRecordResultFactory.Build(false,
+                $"不支援的檔案格式，僅接受：{MediaFormatValidator.AllowedExtensionsText}"));
+        }
+
+        if (uploadFile.FileSize &gt; MaxUploadFileSize)
+        {
+            return Task.FromResult(VerifyRecordResultFactory.Build(false, $"檔案 {uploadFile.FileName} 超過 1GB 限制"));
+        }
+
+        return Task.FromResult(VerifyRecordResultFactory.Build(true));
+    }
+
+    public async Task&lt;VerifyRecordResult&gt; AddAsync(MediaTranscriptionAdapterModel paraObject, MediaTranscriptionUploadFileInput uploadFile)
+    {
+        Logger.LogInformation("Creating media transcription. Title={Title}", paraObject.Title);
+        string? createdFullPath = null;
+        try
+        {
+            var now = DateTime.Now;
+            var originalFileName = Path.GetFileName(uploadFile.FileName);
+            var extension = Path.GetExtension(originalFileName);
+            var year = now.Year.ToString("0000");
+            var relativePath = Path.Combine(year, $"{Guid.NewGuid():N}{extension}");
+            var fullPath = Path.Combine(mediaRootPath, relativePath);
+            var directory = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            if (uploadFile.Content.CanSeek)
+            {
+                uploadFile.Content.Position = 0;
+            }
+            await using (var target = File.Create(fullPath))
+            {
+                await uploadFile.Content.CopyToAsync(target);
+            }
+            createdFullPath = fullPath;
+
+            var entity = new MediaTranscription
+            {
+                Title = paraObject.Title,
+                Description = paraObject.Description,
+                OriginalFileName = originalFileName,
+                StoredFileName = Path.GetFileName(fullPath),
+                MediaRelativePath = relativePath.Replace('\\', '/'),
+                ContentType = string.IsNullOrWhiteSpace(uploadFile.ContentType) ? "application/octet-stream" : uploadFile.ContentType,
+                FileSize = uploadFile.FileSize,
+                UploadedAt = now,
+                Status = MediaTranscriptionAdapterModel.StatusPending,
+                ProgressPercentage = 0,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+
+            await context.MediaTranscription.AddAsync(entity);
+            await context.SaveChangesAsync();
+
+            await queue.EnqueueAsync(entity.Id);
+            Logger.LogInformation("Media transcription queued. Id={Id}", entity.Id);
+            return VerifyRecordResultFactory.Build(true);
+        }
+        catch (Exception ex)
+        {
+            if (createdFullPath is not null &amp;&amp; File.Exists(createdFullPath))
+            {
+                File.Delete(createdFullPath);
+            }
+            Logger.LogError(ex, "Failed to create media transcription. Title={Title}", paraObject.Title);
+            return VerifyRecordResultFactory.Build(false, "新增轉錄資料失敗。", ex);
+        }
+    }
+
+    public async Task&lt;VerifyRecordResult&gt; UpdateAsync(MediaTranscriptionAdapterModel paraObject)
+    {
+        // 僅允許修改標題與描述；媒體檔不可置換
+        try
+        {
+            var current = await context.MediaTranscription.FirstOrDefaultAsync(x =&gt; x.Id == paraObject.Id);
+            if (current is null)
+            {
+                return VerifyRecordResultFactory.Build(false, "找不到要修改的轉錄資料。");
+            }
+
+            current.Title = paraObject.Title;
+            current.Description = paraObject.Description;
+            current.UpdatedAt = DateTime.Now;
+            await context.SaveChangesAsync();
+            return VerifyRecordResultFactory.Build(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to update media transcription. Id={Id}", paraObject.Id);
+            return VerifyRecordResultFactory.Build(false, "修改轉錄資料失敗。", ex);
+        }
+    }
+
+    public async Task&lt;VerifyRecordResult&gt; DeleteAsync(int id)
+    {
+        try
+        {
+            var item = await context.MediaTranscription.FirstOrDefaultAsync(x =&gt; x.Id == id);
+            if (item is null)
+            {
+                return VerifyRecordResultFactory.Build(false, "找不到要刪除的轉錄資料。");
+            }
+
+            TryDeleteRelative(mediaRootPath, item.MediaRelativePath);
+
+            context.MediaTranscription.Remove(item);
+            await context.SaveChangesAsync();
+            return VerifyRecordResultFactory.Build(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete media transcription. Id={Id}", id);
+            return VerifyRecordResultFactory.Build(false, "刪除轉錄資料失敗。", ex);
+        }
+    }
+
+    public Task&lt;VerifyRecordResult&gt; BeforeDeleteCheckAsync(MediaTranscriptionAdapterModel paraObject)
+        =&gt; Task.FromResult(VerifyRecordResultFactory.Build(true));
+
+    private static void TryDeleteRelative(string root, string? relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return;
+        }
+        var normalized = relativePath.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+        var fullPath = Path.Combine(root, normalized);
+        if (File.Exists(fullPath))
+        {
+            File.Delete(fullPath);
+        }
+    }
+}</code></pre>
+<blockquote><p>註：刪除時逐字稿檔位於 <code>TranscriptionFilePath</code> 根目錄；Controller 層在刪除前會呼叫一支讀取逐字稿的方法取得路徑，或於 Service 注入 <code>TranscriptionFilePath</code> 一併刪除。為簡化，逐字稿檔刪除在 Task 12 的 Controller 透過 <code>TranscriptRelativePath</code> + 設定根目錄處理；若偏好集中，可將 <code>transcriptRootPath</code> 一併注入本 Service 並於 <code>DeleteAsync</code> 內 <code>TryDeleteRelative(transcriptRootPath, item.TranscriptRelativePath)</code>（建議採此集中作法）。</p></blockquote>
+<ul><li>（歷史步驟）<strong>Step 2:（採集中刪除）在 Service 注入逐字稿根目錄並刪除逐字稿</strong></li></ul>
+<p>在建構式注入後新增欄位 <code>transcriptRootPath = systemSettings.Value.ExternalFileSystem.TranscriptionFilePath;</code>，並於 <code>DeleteAsync</code> 的 <code>TryDeleteRelative(mediaRootPath, item.MediaRelativePath);</code> 之後加入：</p>
+<pre><code>            TryDeleteRelative(transcriptRootPath, item.TranscriptRelativePath);</code></pre>
+<p>並新增讀取逐字稿內容的方法（供 Controller 檢視/下載）：</p>
+<pre><code>    public async Task&lt;(string FileName, string Content)?&gt; GetTranscriptAsync(int id)
+    {
+        var item = await context.MediaTranscription.AsNoTracking().FirstOrDefaultAsync(x =&gt; x.Id == id);
+        if (item is null || string.IsNullOrWhiteSpace(item.TranscriptRelativePath))
+        {
+            return null;
+        }
+        var normalized = item.TranscriptRelativePath.Replace('/', Path.DirectorySeparatorChar);
+        var fullPath = Path.Combine(transcriptRootPath, normalized);
+        if (!File.Exists(fullPath))
+        {
+            return null;
+        }
+        var content = await File.ReadAllTextAsync(fullPath, System.Text.Encoding.UTF8);
+        var downloadName = Path.GetFileNameWithoutExtension(item.OriginalFileName) + ".txt";
+        return (downloadName, content);
+    }</code></pre>
+<p>（記得宣告 <code>private readonly string transcriptRootPath;</code> 欄位。）</p>
+<ul><li>（歷史步驟）<strong>Step 3: 建置驗證</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Business</code> Expected: PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 4: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/MediaTranscriptionService.cs
+git commit -m "feat: 新增音訊轉錄應用服務 (CRUD/上傳/入列/逐字稿讀取)"</code></pre>
+<hr>
+<h2 id="task-12api-controller含逐字稿下載" class="t6">Task 12：API Controller（含逐字稿下載）</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Web/Controllers/MediaTranscriptionController.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 實作 Controller</strong></li></ul>
+<pre><code>using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using KnowledgeExtraction.Business.Services.DataAccess;
+using KnowledgeExtraction.Dtos.Commons;
+using KnowledgeExtraction.Web.Filters;
+
+namespace KnowledgeExtraction.Web.Controllers;
+
+[Route("api/[controller]")]
+[Route("api/v1/[controller]")]
+[ApiController]
+[ApiValidationFilter]
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+public class MediaTranscriptionController : ControllerBase
+{
+    private readonly ILogger&lt;MediaTranscriptionController&gt; logger;
+    private readonly MediaTranscriptionService service;
+
+    public MediaTranscriptionController(
+        ILogger&lt;MediaTranscriptionController&gt; logger,
+        MediaTranscriptionService service)
+    {
+        this.logger = logger;
+        this.service = service;
+    }
+
+    [HttpGet("{id}/transcript")]
+    public async Task&lt;IActionResult&gt; DownloadTranscript(int id)
+    {
+        var result = await service.GetTranscriptAsync(id);
+        if (result is null)
+        {
+            return NotFound(ApiResult.NotFoundResult($"找不到 ID 為 {id} 的逐字稿，或尚未完成轉換。"));
+        }
+
+        var bytes = System.Text.Encoding.UTF8.GetBytes(result.Value.Content);
+        return File(bytes, "text/plain; charset=utf-8", result.Value.FileName);
+    }
+}</code></pre>
+<blockquote><p>註：本端點為「真正可用」的逐字稿下載，取代既有專案中未實作的 <code>/api/*-files/{id}/download</code> 斷鏈。列表 / 新增 / 修改 / 刪除走 Blazor Server 端直接呼叫 Service（與 ProjectViewView 相同模式），故 Controller 僅需提供下載端點即足夠；如需對外 REST CRUD 可再擴充。</p></blockquote>
+<ul><li>（歷史步驟）<strong>Step 2: 建置驗證</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Web</code> Expected: PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 3: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Web/Controllers/MediaTranscriptionController.cs
+git commit -m "feat: 新增逐字稿下載 API 端點"</code></pre>
+<hr>
+<h2 id="task-13權限與選單" class="t7">Task 13：權限與選單</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs:37</code></li><li>Modify: <code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs:18</code></li><li>Modify: <code>KnowledgeExtraction.Web/Datas/Menu.json</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 新增權限常數</strong></li></ul>
+<p>在 <code>MagicObjectHelper.cs</code> 的 <code>#region 角色</code> 內、<code>使用者角色</code> 之前新增：</p>
+<pre><code>    public const string 角色_音訊轉錄 = "音訊轉錄";</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: 將權限加入「專案管理」群組</strong></li></ul>
+<p>在 <code>RolePermissionService.GetRoleListPermissionAllName()</code> 第二組（專案管理）內，於 <code>角色_會議項目</code> 之後新增：</p>
+<pre><code>                MagicObjectHelper.角色_音訊轉錄,</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: Menu.json 新增選單項</strong></li></ul>
+<p>在 <code>Menu.json</code> id=2「專案管理」的 <code>subMenu</code> 陣列內，於「會議記錄」(id 23) 之後新增：</p>
+<pre><code>      ,{
+        "id": 24,
+        "name": "音訊轉錄",
+        "icon": "graphic_eq",
+        "url": "/media-transcription"
+      }</code></pre>
+<blockquote><p>注意：<code>SidebarMenuService</code> 以群組內<strong>索引順序</strong>對應 <code>GetRoleListPermissionAllName()</code> 的權限字串；務必確保 Menu「專案管理」子項順序（專案項目、工作項目、會議記錄、音訊轉錄）與權限清單第二組順序（角色_專案項目、角色_工作項目、角色_會議項目、角色_音訊轉錄）一致。</p></blockquote>
+<ul><li>（歷史步驟）<strong>Step 4: 建置 + 啟動驗證權限種子</strong></li></ul>
+<p>Run: <code>dotnet run --project src/KnowledgeExtraction/KnowledgeExtraction.Web</code> Expected: 啟動日誌出現 <code>Updated existing default role view.</code>（預設角色 TabViewJson 已含「音訊轉錄」）；登入後側邊欄「專案管理」下出現「音訊轉錄」。確認後停止。</p>
+<ul><li>（歷史步驟）<strong>Step 5: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs src/KnowledgeExtraction/KnowledgeExtraction.Web/Datas/Menu.json
+git commit -m "feat: 新增音訊轉錄選單項與角色權限"</code></pre>
+<hr>
+<h2 id="task-14blazor-頁面與檢視" class="t8">Task 14：Blazor 頁面與檢視</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>KnowledgeExtraction.Web/Components/Pages/MediaTranscriptions/MediaTranscriptionPage.razor</code></li><li>Create: <code>KnowledgeExtraction.Web/Components/Views/MediaTranscriptions/MediaTranscriptionView.razor</code></li><li>Create: <code>KnowledgeExtraction.Web/Components/Views/MediaTranscriptions/MediaTranscriptionView.razor.cs</code></li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: Page</strong></li></ul>
+<p><code>MediaTranscriptionPage.razor</code>：</p>
+<pre><code>@page "/media-transcription"
+@layout MainLayout
+@using KnowledgeExtraction.Web.Components.Views.MediaTranscriptions
+
+&lt;PageTitle&gt;音訊轉錄&lt;/PageTitle&gt;
+
+&lt;MediaTranscriptionView /&gt;</code></pre>
+<ul><li>（歷史步驟）<strong>Step 2: View 標記（razor）</strong></li></ul>
+<p><code>MediaTranscriptionView.razor</code>：</p>
+<pre><code>@using KnowledgeExtraction.Models.AdapterModel
+@if (string.IsNullOrEmpty(RoleMessage) == false)
+{
+    &lt;div class="alert alert-danger" role="alert"&gt;@RoleMessage&lt;/div&gt;
+}
+else
+{
+    &lt;div&gt;
+        &lt;div style="display:flex; justify-content:space-between; margin-bottom:12px;"&gt;
+            &lt;div&gt;
+                &lt;Tooltip Title="新增"&gt;
+                    &lt;Button Type="ButtonType.Default" OnClick="@(async () =&gt; await OnAddAsync())"&gt;➕&lt;/Button&gt;
+                &lt;/Tooltip&gt;
+                &lt;Tooltip Title="重新整理"&gt;
+                    &lt;Button Type="ButtonType.Default" OnClick="@(async () =&gt; await OnRefreshAsync())"&gt;🔄&lt;/Button&gt;
+                &lt;/Tooltip&gt;
+            &lt;/div&gt;
+            &lt;div&gt;
+                &lt;Input @bind-Value="searchText" Placeholder="請輸入搜尋關鍵字" Style="width:220px;" /&gt;
+                &lt;Tooltip Title="搜尋"&gt;
+                    &lt;Button Type="ButtonType.Default" OnClick="@(async () =&gt; await OnSearchAsync())"&gt;🔍&lt;/Button&gt;
+                &lt;/Tooltip&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+
+        &lt;Table @ref="table"
+               TItem="MediaTranscriptionAdapterModel"
+               RemoteDataSource="true"
+               DataSource="@models"
+               OnChange="OnTableChange"
+               @bind-PageIndex="_pageIndex"
+               @bind-PageSize="_pageSize"
+               @bind-Total="_total"&gt;
+            &lt;Column TData="string" DataIndex="@nameof(MediaTranscriptionAdapterModel.Title)" Title="標題" Sortable /&gt;
+            &lt;Column TData="string" DataIndex="@nameof(MediaTranscriptionAdapterModel.OriginalFileName)" Title="原始檔名" /&gt;
+            &lt;Column TData="long" DataIndex="@nameof(MediaTranscriptionAdapterModel.FileSize)" Title="大小" Sortable&gt;
+                @FormatFileSize(context.FileSize)
+            &lt;/Column&gt;
+            &lt;Column TData="string" DataIndex="@nameof(MediaTranscriptionAdapterModel.Status)" Title="狀態" Sortable /&gt;
+            &lt;Column TData="int" DataIndex="@nameof(MediaTranscriptionAdapterModel.ProgressPercentage)" Title="進度"&gt;
+                &lt;Progress Percent="context.ProgressPercentage"
+                          Status="@(context.Status == MediaTranscriptionAdapterModel.StatusFailed ? ProgressStatus.Exception : context.Status == MediaTranscriptionAdapterModel.StatusCompleted ? ProgressStatus.Success : ProgressStatus.Active)" /&gt;
+            &lt;/Column&gt;
+            &lt;Column TData="DateTime" DataIndex="@nameof(MediaTranscriptionAdapterModel.UploadedAt)" Title="上傳時間" Sortable /&gt;
+            &lt;ActionColumn Title="操作" Fixed="ColumnFixPlacement.Right"&gt;
+                &lt;Space&gt;
+                    @if (context.Status == MediaTranscriptionAdapterModel.StatusCompleted)
+                    {
+                        &lt;SpaceItem&gt;
+                            &lt;a href="@GetTranscriptUrl(context.Id)" target="_blank" title="下載逐字稿"&gt;📄&lt;/a&gt;
+                        &lt;/SpaceItem&gt;
+                    }
+                    &lt;SpaceItem&gt;
+                        &lt;button class="btn-edit" title="修改" @onclick="@(async () =&gt; await OnEditAsync(context))"&gt;✏️&lt;/button&gt;
+                    &lt;/SpaceItem&gt;
+                    &lt;SpaceItem&gt;
+                        &lt;button class="btn-edit" title="刪除" @onclick="@(async () =&gt; await OnDeleteAsync(context))"&gt;🗑️&lt;/button&gt;
+                    &lt;/SpaceItem&gt;
+                &lt;/Space&gt;
+            &lt;/ActionColumn&gt;
+        &lt;/Table&gt;
+    &lt;/div&gt;
+
+    &lt;Modal Title="@modalTitle" @bind-Visible="@modalVisible" OnOk="OnModalOkAsync" OnCancel="OnModalCancelAsync"&gt;
+        &lt;EditForm Model="@CurrentRecord" Context="editContext"&gt;
+            &lt;DataAnnotationsValidator /&gt;
+            &lt;ValidationSummary /&gt;
+            &lt;AntDesign.Form TModel="MediaTranscriptionAdapterModel" Model="@CurrentRecord" Layout="FormLayout.Vertical" Context="formContext"&gt;
+                &lt;FormItem Label="標題" Required&gt;
+                    &lt;Input @bind-Value="CurrentRecord.Title" Placeholder="請輸入標題" /&gt;
+                    &lt;ValidationMessage For="() =&gt; CurrentRecord.Title" /&gt;
+                &lt;/FormItem&gt;
+                &lt;FormItem Label="描述"&gt;
+                    &lt;TextArea @bind-Value="CurrentRecord.Description" Rows="3" /&gt;
+                &lt;/FormItem&gt;
+                @if (isNewRecordMode)
+                {
+                    &lt;FormItem Label="音訊／影片檔案" Required&gt;
+                        &lt;InputFile OnChange="OnFileSelectedAsync" /&gt;
+                        &lt;div class="mt-2 text-muted"&gt;支援格式：@KnowledgeExtraction.Business.Helpers.MediaFormatValidator.AllowedExtensionsText，單檔上限 1GB。&lt;/div&gt;
+                        @if (selectedFile is not null)
+                        {
+                            &lt;div class="mt-2"&gt;已選擇：@selectedFile.Name (@FormatFileSize(selectedFile.Size))&lt;/div&gt;
+                        }
+                    &lt;/FormItem&gt;
+                }
+            &lt;/AntDesign.Form&gt;
+        &lt;/EditForm&gt;
+    &lt;/Modal&gt;
+}</code></pre>
+<ul><li>（歷史步驟）<strong>Step 3: View 程式碼（razor.cs）</strong></li></ul>
+<p><code>MediaTranscriptionView.razor.cs</code>：</p>
+<pre><code>using AntDesign;
+using AntDesign.TableModels;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Forms;
+using KnowledgeExtraction.Business.Services.DataAccess;
+using KnowledgeExtraction.Business.Services.Other;
+using KnowledgeExtraction.Models.AdapterModel;
+using KnowledgeExtraction.Models.Systems;
+using KnowledgeExtraction.Share.Helpers;
+
+namespace KnowledgeExtraction.Web.Components.Views.MediaTranscriptions;
+
+public partial class MediaTranscriptionView
+{
+    private readonly ILogger&lt;MediaTranscriptionView&gt; logger;
+    private readonly MediaTranscriptionService service;
+    private readonly ModalService modalService;
+    private readonly MessageService messageService;
+    private readonly NotificationService notificationService;
+
+    private ITable? table;
+    private int _pageIndex = 1;
+    private int _pageSize = MagicObjectHelper.PageSize;
+    private int _total;
+    private string searchText = string.Empty;
+    private string sortField = string.Empty;
+    private string sortDirection = "None";
+
+    private List&lt;MediaTranscriptionAdapterModel&gt; models = [];
+    private string modalTitle = "音訊轉錄";
+    private bool modalVisible;
+    private bool isNewRecordMode;
+    private MediaTranscriptionAdapterModel CurrentRecord = new();
+    private IBrowserFile? selectedFile;
+    private string RoleMessage = string.Empty;
+
+    [Inject] public AuthenticationStateHelper AuthenticationStateHelper { get; set; } = default!;
+    [Inject] public AuthenticationStateProvider authStateProvider { get; set; } = default!;
+    [Inject] public NavigationManager NavigationManager { get; set; } = default!;
+
+    public MediaTranscriptionView(
+        ILogger&lt;MediaTranscriptionView&gt; logger,
+        MediaTranscriptionService service,
+        ModalService modalService,
+        MessageService messageService,
+        NotificationService notificationService)
+    {
+        this.logger = logger;
+        this.service = service;
+        this.modalService = modalService;
+        this.messageService = messageService;
+        this.notificationService = notificationService;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var checkResult = await AuthenticationStateHelper.Check(authStateProvider, NavigationManager);
+        if (checkResult != AuthenticationCheckResult.Succeeded)
+        {
+            return;
+        }
+        if (AuthenticationStateHelper.CheckAccessPage(MagicObjectHelper.角色_音訊轉錄) == false)
+        {
+            RoleMessage = MagicObjectHelper.你沒有權限存取此頁面;
+            return;
+        }
+        await ReloadAsync();
+    }
+
+    public async Task ReloadAsync()
+    {
+        var result = await service.GetAsync(new DataRequest
+        {
+            Search = searchText,
+            SortField = sortField,
+            SortDescending = sortDirection == "Descending" ? true : sortDirection == "Ascending" ? false : (bool?)null,
+            CurrentPage = _pageIndex,
+            PageSize = _pageSize,
+            Take = 0
+        });
+        models = result.Result.ToList();
+        _total = result.Count;
+        StateHasChanged();
+    }
+
+    private async Task OnTableChange(QueryModel&lt;MediaTranscriptionAdapterModel&gt; args)
+    {
+        _pageIndex = args.PageIndex;
+        var sort = args.SortModel?.FirstOrDefault(x =&gt; x.Sort != null);
+        if (sort is not null)
+        {
+            sortField = sort.FieldName;
+            sortDirection = sort.Sort == "ascend" ? "Ascending" : sort.Sort == "descend" ? "Descending" : "None";
+        }
+        else
+        {
+            sortField = string.Empty;
+            sortDirection = "None";
+        }
+        await ReloadAsync();
+    }
+
+    private async Task OnSearchAsync()
+    {
+        _pageIndex = 1;
+        await ReloadAsync();
+    }
+
+    private async Task OnRefreshAsync()
+    {
+        await ReloadAsync();
+        _ = notificationService.Open(new NotificationConfig
+        {
+            Message = "系統訊息",
+            Description = "已更新最新資料",
+            NotificationType = NotificationType.Warning,
+            Placement = NotificationPlacement.BottomRight
+        });
+    }
+
+    private Task OnAddAsync()
+    {
+        CurrentRecord = new MediaTranscriptionAdapterModel();
+        selectedFile = null;
+        isNewRecordMode = true;
+        modalTitle = "新增音訊轉錄";
+        modalVisible = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task OnEditAsync(MediaTranscriptionAdapterModel model)
+    {
+        isNewRecordMode = false;
+        modalTitle = "修改音訊轉錄";
+        CurrentRecord = await service.GetAsync(model.Id);
+        selectedFile = null;
+        modalVisible = true;
+    }
+
+    private async Task OnDeleteAsync(MediaTranscriptionAdapterModel model)
+    {
+        var ok = await modalService.ConfirmAsync(new ConfirmOptions
+        {
+            Title = "確認刪除",
+            Content = "確定要刪除這筆紀錄嗎？此操作無法復原。",
+            OkText = "刪除",
+            CancelText = "取消",
+            OkButtonProps = new ButtonProps { Danger = true },
+            MaskClosable = false
+        });
+        if (!ok)
+        {
+            return;
+        }
+        await service.DeleteAsync(model.Id);
+        _ = notificationService.Open(new NotificationConfig
+        {
+            Message = "系統訊息",
+            Description = "刪除成功",
+            NotificationType = NotificationType.Warning,
+            Placement = NotificationPlacement.BottomRight
+        });
+        await ReloadAsync();
+    }
+
+    private void OnFileSelectedAsync(InputFileChangeEventArgs args)
+    {
+        selectedFile = args.File;
+        StateHasChanged();
+    }
+
+    private async Task OnModalOkAsync(MouseEventArgs args)
+    {
+        if (isNewRecordMode)
+        {
+            if (selectedFile is null)
+            {
+                ShowError("請選擇要上傳的音訊或影片檔案。");
+                modalVisible = true;
+                return;
+            }
+
+            await using var stream = selectedFile.OpenReadStream(MediaTranscriptionService.MaxUploadFileSize);
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            memory.Position = 0;
+
+            var uploadInput = new MediaTranscriptionUploadFileInput
+            {
+                FileName = selectedFile.Name,
+                ContentType = selectedFile.ContentType,
+                FileSize = selectedFile.Size,
+                Content = memory
+            };
+
+            var check = await service.BeforeAddCheckAsync(CurrentRecord, uploadInput);
+            if (!check.Success)
+            {
+                ShowError(check.Message);
+                modalVisible = true;
+                return;
+            }
+
+            var result = await service.AddAsync(CurrentRecord, uploadInput);
+            if (!result.Success)
+            {
+                ShowError(result.Message);
+                modalVisible = true;
+                return;
+            }
+            _ = messageService.SuccessAsync("已建立並排入轉換佇列");
+        }
+        else
+        {
+            var result = await service.UpdateAsync(CurrentRecord);
+            if (!result.Success)
+            {
+                ShowError(result.Message);
+                modalVisible = true;
+                return;
+            }
+            _ = messageService.SuccessAsync("修改成功");
+        }
+
+        modalVisible = false;
+        await ReloadAsync();
+    }
+
+    private Task OnModalCancelAsync(MouseEventArgs args)
+    {
+        modalVisible = false;
+        selectedFile = null;
+        return Task.CompletedTask;
+    }
+
+    private void ShowError(string message)
+    {
+        _ = notificationService.Open(new NotificationConfig
+        {
+            Message = "系統訊息",
+            Description = message,
+            NotificationType = NotificationType.Error,
+            Placement = NotificationPlacement.BottomRight
+        });
+    }
+
+    private static string GetTranscriptUrl(int id) =&gt; $"/api/MediaTranscription/{id}/transcript";
+
+    private static string FormatFileSize(long fileSize)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        double size = fileSize;
+        var unitIndex = 0;
+        while (size &gt;= 1024 &amp;&amp; unitIndex &lt; units.Length - 1)
+        {
+            size /= 1024;
+            unitIndex++;
+        }
+        return $"{size:0.##} {units[unitIndex]}";
+    }
+}</code></pre>
+<blockquote><p>註：<code>QueryModel.SortModel</code> 的取用 API 若與本專案 AntDesign 版本不同，請對照 <code>ProjectViewView.razor.cs:113-165</code> 的 <code>OnTableChange</code>/<code>ResolveSortFieldName</code> 寫法調整（該檔已處理 AntDesign 1.6 的排序模型）。逐字稿下載連結因 Blazor Server 與 API 同源，瀏覽器會帶 Cookie；若下載端點需 JWT，請改為在 Service 端直接回傳內容並以 AntDesign Modal 顯示，或為下載端點加上 Cookie 授權方案。<strong>實作時先驗證下載授權路徑可行</strong>（見驗證區）。</p></blockquote>
+<ul><li>（歷史步驟）<strong>Step 4: 建置驗證</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Web</code> Expected: PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 5: Commit</strong></li></ul>
+<pre><code>git add src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Pages/MediaTranscriptions src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/MediaTranscriptions
+git commit -m "feat: 新增音訊轉錄 Blazor 頁面與檢視 (清單/上傳/進度/下載)"</code></pre>
+<hr>
+<h2 id="task-15端到端驗證文件同步與版本號" class="t1">Task 15：端到端驗證、文件同步與版本號</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>KnowledgeExtraction.Web/appsettings.json</code>（版本號）</li><li>Modify: <code>docs/README.md</code>、<code>readme.md</code>（補功能機制連結，可選）</li></ul>
+<ul><li>（歷史步驟）<strong>Step 1: 端到端手動驗證</strong></li></ul>
+<p>前置：安裝 FFmpeg 並確認 <code>ffmpeg -version</code> 可執行；於 <code>appsettings.json</code> 填入有效 <code>OpenAISettings:ApiKey</code>。</p>
+<p>Run: <code>dotnet run --project src/KnowledgeExtraction/KnowledgeExtraction.Web</code>，登入後：</p>
+<ol><li>進入「音訊轉錄」頁，新增一筆並上傳一個小於 25MB 的 <code>.mp3</code>。</li><li>Expected: 列表出現該筆，狀態「等待中」→ 數秒後「處理中」→「已完成」，進度 0→100。</li><li>完成後點下載圖示，取得 <code>.txt</code> 逐字稿。</li><li>Expected: 內容為繁體中文逐字稿；檔案位於 <code>TranscriptionFilePath/{當年}/*.txt</code>。</li><li>上傳一個大於 25MB 的音檔。</li><li>Expected: 背景以 FFmpeg 分段，進度分段遞增，最終合併完成。</li><li>上傳一個 <code>.txt</code> 不支援格式。</li><li>Expected: 被攔截並提示支援格式清單。</li><li>刪除一筆已完成紀錄。</li><li>Expected: 列表移除；磁碟上對應媒體檔與逐字稿檔一併刪除。</li></ol>
+<ul><li>（歷史步驟）<strong>Step 2: 驗證逐字稿下載授權路徑</strong></li></ul>
+<p>以登入後的瀏覽器開啟 <code>/api/MediaTranscription/{id}/transcript</code>。 Expected: 成功下載。若回傳 401（因端點僅允許 JWT bearer），依 Task 14 註記改為在 Service 端回傳內容並以 Modal 顯示，或為下載端點增加 Cookie 認證方案後再驗證一次。</p>
+<ul><li>（歷史步驟）<strong>Step 3: 版本號 +1</strong></li></ul>
+<p>將 <code>appsettings.json</code> 的 <code>SystemSettings.SystemInformation.SystemVersion</code> 由目前值（如 <code>0.2.12 (2026/06/02)</code>）遞增（如 <code>0.2.13 (YYYY/MM/DD)</code>）。</p>
+<ul><li>（歷史步驟）<strong>Step 4:（可選）文件補連結</strong></li></ul>
+<p>於 <code>docs/README.md</code> 與 <code>readme.md</code> 第 9 節的 features 區，補一行指向實作後的功能說明（若另撰 <code>docs/features/音訊轉錄機制.md</code>）。PRD 索引已於前置作業建立，毋須重複。</p>
+<ul><li>（歷史步驟）<strong>Step 5: 最終建置 + 測試</strong></li></ul>
+<p>Run: <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Web &amp;&amp; dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests</code> Expected: 建置與所有測試 PASS。</p>
+<ul><li>（歷史步驟）<strong>Step 6: Commit</strong></li></ul>
+<pre><code>git add -A
+git commit -m "chore: 音訊轉錄功能端到端驗證並更新版本號 0.2.12 → 0.2.13"</code></pre>
+<hr>
+<h2 id="self-review-註記" class="t2">Self-Review 註記</h2>
+<ul><li><strong>Spec 覆蓋：</strong> CRUD 頁面(Task 14)、格式驗證(Task 3/11)、背景轉換 Channel+BackgroundService(Task 5/9)、<code>gpt-4o-transcribe</code> 繁中(Task 7)、&gt;25MB 分段(Task 6/8)、進度 DB 欄位+輪詢(Task 8/14 的重新整理)、逐字稿依年度存檔(Task 8)、appsettings 路徑/金鑰(Task 1)、選單+權限(Task 13) — 皆有對應任務。</li><li><strong>型別一致：</strong> <code>MediaTranscription</code>(entity)、<code>MediaTranscriptionAdapterModel</code>、<code>MediaTranscriptionService</code>、<code>ITranscriptionQueue</code>、<code>TranscriptionProcessor</code>、<code>OpenAITranscriptionClient</code>、<code>MediaChunker</code>、<code>MediaFormatValidator</code> 在各 Task 命名一致。</li><li><strong>已知待實作者確認項：</strong> (a) 逐字稿下載端點的授權方案（JWT vs Cookie）需於 Task 15 Step 2 驗證；(b) AntDesign 1.6 排序模型 API 以 <code>ProjectViewView</code> 為準對照調整；(c) FFmpeg 為外部相依，環境須安裝。</li></ul>
+<hr>
+<h2 id="後續擴充v11版本-021820260603" class="t3">後續擴充（v1.1，版本 0.2.18，2026/06/03）</h2>
+<p>本服務於 0.2.18 擴充三項能力，詳見設計規格 <a href="../../../docs/superpowers/specs/2026-06-03-youtube-design-09a22705.html"><code>docs/superpowers/specs/2026-06-03-youtube-音訊轉錄-design.md</code></a> 與 <a href="../../../docs/prd/prd-0af3129c.html">PRD §13</a>：</p>
+<ol><li><strong>YouTube 連結來源</strong>：新增「來源類型」切換，YouTube 來源以 <code>yt-dlp -x</code> 僅抽取音訊（mp3）後轉錄，無須上傳檔案（新增 <code>YouTubeDownloader</code>、<code>OpenAISettings:YtDlpPath</code>）。</li><li><strong>逐筆語言選擇</strong>：新增表單加「轉錄語言」下拉（繁體中文／English／自動偵測），存入 <code>Language</code> 欄位並於 <code>TranscriptionProcessor.ResolveLanguageOptions</code> 解析 <code>language</code>／<code>prompt</code>。</li><li><strong>台灣繁體保底</strong>：因 API 不支援 <code>zh-tw</code>，中文輸出再經 <code>OpenccNetLib</code>（s2twp）簡轉繁（新增 <code>ChineseConverter</code>，Singleton）。</li></ol>
+<p>資料模型新增 <code>SourceType</code>、<code>SourceUrl</code> 欄位（SQLite／SqlServer 兩套 migration <code>AddYouTubeSourceToMediaTranscription</code>）。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（superpowers/plans）</h3><ul><li><a href="../../../docs/superpowers/plans/2026-06-04-35c13737.html">抖音影片自動轉錄整合 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-09-7034edfd.html">提示詞清單（Prompt）管理頁面 Implementation Plan</a></li><li><a href="../../../docs/superpowers/plans/2026-06-11-knowledge-source-crud-6e918bdb.html">知識來源管理清單（KnowledgeSource）CRUD + 成員聚合 實作計畫</a></li><li><a href="../../../docs/superpowers/plans/2026-07-10-d75d8738.html">KnowledgeExtraction.AI 安全優先穩定化計畫</a></li><li><a href="../../../docs/superpowers/plans/2026-07-12-prd-e14e5def.html">PRD 全庫基線重建 Implementation Plan</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#重要前提與既有慣例">重要前提與既有慣例</a><a class="l2" href="#file-structure將建立修改的檔案">File Structure（將建立／修改的檔案）</a><a class="l2" href="#task-1設定模型與-appsettings">Task 1：設定模型與 appsettings</a><a class="l2" href="#task-2實體與資料庫dbset--migration">Task 2：實體與資料庫（DbSet + Migration）</a><a class="l2" href="#task-3格式驗證器tdd">Task 3：格式驗證器（TDD）</a><a class="l2" href="#task-4dtoadaptermodel上傳輸入模型automapper">Task 4：DTO、AdapterModel、上傳輸入模型、AutoMapper</a><a class="l2" href="#task-5背景佇列channelsingleton">Task 5：背景佇列（Channel，Singleton）</a><a class="l2" href="#task-6ffmpeg-分段計畫tdd-計算--process-切割">Task 6：FFmpeg 分段計畫（TDD 計算 + Process 切割）</a><a class="l2" href="#task-7openai-轉錄-client">Task 7：OpenAI 轉錄 Client</a><a class="l2" href="#task-8轉錄處理器單筆流程scoped">Task 8：轉錄處理器（單筆流程，scoped）</a><a class="l2" href="#task-9背景服務backgroundservice-消費者">Task 9：背景服務（BackgroundService 消費者）</a><a class="l2" href="#task-10di-註冊與-programcs-連接">Task 10：DI 註冊與 Program.cs 連接</a><a class="l2" href="#task-11應用服務crud--檔案-io--入列">Task 11：應用服務（CRUD + 檔案 I/O + 入列）</a><a class="l2" href="#task-12api-controller含逐字稿下載">Task 12：API Controller（含逐字稿下載）</a><a class="l2" href="#task-13權限與選單">Task 13：權限與選單</a><a class="l2" href="#task-14blazor-頁面與檢視">Task 14：Blazor 頁面與檢視</a><a class="l2" href="#task-15端到端驗證文件同步與版本號">Task 15：端到端驗證、文件同步與版本號</a><a class="l2" href="#self-review-註記">Self-Review 註記</a><a class="l2" href="#後續擴充v11版本-021820260603">後續擴充（v1.1，版本 0.2.18，2026/06/03）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/superpowers/plans/2026-06-02-音訊影片轉錄服務.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

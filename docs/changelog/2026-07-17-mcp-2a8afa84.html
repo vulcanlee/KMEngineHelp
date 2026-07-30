@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>系統健康監控新增 MCP Server 與 4 項基礎設施檢查（1.0.10 → 1.0.11）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>系統健康監控新增 MCP Server 與 4 項基礎設施檢查（1.0.10 → 1.0.11）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-17</li><li>版本：1.0.10 → 1.0.11</li><li>類型：新功能（<code>/system-health</code> 儀表板新增 5 個健康檢查項）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p><code>/system-health</code> 原本 16 個檢查項未涵蓋「對外整合與 AI 基礎設施」的就緒狀態。本次新增 <strong>MCP Server</strong> 檢查，並補上 4 個現有未監控的缺口，讓管理員在一頁看出這些依賴是否就緒。檢查項數量 16 → <strong>21</strong>。設計與現況見 <a href="../../docs/prd/prd-f288012f.html">系統健康監控 PRD</a>、<a href="../../docs/features/health-monitoring.html">系統健康監控功能說明</a>、<a href="../../docs/guides/monitoring-health.html">系統監控與健康檢查指南</a>。</p>
+<h2 id="變更" class="t2">變更</h2>
+<p>新增 5 個檢查方法於 <code>Web/Health/SystemHealthService.cs</code>（沿用既有 <code>CreateItem</code> 工廠，燈號/分數/頁面自動生效）：</p>
+<div class="tw"><table><thead><tr><th>檢查項</th><th>權重</th><th>綠 / 黃 / 紅</th></tr></thead><tbody><tr><td><strong>MCP Server</strong></td><td>8</td><td>綠＝<code>McpAccess</code> policy＋<code>McpApiKey</code> scheme＋<code>/mcp</code> 端點＋≥1 把啟用金鑰；<strong>黃＝0 把啟用金鑰</strong>（JWT/Cookie 仍可入，X-API-Key 無法）；紅＝policy/scheme/端點缺失</td></tr><tr><td><strong>分散式快取</strong></td><td>8</td><td>Memory→綠；Redis 以 <code>IDistributedCache</code> 寫入/回讀 ping 實測，成功綠、失敗紅</td></tr><tr><td><strong>AI 生成/嵌入 Provider</strong></td><td>10</td><td>複用 <code>OpenAISettings.IsChatLlmConfigured/IsEmbeddingConfigured</code> 依 Cloud/Local 分流；未就緒紅</td></tr><tr><td><strong>RAG 檢索設定</strong></td><td>6</td><td>沿用 <code>RetrievalSettingsProvider</code> 規則；門檻越界紅、權重和非 1 黃</td></tr><tr><td><strong>背景管線</strong></td><td>8</td><td>七條匯入/處理背景服務都註冊→綠、缺任一→紅（僅檢查註冊，未偵測卡死/積壓）</td></tr></tbody></table></div>
+<ul><li><code>SystemHealthService</code> 建構子新增注入：<code>IOptions&lt;CacheSettings&gt;</code>、<code>IDistributedCache</code>、<code>IAuthorizationPolicyProvider</code>、<code>IAuthenticationSchemeProvider</code>、<code>IEnumerable&lt;EndpointDataSource&gt;</code>、<code>IEnumerable&lt;IHostedService&gt;</code>（皆框架既有服務，不需改 DI 註冊）。總權重 160 → 200。</li><li><code>appsettings.json</code> <code>SystemVersion</code> 1.0.10 → 1.0.11。</li></ul>
+<h2 id="已知限制" class="t3">已知限制</h2>
+<ul><li>背景管線僅檢查「是否註冊/實例化」；<code>BackgroundService</code> 無公開心跳、佇列介面無 <code>Count</code>，偵測卡死/佇列積壓需另改介面，本次不做。</li><li>分散式快取因未註冊 <code>IConnectionMultiplexer</code>，Redis 只能以 <code>IDistributedCache</code> 探測（非直連 multiplexer 狀態）。</li><li>RAG 檢索設定檢查的是 appsettings 靜態值；使用者於 DB override 的生效值可能不同（evidence 已註明）。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ol><li><code>dotnet build</code>（Web）0 錯誤。</li><li><code>dotnet test</code> 全數通過（既有 558 + 新增 1 個整合測試 <code>SystemHealthReportTests</code>：以測試 host 解析 <code>ISystemHealthService</code> 執行 <code>GetReportAsync</code>，斷言 5 個新 Category 均出現、背景管線與快取為健康、MCP 項存在且不擲例外）。</li><li>實跑：Web 啟動正常（SystemVersion=1.0.11、七條背景服務啟動、無 DI/啟動例外）。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l2" href="#已知限制">已知限制</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-17-系統健康監控新增MCP與基礎設施檢查.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

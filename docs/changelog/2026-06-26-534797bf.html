@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>階段三步驟 2：VectorEmbedding 實體 + 雙 migration + IVectorStore（0.2.124）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>階段三步驟 2：VectorEmbedding 實體 + 雙 migration + IVectorStore（0.2.124）</h1></header><div class="docwrap"><main><ul><li>日期：2026/06/26</li><li>版本：0.2.123 → 0.2.124</li><li>對應設計：<a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格 §3</a>；路線圖步驟：strategy/12 §12.2 步驟 2</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>階段三第二步驟：建立<strong>向量的落地與存取層</strong>，把步驟 1 的嵌入用戶端產生的 1024 維向量持久化，並提供權控、可排序的近鄰查詢介面，作為步驟 3（索引管線）、步驟 4（混合檢索）的底座。</p>
+<p><strong>儲存方案</strong>：採規格 §3.1/§13.1 認可的退路 —— <strong>可攜 <code>byte[]</code> 欄位（float32 打包）+ 應用層暴力餘弦</strong>，以 <code>IVectorStore</code> 抽象隔離。無原生擴充、無需 SQL Server 2025，雙 provider 走標準 EF migration；日後規模成長可在不動上層下換成 sqlite-vec / 原生 VECTOR / pgvector。</p>
+<h2 id="設計重點" class="t2">設計重點</h2>
+<ul><li><strong>實體 <code>VectorEmbedding</code></strong>（依規格 §3.2）：<code>SourceLayer</code>(Wiki/Cleaned)、<code>WikiPageId?</code>、<code>ChunkText</code>(inline)、<code>Embedding</code>(byte[]，1024×float32)、<code>Teams</code>/<code>Categories</code>(分隔字串)、<code>Ordinal</code>、<code>AnchorRef</code>、<code>ContentHash</code>、<code>EmbeddingModel</code>。</li><li><strong>刪除政策</strong>：<code>KnowledgeSourceId</code> FK Cascade（單一串聯路徑）；<code>WikiPageId</code> FK <strong>Restrict</strong> —— 因 <code>WikiPage</code> 本身已從 <code>KnowledgeSource</code> Cascade，若再 Cascade 會在 SQL Server 觸發「多重串聯路徑」錯誤；Wiki 頁變更時改由索引管線（步驟 3）顯式清理向量。</li><li><strong>權控即過濾</strong>：<code>SearchAsync</code> 在查詢層即套 <code>TagStringHelper.BuildTeamAccessPredicate</code>（非管理員只見公開或交集團隊，管理員不限），絕不取回後再濾。</li><li><strong>provider 無關</strong>：byte[] + 應用層餘弦在 SQLite/SQL Server 皆相同；<code>DualDbVectorStore</code> 沿用規格命名，原生索引路徑列為日後替換。</li></ul>
+<h2 id="變更內容" class="t3">變更內容</h2>
+<ul><li><strong>實體</strong>：<code>KnowledgeExtraction.AccessDatas/Models/VectorEmbedding.cs</code>（仿 <code>WikiPage</code> 風格）。</li><li><strong>DbContext</strong>：<code>BackendDBContext</code> 新增 <code>DbSet&lt;VectorEmbedding&gt;</code> 與 <code>OnModelCreating</code>（Cascade/Restrict 與三個索引：<code>KnowledgeSourceId</code>、<code>WikiPageId</code>、<code>(KnowledgeSourceId, SourceLayer)</code>）。</li><li><strong>AdapterModel/AutoMapper</strong>：<code>VectorEmbeddingAdapterModel</code>（<code>Teams</code>/<code>Categories</code> List+Text、<code>SourceLayer</code> 常數）；<code>AutoMapping</code> 新增 <code>#region VectorEmbedding</code> 雙向 <code>ForMember</code>（標籤走 <code>TagStringHelper</code>）。</li><li><strong>向量存取層</strong>（<code>KnowledgeExtraction.Business/Services/Embeddings/</code>）：</li><li><code>VectorMath</code>：<code>Encode</code>/<code>Decode</code>（<code>Buffer.BlockCopy</code>）、<code>Cosine</code>（純函式）。</li><li><code>IVectorStore</code> + <code>VectorQuery</code>(重用 <code>RecordAccessScope</code>)/<code>VectorSearchResult</code>。</li><li><code>DualDbVectorStore</code>：<code>UpsertAsync</code>（Id==0 新增否則更新）、<code>SearchAsync</code>（權控過濾 → 解碼 → 餘弦排序 → MinScore → TopK）。</li><li><strong>DI</strong>：<code>ServiceCollectionExtensions</code> 註冊 <code>AddScoped&lt;IVectorStore, DualDbVectorStore&gt;()</code>。</li><li><strong>雙 migration</strong>：<code>AddVectorEmbedding</code>（SQLite <code>BLOB</code> / SQL Server <code>varbinary(max)</code>，含三索引與 FK 政策），SQLite 與 SqlServerMigrations 各一套。</li><li><strong>測試</strong>：<code>VectorMathTests</code>（encode/decode round-trip、cosine 同向/正交/反向/零向量/維度不符）；<code>DualDbVectorStoreTests</code>（upsert→search round-trip、TopK、MinScore、SourceLayer 過濾、權控管理員/非管理員/無團隊）。全套 325 個測試綠燈。</li></ul>
+<h2 id="後續" class="t4">後續</h2>
+<p>依 strategy/12 §12.2，下一步為<strong>步驟 3</strong>：<code>Chunker</code> + 嵌入索引管線（<code>IEmbeddingIndexQueue</code>/<code>EmbeddingIndexBackgroundService</code>/<code>EmbeddingIndexProcessor</code>，仿 Distillations 三件套），蒸餾完成後自動建索引、增量重建與孤兒清除。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#設計重點">設計重點</a><a class="l2" href="#變更內容">變更內容</a><a class="l2" href="#後續">後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-26-階段三向量存取層.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

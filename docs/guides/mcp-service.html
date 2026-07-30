@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP 服務使用說明書｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>MCP 服務使用說明書</h1><p class="sub">說明如何連線、使用與運維本系統的 MCP（Model Context Protocol）服務，讓外部 AI Agent 能安全查詢企業知識庫</p></header><div class="docwrap"><main><ul><li>文件用途：說明如何連線、使用與運維本系統的 MCP（Model Context Protocol）服務，讓外部 AI Agent 能安全查詢企業知識庫</li><li>主要讀者：AI Agent 使用者／整合開發者、系統管理員與維運人員</li><li>文件版本：1.3</li><li>建立日期：2026/07/16</li><li>更新日期：2026/07/29（新增 §4.6 <code>knowledge_graph_neighbors</code>、<code>knowledge_ask</code> 的 <code>mode=global</code>、§4.7 唯讀 REST 端點；五個工具→六個工具）</li><li>對應系統版本：1.0.100（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>相關：設計規格見 <a href="../../docs/architecture/mcp-server-design.html"><code>architecture/MCP-Server-整合設計與使用指南.md</code></a>；日誌機制見 <a href="../../docs/operations/logging-and-settings.html"><code>operations/日誌與設定檔說明.md</code></a>；權控觀念見 <a href="../../docs/guides/ai-qa-guide.html"><code>guides/AI知識問答使用指南.md</code></a>；圖譜能力的完整說明見 <a href="../../docs/guides/knowledge-graph.html"><code>guides/知識圖譜使用指南.md</code></a>。</p>
+<p>狀態：<strong>已實作</strong>。共 <strong>6 個工具</strong>（四個知識工具＋連通診斷 <code>knowledge_ping</code>＋1.0.91 起的圖譜鄰域 <code>knowledge_graph_neighbors</code>）、JWT/API Key 雙認證、分級日誌與稽核皆已上線，<code>/mcp</code> 端點已套用 <code>api</code> 限流政策。<strong>1.0.91 起</strong> <code>knowledge_ask</code> 支援 <code>mode=global</code>（知識圖譜社群摘要）；<strong>1.0.96 起</strong>另有兩支對等的唯讀 REST 端點（見 §4.7）。<strong>1.0.8 起</strong> MCP 問答會寫入聊天紀錄並補 Token 用量歸屬（見 §6.6）；<strong>1.0.9 起</strong> API Key 改存資料庫，可於 <code>/mcp-api-keys</code> 網頁新增與啟用/停用（見 §6.7）。</p>
+<p>⚠️ <strong>重要更正（1.0.71）</strong>：本文舊版 §6.4 FAQ 曾寫「問句與回答本文不落地」，<strong>這是錯的</strong>。<code>knowledge_ask</code> 的問句與回傳的參考資料 context <strong>全文都會寫入實體檔案</strong>（僅管理員可查）。詳見 §6.6。做資安審查或對客戶承諾前請以 §6.6 為準。</p></blockquote>
+<hr>
+<h2 id="一這個服務在做什麼為什麼需要" class="t1">一、這個服務在做什麼？（為什麼需要）</h2>
+<p>MCP 服務讓<strong>外部 AI Agent</strong>（如 Codex、Claude Code、Claude Desktop、Cursor、VS Code 或其他支援 MCP 的工具）能把「查詢本企業知識庫」當成內建工具直接使用，而不必為每個 Agent 客製串接。各客戶端的實際設定步驟見 §3.3。</p>
+<p>透過本服務，Agent 可以：</p>
+<ul><li><strong>問答</strong>：用自然語言詢問企業知識，取回含<strong>出處</strong>的參考資料與信心判定。注意：<strong>伺服器端只做檢索、不生成答案</strong>——最終答案是由你的 AI 用戶端（Claude／Codex 等）拿這份參考資料去生成的。</li><li><strong>搜尋</strong>：取回最相關的原始內容片段，自行彙整。</li><li><strong>盤點</strong>：列出有哪些知識來源（文件、分類、團隊）。</li><li><strong>取全文</strong>：取回單一文件的完整內容。</li></ul>
+<p>所有查詢都會<strong>自動套用呼叫者的團隊權限</strong>——Agent 永遠看不到使用者無權存取的內容。</p>
+<p>服務以 <strong>HTTP（Streamable HTTP）</strong> 方式對外，端點路徑為 <code>/mcp</code>，與系統其他 Web API 共用同一認證與安全邊界。</p>
+<hr>
+<h2 id="二開始前的前提" class="t2">二、開始前的前提</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>說明</th></tr></thead><tbody><tr><td>服務已部署</td><td>系統管理員已在 Web 站台啟用 MCP endpoint（<code>/mcp</code>），並設定授權</td></tr><tr><td>有一個帳號</td><td>你需要一組系統帳號；其<strong>所屬團隊</strong>決定你能查到哪些知識</td></tr><tr><td>取得憑證</td><td>兩種擇一：<strong>JWT Bearer</strong>（先登入取得 JWT，帶 <code>Authorization: Bearer</code>，見 §3.2）；或 <strong>MCP 專用 API Key</strong>（管理員於 <code>/mcp-api-keys</code> 網頁建立、存資料庫、可啟用/停用，帶專用標頭 <code>X-API-Key</code>；見 §6.7）</td></tr><tr><td>端點網址</td><td>例如 <code>https://your-host.example.com/mcp</code>（向管理員索取正式網址）</td></tr></tbody></table></div>
+<hr>
+<h2 id="三ai-agent-端連線設定使用者操作" class="t3">三、AI Agent 端連線設定（使用者操作）</h2>
+<h3 id="31-連線共通資訊">3.1 連線共通資訊</h3>
+<p>不論哪一種客戶端，都是連到同一個 HTTP（Streamable HTTP）端點並帶授權標頭：</p>
+<ul><li><strong>傳輸類型</strong>：HTTP / Streamable HTTP（不是 stdio）</li><li><strong>端點 URL</strong>：<code>https://your-host.example.com/mcp</code>（向管理員索取正式網址）</li><li><strong>授權標頭（擇一）</strong>：JWT → <code>Authorization: Bearer &lt;你的 JWT&gt;</code>；API Key → <code>X-API-Key: &lt;你的金鑰&gt;</code>（專用標頭，不放在 <code>Authorization</code>）</li></ul>
+<blockquote><p><strong>安全提醒</strong>：多數設定檔以明碼存放 token。<strong>建議用環境變數</strong>帶入（下方各例盡量示範），並勿把含 token 的設定檔提交進版本控管。</p></blockquote>
+<h3 id="32-取得-jwt">3.2 取得 JWT</h3>
+<p>呼叫系統既有的登入端點以帳密換取 JWT（例如 <code>POST /api/Auth/...</code>，實際路徑向管理員確認），把回傳的 token 填入下方各客戶端設定的授權欄位。<strong>Token 到期後需重新換發。</strong></p>
+<h3 id="33-各家-ai-agent-設定">3.3 各家 AI Agent 設定</h3>
+<blockquote><p>各家格式差異大：Codex 用 <strong>TOML</strong>（<code>config.toml</code>）、其餘多用 <strong>JSON</strong>；VS Code 用 <code>servers</code>＋必填 <code>type</code>，Cursor／Claude 用 <code>mcpServers</code>。務必用對應格式。</p>
+<p>下方各例以 <strong>JWT</strong>（<code>Authorization: Bearer</code>）示範。<strong>若改用 API Key</strong>，把授權標頭換成 <code>X-API-Key: &lt;你的金鑰&gt;</code>（例如 Cursor/VS Code 的 <code>headers</code> 改 <code>"X-API-Key": "..."</code>；Codex 的 <code>http_headers</code> 改 <code>X-API-Key = "..."</code>）。</p></blockquote>
+<h4 id="331-codexcli">3.3.1 Codex（CLI）</h4>
+<p>編輯 <code>~/.codex/config.toml</code>（全域）或專案下 <code>.codex/config.toml</code>。直接連遠端 Streamable HTTP 需開啟 RMCP client：</p>
+<pre><code>experimental_use_rmcp_client = true
+
+[mcp_servers.knowledge_extraction]
+url = "https://your-host.example.com/mcp"
+# 建議：以環境變數帶 token（下行擇一）
+bearer_token_env_var = "KE_JWT"     # 讀環境變數 KE_JWT，送出 Authorization: Bearer &lt;值&gt;
+# bearer_token = "&lt;你的 JWT&gt;"        # 或直接明碼（較不建議）</code></pre>
+<p>若要帶自訂標頭（例如 API Key 方案），改用 <code>http_headers</code> 區塊：</p>
+<pre><code>[mcp_servers.knowledge_extraction]
+url = "https://your-host.example.com/mcp"
+
+[mcp_servers.knowledge_extraction.http_headers]
+Authorization = "Bearer &lt;你的 JWT&gt;"</code></pre>
+<blockquote><p>使用前先 <code>export KE_JWT=&lt;你的 JWT&gt;</code>（Windows PowerShell：<code>$env:KE_JWT="&lt;你的 JWT&gt;"</code>）。OAuth 型伺服器才需 <code>codex mcp login</code>；本服務用 Bearer，不需要。</p></blockquote>
+<h4 id="332-codex-桌面版codex-app--desktop">3.3.2 Codex 桌面版（Codex App / Desktop）</h4>
+<p>以圖形介面新增，不必手改設定檔：</p>
+<ol><li>左下角 <strong>齒輪 Settings</strong> → <strong>MCP Servers</strong></li><li><strong>Add server</strong> → 傳輸類型選 <strong>Streamable HTTP</strong></li><li>填 <strong>URL</strong>：<code>https://your-host.example.com/mcp</code></li><li>在 <strong>Headers</strong> 加一組：Key = <code>Authorization</code>、Value = <code>Bearer &lt;你的 JWT&gt;</code>（或以 <strong>Authenticate</strong> 走 OAuth，本服務用 Bearer 則直接填標頭）</li><li>儲存後即可在對話中使用這六個工具（建議先呼叫 <code>knowledge_ping</code> 確認連線）</li></ol>
+<blockquote><p>Codex 的 VS Code 擴充與 CLI 共用同一份 <code>config.toml</code>（設定同 §3.3.1）；部分版本擴充端的伺服器顯示仍有已知問題，若沒出現可改用 CLI 驗證。</p></blockquote>
+<h4 id="333-claude-codecli">3.3.3 Claude Code（CLI）</h4>
+<p>用內建指令新增 HTTP 型伺服器（選項要放在名稱之前）：</p>
+<pre><code>claude mcp add --transport http knowledge-extraction \
+  https://your-host.example.com/mcp \
+  --header "Authorization: Bearer &lt;你的 JWT&gt;"</code></pre>
+<ul><li>加 <code>--scope user</code> 讓所有專案可用，或 <code>--scope project</code>（透過 git 分享，但<strong>勿把 token 提交</strong>）。</li><li>移除：<code>claude mcp remove knowledge-extraction</code>；列出：<code>claude mcp list</code>。</li></ul>
+<h4 id="334-claude-desktop">3.3.4 Claude Desktop</h4>
+<p>Claude Desktop 的遠端 MCP 走 <strong>Custom Connectors（自訂連接器）</strong> UI：</p>
+<ol><li><strong>Settings → Connectors → Add custom connector</strong></li><li>填入遠端 MCP URL：<code>https://your-host.example.com/mcp</code></li><li>非 OAuth 時，展開設定在 <strong>Request headers</strong> 加憑證（Claude 會安全保存）：JWT → <code>Authorization</code> = <code>Bearer &lt;你的 JWT&gt;</code>；或 API Key → <code>X-API-Key</code> = <code>&lt;你的金鑰&gt;</code></li><li>儲存後啟用該連接器</li></ol>
+<blockquote><p>註：Claude Desktop 從雲端連到你的 MCP 伺服器，故端點需可從公網（Anthropic IP）連到。若走 <code>claude_desktop_config.json</code> 檔案設定，需搭配 <code>mcp-remote</code> 橋接遠端伺服器。</p></blockquote>
+<h4 id="335-cursor">3.3.5 Cursor</h4>
+<p>編輯 <code>~/.cursor/mcp.json</code>（全域）或專案 <code>.cursor/mcp.json</code>：</p>
+<pre><code>{
+  "mcpServers": {
+    "knowledge-extraction": {
+      "url": "https://your-host.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:KE_JWT}"
+      }
+    }
+  }
+}</code></pre>
+<blockquote><p>Cursor 的 <code>url</code>／<code>headers</code> 支援 <code>${env:VAR}</code> 變數插值；先設好環境變數 <code>KE_JWT</code> 再啟動 Cursor。</p></blockquote>
+<h4 id="336-vs-codemcp">3.3.6 VS Code（MCP）</h4>
+<p>建立專案 <code>.vscode/mcp.json</code>（注意用 <code>servers</code>、且每個伺服器<strong>必填 <code>type</code></strong>）：</p>
+<pre><code>{
+  "inputs": [
+    { "id": "ke-jwt", "type": "promptString", "description": "Knowledge Extraction JWT", "password": true }
+  ],
+  "servers": {
+    "knowledge-extraction": {
+      "type": "http",
+      "url": "https://your-host.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${input:ke-jwt}"
+      }
+    }
+  }
+}</code></pre>
+<blockquote><p>VS Code 首次使用會提示輸入 JWT 並安全保存（<code>inputs</code>），避免明碼寫死在檔案裡。</p></blockquote>
+<h3 id="34-連線後可用的工具">3.4 連線後可用的工具</h3>
+<p>連線成功後，Agent 會在工具清單看到下列工具，並依各工具說明自動判斷何時呼叫：</p>
+<div class="tw"><table><thead><tr><th>工具名稱</th><th>用途</th></tr></thead><tbody><tr><td><code>knowledge_ask</code></td><td>RAG 檢索：回傳含出處的<strong>參考資料 context</strong> 與信心判定（<strong>不是生成好的答案</strong>，答案由你的用戶端 LLM 產出）。1.0.91 起支援 <code>mode=global</code> 走知識圖譜社群摘要</td></tr><tr><td><code>knowledge_search</code></td><td>混合檢索，回傳相關內容片段與分數</td></tr><tr><td><code>knowledge_list_sources</code></td><td>分頁列出可存取的知識來源</td></tr><tr><td><code>knowledge_get_document</code></td><td>依 ID 取回單一來源全文</td></tr><tr><td><code>knowledge_ping</code></td><td>連通性診斷：回傳固定訊息確認服務可被呼叫</td></tr><tr><td><code>knowledge_graph_neighbors</code>（1.0.91）</td><td>查某實體在知識圖譜中的 N 跳鄰域關係（實體—關係—實體），供多跳關聯探索。<strong>純資料庫查詢、不呼叫 LLM</strong></td></tr></tbody></table></div>
+<hr>
+<h2 id="四六個工具的用法與範例" class="t4">四、六個工具的用法與範例</h2>
+<blockquote><p>回傳內容為示意，實際依知識庫資料而定。<strong>參數名稱與回傳欄位名以本節為準</strong>（舊版本文件的欄位名有誤，照抄會串接失敗）。</p></blockquote>
+<h3 id="41-knowledge_ask檢索參考資料">4.1 <code>knowledge_ask</code>（檢索參考資料）</h3>
+<ul><li>參數（共 5 個）：</li></ul>
+<div class="tw"><table><thead><tr><th>參數</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td><code>question</code></td><td>string</td><td><strong>必填</strong>。問句</td></tr><tr><td><code>categories</code></td><td>string[]?</td><td>可選。限定分類清單；null 或空＝不限</td></tr><tr><td><code>teams</code></td><td>string[]?</td><td>可選。限定的團隊名稱清單（<strong>只會縮小、不會擴權</strong>）；null 或空＝不限</td></tr><tr><td><code>history</code></td><td>ChatTurn[]?</td><td>可選。多輪對話歷史，依序 user/assistant 回合；每個元素為 <code>{ "role": "...", "content": "..." }</code></td></tr><tr><td><code>mode</code></td><td>string?</td><td>可選（1.0.91）。<code>local</code>（預設，精準檢索）或 <code>global</code>（知識圖譜社群摘要）。<strong>無法辨識的值會明確拋錯</strong>，不會靜默退回 <code>local</code>——否則呼叫端會誤以為自己走了 global</td></tr></tbody></table></div>
+<ul><li>範例呼叫：<code>knowledge_ask({ "question": "公司差旅報銷的流程是什麼？" })</code></li><li>預期回傳（<strong>注意出處的欄位名是 <code>sourceTitle</code> 而非 <code>title</code></strong>）：</li></ul>
+<pre><code>{
+  "answerContext": "差旅報銷須於行程結束後 7 個工作天內於差旅系統提出……",
+  "confidence": "Sufficient",
+  "topScore": 0.82,
+  "sources": [
+    {
+      "knowledgeSourceId": 12,
+      "sourceTitle": "差旅管理辦法 v3",
+      "sourceLayer": "Cleaned",
+      "snippet": "差旅報銷須於行程結束後 7 個工作天內……",
+      "score": 0.82
+    }
+  ]
+}</code></pre>
+<blockquote><p><strong><code>answerContext</code> 是「參考資料」不是「答案」</strong>。伺服器端完全不呼叫生成模型，請把它連同 <code>sources</code> 一起交給你的用戶端 LLM 去組答案，並要求它引用 <code>sourceTitle</code>。</p></blockquote>
+<h4 id="modeglobal知識圖譜社群摘要1091"><code>mode=global</code>（知識圖譜社群摘要，1.0.91）</h4>
+<p>適合「整體風險有哪些」「反覆出現的系統性問題是什麼」這類<strong>要看過全部內容才答得出</strong>的問題。一般的向量／關鍵字檢索只取最相似的前 K 段，對這類問題等於隨機抽樣。</p>
+<ul><li>範例呼叫：<code>knowledge_ask({ "question": "客戶A 的整體維運風險有哪些？", "mode": "global" })</code></li><li><strong>回傳欄位差異</strong>（照 <code>local</code> 的預期去解析會拿到空值）：</li></ul>
+<div class="tw"><table><thead><tr><th>欄位</th><th><code>mode=local</code></th><th><code>mode=global</code></th></tr></thead><tbody><tr><td><code>sources</code></td><td>有出處清單</td><td><strong>恆為空陣列</strong>（社群摘要沒有 chunk 層出處）</td></tr><tr><td><code>topScore</code></td><td>融合分數</td><td><strong>恆為 0</strong></td></tr><tr><td><code>usedCommunities</code></td><td>不回傳</td><td><strong>取用的社群清單</strong></td></tr><tr><td><code>categories</code> / <code>teams</code> 篩選</td><td>生效</td><td><strong>不套用</strong></td></tr></tbody></table></div>
+<ul><li>⚠️ <strong>只做 map、不做 reduce</strong>：本工具回傳的是「每個社群的重點」，<strong>不是彙整好的一段答案</strong>。彙整（reduce）刻意留給你的用戶端 LLM 做——與 <code>answerContext</code> 同樣的設計哲學。（Blazor 網頁的問答頁則會做完整 map-reduce。）</li><li>⚠️ <strong>成本是社群數的倍數</strong>：每個你有權存取的社群各一次 LLM 呼叫（上限由伺服器的 <code>Retrieval.GraphGlobalCommunityCap</code> 控管，預設 20）。</li><li>⚠️ <strong>前置</strong>：伺服器端的管理員必須先在「知識圖譜審核」頁按過「重建社群摘要」，否則無社群可用。</li><li>社群摘要的權控<strong>比一般紀錄更嚴</strong>（子集判定），見 §五。</li></ul>
+<h3 id="42-knowledge_search搜尋片段">4.2 <code>knowledge_search</code>（搜尋片段）</h3>
+<ul><li>參數：<code>query</code>（必填）、<code>topK</code>（可選）。<strong>這個工具沒有 <code>categories</code>／<code>teams</code> 參數</strong>——要按分類或團隊縮小範圍請改用 <code>knowledge_ask</code> 或 <code>knowledge_list_sources</code>。</li><li>範例呼叫：<code>knowledge_search({ "query": "資安事件通報 窗口 時限", "topK": 3 })</code></li><li>預期回傳：相關片段陣列，每筆含 <code>knowledgeSourceId</code>、<code>text</code>、<code>sourceLayer</code>、<code>anchorRef</code>、<code>score</code>、<code>vectorScore</code>、<code>keywordScore</code>。</li></ul>
+<h3 id="43-knowledgelistsources列出來源">4.3 <code>knowledge_list_sources</code>（列出來源）</h3>
+<ul><li>參數：<code>search</code>（可選）、<strong><code>categories</code>（可選）</strong>、<strong><code>teams</code>（可選）</strong>、<code>page</code>（預設 1）、<code>pageSize</code>（預設 20）</li><li>範例呼叫：<code>knowledge_list_sources({ "search": "新人", "page": 1, "pageSize": 10 })</code></li><li>預期回傳：<code>{ "total": 2, "items": [ { "id": 12, "title": "新人到職手冊", … } ] }</code>（這個工具的欄位名確實是 <code>title</code>）</li></ul>
+<h3 id="44-knowledgegetdocument取全文">4.4 <code>knowledge_get_document</code>（取全文）</h3>
+<ul><li>參數：<code>sourceId</code>（必填）</li><li>範例呼叫：<code>knowledge_get_document({ "sourceId": 12 })</code></li><li>預期回傳：<code>{ "sourceId": 12, "title": "新人到職手冊", "content": "# 新人到職手冊…" }</code></li><li>若不存在、尚未清洗完成或無權存取：<code>{ "error": "unavailable" }</code>（統一回應，不區分以避免洩漏來源是否存在）</li></ul>
+<h3 id="45-knowledge_ping連通性診斷">4.5 <code>knowledge_ping</code>（連通性診斷）</h3>
+<ul><li>參數：<strong>無</strong></li><li>範例呼叫：<code>knowledge_ping({})</code></li><li>預期回傳：固定字串 <code>KnowledgeExtraction MCP server is alive.</code></li><li>用途：連線設定完成後的第一個測試。<strong>它不開查詢範圍、也不寫任何紀錄或用量</strong>，所以拿它驗證「認證有沒有通、端點有沒有到」最乾淨。若這個工具都不通，先回頭檢查 §三 的連線設定與憑證。</li></ul>
+<h3 id="46-knowledgegraphneighbors查實體鄰域1091">4.6 <code>knowledge_graph_neighbors</code>（查實體鄰域，1.0.91）</h3>
+<p>查某個實體在知識圖譜中的鄰域關係，用來探索「A 透過什麼連到 C」這類<strong>答案不在任何單一段落裡</strong>的關聯。</p>
+<ul><li>參數：</li></ul>
+<div class="tw"><table><thead><tr><th>參數</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td><code>entityName</code></td><td>string</td><td><strong>必填</strong>。實體名稱，例如 <code>台積電</code>。<strong>別名會自動解析為同一實體</strong>（如 <code>TSMC → 台積電</code>，需該別名已被管理員核可）</td></tr><tr><td><code>maxHops</code></td><td>int?</td><td>可選。擴展跳數 1～3，<strong>預設 2</strong>。超出範圍會被<strong>靜默夾住</strong>（不報錯——呼叫端是 LLM，夾住比報錯更能讓對話繼續；REST 端點的行為相反，見 §4.7）</td></tr></tbody></table></div>
+<ul><li>範例呼叫：<code>knowledge_graph_neighbors({ "entityName": "台積電", "maxHops": 2 })</code></li><li><strong>只回傳「已核可」的三元組</strong>，且只回你有權存取的關係。查不到時回 <code>found=false</code>（不是錯誤）。</li><li>節點數上限 <strong>100</strong>，達上限時回傳 <code>truncated</code> 旗標——<strong>不靜默截斷</strong>，你會知道結果不完整。</li><li>⚠️ <strong>純資料庫查詢，不呼叫 LLM</strong>，因此不計 token 用量、速度快、可安心多次呼叫。</li></ul>
+<h3 id="47-唯讀-rest-端點1096給不講-mcp-協定的系統">4.7 唯讀 REST 端點（1.0.96，給不講 MCP 協定的系統）</h3>
+<p>上面兩項圖譜能力另有對等的 REST 版本，供無法或不想實作 MCP 協定的系統整合。JWT 認證，權控與 MCP <strong>走同一條把關程式碼</strong>。</p>
+<div class="tw"><table><thead><tr><th>端點</th><th>對應 MCP</th><th>行為差異</th></tr></thead><tbody><tr><td><code>POST /api/v1/KnowledgeGraph/global-ask</code></td><td><code>knowledge_ask</code>（<code>mode=global</code>）</td><td><strong>LLM 未設定時回 503</strong>（伺服器組態問題，刻意不是 500）。同樣<strong>只做 map 不做 reduce</strong></td></tr><tr><td><code>GET /api/v1/KnowledgeGraph/neighbors?entityName=&amp;maxHops=</code></td><td><code>knowledge_graph_neighbors</code></td><td><strong><code>maxHops</code> 超出 1～3 回 400</strong>（刻意<strong>不</strong>像 MCP 那樣靜默夾住——REST 的呼叫端是程式，明確報錯才能讓 bug 及早浮現）。查無實體回 <strong>200 + <code>found=false</code></strong></td></tr></tbody></table></div>
+<ul><li>⚠️ <strong>沒有寫入型端點</strong>：無法透過 REST（或 MCP）新增或核可三元組。審核是治理動作，刻意只留在網頁上。</li><li>⚠️ <strong>沒有 API 專用節流</strong>，成本只靠伺服器的 <code>Retrieval.GraphGlobalCommunityCap</code> 控管。對外開放時請在前端閘道加限流。</li></ul>
+<hr>
+<h2 id="五權控如何運作資安關鍵" class="t5">五、權控如何運作（資安關鍵）</h2>
+<ul><li>每次查詢，系統會依你的憑證解析出<strong>身分與所屬團隊</strong>。</li><li><strong>非管理員</strong>只能看到「<strong>無團隊（公開）</strong> 或 <strong>與你的角色團隊有交集</strong>」的知識；<strong>管理員</strong>不受限。</li><li>權控發生在<strong>檢索層</strong>：越權內容永遠不會被取回，Agent 無法繞過。</li><li>因此，同一個問題由不同人問，可能得到不同結果——這是預期行為，不是錯誤。</li></ul>
+<blockquote><p>範例：僅屬「行銷部」的非管理員詢問只屬「財務部」的機密薪酬政策，會得到查無依據（<code>confidence: Insufficient</code>、<code>sources: []</code>）。</p></blockquote>
+<p><strong>知識圖譜相關的兩項額外規則</strong>：</p>
+<ul><li><strong>社群摘要（<code>mode=global</code>）的權控更嚴，採子集判定</strong>：社群涵蓋來源的團隊聯集必須是你的團隊的<strong>子集</strong>，或該社群完全公開，才取用得到。理由是一份摘要混了多筆來源的知識，其中任一筆你無權看，整份就不能給。（其餘紀錄都是「交集即可」。）</li><li><strong><code>knowledge_graph_neighbors</code> 的每一跳都重新驗權限</strong>：不能借道無權限的中間節點繞到有價值的節點。他人團隊的三元組<strong>即使兩端頁面都公開也不回傳</strong>——「這兩者有關係」本身就是一項知識。</li></ul>
+<hr>
+<h2 id="六日誌與稽核管理員運維" class="t6">六、日誌與稽核（管理員運維）</h2>
+<p>MCP 服務被呼叫時，<strong>重要動作都會寫入日誌</strong>，並依嚴重性分到不同等級，供日後除錯與分析。日誌與稽核<strong>沿用系統既有機制</strong>。</p>
+<h3 id="61-日誌寫到哪裡">6.1 日誌寫到哪裡</h3>
+<ul><li>與全系統共用同一份每日檔案（NLog，路徑由 <code>NLog.BasePath</code> 決定，<strong>出貨預設為 <code>C:\temp\Logs</code></strong>，檔名 <code>*-{日期}.log</code>），UTF-8，保留約 30 天、單檔上限 100MB 自動輪替。</li><li>每筆日誌都帶：時間、<strong>TraceId</strong>（每次請求的關聯 id，可串起同一次呼叫的所有日誌）、等級、記錄器名稱，以及情境欄位 <code>user=</code>（帳號）／<code>op=</code>（操作）／<code>id=</code>（紀錄 Id）。</li><li>MCP 相關日誌的 <code>op=</code> 會是 <code>McpAsk</code>、<code>McpSearch</code>、<code>McpListSources</code>、<code>McpGetDocument</code>，方便過濾。<code>knowledge_ask</code> 的日誌另帶 <code>mode=local|global</code>。</li></ul>
+<h3 id="62-各等級level記什麼">6.2 各等級（Level）記什麼</h3>
+<div class="tw"><table><thead><tr><th>等級</th><th>記錄內容</th><th>預設是否輸出</th></tr></thead><tbody><tr><td><strong>Trace</strong></td><td>逐工具參數細節、檢索中間值</td><td>否（深度除錯才臨時開）</td></tr><tr><td><strong>Debug</strong></td><td>工具進入點、參數摘要（<code>topK</code>、過濾條件、<code>sourceId</code>）、身分解析結果</td><td>否（正式環境不開）</td></tr><tr><td><strong>Information</strong></td><td>里程碑：工具呼叫<strong>開始</strong>、<strong>成功</strong>（含命中數/最高分/信心/耗時）</td><td>是</td></tr><tr><td><strong>Warning</strong></td><td>權控<strong>拒絕</strong>、找不到來源、查無依據、稽核寫入失敗、授權未過</td><td>是</td></tr><tr><td><strong>Error</strong></td><td>例外、檢索/DB 失敗、下游（OpenAI 嵌入）錯誤</td><td>是</td></tr><tr><td><strong>Critical</strong></td><td>系統幾乎無法運作（如 DB 完全失敗）</td><td>是</td></tr></tbody></table></div>
+<h3 id="63-常見日誌訊息解讀">6.3 常見日誌訊息解讀</h3>
+<div class="tw"><table><thead><tr><th>你會看到的訊息（示意）</th><th>等級</th><th>意義</th></tr></thead><tbody><tr><td><code>MCP 工具呼叫開始。tool=knowledge_ask questionLen=…</code></td><td>Information</td><td>有一次問答進來了</td></tr><tr><td><code>MCP 工具呼叫成功。tool=knowledge_ask 命中數=… 最高分=… 信心=…</code></td><td>Information</td><td>問答完成，附檢索 metrics</td></tr><tr><td><code>MCP 工具權控拒絕。tool=knowledge_get_document sourceId=…</code></td><td>Warning</td><td>有人嘗試取用越權來源（已擋下，可歸責）</td></tr><tr><td><code>MCP 問答稽核持久化失敗（不影響回答）。</code></td><td>Warning</td><td>稽核寫 DB 失敗，但回答不受影響</td></tr><tr><td><code>MCP 工具呼叫失敗。tool=…</code></td><td>Error</td><td>該次呼叫發生例外，需追 TraceId 查上下文</td></tr></tbody></table></div>
+<h3 id="64-稽核紀錄可歸責性">6.4 稽核紀錄（可歸責性）</h3>
+<ul><li>MCP 問答會寫入既有 <strong>AI 知識問答稽核</strong>（<code>KnowledgeBaseQueryAudit</code>），與 Blazor 問答同軌。</li><li>稽核<strong>只存身分與分數指標</strong>：帳號、姓名、是否管理員、團隊、查詢長度、命中數、最高分、信心、命中明細（Id/層別/分數）。</li><li><strong>不會</strong>儲存問句本文、回答內容或知識片段文字（隱私邊界不變量）。</li><li>可經 <code>/rag-diagnostics</code> 頁面查閱近期問答稽核紀錄（管理員）。</li></ul>
+<h3 id="65-臨時提高日誌等級切換除錯用">6.5 臨時提高日誌等級切換（除錯用）</h3>
+<ul><li>到 <strong><code>/log-settings</code></strong> 頁面（管理員），把等級臨時切到 <code>Debug</code> 或 <code>Trace</code>，即可看到工具參數摘要與更細節；設定即時生效（<code>nlog.config</code> <code>autoReload</code>），<strong>除錯完請切回 <code>Information</code></strong> 以免日誌暴量與洩漏過細資訊。</li></ul>
+<h3 id="66-mcp-聊天紀錄與-token-歸屬108-起">6.6 MCP 聊天紀錄與 Token 歸屬（1.0.8 起）</h3>
+<ul><li><strong>聊天紀錄</strong>：<code>knowledge_ask</code> 每次呼叫會寫入既有 <strong>問答稽核明細</strong>（<code>/chat-logs</code>，管理員可查；進入路徑：系統管理 → AI 與整合 → 問答稽核明細），<strong>來源出處標示為「MCP Server 問答」</strong>（<code>Origin=Mcp</code>）。<strong>寫入的是問句原文與回傳的參考資料 context 全文</strong>（存於實體檔案），檔案內該段標題為「回傳給 Agent 的檢索參考資料（伺服器端未生成 AI 答案，答案由 MCP 用戶端 LLM 生成）」。隱私影響見 §七 Q2。</li><li><strong>不會</strong>出現在「完整對話紀錄」<code>/chat-sessions</code>：MCP 單次呼叫不帶 SessionId，不構成「一段對話」。</li><li>全文 <code>.md</code> 內容含：呼叫來源（MCP API Key 名稱）、使用者提問、<strong>回傳給 Agent 的檢索參考資料 context</strong>、出處與信心/分數。</li><li><strong>注意</strong>：MCP 的 AI 答案是由 MCP 用戶端（如 codex/Claude）的 LLM 生成，<strong>伺服器端不生成答案</strong>，故聊天紀錄記的是「回傳的參考資料」，非 AI 回答。此紀錄比照網頁聊天紀錄會保留問句與 context 全文於檔案（僅管理員可查），與 6.4 稽核（不存本文）是兩套獨立機制。</li><li><code>knowledge_search</code> 屬低階檢索、不寫聊天紀錄（其 token 仍歸屬，見下）。</li><li><strong>Token 歸屬</strong>：<code>knowledge_ask</code> 與 <code>knowledge_search</code> 的檢索用量（嵌入 <code>Embedding</code>、必要時查詢改寫 <code>QueryRewrite</code>）會歸屬到呼叫者並標記作業 <strong><code>McpKnowledgeAsk</code>／<code>McpKnowledgeSearch</code></strong>，可於 <code>/token-usage</code>（明細）與 <code>/reports/token-usage-report</code>（報表）依作業與使用者切分查閱。</li><li><strong>上限說明</strong>：MCP 能計量的只有「檢索端」token；<strong>「答案生成」token 發生在 MCP 用戶端、不在本系統計量範圍</strong>。</li></ul>
+<h3 id="67-api-key-管理109-起改存資料庫網頁維護">6.7 API Key 管理（1.0.9 起：改存資料庫、網頁維護）</h3>
+<ul><li>MCP 的 API Key <strong>改由資料庫儲存</strong>，不再寫在 <code>appsettings.json</code>。管理員於 <strong><code>/mcp-api-keys</code>（系統管理 → </strong>AI 與整合<strong> → MCP 金鑰管理，僅管理員）</strong> 網頁 CRUD：</li><li><strong>新增</strong>：系統自動產生一把隨機金鑰（可「重新產生」），設定「名稱」（辨識用途/agent）與「對映使用者」（決定團隊權控範圍），可直接複製金鑰貼進客戶端設定。</li><li><strong>啟用/停用</strong>：可即時停用單一金鑰；<strong>停用後該金鑰立即無法連線（回 401）</strong>，不需重啟服務。重新啟用即恢復。</li><li><strong>修改/刪除</strong>：刪除後使用該金鑰的 Agent 立即無法連線。</li><li>認證流程：MCP 連線帶 <code>X-API-Key</code> → 伺服器查資料庫比對<strong>啟用中</strong>的金鑰（常數時間比對）→ 命中即以對映使用者身分套團隊權控。</li><li>金鑰以明文儲存於資料庫，僅管理員可於網頁檢視；請比照密碼妥善保管、勿外流。</li></ul>
+<hr>
+<h2 id="七除錯與問題診斷管理員" class="t7">七、除錯與問題診斷（管理員）</h2>
+<div class="tw"><table><thead><tr><th>症狀</th><th>檢查方向</th></tr></thead><tbody><tr><td>Agent 連不上 <code>/mcp</code></td><td>確認 endpoint 已註冊、<code>.RequireAuthorization()</code> 憑證正確、網路/憑證（HTTPS）可達</td></tr><tr><td>呼叫回 401/未授權</td><td>JWT 過期或無效 → 重新換發並確認 <code>Authorization: Bearer</code>；或 API Key 無效 → 確認 <code>X-API-Key</code> 標頭與管理員設定的金鑰一致</td></tr><tr><td>查詢總是查無依據</td><td>確認嵌入索引已建立（<code>/rag-diagnostics</code> 索引健康）、該使用者團隊是否真的有權存取相關來源</td></tr><tr><td>取全文回 <code>unavailable</code></td><td>來源不存在／尚未清洗完成／無權存取三者之一；若屬無權，查 Warning 日誌確認是誰、哪筆 <code>sourceId</code></td></tr><tr><td>要追某一次呼叫的完整過程</td><td>從日誌取該次 <strong>TraceId</strong>，以 TraceId 過濾即可串起開始→檢索→成功/失敗全鏈</td></tr><tr><td>需要更多細節</td><td><code>/log-settings</code> 臨時開 <code>Debug</code>，重現後切回</td></tr></tbody></table></div>
+<hr>
+<h2 id="八建議使用時機與最佳實務" class="t8">八、建議使用時機與最佳實務</h2>
+<ul><li><strong>一般問答</strong>優先用 <code>knowledge_ask</code>（有出處、有信心判定）；需要 Agent 自行彙整或比對多段時再用 <code>knowledge_search</code>。</li><li><strong>先列來源再取全文</strong>：不確定文件 ID 時，先 <code>knowledge_list_sources</code> 找到 ID，再 <code>knowledge_get_document</code>。</li><li><strong>善用過濾</strong>：<code>knowledge_ask</code> 與 <code>knowledge_list_sources</code> 可帶 <code>categories</code>／<code>teams</code> 縮小範圍（只會縮小、不會擴權），提升相關度。<strong><code>knowledge_search</code> 沒有這兩個參數</strong>（只有 <code>query</code>／<code>topK</code>）。</li><li><strong>憑證保管</strong>：JWT／API Key 視同密碼，勿寫入版本控管或公開設定；日誌本身不會記錄它們。</li><li><strong>運維巡檢</strong>：定期看 Warning（權控拒絕是否異常增加）與 Error（呼叫失敗率）。<code>/mcp</code> <strong>已內建套用 <code>api</code> 限流政策</strong>，不需另外加。</li></ul>
+<hr>
+<h2 id="九常見問題faq" class="t1">九、常見問題（FAQ）</h2>
+<p><strong>Q1：MCP 服務會把知識內容外流給不該看的人嗎？</strong> 不會。權控在檢索層生效，非管理員只能取回公開或其團隊交集的內容，Agent 無法繞過。</p>
+<p><strong>Q2：日誌會記錄我問了什麼、回傳了什麼嗎？</strong></p>
+<p><strong>會，而且是全文。</strong> 這裡要分成三個不同的東西講清楚（舊版本文件把它們混為一談、寫成「本文不落地」，那是錯的）：</p>
+<div class="tw"><table><thead><tr><th>機制</th><th>存什麼</th><th>存在哪</th><th>誰能看</th></tr></thead><tbody><tr><td><strong>NLog 應用日誌</strong></td><td><strong>不含本文</strong>。只記身分、操作、命中數、分數、長度等 metric</td><td><code>NLog.BasePath</code> 下的每日檔</td><td>維運（可經 <code>/log-download</code> 打包下載）</td></tr><tr><td><strong>檢索稽核</strong>（<code>KnowledgeBaseQueryAudit</code>）</td><td><strong>不含問句本文、不含 chunk 文字</strong>。只記長度與分數，供門檻校準</td><td>資料庫</td><td>管理員（<code>/rag-diagnostics</code>）</td></tr><tr><td><strong>聊天紀錄</strong>（<code>/chat-logs</code>）</td><td>⚠️ <strong>問句原文與回傳的參考資料 context 全文</strong></td><td>實體檔案（<code>ChatLogPath</code> 下的 <code>.md</code>）</td><td><strong>僅管理員</strong></td></tr></tbody></table></div>
+<p>也就是說：<strong>「不落地」只適用於前兩者。第三者（聊天紀錄）是刻意保留全文的稽核設計</strong>，來源出處會標示為「MCP Server 問答」。</p>
+<p>如果你的使用情境不允許問句落地，這是<strong>必須在導入前確認的政策點</strong>——請與系統管理員討論是否要調整 <code>ChatLogPath</code> 的保護措施、存取控管與保存期限。不要對客戶或資安審查說「MCP 問答不留本文」。</p>
+<blockquote><p>補充：MCP 的問答<strong>不會</strong>出現在「完整對話紀錄」<code>/chat-sessions</code>，因為單次工具呼叫沒有「對話」概念（不帶 SessionId）。要稽核 MCP 一律到 <code>/chat-logs</code>，來源選「MCP Server 問答」。</p></blockquote>
+<p><strong>Q3：為什麼同一個問題，我和同事得到的答案不同？</strong> 因為你們所屬團隊不同，可存取的知識範圍不同。這是預期的權控行為。</p>
+<p><strong>Q4：JWT 過期了怎麼辦？</strong> 重新呼叫登入端點換發，更新 MCP client 設定中的 <code>Authorization</code>。</p>
+<p><strong>Q5：我想追一次失敗的呼叫，從哪裡開始？</strong> 從錯誤日誌取該次 <strong>TraceId</strong>，用它過濾日誌即可看到該次呼叫的完整脈絡（開始、權控、檢索、失敗原因）。</p>
+<p><strong>Q6：可以用 stdio（本機管道）連線嗎？</strong> 本服務採 HTTP transport，因為 stdio 無法沿用 JWT 身分解析與團隊權控，不適合對外多租戶場景。</p>
+<p><strong>Q7：<code>mode=global</code> 回來的 <code>sources</code> 是空的、<code>topScore</code> 是 0，是壞了嗎？</strong> 不是，這是設計。全域模式的依據是<strong>社群摘要</strong>（跨多筆來源歸納後的產物），本來就沒有對應到某一段原文的位置與相似度。改看 <code>usedCommunities</code>。若你需要可鑽取的出處，請用 <code>mode=local</code>（預設）再問一次具體問題。</p>
+<p><strong>Q8：<code>mode=global</code> 為什麼沒有直接給我一段完整答案？</strong> 它<strong>只做 map、不做 reduce</strong>——回傳的是「每個社群的重點」，彙整刻意留給你的用戶端 LLM，與 <code>answerContext</code> 是「參考資料不是答案」同一套設計哲學。（Blazor 網頁的問答頁會做完整 map-reduce。）</p>
+<p><strong>Q9：<code>knowledge_graph_neighbors</code> 查得到的東西比我預期少很多？</strong> 三個常見原因，依序檢查：①<strong>那些三元組還在「待審核」</strong>——本工具只回已核可的；②<strong>該實體的關係屬於你無權存取的團隊</strong>；③<strong>節點數達 100 上限被截斷</strong>（此時回傳會帶 <code>truncated</code> 旗標，請縮小 <code>maxHops</code>）。另外 <code>maxHops</code> 傳超過 3 會被靜默夾到 3（REST 端點則是回 400）。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>導入顧問：客戶問能不能跟 ERP／PLM／MES 整合</li><li>知識庫系統銷售人員：客戶問「我們的資料會不會外流」</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li><li><a href="../../docs/guides/import-to-knowledge-flow.html">從客戶匯入到完成知識：操作流程指南</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一這個服務在做什麼為什麼需要">一、這個服務在做什麼？（為什麼需要）</a><a class="l2" href="#二開始前的前提">二、開始前的前提</a><a class="l2" href="#三ai-agent-端連線設定使用者操作">三、AI Agent 端連線設定（使用者操作）</a><a class="l3" href="#31-連線共通資訊">3.1 連線共通資訊</a><a class="l3" href="#32-取得-jwt">3.2 取得 JWT</a><a class="l3" href="#33-各家-ai-agent-設定">3.3 各家 AI Agent 設定</a><a class="l3" href="#34-連線後可用的工具">3.4 連線後可用的工具</a><a class="l2" href="#四六個工具的用法與範例">四、六個工具的用法與範例</a><a class="l3" href="#41-knowledge_ask檢索參考資料">4.1 knowledge_ask（檢索參考資料）</a><a class="l3" href="#42-knowledge_search搜尋片段">4.2 knowledge_search（搜尋片段）</a><a class="l3" href="#43-knowledgelistsources列出來源">4.3 knowledgelistsources（列出來源）</a><a class="l3" href="#44-knowledgegetdocument取全文">4.4 knowledgegetdocument（取全文）</a><a class="l3" href="#45-knowledge_ping連通性診斷">4.5 knowledge_ping（連通性診斷）</a><a class="l3" href="#46-knowledgegraphneighbors查實體鄰域1091">4.6 knowledgegraphneighbors（查實體鄰域，1.0.91）</a><a class="l3" href="#47-唯讀-rest-端點1096給不講-mcp-協定的系統">4.7 唯讀 REST 端點（1.0.96，給不講 MCP 協定的系統）</a><a class="l2" href="#五權控如何運作資安關鍵">五、權控如何運作（資安關鍵）</a><a class="l2" href="#六日誌與稽核管理員運維">六、日誌與稽核（管理員運維）</a><a class="l3" href="#61-日誌寫到哪裡">6.1 日誌寫到哪裡</a><a class="l3" href="#62-各等級level記什麼">6.2 各等級（Level）記什麼</a><a class="l3" href="#63-常見日誌訊息解讀">6.3 常見日誌訊息解讀</a><a class="l3" href="#64-稽核紀錄可歸責性">6.4 稽核紀錄（可歸責性）</a><a class="l3" href="#65-臨時提高日誌等級切換除錯用">6.5 臨時提高日誌等級切換（除錯用）</a><a class="l3" href="#66-mcp-聊天紀錄與-token-歸屬108-起">6.6 MCP 聊天紀錄與 Token 歸屬（1.0.8 起）</a><a class="l3" href="#67-api-key-管理109-起改存資料庫網頁維護">6.7 API Key 管理（1.0.9 起：改存資料庫、網頁維護）</a><a class="l2" href="#七除錯與問題診斷管理員">七、除錯與問題診斷（管理員）</a><a class="l2" href="#八建議使用時機與最佳實務">八、建議使用時機與最佳實務</a><a class="l2" href="#九常見問題faq">九、常見問題（FAQ）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/MCP服務使用說明書.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

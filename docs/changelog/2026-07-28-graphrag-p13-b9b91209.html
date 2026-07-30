@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph RAG P13：圖譜唯讀 Web API（1.0.95 → 1.0.96）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Graph RAG P13：圖譜唯讀 Web API（1.0.95 → 1.0.96）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-28</li><li>版本：1.0.95 → 1.0.96</li><li>類型：新增功能（Graph RAG 第十三階段；<strong>無新表、無 migration</strong>）</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>P9（1.0.91）把「全域問答」與「實體鄰域」接到了 MCP，但<strong>只有 MCP 用戶端能用</strong>——<code>Web/Controllers/</code> 沒有任何圖譜控制器，一般 REST 呼叫端（既有前端、第三方系統、排程腳本）取不到這兩項能力。這是 P9 changelog 自陳的限制，也是待辦盤點列為收尾計畫最後一項的缺口。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="1-新增-knowledgegraphcontroller">1. 新增 <code>KnowledgeGraphController</code></h3>
+<p>嚴格比照 <code>docs/architecture/Web API 設計慣例.md</code> 與 <code>CategoryController</code>：雙路由、<code>[ApiController]</code>、<code>[ApiValidationFilter]</code>、JWT <code>[Authorize]</code>、回傳 <code>ApiResult&lt;T&gt;</code>。</p>
+<div class="tw"><table><thead><tr><th>端點</th><th>內容</th></tr></thead><tbody><tr><td><code>POST /api/v1/KnowledgeGraph/global-ask</code></td><td>包 <code>KnowledgeBaseChatService.GlobalMapAsync</code>。<strong>只做 map 不做 reduce</strong>，與 MCP <code>knowledge_ask</code> 的 <code>mode=global</code> 語意一致——回傳「參考資料」而非最終答案。</td></tr><tr><td><code>GET /api/v1/KnowledgeGraph/neighbors?entityName=&amp;maxHops=</code></td><td>包 <code>GraphTripleService.GetNeighborhoodAsync</code>（P8）。純 DB 查詢<strong>不呼叫 LLM</strong>。</td></tr></tbody></table></div>
+<h3 id="2-權控不另寫一套">2. 權控：不另寫一套</h3>
+<p>控制器只做「轉呼叫 ＋ 形狀轉換」，ACL 完全交給既有服務——<code>GetAccessibleSummariesAsync</code> 的社群<strong>子集判定</strong>、<code>GetNeighborhoodAsync</code> 的三元組與兩端節點<strong>雙層權控</strong>。與 MCP 走同一條把關程式碼。</p>
+<p>身分解析<strong>重用 <code>McpIdentityResolver</code></strong>：它的名稱雖以 Mcp 起頭，機制其實完全通用——「<code>HttpContext</code> 的 <code>Sid</code> claim → 反查使用者 → 填入 <code>CurrentUserService</code>」，JWT 認證的 API 請求正好適用。刻意重用而非另寫一份（也順帶讓 API 的稽核與聊天紀錄自然取得身分）。解不出身分時 <code>RecordAccessScopeProvider</code> fail-closed 為「非管理員、無團隊」。</p>
+<h3 id="3--兩處刻意與-mcp-不同的行為">3. ⚠️ 兩處刻意與 MCP 不同的行為</h3>
+<p><strong><code>maxHops</code> 超界回 400，不靜默夾住。</strong> <code>GetNeighborhoodAsync</code> 內部本來就有 <code>Math.Clamp(maxHops, 1, 3)</code>，所以 MCP 工具送 99 會被無聲改成 3。REST 這邊改為 <code>[Range(1, 3)]</code> ＋ 既有 <code>ApiValidationFilter</code> 產生的 400——延續 P9 立下的「無法辨識的 <code>mode</code> 明確拋錯、不靜默退回」原則：呼叫端不該以為自己送的值生效了其實被吃掉。</p>
+<p><strong>LLM 未設定回 503，不是 500。</strong> 這是實作測試時發現的真問題：測試 host 沒有 ApiKey，<code>global-ask</code> 會在逐社群呼叫時炸成 500。但那是<strong>伺服器組態問題、不是呼叫端送錯東西</strong>，回 500 既不可行動也誤導。加前置守門 <code>openAiSettings.IsChatLlmConfigured()</code> → 503 ＋ 可行動訊息。</p>
+<blockquote><p>⚠️ 503 不在慣例文件的狀態碼表內。判斷是：該表列的是常見情境而非白名單，而 400（怪罪呼叫端）在此語意是錯的。已同步把 503 補進 <code>Web API 設計慣例.md</code> 的表格。</p></blockquote>
+<h3 id="4-token-歸屬與問答紀錄完整可稽核">4. Token 歸屬與問答紀錄（完整可稽核）</h3>
+<p><code>global-ask</code> 會呼叫 LLM，不處理的話用量會落入「（系統自動）」桶——正是 1.0.80 那次專門修過的老問題。</p>
+<ul><li>新增 <code>LlmTokenUsage.OperationApiGraphGlobalAsk</code> ＋ <code>OperationLabelHelper</code> 的中文標籤「Web API 圖譜全域問答」。<strong>刻意不重用 <code>OperationGraphGlobalChat</code></strong>（它的標籤已是 Blazor 頁面的「AI 知識問答（全域）」，重用會讓報表分不出是誰打的）。<code>OperationLabelTests</code> 會擋「沒標籤」與「標籤重複」。</li><li><code>OperationContext.Push</code> 放在 action 內、與後續 <code>await</code> 同一方法範圍（AsyncLocal 才會流到底層 client），比照 <code>KnowledgeAskTool</code>。</li><li>新增 <code>LlmChatLog.OriginApi</code> ＋ <code>ChatLogService</code> 的來源標籤分支「Web API 問答」；<code>global-ask</code> 比照 MCP 寫聊天紀錄。</li></ul>
+<h3 id="5-dto精簡圖譜專用">5. DTO：精簡圖譜專用</h3>
+<p><code>GraphGlobalAskResultDto</code> <strong>刻意不含 <code>sources</code> 與 <code>topScore</code></strong>——這支端點沒有 local 模式，社群摘要也沒有 chunk 層出處與相似度，兩者恆為空／0，回了反而讓呼叫端誤以為有出處可追。</p>
+<h3 id="6-順手修host-型整合測試的間歇性紅燈">6. 順手修：host 型整合測試的間歇性紅燈</h3>
+<p>新增第三個 <code>ApiTestApplicationFactory</code> 消費者後，完整測試回合出現整批紅燈（單獨跑該類別卻全過）。讀程式碼後根因明確：<strong>工廠建構式把設定寫進行程層級環境變數、<code>Dispose</code> 又把它們清成 null</strong>，而每個實例的 <code>rootPath</code> 都是隨機的——多實例並行時後者蓋掉前者的 <code>DatabasePath</code>，先結束者的 <code>Dispose</code> 清掉還在用的變數。</p>
+<p>這解釋了 P12 那次 <code>SystemHealthReportTests</code> 的偶發紅燈（當時只如實記載、未歸因）。修法：三個 host 型測試類別改用共用的 <code>ApiTestCollection</code>（<code>ICollectionFixture</code>），只會有一個實例且 xUnit 不讓同 collection 的類別並行。</p>
+<h2 id="驗證" class="t3">驗證</h2>
+<ul><li><code>dotnet build</code> 成功、<strong>警告數與位置完全相同</strong>（26 條 → 26 條，逐條比對零新增）。</li><li><code>dotnet test</code> <strong>950 全綠</strong>（既有 938 + 新增 12），<strong>連跑三次穩定</strong>（修掉共用工廠問題後不再出現間歇紅燈）：</li><li>兩支端點未帶 JWT → 401</li><li><code>maxHops</code> 0／4／99 → 400（Theory 3 列）；<code>entityName</code> 空 → 400；<code>question</code> 空 → 400</li><li>查無實體 → <strong>200 + <code>found=false</code></strong>（不是 500）</li><li>管理員看得到已核可關係</li><li><strong>leak=0（HTTP 端到端）</strong>：種一個只屬「甲隊」的非管理員使用者、真的用它登入拿 JWT → 看不到乙隊關係，但<strong>仍看得到自己隊的關係</strong>（證明前者的 false 是權控造成、不是資料沒種進去）</li><li>LLM 未設定 → 503 ＋ 可行動訊息</li><li>無 model 變更，<strong>本次不產 migration</strong>（已確認）。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 0 失敗；版本 1.0.96。</li></ul>
+<h2 id="已知限制未來增量" class="t4">已知限制（未來增量）</h2>
+<ul><li>⚠️ <strong><code>global-ask</code> 的 leak=0 沒有 HTTP 層測試</strong>：社群選取雖發生在 LLM 呼叫之前，但結果只透過「有產出重點的社群」外顯，測試 host 沒有 LLM 就沒有 <code>usedCommunities</code> 可斷言。它的權控由 <code>GetAccessibleSummariesAsync</code> 把關，已由 <code>KnowledgeAskToolTests</code>（P9）與 <code>RagEvaluationServiceTests</code>（P10）在<strong>服務層</strong>釘住「他隊與跨隊社群皆不可見」。本階段的 HTTP leak 證據來自 <code>neighbors</code>。</li><li>仍<strong>沒有寫入型圖譜 API</strong>（新增／核可三元組），與 MCP 的既有非目標一致。</li><li><strong>沒有針對 API 的額外節流</strong>：<code>global-ask</code> 成本＝可存取社群數次 LLM 呼叫（受 <code>GraphGlobalCommunityCap</code> 控管，預設 20），頻繁呼叫會放大成本。與 MCP 的同一項限制並存。</li><li><strong>未執行</strong>：以真實 LLM 與 Swagger UI 做端到端驗證（需 API 金鑰與已建立的社群摘要）。本次不宣稱已驗。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#變更">變更</a><a class="l3" href="#1-新增-knowledgegraphcontroller">1. 新增 KnowledgeGraphController</a><a class="l3" href="#2-權控不另寫一套">2. 權控：不另寫一套</a><a class="l3" href="#3--兩處刻意與-mcp-不同的行為">3. ⚠️ 兩處刻意與 MCP 不同的行為</a><a class="l3" href="#4-token-歸屬與問答紀錄完整可稽核">4. Token 歸屬與問答紀錄（完整可稽核）</a><a class="l3" href="#5-dto精簡圖譜專用">5. DTO：精簡圖譜專用</a><a class="l3" href="#6-順手修host-型整合測試的間歇性紅燈">6. 順手修：host 型整合測試的間歇性紅燈</a><a class="l2" href="#驗證">驗證</a><a class="l2" href="#已知限制未來增量">已知限制（未來增量）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-28-GraphRAG-P13.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

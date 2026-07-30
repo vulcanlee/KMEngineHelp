@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗前的軟上限警告（1.0.113 → 1.0.114）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>清洗前的軟上限警告（1.0.113 → 1.0.114）</h1></header><div class="docwrap"><main><ul><li>變更日期：2026/07/30</li><li>版本：1.0.113 → <strong>1.0.114</strong></li><li>性質：<strong>程式變更</strong>（<code>src/</code>）＋測試＋文件。<strong>無模型變更、無新表、無 migration</strong>。</li><li>對應待辦：<a href="../../docs/planning/todo-720ef565.html">知識來源規模守門 TODO</a> 的 <strong>P3</strong>——<strong>至此三項全數完成</strong></li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="一補上最後一道防線" class="t1">一、補上最後一道防線</h2>
+<p>清洗的去重與遮罩要把整份彙整內容重新輸出一遍，所以真正的天花板是模型的<strong>輸出</strong>上限。這一系列三項改善分別站在三個時間點：</p>
+<div class="tw"><table><thead><tr><th>版本</th><th>做什麼</th><th>時機</th></tr></thead><tbody><tr><td>1.0.112（P1）</td><td>真的被截斷時，遮罩失敗、整筆清洗中止並說明原因</td><td><strong>事後</strong></td></tr><tr><td>1.0.113（P2）</td><td>彙整量在「管理成員」與「確認清洗」對話窗看得到</td><td><strong>事中</strong></td></tr><tr><td><strong>1.0.114（P3，本次）</strong></td><td><strong>超過門檻時先提醒，要勾選確認才能送出</strong></td><td><strong>事前</strong></td></tr></tbody></table></div>
+<p>P1 與 P2 讓問題「被發現」，P3 讓它「不要發生」——尤其對「一次加了 40 個成員」這種情況，事前提示能省下十幾分鐘的清洗與一次失敗。</p>
+<h2 id="二行為" class="t2">二、行為</h2>
+<p>彙整量超過 <code>SystemSettings.Cleaning.AggregateWarnBytes</code>（<strong>預設 200,000 位元組</strong>，約 6.6 萬中文字）時，「確認清洗」對話窗顯示黃色警示，講三件事：</p>
+<ol><li><strong>會發生什麼</strong> —— 去重與遮罩要把整份內容重新輸出一遍，可能撞上模型的輸出上限</li><li><strong>撞到會怎樣</strong> —— 遮罩會失敗、整筆清洗中止（不會產出殘缺內容，但要等到跑完才知道）</li><li><strong>怎麼辦</strong> —— 先分盒，或在上傳前把過大的文件拆檔；指向「知識來源分盒與規模上限指南」</li></ol>
+<p>並且<strong>要勾選「我了解可能因輸出上限而失敗，仍要繼續」才能按下「清洗」</strong>。</p>
+<p><strong>這是提示，不是阻擋。</strong> 判準取決於實際使用的模型，硬擋會擋到正常使用。<code>TriggerCleaningAsync</code> 的行為<strong>完全不變</strong>——這純粹是 UI 層的事前提示，不是業務規則。</p>
+<h2 id="三程式變更" class="t3">三、程式變更</h2>
+<div class="tw"><table><thead><tr><th>檔案</th><th>變更</th></tr></thead><tbody><tr><td><code>Models/Systems/SystemSettings.cs</code></td><td><code>CleaningSettings</code> 新增 <code>AggregateWarnBytes = 200_000</code>；<strong>0 或負數＝停用</strong>。XML 註解寫明「200,000 只是保守起點，不是正確答案，換模型就會變，請依分盒指南 §五 實測校準」</td></tr><tr><td><code>appsettings.json</code></td><td><code>SystemSettings.Cleaning</code> 補 <code>"AggregateWarnBytes": 200000</code></td></tr><tr><td><code>Models/AdapterModel/KnowledgeSourceSizeAdapterModel.cs</code></td><td>新增 <code>WarnBytes</code> 與純計算屬性 <code>ExceedsWarnThreshold</code>（<code>WarnBytes &gt; 0 &amp;&amp; TotalBytes &gt; WarnBytes</code>）</td></tr><tr><td><code>Business/Services/DataAccess/KnowledgeSourceService.cs</code></td><td>建構式取出 <code>aggregateWarnBytes</code>（與既有 <code>cleanedRootPath</code> 同風格）；<code>MeasureAsync</code> 填入 <code>WarnBytes</code></td></tr><tr><td><code>Web/…/KnowledgeSources/KnowledgeSourceView.razor(.cs/.css)</code></td><td>警示區塊＋勾選框；<code>OkButtonProps</code> 的 <code>Disabled</code> 擋 OK 鈕；<strong>每次開啟對話窗重設勾選狀態</strong>；新增 <code>.ks-size-warn</code> 樣式（用 warning 的黃而非 error 的紅——它是提示不是錯誤）</td></tr></tbody></table></div>
+<h3 id="兩個刻意的設計選擇">兩個刻意的設計選擇</h3>
+<p><strong>① 判斷邏輯放在模型的純計算屬性，不放在 Razor。</strong> <code>ExceedsWarnThreshold</code> 是純函式，所以邊界（小於／等於／大於、0、負數）可以用<strong>不碰資料庫也不碰 UI</strong> 的測試釘住；View 只讀一個 bool，<strong>不必注入 <code>IOptions&lt;SystemSettings&gt;</code></strong>，也就不必動它的建構式。</p>
+<p><strong>② 沿用既有模式擋 OK 鈕。</strong> <code>Components/Commons/ContentEditDialog.razor:94</code> 已經在用 <code>OkButtonProps="@(new ButtonProps { Disabled = … })"</code>，直接沿用而不自己發明一套。</p>
+<h3 id="一個容易漏掉的細節">一個容易漏掉的細節</h3>
+<p><strong>每次開啟對話窗都要重設 <code>cleaningOversizeConfirmed = false</code>。</strong> 不重設的話，上一筆勾選過的狀態會殘留，下一筆超過門檻的來源就直接可以按下去了——警告等於失效，而且不會有任何症狀。</p>
+<h2 id="四測試新增-11-條全量-1087--10980-失敗" class="t4">四、測試（新增 11 條；全量 1087 → <strong>1098</strong>，0 失敗）</h2>
+<p>新檔 <code>CleaningAggregateWarnTests.cs</code>：</p>
+<ul><li><strong>邊界</strong>：<code>199,999</code> 不警告／<strong><code>200,000</code> 剛好等於門檻不警告</strong>／<code>200,001</code> 警告</li><li><strong>停用</strong>：門檻 <code>0</code>、<code>-1</code>、<code>long.MinValue</code> → 即使 <code>TotalBytes = long.MaxValue</code> 也一律不警告</li></ul>
+<p>（若把停用寫成「一律警告」，每次清洗都多一道勾選，使用者會學會無腦勾——那比沒有警告更糟）</p>
+<ul><li>未量測（<code>TotalBytes = 0</code>）不警告</li><li>程式預設值為 <code>200_000</code></li><li>🔴 <strong>設定漂移守門</strong>：直接讀 repo 真實的 <code>appsettings.json</code>，斷言 <code>SystemSettings:Cleaning:AggregateWarnBytes</code> <strong>存在</strong>且<strong>與程式預設值一致</strong>。沿用 <code>UnsafeDefaultsTests</code> 讀真實設定檔的既有作法——沒有這條，「程式加了設定但設定檔沒加」或「兩邊值不一致」都不會有任何測試紅燈</li></ul>
+<p><code>KnowledgeSourceMeasureTests</code> 新增服務層流通測試（門檻可覆寫、停用時不警告）。</p>
+<p>⚠️ <strong>既有測試一條都沒有修改。</strong></p>
+<h2 id="五文件更新" class="t5">五、文件更新</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>改什麼</th></tr></thead><tbody><tr><td><a href="../../docs/operations/logging-and-settings.html">operations/日誌與設定檔說明</a></td><td><strong>兩處</strong>：<code>SystemSettings</code> 的 JSON 範例；§4.7.1 逐項說明表新增 <code>AggregateWarnBytes</code> 一列（含「0＝停用」、「等於門檻不算超過」、「保守起點需實測校準」、「需重啟」、「有測試釘住與 <code>appsettings.json</code> 一致」）</td></tr><tr><td><a href="../../docs/planning/todo-720ef565.html">planning/知識來源規模守門-todo</a></td><td>P3 標記完成、<strong>整份標記三項全數完成</strong></td></tr><tr><td><a href="../../docs/guides/source-scale-limits.html">guides/知識來源分盒與規模上限指南</a></td><td><strong>新增 §3.6「按下清洗之前，系統會先警告你」</strong>（含三道防線的分工表）；§五 實測法新增第 6 步「把結果寫回設定」</td></tr><tr><td><a href="../../docs/operations/capacity-limits.html">operations/容量邊界與限制</a></td><td>§7.3 補軟警告</td></tr><tr><td>說明網站</td><td>重跑 <code>python scripts/Build-HelpSite.py --both</code></td></tr></tbody></table></div>
+<h2 id="六驗證" class="t6">六、驗證</h2>
+<ul><li><code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.slnx</code> → <strong>1098 通過／0 失敗</strong></li><li><code>dotnet build</code> → 0 錯誤</li><li><code>python scripts/Test-DocLinks.py</code> → 硬性失敗 0</li><li><code>pwsh -File scripts/Test-DocsEncoding.ps1</code> → 全綠</li><li><code>python scripts/Build-HelpSite.py --both</code> → 無法解析的文件連結 0</li></ul>
+<h3 id="一項無法完成的驗證">❌ 一項無法完成的驗證</h3>
+<p><strong>警示區塊與勾選框的實際外觀、以及「勾選前 OK 鈕確實停用」這個互動，沒有實機確認。</strong> 環境的 Playwright 未安裝瀏覽器，安裝需下載數百 MB，未經同意不執行。</p>
+<p>程式面可保證：門檻判斷、設定流通、<code>appsettings.json</code> 一致性都有測試。<strong>版面、文案與互動需人工開畫面看一眼。</strong></p>
+<h2 id="七三項全數完成後的狀態" class="t7">七、三項全數完成後的狀態</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>版本</th><th>內容</th></tr></thead><tbody><tr><td>P1</td><td>1.0.112</td><td>清洗的去重／遮罩加輸出截斷偵測</td></tr><tr><td>P2</td><td>1.0.113</td><td>彙整量在兩個對話窗看得到</td></tr><tr><td>P3</td><td>1.0.114</td><td>清洗前的軟上限警告</td></tr></tbody></table></div>
+<p><strong>TODO 中刻意不做的三項仍然不做</strong>（不自動分批會讓去重失去跨批視野、不硬限成員數、不帶 <code>max_tokens</code>），理由見該文件 §四。</p>
+<p><strong>後續可考慮（不在此三項範圍）</strong>：檢索稀釋（模式 C）屬規劃層問題，可用分盒與「限定知識來源」繞過；若要在程式層改善，見 <a href="../../docs/strategy/multi-tenant-planning.html">多客戶多型號規劃分析 §8</a> 的 P1（分類多選支援「且」）與 P2（chunk 併入章節標題）。另外「上次清洗比值偏低就警告」比單純的大小門檻更聰明，但屬新需求。</p>
+<hr>
+<blockquote><p>返回 <a href="../../docs/changelog/readme-436e4418.html">changelog 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一補上最後一道防線">一、補上最後一道防線</a><a class="l2" href="#二行為">二、行為</a><a class="l2" href="#三程式變更">三、程式變更</a><a class="l3" href="#兩個刻意的設計選擇">兩個刻意的設計選擇</a><a class="l3" href="#一個容易漏掉的細節">一個容易漏掉的細節</a><a class="l2" href="#四測試新增-11-條全量-1087--10980-失敗">四、測試（新增 11 條；全量 1087 → 1098，0 失敗）</a><a class="l2" href="#五文件更新">五、文件更新</a><a class="l2" href="#六驗證">六、驗證</a><a class="l3" href="#一項無法完成的驗證">❌ 一項無法完成的驗證</a><a class="l2" href="#七三項全數完成後的狀態">七、三項全數完成後的狀態</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-30-清洗前軟上限警告.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

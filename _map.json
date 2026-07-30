@@ -1,0 +1,3029 @@
+{
+ "audience": "internal",
+ "pages": [
+  {
+   "source": "docs/README.md",
+   "output": "docs/docs-index.html",
+   "title": "文件目錄索引",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/2026-06-29-知識庫問答兩段式門檻-design.md",
+   "output": "docs/architecture/two-stage-threshold.html",
+   "title": "AI 知識問答：兩段式相似度門檻與查無依據攔截（設計文件）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/2026-07-01-知識型態抽象與版本化時效性-design.md",
+   "output": "docs/architecture/knowledge-type-versioning.html",
+   "title": "知識型態抽象 × 版本化 × 時效性（設計文件）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/API Versioning 策略.md",
+   "output": "docs/architecture/api-versioning.html",
+   "title": "API Versioning 策略",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/DTO 與模型邊界規範.md",
+   "output": "docs/architecture/dto-boundaries.html",
+   "title": "DTO 與模型邊界規範",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/LLM 提示詞與用量透明化.md",
+   "output": "docs/architecture/llm-prompts-usage.html",
+   "title": "LLM 提示詞與用量透明化",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/MCP-Server-整合設計與使用指南.md",
+   "output": "docs/architecture/mcp-server-design.html",
+   "title": "MCP Server 整合設計與使用指南",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/RAG-rerank是否導入分析.md",
+   "output": "docs/architecture/rag-rerank-analysis.html",
+   "title": "RAG 是否導入 Re-rank（二階重排）分析與建議",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/README.md",
+   "output": "docs/architecture/architecture-index.html",
+   "title": "architecture — 系統架構與設計規範",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/Web API 設計慣例.md",
+   "output": "docs/architecture/web-api-conventions.html",
+   "title": "Web API 設計慣例",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/Wiki與Cleaned角色差異.md",
+   "output": "docs/architecture/wiki-vs-cleaned.html",
+   "title": "Wiki 與 Cleaned 的角色差異",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/架構總覽.md",
+   "output": "docs/architecture/architecture-overview.html",
+   "title": "架構總覽",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/知識庫RAG設計與執行.md",
+   "output": "docs/architecture/rag-design.html",
+   "title": "知識庫 RAG 設計與執行",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/資料模型與資料庫.md",
+   "output": "docs/architecture/data-model.html",
+   "title": "資料模型與資料庫",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/資料生命週期與維護.md",
+   "output": "docs/architecture/data-lifecycle.html",
+   "title": "資料生命週期與維護（更新、刪除、級聯與孤兒）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/architecture/開發慣例與限制速查.md",
+   "output": "docs/architecture/dev-conventions.html",
+   "title": "開發慣例與限制速查（AI / 開發者必讀）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/archive/01-專案總覽與定位-TODO.md",
+   "output": "docs/archive/01-todo-7b613bd7.html",
+   "title": "專案總覽與定位 TODO",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/archive/02-現有架構盤點-TODO.md",
+   "output": "docs/archive/02-todo-3f55bf3e.html",
+   "title": "現有架構盤點 TODO",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/archive/03-缺口與風險清單-TODO.md",
+   "output": "docs/archive/03-todo-4317ce18.html",
+   "title": "缺口與風險清單 TODO",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/archive/04-WebAPI-JWT-ApiResult-設計-TODO.md",
+   "output": "docs/archive/04-webapi-jwt-apiresult-todo-63b775bd.html",
+   "title": "WebAPI JWT ApiResult 設計 TODO",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/archive/05-腳手架補強實作路線圖-TODO.md",
+   "output": "docs/archive/05-todo-e50e4e40.html",
+   "title": "腳手架補強實作路線圖 TODO",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/archive/06-開發與文件維護規範-TODO.md",
+   "output": "docs/archive/06-todo-55e99cf3.html",
+   "title": "開發與文件維護規範 TODO",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/archive/10-知識蒸餾與問答疑問釐清及需求-TODO.md",
+   "output": "docs/archive/10-todo-2aadf980.html",
+   "title": "知識頁審核與問答疑問釐清及需求（階段三起點）",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/archive/11-系統功能與文件同步審計.md",
+   "output": "docs/archive/11-68d22fc1.html",
+   "title": "系統功能與文件同步審計",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/archive/RAG補強修正測試指南.md",
+   "output": "docs/archive/rag-ef495a4d.html",
+   "title": "RAG 補強修正測試指南",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/archive/README.md",
+   "output": "docs/archive/readme-98f9f271.html",
+   "title": "archive — 已完成或已過期的文件",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/changelog/2026-06-04-音訊轉錄維運與抖音整合.md",
+   "output": "docs/changelog/2026-06-04-94509016.html",
+   "title": "發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-05-分類清單功能.md",
+   "output": "docs/changelog/2026-06-05-46b5d8ec.html",
+   "title": "發行說明：分類清單（Category）管理功能（0.2.34）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-05-團隊清單功能.md",
+   "output": "docs/changelog/2026-06-05-678e4947.html",
+   "title": "發行說明：團隊清單（Team）管理功能（0.2.35）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-05-紀錄分類團隊與權控.md",
+   "output": "docs/changelog/2026-06-05-7d44631b.html",
+   "title": "發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-09-sidebar收合子選單hover修正.md",
+   "output": "docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html",
+   "title": "Sidebar 收合子選單 Hover 修正",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-09-youtube標題自動帶入.md",
+   "output": "docs/changelog/2026-06-09-youtube-c3fb8bf7.html",
+   "title": "2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-09-圖片清單.md",
+   "output": "docs/changelog/2026-06-09-82b8f227.html",
+   "title": "2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-09-提示詞清單功能.md",
+   "output": "docs/changelog/2026-06-09-cc010bdd.html",
+   "title": "2026-06-09 提示詞清單功能",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-09-逐字稿LLM產生.md",
+   "output": "docs/changelog/2026-06-09-llm-1147d52f.html",
+   "title": "2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-10-三管線佇列化重試取消.md",
+   "output": "docs/changelog/2026-06-10-87230645.html",
+   "title": "2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-11-修正側邊欄圖示.md",
+   "output": "docs/changelog/2026-06-11-2e496f0a.html",
+   "title": "修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-11-修正知識來源工具列版面.md",
+   "output": "docs/changelog/2026-06-11-590ceb94.html",
+   "title": "修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-11-清洗QA2信心門檻.md",
+   "output": "docs/changelog/2026-06-11-qa2-b3079fb4.html",
+   "title": "清洗 QA-2：LLM 自評信心分數 + 自動門檻（0.2.62）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-11-清洗管線LLM步驟.md",
+   "output": "docs/changelog/2026-06-11-llm-2c8cd8af.html",
+   "title": "清洗管線 LLM 步驟（去重/遮罩/分類/摘要）（0.2.61）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-11-清洗管線QA1.md",
+   "output": "docs/changelog/2026-06-11-qa1-8ec27f4f.html",
+   "title": "清洗管線（QA-1 端到端最小可用）（0.2.60）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-11-知識來源管理.md",
+   "output": "docs/changelog/2026-06-11-40d59ef8.html",
+   "title": "知識來源管理清單（KnowledgeSource）（0.2.59）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-12-CRUD操作欄圖示規範.md",
+   "output": "docs/changelog/2026-06-12-crud-c8eb446f.html",
+   "title": "CRUD 操作欄圖示規範化（0.2.71）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-12-LLM雲端地端切換與容量文件.md",
+   "output": "docs/changelog/2026-06-12-llm-1afe47b3.html",
+   "title": "LLM 雲端/地端切換 + 容量邊界文件（0.2.67）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-12-文件同步稽核.md",
+   "output": "docs/changelog/2026-06-12-7f244437.html",
+   "title": "文件同步稽核：參考文件補齊到 v0.2.68 程式現況（0.2.69）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-12-清洗QA3人工審核.md",
+   "output": "docs/changelog/2026-06-12-qa3-8f3dfb29.html",
+   "title": "清洗 QA-3：人工審核關卡（核准/退回）（0.2.65）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-12-清洗QA4黃金評測.md",
+   "output": "docs/changelog/2026-06-12-qa4-68d86540.html",
+   "title": "清洗 QA-4：黃金評測集（0.2.66）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-12-清洗QA整合PRD.md",
+   "output": "docs/changelog/2026-06-12-qa-prd-f11f0eae.html",
+   "title": "資料清洗與品質保證整合 PRD（0.2.70）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-12-清洗門檻鎖定.md",
+   "output": "docs/changelog/2026-06-12-50d21907.html",
+   "title": "清洗品質門檻鎖定（0.2.68）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-16-企業應用情境型錄.md",
+   "output": "docs/changelog/2026-06-16-364d8da8.html",
+   "title": "企業應用情境型錄（0.2.79）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-16-內容線上編修.md",
+   "output": "docs/changelog/2026-06-16-dc76a9c4.html",
+   "title": "抽取／LLM 生成文字內容 UI 線上編修（0.2.74）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-16-文件萃取依提示詞產生.md",
+   "output": "docs/changelog/2026-06-16-127cd3a3.html",
+   "title": "文件萃取「依提示詞產生」可選萃取文字或原始檔案（0.2.77）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-16-文件萃取預設排序.md",
+   "output": "docs/changelog/2026-06-16-0618bec9.html",
+   "title": "文件萃取頁預設依上傳時間遞減排序（0.2.78）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-16-編修對話窗版面與過期追蹤修正.md",
+   "output": "docs/changelog/2026-06-16-626b8e13.html",
+   "title": "內容編修對話窗版面與儲存過期追蹤修正（0.2.75–0.2.76）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-17-修復黃金評測空樣本崩潰.md",
+   "output": "docs/changelog/2026-06-17-2778822a.html",
+   "title": "修復「黃金評測」頁無已評測樣本時進入即崩潰（0.2.82）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-17-提高SignalR訊息上限修復長逐字稿閃爍.md",
+   "output": "docs/changelog/2026-06-17-signalr-42a26246.html",
+   "title": "提高 SignalR 訊息上限，修復編修長逐字稿時畫面閃爍（0.2.81）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-17-清洗結果可編修複製預覽.md",
+   "output": "docs/changelog/2026-06-17-6aad4e93.html",
+   "title": "清洗結果對話窗可複製、預覽與線上編修（0.2.83）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-17-清洗設定檔.md",
+   "output": "docs/changelog/2026-06-17-52a8f36b.html",
+   "title": "清洗設定檔（可重複套用的客製清洗提示詞）（0.2.84）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-17-逐字稿編修移除預覽修復閃爍.md",
+   "output": "docs/changelog/2026-06-17-55aea524.html",
+   "title": "逐字稿編修對話窗移除右側預覽並修復畫面閃爍（0.2.80）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-19-PDF型RAG處理PRD.md",
+   "output": "docs/changelog/2026-06-19-pdf-rag-prd-4d5d439f.html",
+   "title": "新增「PDF 型 RAG 處理」PRD（規劃中，0.2.91）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-19-system-health-apikey錯誤.md",
+   "output": "docs/changelog/2026-06-19-system-health-apikey-f8b517c5.html",
+   "title": "system-health：ApiKey 未設定提升為紅色錯誤（0.2.88）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-19-抖音下載改用瀏覽器cookie.md",
+   "output": "docs/changelog/2026-06-19-cookie-e862ab79.html",
+   "title": "修正抖音下載 UNDERRSOCKET：改用瀏覽器 context 帶 cookie 下載（0.2.87）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-19-抖音保留原始影片.md",
+   "output": "docs/changelog/2026-06-19-7b862f9b.html",
+   "title": "抖音下載保留原始影片（0.2.89）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-19-知識來源與清洗設定檔使用指南.md",
+   "output": "docs/changelog/2026-06-19-bae668ad.html",
+   "title": "新增「知識來源管理與清洗設定檔」使用教育訓練指南（0.2.90）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-19-管線狀態決策修正陳舊追蹤.md",
+   "output": "docs/changelog/2026-06-19-17b1f5da.html",
+   "title": "修正三條管線狀態決策讀到陳舊追蹤實體（重試／取消／核准等誤判）（0.2.86）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-19-音訊轉錄重試修正與抖音下載強化.md",
+   "output": "docs/changelog/2026-06-19-c22df8f0.html",
+   "title": "音訊轉錄抖音下載失敗後可直接重試，並強化下載斷線重試（0.2.85）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-20-AI技能產生器PRD.md",
+   "output": "docs/changelog/2026-06-20-ai-prd-1a087f44.html",
+   "title": "新增「AI Agent 技能產生器」PRD（規劃中，0.2.94）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-20-AI技能產生器實作.md",
+   "output": "docs/changelog/2026-06-20-ai-a0d37995.html",
+   "title": "實作「AI Agent 技能產生器」模組（0.2.95）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-20-OpenAI-token用量記錄.md",
+   "output": "docs/changelog/2026-06-20-openai-token-0df89270.html",
+   "title": "OpenAI chat 呼叫記錄 token 用量到日誌（0.2.93）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-20-對話窗放大版樣式全域化.md",
+   "output": "docs/changelog/2026-06-20-5f59ff73.html",
+   "title": "表單／內容對話窗放大版樣式全域化，修正六頁對話窗超出螢幕（0.2.101）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-20-文件萃取限制副檔名.md",
+   "output": "docs/changelog/2026-06-20-78a09a43.html",
+   "title": "文件萃取限制可上傳副檔名並於畫面顯示（0.2.92）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-20-清洗設定檔選單移至資料定義.md",
+   "output": "docs/changelog/2026-06-20-8f6c36bf.html",
+   "title": "將「清洗設定檔」選單從「清洗與蒸餾」移至「資料定義」（0.2.103）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-20-管理成員對話窗篩選與留白.md",
+   "output": "docs/changelog/2026-06-20-01deeee2.html",
+   "title": "管理成員對話窗：放大至接近滿版＋縮小留白＋排序與分類/團隊篩選＋單一關閉按鈕＋固定關閉鈕與加入素材分頁（0.2.96–0.2.99）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-20-結果對話窗補關閉按鈕.md",
+   "output": "docs/changelog/2026-06-20-40975776.html",
+   "title": "產生結果／辨識結果對話窗補上右下角「關閉」按鈕（0.2.102）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-20-音訊轉錄來源類型移至最上方.md",
+   "output": "docs/changelog/2026-06-20-d4753882.html",
+   "title": "音訊轉錄表單「來源類型」區塊移至最上方（0.2.100）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-21-LLM提示詞盤點與完整token日誌.md",
+   "output": "docs/changelog/2026-06-21-llm-token-2942a5a8.html",
+   "title": "2026-06-21 LLM 提示詞盤點文件 ＋ 完整 token 用量日誌",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-21-方案3四層提示詞解析.md",
+   "output": "docs/changelog/2026-06-21-3-2e92cb01.html",
+   "title": "2026-06-21 方案 3：四層提示詞解析（LlmPromptResolver）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-21-日誌涵蓋率補強.md",
+   "output": "docs/changelog/2026-06-21-8258fac9.html",
+   "title": "全系統日誌涵蓋率補強（可診斷化）（0.2.104）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-21-知識來源AI對話-修正.md",
+   "output": "docs/changelog/2026-06-21-ai-846c82e9.html",
+   "title": "2026-06-21 知識來源「AI 對話」修正（氣泡/送出鈕/參考資料/token 日誌）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-21-知識來源AI對話-回答詳簡.md",
+   "output": "docs/changelog/2026-06-21-ai-aac73a6a.html",
+   "title": "2026-06-21 知識來源「AI 對話」回答詳簡切換",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-21-知識來源AI對話.md",
+   "output": "docs/changelog/2026-06-21-ai-7d249454.html",
+   "title": "2026-06-21 知識來源「AI 對話」（ChatGPT 風格、多輪、串流）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-22-知識來源對話訊息複製.md",
+   "output": "docs/changelog/2026-06-22-49188bcb.html",
+   "title": "知識來源 AI 對話：訊息可複製到剪貼簿（0.2.113）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-23-下載來源影片轉碼H264.md",
+   "output": "docs/changelog/2026-06-23-h264-a8f98ef5.html",
+   "title": "音訊轉錄：下載來源影片自動轉碼為 H.264（0.2.116）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-23-音訊轉錄來源檔案下載.md",
+   "output": "docs/changelog/2026-06-23-842fa89e.html",
+   "title": "音訊轉錄：下載原始來源檔案（0.2.115）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-24-知識蒸餾.md",
+   "output": "docs/changelog/2026-06-24-65d3322a.html",
+   "title": "知識蒸餾（階段二）（0.2.117）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-24-知識蒸餾頁版面修正.md",
+   "output": "docs/changelog/2026-06-24-390be29e.html",
+   "title": "知識蒸餾頁版面修正與產生指引（0.2.118）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-26-階段三向量存取層.md",
+   "output": "docs/changelog/2026-06-26-534797bf.html",
+   "title": "階段三步驟 2：VectorEmbedding 實體 + 雙 migration + IVectorStore（0.2.124）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-26-階段三嵌入用戶端.md",
+   "output": "docs/changelog/2026-06-26-c6d9fe8b.html",
+   "title": "階段三步驟 1：嵌入用戶端與雲端/地端切換（0.2.123）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-26-階段三嵌入索引管線.md",
+   "output": "docs/changelog/2026-06-26-accc726e.html",
+   "title": "階段三步驟 3：Chunker + 嵌入索引管線（0.2.125）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-26-階段三步驟6-RAG評測.md",
+   "output": "docs/changelog/2026-06-26-6-rag-9987f7a3.html",
+   "title": "階段三步驟 6：RAG 評測集與指標（與黃金評測併呈）（0.2.128）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-26-階段三混合檢索.md",
+   "output": "docs/changelog/2026-06-26-00c6b678.html",
+   "title": "階段三步驟 4：混合檢索（IRetrievalService）（0.2.126）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-26-階段三知識庫問答.md",
+   "output": "docs/changelog/2026-06-26-a3c9fb39.html",
+   "title": "階段三步驟 5：跨來源問答服務 + 知識庫問答頁 + 出處鑽取（0.2.127）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-27-HandsOnLab系統介紹卷首.md",
+   "output": "docs/changelog/2026-06-27-handsonlab-67658b6a.html",
+   "title": "實作練習手冊新增「系統介紹」卷首章節（0.2.133）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-27-實作練習手冊HandsOnLab.md",
+   "output": "docs/changelog/2026-06-27-handsonlab-16f8d25d.html",
+   "title": "新增「實作練習手冊（Hands-on Lab）」（0.2.132）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-27-工具列圖示規範化.md",
+   "output": "docs/changelog/2026-06-27-1144bbc7.html",
+   "title": "工具列圖示規範化：全站動作鈕統一使用 CrudActionButton（0.2.135）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-27-父選單圖示依語意顯示.md",
+   "output": "docs/changelog/2026-06-27-d817ff44.html",
+   "title": "側邊欄父選單圖示依語意顯示（0.2.134）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-27-環境檢測補強.md",
+   "output": "docs/changelog/2026-06-27-cdfa30e8.html",
+   "title": "環境檢測腳本補強：.NET 10 執行時 / PowerShell 7.x / npm（0.2.136）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-27-系統功能文件審計.md",
+   "output": "docs/changelog/2026-06-27-f03817dd.html",
+   "title": "系統功能與文件同步審計（0.2.139）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-27-評測資料來源說明.md",
+   "output": "docs/changelog/2026-06-27-88c72369.html",
+   "title": "釐清「評測用哪些紀錄」：黃金評測 vs RAG 評測（0.2.138）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-27-黃金評測說明強化.md",
+   "output": "docs/changelog/2026-06-27-2d1cf608.html",
+   "title": "黃金評測說明強化：指南擴充＋頁面名詞 tooltip（0.2.137）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-28-PRD缺口補齊.md",
+   "output": "docs/changelog/2026-06-28-prd-ee1981fe.html",
+   "title": "PRD 缺口補齊（0.2.140）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-28-RAG切塊參數設定化.md",
+   "output": "docs/changelog/2026-06-28-rag-4bc5228d.html",
+   "title": "RAG 切塊參數設定化與設計文件補強（0.2.141）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-28-知識庫問答QueryRewrite.md",
+   "output": "docs/changelog/2026-06-28-queryrewrite-a4c54530.html",
+   "title": "知識庫問答 Query Rewrite（0.2.142）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-29-專案工作與會議對話窗.md",
+   "output": "docs/changelog/2026-06-29-e6efa2fd.html",
+   "title": "專案列表「工作與會議」對話窗 + 共用編輯 Modal 抽取（0.2.152）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-06-29-所屬專案改為選填可清除.md",
+   "output": "docs/changelog/2026-06-29-b735c5b8.html",
+   "title": "所屬專案改為選填、可清除（0.2.149–0.2.151）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-04-favicon去白邊透明化.md",
+   "output": "docs/changelog/2026-07-04-favicon-e979b1ed.html",
+   "title": "favicon 去白邊與透明化紀錄",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-04-favicon指紋化與品牌徽章文字.md",
+   "output": "docs/changelog/2026-07-04-favicon-d236fda1.html",
+   "title": "favicon 指紋化與品牌徽章文字調整紀錄",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-04-產品代表圖示套用.md",
+   "output": "docs/changelog/2026-07-04-4c18ec7e.html",
+   "title": "產品代表圖示套用紀錄",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-04-產品更名-智庫引擎.md",
+   "output": "docs/changelog/2026-07-04-faca79b9.html",
+   "title": "產品更名：知識萃取器系統 → 智庫引擎（2026-07-04）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-04-登入頁科技神秘風重設計.md",
+   "output": "docs/changelog/2026-07-04-7b587a75.html",
+   "title": "登入頁科技神秘風重設計紀錄",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-05-文件庫功能同步.md",
+   "output": "docs/changelog/2026-07-05-fa078a0c.html",
+   "title": "文件庫功能同步：策略／行銷／簡報現況校正（0.2.160）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-07-文件萃取批次上傳壓縮檔.md",
+   "output": "docs/changelog/2026-07-07-47fb1fe5.html",
+   "title": "文件萃取新增「批次上傳壓縮檔（.zip）自動建立記錄」（0.2.161）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-08-P0資安-注入防護與遮罩不變量.md",
+   "output": "docs/changelog/2026-07-08-p0-37a3734a.html",
+   "title": "P0 資安：SEC-1 間接 prompt injection 基線防護 + SEC-2 遮罩不變量（補線上編修繞過）（0.3.6→0.3.7）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-08-RAG系統補強彙整與診斷手冊.md",
+   "output": "docs/changelog/2026-07-08-rag-283af3bc.html",
+   "title": "RAG 系統補強：待辦總彙整、re-rank 分析、Wiki/Cleaned 角色差異、診斷手冊（文件）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-08-RAG診斷維運中心補完.md",
+   "output": "docs/changelog/2026-07-08-rag-cb14be33.html",
+   "title": "/rag-diagnostics 補完 EVAL-4：索引健康 + 症狀自檢 + 試檢索（成為 RAG 維運中心）（0.3.5→0.3.6）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-08-RAG診斷頁與門檻校準.md",
+   "output": "docs/changelog/2026-07-08-rag-b275731d.html",
+   "title": "RAG 診斷頁：topScore 分佈統計、門檻建議與可套用門檻（EVAL-3 + RQ-1 + EVAL-5 門檻切片）（0.3.2→0.3.3）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-08-問答稽核持久化.md",
+   "output": "docs/changelog/2026-07-08-d9a06768.html",
+   "title": "知識庫問答稽核紀錄持久化（EVAL-2）（0.3.1→0.3.2）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-08-圖片清單批次上傳壓縮檔.md",
+   "output": "docs/changelog/2026-07-08-73291552.html",
+   "title": "圖片清單新增「批次上傳壓縮檔（.zip）自動建立記錄」（0.3.1）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-08-稽核紀錄逐筆表格.md",
+   "output": "docs/changelog/2026-07-08-5d38a5f1.html",
+   "title": "/rag-diagnostics 新增「近期問答稽核紀錄」逐筆分頁表格（0.3.4→0.3.5）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-08-管理員選單與頁面權限.md",
+   "output": "docs/changelog/2026-07-08-981e4623.html",
+   "title": "側邊選單新增「僅管理員可見」機制，系統管理群組併入 /system-health 與 /rag-diagnostics（0.3.3→0.3.4）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-09-DIS知識瀏覽與chunk話術校正.md",
+   "output": "docs/changelog/2026-07-09-dis-chunk-dac08ebb.html",
+   "title": "DIS-1/DIS-2 知識瀏覽頁（分類索引 + [[概念]] 可點擊）+ marketing chunk 話術校正（0.3.12→0.3.13）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-09-EVAL評測基線與查詢期參數化.md",
+   "output": "docs/changelog/2026-07-09-eval-67087b54.html",
+   "title": "RAG 評測基線快照（EVAL-1）＋查詢期參數化 UI（EVAL-5）（0.3.8→0.3.9）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-09-RQ8一鍵全量重建索引.md",
+   "output": "docs/changelog/2026-07-09-rq8-a248d21c.html",
+   "title": "一鍵全量重建索引（RQ-8）（0.3.9→0.3.10）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-09-SEC3權控傳播與SEC5稽核身分.md",
+   "output": "docs/changelog/2026-07-09-sec3-sec5-88ba9aac.html",
+   "title": "SEC-3 權控標籤傳播修正 + SEC-5 稽核補使用者身分（0.3.10→0.3.11）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-09-VER1VER2完整版本化與asof.md",
+   "output": "docs/changelog/2026-07-09-ver1ver2-asof-86806a6a.html",
+   "title": "VER-1 完整版本狀態機 + VER-2 失效標記/as-of（0.3.13→0.3.14）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-09-VER2自動重索引與DOC1話術校正.md",
+   "output": "docs/changelog/2026-07-09-ver2-doc1-beb752a3.html",
+   "title": "VER-2 事件觸發自動重索引 MVP + VER-1 設計定案 + DOC-1 rerank 話術校正（0.3.11→0.3.12）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-09-修正MenuIcon允許清單.md",
+   "output": "docs/changelog/2026-07-09-menuicon-f766ae8d.html",
+   "title": "修正 MenuIconTests 管理員選單圖示允許清單缺口（0.3.8）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-09-文件庫全面同步0.3.15.md",
+   "output": "docs/changelog/2026-07-09-0-3-15-645891f6.html",
+   "title": "文件庫全面同步：0.3.x 功能校正、索引補齊與命名一致（0.3.15）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-10-聊天內容下載PDF.md",
+   "output": "docs/changelog/2026-07-10-pdf-981e9ff9.html",
+   "title": "知識庫問答與 AI 對話：AI 回覆可下載為 PDF（0.3.18）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-10-資料一致性強化.md",
+   "output": "docs/changelog/2026-07-10-516e3071.html",
+   "title": "資料一致性強化：刪素材清孤兒＋編修標記過時＋一致性巡檢頁（0.3.19→0.3.20）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-11-AI聊天紀錄與滿意度回饋.md",
+   "output": "docs/changelog/2026-07-11-ai-452b03e3.html",
+   "title": "AI 聊天紀錄＋滿意度回饋＋首頁滿意度統計（0.3.28→0.3.29）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-11-問答來源分類篩選.md",
+   "output": "docs/changelog/2026-07-11-d690f357.html",
+   "title": "知識庫問答：查詢期依「知識來源／分類」篩選（0.3.21→0.3.22）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-11-日誌可診斷化強化.md",
+   "output": "docs/changelog/2026-07-11-65458af3.html",
+   "title": "日誌可診斷化強化：分級生效＋執行環境情境＋例外快照＋守則測試（0.3.22→0.3.23）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-11-版本瀏覽體驗.md",
+   "output": "docs/changelog/2026-07-11-3574fdfe.html",
+   "title": "版本瀏覽體驗：主清單只顯示最新版＋版本歷史檢視（0.3.27→0.3.28）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-11-素材版本鏈.md",
+   "output": "docs/changelog/2026-07-11-1cc92bcc.html",
+   "title": "素材版本鏈：上傳新版本＋自動接手（0.3.20→0.3.21）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-12-HandsOnLab2.1主線與驗收強化.md",
+   "output": "docs/changelog/2026-07-12-handsonlab2-1-5e102749.html",
+   "title": "Hands-on Lab 2.1 主線與驗收強化",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-12-PRD全庫基線重建0.3.34.md",
+   "output": "docs/changelog/2026-07-12-prd-0-3-34-09e0e832.html",
+   "title": "PRD 全庫基線重建",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-12-Token用量記錄與查閱.md",
+   "output": "docs/changelog/2026-07-12-token-cbeb0311.html",
+   "title": "Token 用量記錄與查閱頁＋首頁 30 天 Token 統計（0.3.29→0.3.30）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-12-問答團隊篩選.md",
+   "output": "docs/changelog/2026-07-12-18185bdf.html",
+   "title": "知識庫問答：查詢期加入「團隊」篩選並強化分類/團隊下拉（0.3.35→0.3.36）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-12-完整操作手冊更新0.3.32.md",
+   "output": "docs/changelog/2026-07-12-0-3-32-d8f60c0e.html",
+   "title": "完整操作手冊對齊系統 0.3.32（文件 1.0 → 2.0）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-12-實作練習手冊更新0.3.32.md",
+   "output": "docs/changelog/2026-07-12-0-3-32-3b64e926.html",
+   "title": "實作練習手冊（Hands-on Lab）對齊系統 0.3.32（文件 1.0 → 2.0）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-13-知識庫統計報表PRD.md",
+   "output": "docs/changelog/2026-07-13-prd-4c3fea63.html",
+   "title": "新增「知識庫統計報表」PRD 與開發代辦清單（規劃中）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-13-統計報表第一階段Teams快照.md",
+   "output": "docs/changelog/2026-07-13-teams-f3c78b43.html",
+   "title": "統計報表第一階段：LlmTokenUsage／LlmChatLog 新增 Teams 團隊快照＋雙 migration（0.3.36→0.3.37）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-13-統計報表第三階段頁面與選單.md",
+   "output": "docs/changelog/2026-07-13-86e116c0.html",
+   "title": "統計報表第三～五階段：5 個報表頁＋PDF 匯出＋側邊「統計報表」選單（0.3.38→0.3.39）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-13-統計報表第二階段服務層.md",
+   "output": "docs/changelog/2026-07-13-6687d12c.html",
+   "title": "統計報表第二階段：4 個報表聚合服務＋團隊/分類過濾＋單元測試（0.3.37→0.3.38）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-13-編修對話窗左右複製.md",
+   "output": "docs/changelog/2026-07-13-b1007ebf.html",
+   "title": "編修對話窗左右兩側各加複製按鈕（1.0.1）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-13-聊天全文改Markdown預覽.md",
+   "output": "docs/changelog/2026-07-13-markdown-9fe368d9.html",
+   "title": "AI 聊天紀錄「聊天全文」對話窗改用 Markdown 預覽（0.3.40）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-16-MCP-Server實作.md",
+   "output": "docs/changelog/2026-07-16-mcp-server-76e67977.html",
+   "title": "MCP Server 實作：四知識工具＋JWT/API Key 雙認證＋分級日誌與稽核（1.0.1 → 1.0.6）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-17-MCP-APIKey資料庫化與網頁管理.md",
+   "output": "docs/changelog/2026-07-17-mcp-apikey-1b67135a.html",
+   "title": "MCP API Key 改存資料庫＋網頁管理（啟用/停用）（1.0.8 → 1.0.9）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-17-MCP問答聊天紀錄與Token歸屬.md",
+   "output": "docs/changelog/2026-07-17-mcp-token-edb171c9.html",
+   "title": "MCP 問答寫入聊天紀錄並補 Token 用量歸屬（1.0.6 → 1.0.8）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-17-文件庫全面同步1.1.0.md",
+   "output": "docs/changelog/2026-07-17-1-1-0-3d049e97.html",
+   "title": "文件庫全面同步至程式現況（1.0.9 → 1.1.0）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-17-文件版本標註校正1.0.11.md",
+   "output": "docs/changelog/2026-07-17-1-0-11-6225e112.html",
+   "title": "文件版本標註校正：現行/對應系統版本 1.1.0 → 1.0.11",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-17-系統健康監控新增MCP與基礎設施檢查.md",
+   "output": "docs/changelog/2026-07-17-mcp-2a8afa84.html",
+   "title": "系統健康監控新增 MCP Server 與 4 項基礎設施檢查（1.0.10 → 1.0.11）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-18-三大操作手冊同步1.0.12.md",
+   "output": "docs/changelog/2026-07-18-1-0-12-0fea9726.html",
+   "title": "三大操作手冊同步至 1.0.12：補日誌下載、統計報表五頁與健康檢查/MCP 落差",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-18-儀表板管理者專區與健康檢查擴充.md",
+   "output": "docs/changelog/2026-07-18-176a9dca.html",
+   "title": "儀表板管理者專區＋健康檢查 24 項＋日誌下載快速區間（1.0.12 → 1.0.13）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-18-儀表板與日誌下載版面微調.md",
+   "output": "docs/changelog/2026-07-18-756443ac.html",
+   "title": "儀表板管理者專區位置調整＋日誌下載排版微調（1.0.13 → 1.0.14）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-18-商業簡報更新至1.0.14.md",
+   "output": "docs/changelog/2026-07-18-1-0-14-efbfc688.html",
+   "title": "三份商業簡報全面更新至系統 1.0.14",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-18-實作練習手冊素材包lab-samples.md",
+   "output": "docs/changelog/2026-07-18-lab-samples-66867e2e.html",
+   "title": "實作練習手冊素材包 lab-samples：30 個擬真練習檔＋產檔腳本（手冊 2.3→2.4）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-18-登入後預設導向改為知識庫問答.md",
+   "output": "docs/changelog/2026-07-18-03998685.html",
+   "title": "登入後預設導向改為知識庫問答（1.0.14 → 1.0.15）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-18-管理者日誌下載.md",
+   "output": "docs/changelog/2026-07-18-cc78adae.html",
+   "title": "管理者日誌下載頁：依時間區間打包 zip 下載（1.0.11 → 1.0.12）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-19-關鍵字候選集截斷修正.md",
+   "output": "docs/changelog/2026-07-19-d2c34b36.html",
+   "title": "修正混合檢索關鍵字路徑的候選集無序截斷（1.0.16）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-20-專案分類WorkCategory.md",
+   "output": "docs/changelog/2026-07-20-workcategory-3399cea6.html",
+   "title": "新增「專案分類」（WorkCategory）主檔，與知識庫分類清單脫鉤（1.0.18）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-20-會議AI自動化.md",
+   "output": "docs/changelog/2026-07-20-ai-34102033.html",
+   "title": "會議 AI 自動化：錄音 → 逐字稿 → AI 會議紀錄 → 待辦轉工作項目（1.0.20）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-20-會議模組UI優化.md",
+   "output": "docs/changelog/2026-07-20-ui-a5368795.html",
+   "title": "會議模組 UI 優化：待辦對話窗、上傳提示、自動更新、清單精簡（1.0.21）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-20-會議欄位擴充與進度統計.md",
+   "output": "docs/changelog/2026-07-20-c9d5467c.html",
+   "title": "會議欄位擴充與工作／專案進度彙總（1.0.19）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-20-會議編輯窗Markdown預覽.md",
+   "output": "docs/changelog/2026-07-20-markdown-45ce8c7b.html",
+   "title": "會議編輯窗：摘要與決議事項改為左編輯／右 Markdown 預覽（1.0.22）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-20-管線進度逐則通知.md",
+   "output": "docs/changelog/2026-07-20-eb6074ea.html",
+   "title": "背景管線處理過程逐則 toast 通知（1.0.23）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-20-選單拆分專案協作與資料匯入.md",
+   "output": "docs/changelog/2026-07-20-e10d3ff1.html",
+   "title": "側邊選單拆分為「專案協作」與「資料匯入」（1.0.17）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-21-Azure端點BaseUrl斜線修正.md",
+   "output": "docs/changelog/2026-07-21-azure-baseurl-6bc1493c.html",
+   "title": "修正切換 Azure OpenAI 端點時 LLM 404（BaseUrl 缺結尾斜線）（1.0.26）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-21-Toast一致化與工作項目來源會議追溯.md",
+   "output": "docs/changelog/2026-07-21-toast-4f4b815b.html",
+   "title": "Toast 通知全站改右下角＋工作項目可靠追溯來源會議（1.0.24）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-21-操作文件會議練習與全庫同步1.0.26.md",
+   "output": "docs/changelog/2026-07-21-1-0-26-88e2ff49.html",
+   "title": "操作文件補齊會議新功能練習、新增會議錄音樣本、docs 全庫同步至 1.0.26",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-21-會議紀錄納入知識來源素材.md",
+   "output": "docs/changelog/2026-07-21-62873529.html",
+   "title": "會議紀錄可納入知識來源（第四種素材型別，索引 AI 會議紀錄）（1.0.25）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-21-登入頁輸入框暗底暗字修正.md",
+   "output": "docs/changelog/2026-07-21-1960a707.html",
+   "title": "修正登入頁輸入框「暗底暗字」不可讀（scoped CSS :root 變數失效）（1.0.27）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-22-youtube標題編碼修正.md",
+   "output": "docs/changelog/2026-07-22-youtube-c8a7c6bd.html",
+   "title": "修正 YouTube 影片標題亂碼（yt-dlp 輸出 Big5、非 UTF-8）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-23-ZIP檔名Big5解碼修正.md",
+   "output": "docs/changelog/2026-07-23-zip-big5-2bc2d2bb.html",
+   "title": "修正 ZIP 批次上傳檔名亂碼（Big5/cp950 解碼）（1.0.32）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-23-工作項目清單欄位精簡.md",
+   "output": "docs/changelog/2026-07-23-9334d891.html",
+   "title": "工作項目清單欄位精簡（1.0.36）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-23-清洗改串流避免逾時.md",
+   "output": "docs/changelog/2026-07-23-0af39c15.html",
+   "title": "清洗 LLM 呼叫改走串流，根治 120 秒逾時（1.0.33）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-23-聊天輸入注音IME修正.md",
+   "output": "docs/changelog/2026-07-23-ime-57b4364d.html",
+   "title": "修正聊天輸入框注音（IME）組字被中斷（1.0.35）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-23-逾時強化.md",
+   "output": "docs/changelog/2026-07-23-ee94bde3.html",
+   "title": "強化最高風險的逾時點（1.0.34）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-23-預覽下載PDF.md",
+   "output": "docs/changelog/2026-07-23-pdf-c268d35f.html",
+   "title": "內容編修對話窗預覽可下載為 PDF（1.0.31）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-24-Token用量報表與統計.md",
+   "output": "docs/changelog/2026-07-24-token-b50bc5fd.html",
+   "title": "Token 用量頁：使用者下拉篩選＋四維度統計＋PDF 報表下載（1.0.45→1.0.46）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-24-儀表板區塊間距與分隔線.md",
+   "output": "docs/changelog/2026-07-24-3390ee92.html",
+   "title": "統計儀表板：加大區塊間垂直間距並加細分隔線（1.0.47→1.0.48）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-24-儀表板經營洞察.md",
+   "output": "docs/changelog/2026-07-24-4a3920cc.html",
+   "title": "首頁儀表板管理者專區新增「經營洞察」（1.0.46→1.0.47）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-24-移除AI技能產生器.md",
+   "output": "docs/changelog/2026-07-24-ai-fdfa2eaa.html",
+   "title": "移除「AI技能產生器」畫面與功能（1.0.45）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-IIS部署文件補強.md",
+   "output": "docs/changelog/2026-07-25-iis-85f5e2c7.html",
+   "title": "IIS 部署文件補強（純文件，版本不變 1.0.67）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-PDF改用大語言模型萃取.md",
+   "output": "docs/changelog/2026-07-25-pdf-1fdb2b2a.html",
+   "title": "PDF 文件萃取可改用大語言模型（1.0.54）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-PRD核對第1段-匯入與協作.md",
+   "output": "docs/changelog/2026-07-25-prd-1-ed6bce36.html",
+   "title": "PRD 核對第 1 段：核心匯入管線與專案協作（1.0.61）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-PRD核對第2段-知識庫與評測.md",
+   "output": "docs/changelog/2026-07-25-prd-2-985e7db3.html",
+   "title": "PRD 核對：第 2 段 — 知識庫與評測（1.0.62）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-PRD核對第3段-基礎資料與系統管理.md",
+   "output": "docs/changelog/2026-07-25-prd-3-55b1b96a.html",
+   "title": "PRD 核對：第 3 段 — 基礎資料與系統管理（1.0.63）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-上傳進度對話窗與重複關閉按鈕修正.md",
+   "output": "docs/changelog/2026-07-25-b163083c.html",
+   "title": "檔案上傳進度對話窗 ＋ 全站重複「關閉」按鈕修正（1.0.50）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-作業別標籤抽共用helper.md",
+   "output": "docs/changelog/2026-07-25-helper-85996c99.html",
+   "title": "作業別中文標籤抽為共用 helper，並統一三處顯示（1.0.67）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-儀表板與RAG診斷段落間距放寬.md",
+   "output": "docs/changelog/2026-07-25-rag-accf6c9e.html",
+   "title": "儀表板與 RAG 診斷頁：放寬區塊/段落垂直間距（1.0.51）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-啟動安全檢查守門修正.md",
+   "output": "docs/changelog/2026-07-25-05adcc9c.html",
+   "title": "啟動安全檢查守門修正（1.0.65）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-專案分類選單位置調整.md",
+   "output": "docs/changelog/2026-07-25-784d54b2.html",
+   "title": "「專案分類」選單項移至「團隊清單」下方（1.0.55）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-文件分層修補與歸檔.md",
+   "output": "docs/changelog/2026-07-25-49aa6020.html",
+   "title": "文件分層修補與歸檔（1.0.64）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-清單分頁Take失效修正.md",
+   "output": "docs/changelog/2026-07-25-take-fcd0f8a5.html",
+   "title": "修正清單分頁失效：Take 從未被套用（1.0.56）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-清洗設定檔預設範本與分類上限.md",
+   "output": "docs/changelog/2026-07-25-e6bf1366.html",
+   "title": "清洗設定檔新增預設範本按鈕與欄位說明圖示、分類上限提高至 10（1.0.48→1.0.49）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-畫面標籤與選單名稱統一.md",
+   "output": "docs/changelog/2026-07-25-7ce16ede.html",
+   "title": "畫面標籤與選單名稱統一（1.0.58）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-移除Production啟動安全檢查.md",
+   "output": "docs/changelog/2026-07-25-production-8753ad46.html",
+   "title": "移除 Production 啟動安全檢查（1.0.68）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-統計報表5頁區塊改垂直排列.md",
+   "output": "docs/changelog/2026-07-25-5-0c562d50.html",
+   "title": "統計報表 5 頁：分析區塊改為垂直排列並放寬間距（1.0.53）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-背景管線健康檢查改為推導.md",
+   "output": "docs/changelog/2026-07-25-845062d8.html",
+   "title": "背景管線健康檢查改為由 PipelineNames 推導（1.0.66）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-資料定義頁區塊間距放寬.md",
+   "output": "docs/changelog/2026-07-25-7414ed14.html",
+   "title": "「資料定義」5 頁：放寬區塊垂直間距（1.0.52）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-選單名稱全面調整.md",
+   "output": "docs/changelog/2026-07-25-85b4587d.html",
+   "title": "側邊選單名稱全面調整（1.0.57）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-選單舊名全庫同步.md",
+   "output": "docs/changelog/2026-07-25-8c95ae0a.html",
+   "title": "選單舊名全庫同步（1.0.60）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-25-長青文件內容勘誤.md",
+   "output": "docs/changelog/2026-07-25-80701bc3.html",
+   "title": "長青文件內容勘誤（1.0.59）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-26-Toast清零與範例死碼移除.md",
+   "output": "docs/changelog/2026-07-26-toast-ba406fb0.html",
+   "title": "Toast 全站清零並補上自動守門，移除範例死碼（1.0.73→1.0.74）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-26-Token用量歸屬補線與明細頁籤.md",
+   "output": "docs/changelog/2026-07-26-token-1ddb5b4d.html",
+   "title": "Token 用量歸屬補線（9 條）、「（系統自動）」改名、新增明細頁籤",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-26-favicon多尺寸重生.md",
+   "output": "docs/changelog/2026-07-26-favicon-01954f2c.html",
+   "title": "favicon 多尺寸重生：修正緊裁基準，分頁圖示放大 1.38 倍",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-26-guides全量對版同步.md",
+   "output": "docs/changelog/2026-07-26-guides-31935cb2.html",
+   "title": "docs/guides 全量對版同步（22 份）（1.0.71）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-26-實體名詞用法統一.md",
+   "output": "docs/changelog/2026-07-26-f9e7f568.html",
+   "title": "實體名詞用法統一 55 處：選單叫新名、訊息叫舊名的分裂收尾（1.0.75→1.0.76）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-26-待處理背景工作頁與會議紀錄管線修正.md",
+   "output": "docs/changelog/2026-07-26-8ac32442.html",
+   "title": "新增「待處理背景工作」管理者頁、儀表板管線分布補齊 7 條，並修正會議紀錄管線的四個缺陷（1.0.77→1.0.78）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-26-提示詞槽位提示與PDF截斷偵測.md",
+   "output": "docs/changelog/2026-07-26-pdf-c6a0819d.html",
+   "title": "提示詞槽位鍵收成單一來源、/prompts 加即時判定提示、PDF 轉換偵測輸出被截斷（1.0.76→1.0.77）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-26-機密軟偵測與寫入服務健康檢查.md",
+   "output": "docs/changelog/2026-07-26-b22f0399.html",
+   "title": "Production 機密軟偵測（不擋啟動）與寫入背景服務納入健康檢查（1.0.71→1.0.72）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-26-權限常數金絲雀測試與backlog補漏.md",
+   "output": "docs/changelog/2026-07-26-backlog-78becc83.html",
+   "title": "權限常數金絲雀測試，並補回兩筆「宣稱已記入 backlog 但查無此項」的待辦（1.0.74→1.0.75）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-26-清單預設排序與產生防重入.md",
+   "output": "docs/changelog/2026-07-26-8ebedcad.html",
+   "title": "五支清單修正分頁順序未定義，兩個產生流程補上防重入（1.0.72→1.0.73）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-26-移除健康檢查的開發金鑰判定.md",
+   "output": "docs/changelog/2026-07-26-86e342dc.html",
+   "title": "移除健康檢查的「開發預設金鑰」判定（1.0.69）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-26-選單舊名補漏與會議紀錄型素材修正.md",
+   "output": "docs/changelog/2026-07-26-6c272f47.html",
+   "title": "選單舊名補漏與會議紀錄型素材修正（1.0.70）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-27-Graph-RAG導入分析報告.md",
+   "output": "docs/changelog/2026-07-27-graph-rag-a55723a1.html",
+   "title": "Graph RAG 導入分析與實作藍圖報告（文件）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-27-GraphRAG-P1.md",
+   "output": "docs/changelog/2026-07-27-graphrag-p1-fa753ec1.html",
+   "title": "Graph RAG P1：概念連結邊 + 圖檢索融合（1.0.82 → 1.0.83）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-27-GraphRAG-P2.md",
+   "output": "docs/changelog/2026-07-27-graphrag-p2-aed3e40c.html",
+   "title": "Graph RAG P2：LLM 三元組抽取 + 人工審核 + 接進檢索（1.0.83 → 1.0.84）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-27-GraphRAG-P3.md",
+   "output": "docs/changelog/2026-07-27-graphrag-p3-26f7fb0b.html",
+   "title": "Graph RAG P3：社群摘要 + 全域問答（1.0.84 → 1.0.85）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-27-GraphRAG-P4.md",
+   "output": "docs/changelog/2026-07-27-graphrag-p4-81c86008.html",
+   "title": "Graph RAG P4：跨來源實體合併（1.0.85 → 1.0.86）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-27-GraphRAG-P5.md",
+   "output": "docs/changelog/2026-07-27-graphrag-p5-32211dd2.html",
+   "title": "Graph RAG P5：實體別名與合併審核（1.0.86 → 1.0.87）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-27-GraphRAG-P6.md",
+   "output": "docs/changelog/2026-07-27-graphrag-p6-00dd0c85.html",
+   "title": "Graph RAG P6：LLM 自動別名候選（1.0.87 → 1.0.88）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-27-GraphRAG-P7.md",
+   "output": "docs/changelog/2026-07-27-graphrag-p7-3ff9db04.html",
+   "title": "Graph RAG P7：接線與效能修補（1.0.88 → 1.0.89）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-27-GraphRAG-P8.md",
+   "output": "docs/changelog/2026-07-27-graphrag-p8-785432f5.html",
+   "title": "Graph RAG P8：多跳遍歷 + 圖譜瀏覽（1.0.89 → 1.0.90）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-27-GraphRAG-P9.md",
+   "output": "docs/changelog/2026-07-27-graphrag-p9-ae8c1474.html",
+   "title": "Graph RAG P9：MCP 暴露圖譜能力（1.0.90 → 1.0.91）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-27-GraphRAG文件債補正.md",
+   "output": "docs/changelog/2026-07-27-graphrag-842a5d24.html",
+   "title": "Graph RAG 文件債補正（純文件，不升版）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-27-儀表板移入系統管理與App改為AI問答.md",
+   "output": "docs/changelog/2026-07-27-app-ai-bf82da13.html",
+   "title": "儀表板移入系統管理、/App 改為 AI 知識問答（1.0.80 → 1.0.81）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-27-資料表使用狀況頁.md",
+   "output": "docs/changelog/2026-07-27-5e451369.html",
+   "title": "新增「資料表使用狀況」管理頁（1.0.81 → 1.0.82）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-28-GraphRAG-P10.md",
+   "output": "docs/changelog/2026-07-28-graphrag-p10-5e0d9a46.html",
+   "title": "Graph RAG P10：圖檢索評測題組（1.0.91 → 1.0.92）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-28-GraphRAG-P11.md",
+   "output": "docs/changelog/2026-07-28-graphrag-p11-807797fa.html",
+   "title": "Graph RAG P11：檢索熱路徑快取（1.0.93 → 1.0.94）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-28-GraphRAG-P12.md",
+   "output": "docs/changelog/2026-07-28-graphrag-p12-3aec586e.html",
+   "title": "Graph RAG P12：全域作業狀態表 ＋ 待抽取來源（1.0.94 → 1.0.95）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-28-GraphRAG-P13.md",
+   "output": "docs/changelog/2026-07-28-graphrag-p13-b9b91209.html",
+   "title": "Graph RAG P13：圖譜唯讀 Web API（1.0.95 → 1.0.96）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-28-文件萃取支援YAML.md",
+   "output": "docs/changelog/2026-07-28-yaml-4acdaee1.html",
+   "title": "文件萃取支援 YAML（.yaml / .yml）（1.0.92 → 1.0.93）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-28-清洗進度回報與串流閒置逾時.md",
+   "output": "docs/changelog/2026-07-28-50a0990b.html",
+   "title": "清洗每步驟進度回報與串流閒置逾時（1.0.97 → 1.0.98）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-28-選單系統監控與日誌拆分.md",
+   "output": "docs/changelog/2026-07-28-cf8f574b.html",
+   "title": "選單「系統監控與日誌」拆分與 flyout 溢出修正（1.0.96 → 1.0.97）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-29-Markdown表格渲染修正.md",
+   "output": "docs/changelog/2026-07-29-markdown-df8ff281.html",
+   "title": "Markdown 表格渲染成純文字：啟用 Markdig 的 UsePipeTables（1.0.102）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-29-多客戶多型號知識庫規劃分析.md",
+   "output": "docs/changelog/2026-07-29-cba9e3cd.html",
+   "title": "多客戶、多客製、多型號的知識庫規劃分析（1.0.104）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-29-新對話按鈕與我的對話關鍵字搜尋.md",
+   "output": "docs/changelog/2026-07-29-c22683c1.html",
+   "title": "AI 知識問答「新對話」按鈕、「我的對話」關鍵字搜尋（1.0.104 → 1.0.105）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-29-知識圖譜使用文件補齊.md",
+   "output": "docs/changelog/2026-07-29-d221b879.html",
+   "title": "知識圖譜（Graph RAG）使用文件補齊（1.0.100）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-29-知識庫選單重排與分組分隔線.md",
+   "output": "docs/changelog/2026-07-29-f07b6081.html",
+   "title": "「知識庫」子選單依使用頻率重排、新增分組分隔線（1.0.105 → 1.0.106）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-29-續談還原出處與投票-PDF問答內容-首頁圖示.md",
+   "output": "docs/changelog/2026-07-29-pdf-e369fe59.html",
+   "title": "續談還原出處與滿意度投票、PDF 補上提問／設定／出處、首頁圖示統一（1.0.98 → 1.0.99）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-29-頁面說明前言一分鐘看懂.md",
+   "output": "docs/changelog/2026-07-29-777246b4.html",
+   "title": "頁面說明前言「一分鐘看懂這一頁」（1.0.103）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-29-頁面說明系統.md",
+   "output": "docs/changelog/2026-07-29-e39767b4.html",
+   "title": "頁面說明系統：頂欄 Help 圖示 ＋ 近滿版說明對話窗（1.0.101）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-30-低比值回溯偵測.md",
+   "output": "docs/changelog/2026-07-30-6755d051.html",
+   "title": "低比值回溯偵測：自動找出可能已被靜默截斷的舊資料（1.0.115 → 1.0.116）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-30-基礎設定內容設計與企業實戰情境劇本.md",
+   "output": "docs/changelog/2026-07-30-81e7f85b.html",
+   "title": "基礎設定內容設計指南與企業實戰情境劇本（1.0.107 → 1.0.108）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-30-彙整量可見.md",
+   "output": "docs/changelog/2026-07-30-9277e97f.html",
+   "title": "知識來源的彙整量在畫面上看得到（1.0.112 → 1.0.113）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-30-清洗前軟上限警告.md",
+   "output": "docs/changelog/2026-07-30-58c86b30.html",
+   "title": "清洗前的軟上限警告（1.0.113 → 1.0.114）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-30-清洗輸出截斷偵測.md",
+   "output": "docs/changelog/2026-07-30-0ad34a00.html",
+   "title": "清洗的輸出截斷偵測（1.0.111 → 1.0.112）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-30-知識來源分盒與規模上限.md",
+   "output": "docs/changelog/2026-07-30-6b8aeb3c.html",
+   "title": "知識來源分盒與規模上限（1.0.109 → 1.0.110）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-30-知識傳承方法論與顧問手冊及網頁版.md",
+   "output": "docs/changelog/2026-07-30-223da895.html",
+   "title": "知識傳承方法論、導入實施顧問手冊與五份網頁版（1.0.108 → 1.0.109）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-30-知識庫命名規範.md",
+   "output": "docs/changelog/2026-07-30-a54f2a5a.html",
+   "title": "知識庫命名規範與速查卡（1.0.106 → 1.0.107）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-30-角色導向說明網站產生器.md",
+   "output": "docs/changelog/2026-07-30-50f5e1af.html",
+   "title": "角色導向說明網站產生器（1.0.110 → 1.0.111）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-30-說明網站收錄修正與檔名更正.md",
+   "output": "docs/changelog/2026-07-30-dcd598aa.html",
+   "title": "說明網站收錄修正與提示詞檔名更正（1.0.114 → 1.0.115）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/README.md",
+   "output": "docs/changelog/readme-436e4418.html",
+   "title": "changelog — 改版與變更紀錄",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/login-redesign.md",
+   "output": "docs/changelog/login-redesign-4241d694.html",
+   "title": "Login 頁面改版紀錄",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/features/README.md",
+   "output": "docs/features/features-index.html",
+   "title": "features — 功能機制",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/features/分散式快取機制.md",
+   "output": "docs/features/distributed-cache.html",
+   "title": "分散式快取機制",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/features/多語系與本地化.md",
+   "output": "docs/features/i18n.html",
+   "title": "多語系與本地化",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/features/檔案上傳機制.md",
+   "output": "docs/features/file-upload.html",
+   "title": "檔案上傳機制",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/features/版本化與時效性.md",
+   "output": "docs/features/versioning-freshness.html",
+   "title": "版本化與時效性",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/features/知識百科與WikiLink.md",
+   "output": "docs/features/wiki-and-wikilink.html",
+   "title": "知識百科與 WikiLink",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/features/系統健康監控.md",
+   "output": "docs/features/health-monitoring.html",
+   "title": "系統健康監控",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/AI知識問答使用指南.md",
+   "output": "docs/guides/ai-qa-guide.html",
+   "title": "AI 知識問答使用指南",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/EFCore.md",
+   "output": "docs/guides/efcore.html",
+   "title": "EF Core Migration 指令備忘",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/MCP服務使用說明書.md",
+   "output": "docs/guides/mcp-service.html",
+   "title": "MCP 服務使用說明書",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/README.md",
+   "output": "docs/guides/guides-index.html",
+   "title": "guides — 開發與操作指南",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/SQL Server 切換說明.md",
+   "output": "docs/guides/sqlserver-switch.html",
+   "title": "SQL Server 切換說明",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/Windows Server 2025 安裝與設定手冊.md",
+   "output": "docs/guides/windows-server-2025.html",
+   "title": "KMEngine Windows Server 2025 安裝與設定手冊",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/lab-samples/README.md",
+   "output": "docs/guides/lab-samples/lab-samples.html",
+   "title": "lab-samples — Hands-on Lab 練習素材包",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/lab-samples/documents/擴充-純文字/ERP系統v2.3版本發行說明.md",
+   "output": "docs/guides/lab-samples/documents/擴充-純文字/erp-v2-3-270a85fd.html",
+   "title": "ERP 系統 v2.3 版本發行說明",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/lab-samples/documents/擴充-純文字/客戶A-ERP系統常見問題FAQ.md",
+   "output": "docs/guides/lab-samples/documents/擴充-純文字/a-erp-faq-48866555.html",
+   "title": "客戶A ERP 系統常見問題 FAQ",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/企業實戰情境劇本-依部門的資料準備與操作.md",
+   "output": "docs/guides/department-playbook.html",
+   "title": "企業實戰情境劇本：依部門的資料準備與操作",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/使用者安裝與操作手冊.md",
+   "output": "docs/guides/install-and-operate.html",
+   "title": "使用者安裝與操作手冊（本機單機）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/基礎設定內容設計指南-分類詞庫團隊與提示詞撰寫.md",
+   "output": "docs/guides/setup-content-design.html",
+   "title": "基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/基礎設定指南-團隊分類角色與使用者.md",
+   "output": "docs/guides/setup-guide.html",
+   "title": "基礎設定指南：團隊、分類、角色、使用者與提示詞",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/完整操作手冊.md",
+   "output": "docs/guides/complete-manual.html",
+   "title": "完整操作手冊（從零到知識問答）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/實作練習手冊-Hands-on Lab.md",
+   "output": "docs/guides/hands-on-lab.html",
+   "title": "實作練習手冊（Hands-on Lab：親手建起你的知識庫）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/建立一個新 CRUD 操作網頁說明.md",
+   "output": "docs/guides/new-crud-page.html",
+   "title": "手動開發新 CRUD 頁面的計畫",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/從匯入到知識的操作流程.md",
+   "output": "docs/guides/import-to-knowledge-flow.html",
+   "title": "從客戶匯入到完成知識：操作流程指南",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/新手完整操作指南.md",
+   "output": "docs/guides/beginner-guide.html",
+   "title": "新手完整操作指南（完全沒接觸過知識庫也看得懂）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/檢索品質評測使用指南.md",
+   "output": "docs/guides/retrieval-eval.html",
+   "title": "檢索品質評測使用指南：功能、欄位、操作與撰寫準則",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/清洗品質評測使用指南.md",
+   "output": "docs/guides/cleaning-eval.html",
+   "title": "清洗品質評測使用指南：功能、欄位、操作與撰寫準則",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/知識來源分盒與規模上限指南.md",
+   "output": "docs/guides/source-scale-limits.html",
+   "title": "知識來源分盒與規模上限指南",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/知識來源加工與清洗規則設定-使用指南.md",
+   "output": "docs/guides/source-and-cleaning.html",
+   "title": "知識來源加工與清洗規則設定｜使用教育訓練指南",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/知識圖譜使用指南.md",
+   "output": "docs/guides/knowledge-graph.html",
+   "title": "知識圖譜（Graph RAG）使用指南：三元組審核、實體合併、圖譜瀏覽與全域問答",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/知識庫RAG-PoC執行與驗收指南.md",
+   "output": "docs/guides/rag-poc-acceptance.html",
+   "title": "知識庫 RAG：PoC 端到端執行與驗收指南",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/知識庫命名規範-速查卡.md",
+   "output": "docs/guides/naming-cheatsheet.html",
+   "title": "知識庫命名規範－速查卡",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/知識庫命名規範與範例.md",
+   "output": "docs/guides/naming-rules.html",
+   "title": "知識庫命名規範與範例",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/知識頁審核與Wiki頁管理指南.md",
+   "output": "docs/guides/wiki-review.html",
+   "title": "知識頁審核與 Wiki 頁管理指南",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/系統監控與健康檢查指南.md",
+   "output": "docs/guides/monitoring-health.html",
+   "title": "系統監控與健康檢查指南",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/系統總覽與使用導覽.md",
+   "output": "docs/guides/overview-navigation.html",
+   "title": "系統總覽與使用導覽（新手從這裡開始）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/腳手架新專案啟動流程.md",
+   "output": "docs/guides/scaffold-new-project.html",
+   "title": "腳手架新專案啟動流程",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/資料匯入指南-音訊文件圖片.md",
+   "output": "docs/guides/import-guide.html",
+   "title": "資料匯入指南：音訊／影片、文件、圖片",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/marketing/5W廣告文案-KnowledgeExtraction-AI.md",
+   "output": "docs/marketing/5w-ad-copy.html",
+   "title": "讓公司知識不再只存在某個人的腦袋裡",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/marketing/AI審圖-付費PoC提案.md",
+   "output": "docs/marketing/ai-drawing-review-poc.html",
+   "title": "AI 審圖 付費 PoC 提案 / SOW",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/marketing/KnowledgeExtraction-AI-合作夥伴銷售提案.md",
+   "output": "docs/marketing/partner-proposal.html",
+   "title": "KnowledgeExtraction.AI 合作夥伴銷售提案",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/marketing/README.md",
+   "output": "docs/marketing/marketing-index.html",
+   "title": "marketing — 銷售與合作提案",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/marketing/商業簡報-對外銷售版.md",
+   "output": "docs/marketing/deck-sales.html",
+   "title": "你的公司，每天都在「重複付錢」找同一份資料",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/marketing/商業簡報-決策投資版.md",
+   "output": "docs/marketing/deck-investor.html",
+   "title": "企業知識庫計畫",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/marketing/部落格-他交接了十五頁文件卻帶走了三年的答案.md",
+   "output": "docs/marketing/blog-handover.html",
+   "title": "他交接了十五頁文件，卻帶走了三年的答案",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/marketing/部落格-你接的是專案不是考古.md",
+   "output": "docs/marketing/blog-archaeology.html",
+   "title": "你接的是專案，不是考古",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/marketing/部落格-別再說我幫您查一下稍後回覆.md",
+   "output": "docs/marketing/blog-let-me-check.html",
+   "title": "別再說「我幫您查一下，稍後回覆」",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/marketing/部落格-同一個問題問到第三次你就不敢問了.md",
+   "output": "docs/marketing/blog-asking-thrice.html",
+   "title": "同一個問題問到第三次，你就不敢問了",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/marketing/部落格-當場答不出來的那一句就是丟單的那一句.md",
+   "output": "docs/marketing/blog-lost-deal.html",
+   "title": "當場答不出來的那一句，就是丟單的那一句",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/marketing/部落格-當新人第一天就能答出資深工程師的答案.md",
+   "output": "docs/marketing/blog-day-one.html",
+   "title": "當新人第一天，就能答出只有資深工程師才知道的答案",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/operations/IIS佈署與可攜工具設定.md",
+   "output": "docs/operations/iis-deploy.html",
+   "title": "IIS 佈署與可攜工具設定（C:\\KMEngineTools）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/operations/RAG問題診斷手冊.md",
+   "output": "docs/operations/rag-troubleshooting.html",
+   "title": "RAG 問題診斷手冊（維運用）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/operations/README.md",
+   "output": "docs/operations/operations-index.html",
+   "title": "operations — 維運與部署",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/operations/全新機器部署SOP.md",
+   "output": "docs/operations/fresh-machine-sop.html",
+   "title": "全新機器部署 SOP",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/operations/外部工具安裝與路徑設定.md",
+   "output": "docs/operations/external-tools.html",
+   "title": "外部工具安裝與路徑設定",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/operations/容量邊界與限制.md",
+   "output": "docs/operations/capacity-limits.html",
+   "title": "容量邊界與限制",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/operations/文件說明網站產生與佈署.md",
+   "output": "docs/operations/help-site-build.html",
+   "title": "文件說明網站：產生與佈署",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/operations/日誌與設定檔說明.md",
+   "output": "docs/operations/logging-and-settings.html",
+   "title": "日誌與設定檔說明",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/operations/正式部署與安全檢查清單.md",
+   "output": "docs/operations/production-checklist.html",
+   "title": "正式部署與安全檢查清單",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/operations/維護規範.md",
+   "output": "docs/operations/maintenance-rules.html",
+   "title": "維護規範",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/planning/07-資料清洗開發代辦清單-TODO.md",
+   "output": "docs/planning/07-todo-f1c7d6cc.html",
+   "title": "資料清洗開發代辦清單 TODO",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/planning/08-優化建議清單-TODO.md",
+   "output": "docs/planning/08-todo-74ef467f.html",
+   "title": "優化建議清單 TODO",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/planning/09-開發歷程總覽與未來建議.md",
+   "output": "docs/planning/09-c4d93ce1.html",
+   "title": "開發歷程總覽與未來建議",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/planning/12-RAG系統補強總彙整與優先序.md",
+   "output": "docs/planning/12-rag-b561e5d2.html",
+   "title": "RAG 系統補強：總彙整與優先序清單",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/planning/2026-07-28-GraphRAG待辦盤點.md",
+   "output": "docs/planning/2026-07-28-graphrag-3db703d7.html",
+   "title": "Graph RAG 待辦盤點（P1～P9 完成後）",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/planning/README.md",
+   "output": "docs/planning/readme-04c0bd48.html",
+   "title": "planning — 專案規劃與進度追蹤",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/planning/專案協作模組強化-todo.md",
+   "output": "docs/planning/todo-19efa315.html",
+   "title": "專案協作模組強化開發代辦清單 TODO",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/planning/知識來源規模守門-todo.md",
+   "output": "docs/planning/todo-720ef565.html",
+   "title": "知識來源規模守門開發代辦清單 TODO",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/planning/知識庫統計報表-todo.md",
+   "output": "docs/planning/todo-f4f1025f.html",
+   "title": "知識庫統計報表開發代辦清單 TODO",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prd/AI可觀測性與成本治理-prd.md",
+   "output": "docs/prd/ai-prd-779da3b6.html",
+   "title": "AI 可觀測性與成本治理 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/MCP-Server整合-prd.md",
+   "output": "docs/prd/mcp-server-prd-eb9973d8.html",
+   "title": "MCP Server 整合 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/PDF型RAG處理-prd.md",
+   "output": "docs/prd/pdf-rag-prd-86d843f1.html",
+   "title": "產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/RAG診斷與查詢期調校-prd.md",
+   "output": "docs/prd/rag-prd-17baf37e.html",
+   "title": "檢索診斷與查詢期調校 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/RAG評測-prd.md",
+   "output": "docs/prd/rag-prd-926cf2f2.html",
+   "title": "檢索品質評測 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/README.md",
+   "output": "docs/prd/readme-3c3c34ab.html",
+   "title": "prd — 產品需求文件主控台",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/使用者管理-prd.md",
+   "output": "docs/prd/prd-af6ff661.html",
+   "title": "使用者管理 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/分類清單-prd.md",
+   "output": "docs/prd/prd-e188d641.html",
+   "title": "產品需求文件（PRD）：知識庫分類（Category）管理",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/圖片清單-prd.md",
+   "output": "docs/prd/prd-9f4bc5b6.html",
+   "title": "產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/團隊清單-prd.md",
+   "output": "docs/prd/prd-d64ff6af.html",
+   "title": "產品需求文件（PRD）：團隊管理（Team）管理",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/專案分類-prd.md",
+   "output": "docs/prd/prd-18b9200e.html",
+   "title": "產品需求文件（PRD）：專案分類（WorkCategory）管理",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/專案協作模組強化-prd.md",
+   "output": "docs/prd/prd-e9230a97.html",
+   "title": "產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/專案項目-prd.md",
+   "output": "docs/prd/prd-dcd2b331.html",
+   "title": "專案管理 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/嵌入索引與混合檢索-prd.md",
+   "output": "docs/prd/prd-55a99ddc.html",
+   "title": "嵌入索引與混合檢索 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/工作項目-prd.md",
+   "output": "docs/prd/prd-3631982f.html",
+   "title": "工作任務 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/提示詞清單-prd.md",
+   "output": "docs/prd/prd-a41bba58.html",
+   "title": "產品需求文件（PRD）：AI 提示詞（Prompt）管理",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/文件萃取-markitdown-prd.md",
+   "output": "docs/prd/markitdown-prd-72bba06f.html",
+   "title": "產品需求文件（PRD）：文件轉文字（MarkItDown 轉 Markdown）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/會議AI自動化-prd.md",
+   "output": "docs/prd/ai-prd-6b4c4b1d.html",
+   "title": "產品需求文件（PRD）：會議 AI 自動化",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/會議記錄-prd.md",
+   "output": "docs/prd/prd-6dd4645a.html",
+   "title": "會議管理 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/清洗設定檔-prd.md",
+   "output": "docs/prd/prd-8e3d2ab7.html",
+   "title": "清洗規則設定（CleaningProfile）PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/登入與帳號流程-prd.md",
+   "output": "docs/prd/prd-5e052ad9.html",
+   "title": "登入與帳號流程 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/知識來源AI對話-prd.md",
+   "output": "docs/prd/ai-prd-8b935739.html",
+   "title": "知識來源 AI 對話 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/知識來源管理-prd.md",
+   "output": "docs/prd/prd-e8b774d3.html",
+   "title": "產品需求文件（PRD）：知識來源加工（KnowledgeSource）— 聚合匯入素材的 CRUD 頁面",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/知識圖譜-prd.md",
+   "output": "docs/prd/prd-c76272fb.html",
+   "title": "知識圖譜（Graph RAG）PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/知識庫問答-prd.md",
+   "output": "docs/prd/prd-b13bd3af.html",
+   "title": "AI 知識問答 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/知識庫統計報表-prd.md",
+   "output": "docs/prd/prd-eda2f75f.html",
+   "title": "知識庫統計報表 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/知識瀏覽與Wiki導覽-prd.md",
+   "output": "docs/prd/wiki-prd-85b48f00.html",
+   "title": "知識百科與 Wiki 導覽 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/知識蒸餾-prd.md",
+   "output": "docs/prd/prd-5c4f7f11.html",
+   "title": "知識頁審核（Knowledge Distillation）PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/系統健康監控-prd.md",
+   "output": "docs/prd/prd-f288012f.html",
+   "title": "系統健康監控 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/紀錄分類與團隊權控-prd.md",
+   "output": "docs/prd/prd-c711f637.html",
+   "title": "產品需求文件（PRD）：紀錄分類、團隊標籤與團隊權限控管",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/角色管理-prd.md",
+   "output": "docs/prd/prd-52ffebb8.html",
+   "title": "角色管理 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/資料清洗與品質保證-prd.md",
+   "output": "docs/prd/prd-a1cd6b20.html",
+   "title": "產品需求文件（PRD）：資料清洗管線與品質保證（QA-1..QA-4）＋清洗品質評測集",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/資料版本時效性與一致性生命週期-prd.md",
+   "output": "docs/prd/prd-26032bd0.html",
+   "title": "資料版本、時效性與一致性生命週期 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/逐字稿LLM產生-prd.md",
+   "output": "docs/prd/llm-prd-908fa269.html",
+   "title": "產品需求文件（PRD）：逐字稿依提示詞透過 LLM 產生內容",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/音訊影片轉錄服務PRD.md",
+   "output": "docs/prd/prd-0af3129c.html",
+   "title": "音訊／影片轉錄服務 PRD（產品需求文件）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/首頁與導覽-prd.md",
+   "output": "docs/prd/prd-5645c8a7.html",
+   "title": "首頁與導覽 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/prd/黃金評測-prd.md",
+   "output": "docs/prd/prd-6c81ae15.html",
+   "title": "清洗品質評測 PRD",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/presentation/AI工程師-人才價值與合作談判.md",
+   "output": "docs/presentation/ai-engineer-value.html",
+   "title": "要做出一套產品",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/presentation/AI工程師-能力衡量與邊界.md",
+   "output": "docs/presentation/ai-engineer-boundaries.html",
+   "title": "真的沒問題嗎？",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/presentation/AI槓桿開發-一人團隊的價值與新做法.md",
+   "output": "docs/presentation/ai-leverage-dev.html",
+   "title": "一套企業級系統",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/presentation/KnowledgeExtraction-AI-旗艦簡報.md",
+   "output": "docs/presentation/flagship-deck.html",
+   "title": "你的公司，每天都在重複付錢",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/presentation/KnowledgeExtraction-AI-簡報講者指南.md",
+   "output": "docs/presentation/deck-speaker-notes.html",
+   "title": "旗艦簡報・講者指南與使用說明",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/presentation/README.md",
+   "output": "docs/presentation/presentation-index.html",
+   "title": "presentation — 對客戶的旗艦簡報",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/prompts/RAG 的機制討論與調整.md",
+   "output": "docs/prompts/rag-24ff0a56.html",
+   "title": "RAG 的機制討論與調整",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/README.md",
+   "output": "docs/prompts/readme-e48ea9f9.html",
+   "title": "prompts — 提示詞原稿",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/使用手冊製作說明 prompt.md",
+   "output": "docs/prompts/prompt-5d8d590f.html",
+   "title": "使用手冊製作說明 prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/使用者操作 Hands-on Lab 教學文件 prompt.md",
+   "output": "docs/prompts/hands-on-lab-prompt-77a37df1.html",
+   "title": "使用者操作 Hands-on Lab 教學文件 prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/分類清單 prompt.md",
+   "output": "docs/prompts/prompt-34a03994.html",
+   "title": "分類清單 prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/加入 分類與團隊選單 prompt.md",
+   "output": "docs/prompts/prompt-8d852f27.html",
+   "title": "加入 分類與團隊選單",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/各階段資料的處理與維護作法說明.md",
+   "output": "docs/prompts/doc-bfe6f17d.html",
+   "title": "各階段資料的處理與維護作法說明",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/圖片清單可以使用壓縮檔案上傳.md",
+   "output": "docs/prompts/doc-e9e9796f.html",
+   "title": "圖片清單可以使用壓縮檔案上傳",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/圖片轉文字 prompt.md",
+   "output": "docs/prompts/prompt-c2977554.html",
+   "title": "圖片轉文字服務 prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/團隊清單 prompt.md",
+   "output": "docs/prompts/prompt-36f5259c.html",
+   "title": "團隊清單 prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/客戶用的簡報 Steve Jobs prompt.md",
+   "output": "docs/prompts/steve-jobs-prompt-6e5c5238.html",
+   "title": "客戶用的簡報 Steve Jobs prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/提示詞清單 prompt.md",
+   "output": "docs/prompts/prompt-8c54be33.html",
+   "title": "提示詞清單 prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/文件檔案轉換 Markdown 內容 prompt.md",
+   "output": "docs/prompts/markdown-prompt-0e83373f.html",
+   "title": "文件檔案轉換 Markdown 內容 prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/文件萃取可以上傳壓縮檔案.md",
+   "output": "docs/prompts/doc-4b120a6f.html",
+   "title": "文件萃取可以上傳壓縮檔案",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/知識來源管理 prompt.md",
+   "output": "docs/prompts/prompt-f6a3b9bb.html",
+   "title": "知識來源管理清單 prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/知識來源管理清單 ChatGPT prompt.md",
+   "output": "docs/prompts/chatgpt-prompt-7de88e57.html",
+   "title": "知識來源管理清單 ChatGPT prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/知識來源管理清單用法 prompt.md",
+   "output": "docs/prompts/prompt-2613e443.html",
+   "title": "知識來源管理清單用法 prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/知識庫產品調研 prompt.md",
+   "output": "docs/prompts/prompt-212b831d.html",
+   "title": "知識庫產品調研 prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/知識庫統計報表需求.md",
+   "output": "docs/prompts/doc-8a8719c6.html",
+   "title": "知識庫統計報表需求",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/說明文件的網頁版需求.md",
+   "output": "docs/prompts/doc-221d70d3.html",
+   "title": "說明文件的網頁版需求",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/重新修正完整操作使用手冊.md",
+   "output": "docs/prompts/doc-a32da0f1.html",
+   "title": "重新修正完整操作使用手冊",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/關於如何設計資料清洗的規範 prompt.md",
+   "output": "docs/prompts/prompt-ead2bb24.html",
+   "title": "關於如何設計資料清洗的規範 prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/音訊影片轉錄服務 prompt.md",
+   "output": "docs/prompts/prompt-0025214b.html",
+   "title": "音訊影片轉錄服務 prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/prompts/黃金評測用法 prompt.md",
+   "output": "docs/prompts/prompt-862daafe.html",
+   "title": "黃金評測用法 prompt",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/security/Google OAuth2 第三方登入.md",
+   "output": "docs/security/google-oauth2.html",
+   "title": "Google OAuth2 第三方登入",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/security/README.md",
+   "output": "docs/security/security-index.html",
+   "title": "security — 認證、授權與安全",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/security/密碼種類與儲存機制.md",
+   "output": "docs/security/password-storage.html",
+   "title": "密碼種類與儲存機制",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/security/記住我登入原理說明.md",
+   "output": "docs/security/remember-me.html",
+   "title": "記住我登入原理說明",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/security/認證授權與權限機制.md",
+   "output": "docs/security/auth-and-permissions.html",
+   "title": "認證授權與權限機制",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/01-計畫範圍與遠景.md",
+   "output": "docs/strategy/scope-and-vision.html",
+   "title": "計畫範圍與遠景",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/02-商業價值與行銷策略.md",
+   "output": "docs/strategy/business-value.html",
+   "title": "商業價值與行銷策略",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/03-知識庫架構研究與建議.md",
+   "output": "docs/strategy/architecture-research.html",
+   "title": "知識庫架構研究與建議",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/04-開發建議與路線圖.md",
+   "output": "docs/strategy/dev-roadmap.html",
+   "title": "開發建議與路線圖",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/05-待釐清問題與技術風險清單.md",
+   "output": "docs/strategy/open-questions-risks.html",
+   "title": "待釐清問題與技術風險清單",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/06-期望產出清單.md",
+   "output": "docs/strategy/expected-deliverables.html",
+   "title": "期望產出清單",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/07-以gstack技能精煉計畫的執行流程.md",
+   "output": "docs/strategy/gstack-playbook.html",
+   "title": "以 gstack 技能精煉計畫的執行流程（Playbook）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/08-資料清洗階段設計與分析.md",
+   "output": "docs/strategy/cleaning-stage-design.html",
+   "title": "資料清洗階段設計與分析",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/09-企業應用情境型錄.md",
+   "output": "docs/strategy/scenario-catalog.html",
+   "title": "企業應用情境型錄",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/10-知識來源管理與資料清洗-價值與行銷.md",
+   "output": "docs/strategy/source-cleaning-value.html",
+   "title": "知識來源管理與資料清洗：功能、價值與行銷",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/11-清洗品質評測-價值與行銷.md",
+   "output": "docs/strategy/cleaning-eval-value.html",
+   "title": "清洗品質評測：功能、欄位、價值與行銷",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/12-階段三-知識庫與RAG設計規格.md",
+   "output": "docs/strategy/stage3-rag-spec.html",
+   "title": "階段三：知識庫與 RAG 設計規格",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/13-知識庫產品市場分析與擴展方向.md",
+   "output": "docs/strategy/market-analysis.html",
+   "title": "知識庫產品市場分析與擴展方向",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/2026-07-16-企業知識庫技術路線分析-RAG-LLM-Wiki-Graph-Agentic.md",
+   "output": "docs/strategy/tech-route-analysis.html",
+   "title": "企業知識庫技術路線分析：RAG × LLM Wiki × Graph／Agentic RAG",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/2026-07-27-Graph-RAG導入分析與實作藍圖.md",
+   "output": "docs/strategy/graph-rag-blueprint.html",
+   "title": "Graph RAG 導入分析與實作藍圖（本系統專題深化）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/2026-07-29-多客戶多型號知識庫規劃分析.md",
+   "output": "docs/strategy/multi-tenant-planning.html",
+   "title": "多客戶、多客製、多型號的知識庫規劃分析",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/README.md",
+   "output": "docs/strategy/strategy-index.html",
+   "title": "strategy — 知識庫計畫策略與願景",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/知識傳承與經驗累積方法論.md",
+   "output": "docs/strategy/knowledge-transfer-method.html",
+   "title": "知識傳承與經驗累積方法論",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/知識庫導入實施顧問手冊.md",
+   "output": "docs/strategy/consultant-handbook.html",
+   "title": "知識庫導入實施顧問手冊（對內）",
+   "curated": true,
+   "internal": true
+  },
+  {
+   "source": "docs/strategy/系統功能與特色清單-20項.md",
+   "output": "docs/strategy/feature-highlights.html",
+   "title": "智庫引擎（KnowledgeExtraction.AI）系統功能與特色清單（19 項）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/strategy/軟體授權保護機制設計.md",
+   "output": "docs/strategy/license-protection.html",
+   "title": "智庫引擎 地端授權保護機制設計",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/superpowers/README.md",
+   "output": "docs/superpowers/readme-c0db0c4b.html",
+   "title": "superpowers — Brainstorming 設計流程產出",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/superpowers/plans/2026-06-02-音訊影片轉錄服務.md",
+   "output": "docs/superpowers/plans/2026-06-02-73d2ea8b.html",
+   "title": "音訊／影片轉錄服務 Implementation Plan",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/superpowers/plans/2026-06-04-抖音自動轉錄整合.md",
+   "output": "docs/superpowers/plans/2026-06-04-35c13737.html",
+   "title": "抖音影片自動轉錄整合 Implementation Plan",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/superpowers/plans/2026-06-09-提示詞清單.md",
+   "output": "docs/superpowers/plans/2026-06-09-7034edfd.html",
+   "title": "提示詞清單（Prompt）管理頁面 Implementation Plan",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/superpowers/plans/2026-06-11-knowledge-source-crud.md",
+   "output": "docs/superpowers/plans/2026-06-11-knowledge-source-crud-6e918bdb.html",
+   "title": "知識來源管理清單（KnowledgeSource）CRUD + 成員聚合 實作計畫",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/superpowers/plans/2026-07-10-專案安全優先穩定化.md",
+   "output": "docs/superpowers/plans/2026-07-10-d75d8738.html",
+   "title": "KnowledgeExtraction.AI 安全優先穩定化計畫",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/superpowers/plans/2026-07-12-PRD全庫基線重建.md",
+   "output": "docs/superpowers/plans/2026-07-12-prd-e14e5def.html",
+   "title": "PRD 全庫基線重建 Implementation Plan",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/superpowers/plans/README.md",
+   "output": "docs/superpowers/plans/readme-7a073b96.html",
+   "title": "superpowers/plans — 實作計畫",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/superpowers/specs/2026-06-03-youtube-音訊轉錄-design.md",
+   "output": "docs/superpowers/specs/2026-06-03-youtube-design-09a22705.html",
+   "title": "音訊轉錄擴充設計規格：YouTube 來源、繁體輸出修正、語言選擇",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/superpowers/specs/2026-06-04-抖音自動轉錄整合-design.md",
+   "output": "docs/superpowers/specs/2026-06-04-design-7470dd71.html",
+   "title": "抖音影片自動轉錄整合 — 設計文件",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/superpowers/specs/2026-06-29-專案工作與會議對話窗-design.md",
+   "output": "docs/superpowers/specs/2026-06-29-design-b8503e21.html",
+   "title": "設計：專案列表「工作與會議」對話窗 + 共用編輯 Modal 抽取",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/superpowers/specs/2026-07-12-PRD全庫基線重建-design.md",
+   "output": "docs/superpowers/specs/2026-07-12-prd-design-de4b7df2.html",
+   "title": "PRD 全庫基線重建設計",
+   "curated": false,
+   "internal": true
+  },
+  {
+   "source": "docs/superpowers/specs/README.md",
+   "output": "docs/superpowers/specs/readme-a22f7a7f.html",
+   "title": "superpowers/specs — 設計規格",
+   "curated": false,
+   "internal": true
+  }
+ ]
+}

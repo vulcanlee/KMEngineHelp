@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>開發歷程總覽與未來建議｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 開發代辦</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">開發代辦</div><h1>開發歷程總覽與未來建議</h1></header><div class="docwrap"><main><blockquote><p>本文件依 <strong>git 推送紀錄</strong>（功能分支 → <code>--no-ff</code> 合併）整理，呈現專案開發主題、時間點與版本號， 並據此做出總結、建議與未來方向。資料截至 2026-06-26（版本 0.2.128，階段三知識庫與 RAG 已完成）。</p></blockquote>
+<h2 id="1-總覽" class="t1">1. 總覽</h2>
+<ul><li><strong>期間</strong>：2026-06-02 ～ 2026-06-26（約 25 個日曆天）。</li><li><strong>版本</strong>：自腳手架 0.2.10 演進至 0.2.128。</li><li><strong>開發強度</strong>：高度集中於 06-02~05、06-09~12、06-16~24；其間數日近乎停擺。06-20~24 一波密集推進，完成知識來源 AI 對話、四層提示詞解析、知識頁審核（階段二）與階段三 RAG 設計規格。</li><li><strong>開發模式</strong>：AI 代理人驅動、單人高速開發，全程遵循嚴謹工程慣例：</li><li>每個主題開一條功能分支，以 <code>--no-ff</code> 合併回 <code>main</code>（保留主題邊界）。</li><li>每次異動 <strong>appsettings 版本號 +1</strong>，並撰寫 <code>docs/changelog/</code> 發行說明。</li><li>文件與程式同步維護；<code>docs/*.md</code> 一律 UTF-8 含 BOM（<code>scripts/Test-DocsEncoding.ps1</code> 守護）。</li><li>模型變更產生<strong>雙資料庫 migration</strong>（SQLite 與 SQL Server）。</li><li>紀錄查詢一律套<strong>團隊權控</strong>不變量。</li></ul>
+<h2 id="2-開發階段時間線主題--日期--版本" class="t2">2. 開發階段時間線（主題 · 日期 · 版本）</h2>
+<h3 id="階段-0腳手架更名與基礎修正06-0202100212">階段 0：腳手架更名與基礎修正（06-02，0.2.10–0.2.12）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>腳手架更名 MyProject → KnowledgeExtraction（智庫引擎）</td><td>06-02</td><td>0.2.10</td></tr><tr><td>使用者選單／側欄品牌名／z-index 等 UI 修正</td><td>06-02</td><td>0.2.11</td></tr><tr><td>docs 文件依特性重整為分類目錄並更新索引</td><td>06-02</td><td>0.2.12</td></tr></tbody></table></div>
+<h3 id="階段-1音訊影片轉錄核心06-0302130221">階段 1：音訊／影片轉錄核心（06-03，0.2.13–0.2.21）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>新增 MediaTranscription 實體與資料庫 Migration</td><td>06-03</td><td>0.2.13</td></tr><tr><td>FfmpegPath 設定與逐段進度日誌</td><td>06-03</td><td>0.2.14–0.2.15</td></tr><tr><td>文件轉文字（MarkItDown）功能與 PRD、CRUD 工具列排版</td><td>06-03</td><td>0.2.16–0.2.17</td></tr><tr><td>YouTube 來源、語言選擇與台灣繁體保底、「關於」對話窗</td><td>06-03</td><td>0.2.18–0.2.19</td></tr><tr><td>轉錄依音訊時長分段修正、通用影片連結來源與分享文字抽取</td><td>06-03</td><td>0.2.20–0.2.21</td></tr></tbody></table></div>
+<h3 id="階段-2抖音整合與外部工具部署06-0402220233">階段 2：抖音整合與外部工具／部署（06-04，0.2.22–0.2.33）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>抖音 playwright 音訊助手與各平台下載方式釐清</td><td>06-04</td><td>0.2.22</td></tr><tr><td>全新機器部署 SOP、既有文件補 BOM、抖音合併式 mp4 支援</td><td>06-04</td><td>0.2.23–0.2.25</td></tr><tr><td>抖音自動轉錄整合（分享文字帶入＋自動下載轉錄）、助手腳本路徑</td><td>06-04</td><td>0.2.26–0.2.28</td></tr><tr><td>主控台日誌 UTF-8、發行說明、預設排序、檔名亂碼修正、可編輯原始檔名</td><td>06-04</td><td>0.2.29–0.2.33</td></tr></tbody></table></div>
+<h3 id="階段-3分類團隊標籤與資料權控06-0502340238">階段 3：分類／團隊／標籤與資料權控（06-05，0.2.34–0.2.38）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>知識庫分類（Category）CRUD</td><td>06-05</td><td>0.2.34</td></tr><tr><td>團隊管理（Team）CRUD</td><td>06-05</td><td>0.2.35</td></tr><tr><td>紀錄分類／團隊標籤與團隊權控</td><td>06-05</td><td>0.2.37</td></tr><tr><td>新增紀錄預帶入使用者授權團隊</td><td>06-05</td><td>0.2.38</td></tr><tr><td>外部工具一鍵安裝／檢測腳本、開發慣例與限制速查（AI 入口）</td><td>06-05</td><td>—</td></tr></tbody></table></div>
+<h3 id="階段-4提示詞llm-生成圖片解讀ui06-0902430253">階段 4：提示詞／LLM 生成／圖片解讀／UI（06-09，0.2.43–0.2.53）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>AI 提示詞 CRUD</td><td>06-09</td><td>0.2.43</td></tr><tr><td>逐字稿依提示詞透過 LLM 產生內容</td><td>06-09</td><td>0.2.44</td></tr><tr><td>圖片解讀（上傳與 LLM 視覺解讀）、工具列樣式</td><td>06-09</td><td>0.2.45–0.2.46</td></tr><tr><td>影片連結自動帶入標題（含診斷日誌與降級）</td><td>06-09</td><td>0.2.47–0.2.49</td></tr><tr><td>側邊欄收合子選單 hover 修正</td><td>06-09</td><td>0.2.53</td></tr></tbody></table></div>
+<h3 id="階段-5三管線佇列化重試取消06-1002540258">階段 5：三管線佇列化／重試／取消（06-10，0.2.54–0.2.58）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>資料清洗階段設計與代辦清單、上傳對話窗修正</td><td>06-10</td><td>0.2.54–0.2.55</td></tr><tr><td>三管線佇列化＋自動／手動重試＋取消＋重啟回復</td><td>06-10</td><td>0.2.56–0.2.58</td></tr></tbody></table></div>
+<h3 id="階段-6知識來源資料清洗-qa1qa4清洗品質評測06-111202590271">階段 6：知識來源＋資料清洗 QA1–QA4＋清洗品質評測（06-11~12，0.2.59–0.2.71）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>對客戶旗艦簡報（md/html/pptx）與講者指南</td><td>06-11</td><td>—</td></tr><tr><td>知識來源加工 CRUD＋成員聚合</td><td>06-11</td><td>0.2.59</td></tr><tr><td>清洗管線 QA-1 端到端最小可用</td><td>06-11</td><td>0.2.60</td></tr><tr><td>清洗管線接 LLM（去重／遮罩／分類／摘要）</td><td>06-11</td><td>0.2.61</td></tr><tr><td>清洗 QA-2 信心分數＋自動門檻、側欄/工具列修正</td><td>06-11</td><td>0.2.62–0.2.64</td></tr><tr><td>清洗 QA-3 人工審核關卡（核准／退回）</td><td>06-12</td><td>0.2.65</td></tr><tr><td>清洗 QA-4 清洗品質評測集（指標與門檻校準）</td><td>06-12</td><td>0.2.66</td></tr><tr><td>LLM 雲端／地端切換＋容量邊界文件、門檻鎖定、文件同步稽核</td><td>06-12</td><td>0.2.67–0.2.69</td></tr><tr><td>資料清洗與品質保證整合 PRD、CRUD 操作欄圖示規範化</td><td>06-12</td><td>0.2.70–0.2.71</td></tr></tbody></table></div>
+<h3 id="階段-7落地保存線上編修依提示詞產生06-1602720278">階段 7：落地保存／線上編修／依提示詞產生（06-16，0.2.72–0.2.78）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>URL 原始影片與生成內容落地保存、生成內容改純檔案儲存</td><td>06-16</td><td>0.2.72–0.2.73</td></tr><tr><td>抽取／LLM 生成文字內容 UI 線上編修、對話窗版面與過期追蹤修正</td><td>06-16</td><td>0.2.74–0.2.76</td></tr><tr><td>文件轉文字「依提示詞產生」（雙來源）、預設依上傳時間遞減排序</td><td>06-16</td><td>0.2.77–0.2.78</td></tr></tbody></table></div>
+<h3 id="階段-8編修signalr評測修正清洗規則設定使用手冊06-171802800284">階段 8：編修／SignalR／評測修正＋清洗規則設定＋使用手冊（06-17~18，0.2.80–0.2.84）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>逐字稿編修移除右側預覽、提高 SignalR 訊息上限修復閃爍</td><td>06-17</td><td>0.2.80–0.2.81</td></tr><tr><td>修復清洗品質評測空樣本崩潰</td><td>06-17</td><td>0.2.82</td></tr><tr><td>清洗結果可複製／預覽／編修、清洗規則設定（可重複套用提示詞）</td><td>06-17</td><td>0.2.83–0.2.84</td></tr><tr><td>知識來源價值與行銷、清洗品質評測與端到端流程、使用者安裝與操作手冊、情境故事</td><td>06-17~18</td><td>—</td></tr></tbody></table></div>
+<h3 id="階段-9抖音下載與陳舊追蹤根因修復06-1902850287">階段 9：抖音下載與「陳舊追蹤」根因修復（06-19，0.2.85–0.2.87）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>抖音下載失敗後可直接重試、下載斷線自動重試</td><td>06-19</td><td>0.2.85</td></tr><tr><td>全管線狀態決策修正陳舊追蹤實體（重試／取消／核准等誤判）</td><td>06-19</td><td>0.2.86</td></tr><tr><td>抖音下載改用瀏覽器 context 帶 cookie，修正 UND_ERR_SOCKET</td><td>06-19</td><td>0.2.87</td></tr></tbody></table></div>
+<h3 id="階段-10穩定化與指南prd-補強06-192002880295">階段 10：穩定化與指南／PRD 補強（06-19~20，0.2.88–0.2.95）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>system-health：ApiKey 未設定提升為紅色錯誤</td><td>06-19</td><td>0.2.88</td></tr><tr><td>抖音下載保留原始影片、知識來源與清洗規則設定使用教育訓練指南</td><td>06-19</td><td>0.2.89–0.2.90</td></tr><tr><td>新增「PDF 型 RAG 處理」PRD（規劃中）、文件轉文字限制可上傳副檔名</td><td>06-19~20</td><td>0.2.91–0.2.92</td></tr><tr><td>OpenAI chat 呼叫記錄 token 用量</td><td>06-20</td><td>0.2.93–0.2.95</td></tr></tbody></table></div>
+<h3 id="階段-11對話窗體驗與選單調整06-20029602103">階段 11：對話窗體驗與選單調整（06-20，0.2.96–0.2.103）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>管理成員對話窗篩選與留白、放大與單一固定關閉鈕、加入素材分頁</td><td>06-20</td><td>0.2.96–0.2.99</td></tr><tr><td>影音轉逐字稿表單來源類型移至最上方、對話窗放大版樣式全域化、結果對話窗補關閉鈕</td><td>06-20</td><td>0.2.100–0.2.102</td></tr><tr><td>「清洗規則設定」選單從「知識庫」移至「基礎資料設定」</td><td>06-20</td><td>0.2.103</td></tr></tbody></table></div>
+<h3 id="階段-12可診斷化知識來源-ai-對話與提示詞解析06-21220210402113">階段 12：可診斷化、知識來源 AI 對話與提示詞解析（06-21~22，0.2.104–0.2.113）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>全系統日誌涵蓋率補強（外部整合三點式、消除靜默失敗、權控/權限拒絕、circuit 日誌）</td><td>06-21</td><td>0.2.104</td></tr><tr><td>知識來源「AI 對話」（ChatGPT 風格、多輪、串流）與後續修正</td><td>06-21</td><td>0.2.105–0.2.107</td></tr><tr><td>對話「回答詳簡」切換、LLM 提示詞盤點＋完整 token 用量日誌</td><td>06-21</td><td>0.2.108–0.2.109</td></tr><tr><td>方案 3：四層提示詞解析 <code>LlmPromptResolver</code>（單次操作→DB→appsettings→程式 fallback）</td><td>06-21</td><td>0.2.110</td></tr><tr><td>對話每輪訊息可複製到剪貼簿</td><td>06-22</td><td>0.2.113</td></tr></tbody></table></div>
+<h3 id="階段-13來源檔案下載知識頁審核階段二與階段三-rag-規格06-23260211402121">階段 13：來源檔案下載、知識頁審核（階段二）與階段三 RAG 規格（06-23~26，0.2.114–0.2.121）</h3>
+<div class="tw"><table><thead><tr><th>主題</th><th>日期</th><th>版本</th></tr></thead><tbody><tr><td>小紅書下載逾時 DNS 排查、影音轉逐字稿新增「下載來源檔案」按鈕</td><td>06-23</td><td>0.2.114–0.2.115</td></tr><tr><td>下載來源影片自動轉碼為 H.264</td><td>06-23</td><td>0.2.116</td></tr><tr><td><strong>知識頁審核（階段二）：已清洗來源蒸餾為互連 Wiki 實體頁</strong>、蒸餾頁版面修正</td><td>06-24</td><td>0.2.117–0.2.118</td></tr><tr><td>知識頁審核與問答疑問釐清及階段三需求文件</td><td>06-26</td><td>0.2.119</td></tr><tr><td><strong>階段三「知識庫與 RAG」設計規格</strong>、補上 embedding 產生策略與維度</td><td>06-26</td><td>0.2.120–0.2.121</td></tr></tbody></table></div>
+<h2 id="3-開發總結與說明" class="t3">3. 開發總結與說明</h2>
+<p>從 git 紀錄可看出一條清晰的價值演進主軸，由「把素材變文字」逐步走向「把文字變可信知識」：</p>
+<ol><li><strong>匯入與轉錄</strong>（階段 1–2）：先打通音訊／影片轉錄與多平台下載（含技術門檻最高的抖音 playwright 助手）。</li><li><strong>治理與權控</strong>（階段 3）：補上分類、團隊標籤與團隊資料權控，使資料可分群、可控管。</li><li><strong>AI 加值</strong>（階段 4）：提示詞、逐字稿 LLM 產生、圖片視覺解讀，讓內容能被理解與再加工。</li><li><strong>工程化與品保</strong>（階段 5–6）：三管線佇列化／重試／取消＋重啟回復，再到清洗管線 QA-1~QA-4 與</li></ol>
+<p>清洗品質評測——把「清洗」從能跑變成<strong>可量測、可校準、可審核</strong>。</p>
+<ol><li><strong>知識資產化與打磨</strong>（階段 7–8）：知識來源聚合、內容線上編修、清洗規則設定，並補齊使用者手冊與行銷簡報。</li><li><strong>可診斷化與知識問答前奏</strong>（階段 10–12）：日誌涵蓋率補強讓系統可診斷化；知識來源「AI 對話」（多輪、串流、詳簡）與四層提示詞解析，把「能理解內容」推進到「能對內容問答」（惟仍為單一來源、無向量檢索）。</li><li><strong>知識頁審核與檢索規格定案</strong>（階段 13）：知識頁審核（階段二）把已清洗來源蒸餾為互連 Wiki 實體頁，完成「文字→可信知識資產」；隨後階段三「知識庫與 RAG」設計規格（含 embedding 策略與維度）定案，為跨來源、權控、附出處的問答鋪好藍圖。</li></ol>
+<p><strong>近期態勢</strong>：自階段 7 起曾從「功能擴張」轉向「穩定化／除錯」（如 0.2.76→0.2.86 的「Blazor circuit 長壽命 DbContext 讀到陳舊追蹤實體」根因，最終於 0.2.86 做<strong>全管線系統性修正</strong>；抖音下載連修三版 0.2.85→0.2.87）。 06-20 之後重心再次回到<strong>價值擴張</strong>：知識來源 AI 對話、提示詞解析、知識頁審核（階段二）相繼落地，並以階段三 RAG 設計規格收束方向。專案已具相當功能完整度，正站在「進入檢索／問答（階段三）實作」的起跑線。</p>
+<h2 id="4-建議" class="t4">4. 建議</h2>
+<p>依 git 觀察提出（非既有功能，屬建議）：</p>
+<ol><li><strong>測試覆蓋擴增</strong>：現有約 240 個測試偏重清洗管線；建議補服務層（Retry/Cancel/權控）與關鍵 UI</li></ol>
+<p>流程的整合測試，讓「陳舊追蹤」這類回歸能被自動攔截。</p>
+<ol><li><strong>根因的系統性防護</strong>：陳舊追蹤問題目前是「逐處補 <code>CleanTrackingHelper.Clean</code>」。建議評估更治本的</li></ol>
+<p>作法——查詢預設 <code>AsNoTracking</code>、或讓會被背景服務變更的讀取走獨立 DI scope／DbContext 工廠， 從架構上消除長壽命 circuit context 的陳舊風險。</p>
+<ol><li><strong>抖音下載韌性</strong>：保留 cookie／<code>Range</code> 後備與半自動（需桌面瀏覽器）限制的明確說明；長線評估</li></ol>
+<p>無頭環境或官方授權途徑，降低維運脆弱度。</p>
+<ol><li><strong>CI 與版本里程碑</strong>：目前 repo <strong>無 git tag</strong>。建議導入 CI（build＋test＋編碼檢查）並對重要版本</li></ol>
+<p>打 tag（如 0.2.58 管線化、0.2.66 清洗品質評測、0.2.84 清洗規則設定），便於追溯與回滾。</p>
+<ol><li><strong>上線安全與容量</strong>：延續既有安全檢查與容量邊界文件，在正式部署前完成 HTTPS／密鑰／預設帳號</li></ol>
+<p>與容量上限的最終把關。</p>
+<h2 id="5-未來開發方向roadmap" class="t5">5. 未來開發方向（Roadmap）</h2>
+<ol><li><strong>蒸餾（Distillation）</strong>：✅ 已實作（0.2.117，階段二）——已清洗來源蒸餾為多個互連 Wiki 實體頁、繼承 Teams 標籤、含信心門檻與人工核准/退回。見 <a href="../../docs/prd/prd-5c4f7f11.html">知識頁審核 PRD</a>。</li><li><strong>檢索／RAG 與知識查詢（階段三）</strong>：✅ <strong>已實作</strong>（0.2.123–0.2.128）。已把清洗、蒸餾、審核後的知識接上向量索引與權控檢索／問答，完成「知識資產化」最後一哩。六步驟皆完成：<code>IEmbeddingClient</code>/<code>OpenAIEmbeddingClient</code> 與雲端/地端切換（0.2.123）、<code>VectorEmbedding</code> 實體與雙 migration ＋ <code>IVectorStore</code>（0.2.124）、Chunker ＋ 嵌入索引管線（0.2.125）、混合檢索 <code>IRetrievalService</code>（檢索層即套團隊權控，0.2.126）、跨來源問答頁 ＋ 出處鑽取（0.2.127）、檢索品質評測集與指標（0.2.128）。設計藍圖見 <a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格</a>。</li><li><strong>多實例部署競態防護</strong>：目前佇列入列為單實例 read-then-write，水平擴展前需處理競態。</li><li><strong>權限細化與對外 API 化</strong>：更細的資源層級權限，並把核心能力以穩定 API 對外開放。</li><li><strong>觀測性強化</strong>：在現有健康監控與 NLog 之上，補管線吞吐、失敗率、LLM 用量等指標儀表板。</li></ol>
+<hr>
+<blockquote><p>維護說明：本文件為依 git 紀錄的開發歷程後設文件，非單一版本的發行說明；後續可於每個開發階段 收尾時追加一節。各版本詳細內容見 <a href="../../docs/changelog/readme-436e4418.html"><code>docs/changelog/</code></a>。</p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（開發代辦）</h3><ul><li><a href="../../docs/planning/07-todo-f1c7d6cc.html">資料清洗開發代辦清單 TODO</a></li><li><a href="../../docs/planning/08-todo-74ef467f.html">優化建議清單 TODO</a></li><li><a href="../../docs/planning/12-rag-b561e5d2.html">RAG 系統補強：總彙整與優先序清單</a></li><li><a href="../../docs/planning/2026-07-28-graphrag-3db703d7.html">Graph RAG 待辦盤點（P1～P9 完成後）</a></li><li><a href="../../docs/planning/todo-19efa315.html">專案協作模組強化開發代辦清單 TODO</a></li><li><a href="../../docs/planning/todo-720ef565.html">知識來源規模守門開發代辦清單 TODO</a></li><li><a href="../../docs/planning/todo-f4f1025f.html">知識庫統計報表開發代辦清單 TODO</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#1-總覽">1. 總覽</a><a class="l2" href="#2-開發階段時間線主題--日期--版本">2. 開發階段時間線（主題 · 日期 · 版本）</a><a class="l3" href="#階段-0腳手架更名與基礎修正06-0202100212">階段 0：腳手架更名與基礎修正（06-02，0.2.10–0.2.12）</a><a class="l3" href="#階段-1音訊影片轉錄核心06-0302130221">階段 1：音訊／影片轉錄核心（06-03，0.2.13–0.2.21）</a><a class="l3" href="#階段-2抖音整合與外部工具部署06-0402220233">階段 2：抖音整合與外部工具／部署（06-04，0.2.22–0.2.33）</a><a class="l3" href="#階段-3分類團隊標籤與資料權控06-0502340238">階段 3：分類／團隊／標籤與資料權控（06-05，0.2.34–0.2.38）</a><a class="l3" href="#階段-4提示詞llm-生成圖片解讀ui06-0902430253">階段 4：提示詞／LLM 生成／圖片解讀／UI（06-09，0.2.43–0.2.53）</a><a class="l3" href="#階段-5三管線佇列化重試取消06-1002540258">階段 5：三管線佇列化／重試／取消（06-10，0.2.54–0.2.58）</a><a class="l3" href="#階段-6知識來源資料清洗-qa1qa4清洗品質評測06-111202590271">階段 6：知識來源＋資料清洗 QA1–QA4＋清洗品質評測（06-11~12，0.2.59–0.2.71）</a><a class="l3" href="#階段-7落地保存線上編修依提示詞產生06-1602720278">階段 7：落地保存／線上編修／依提示詞產生（06-16，0.2.72–0.2.78）</a><a class="l3" href="#階段-8編修signalr評測修正清洗規則設定使用手冊06-171802800284">階段 8：編修／SignalR／評測修正＋清洗規則設定＋使用手冊（06-17~18，0.2.80–0.2.84）</a><a class="l3" href="#階段-9抖音下載與陳舊追蹤根因修復06-1902850287">階段 9：抖音下載與「陳舊追蹤」根因修復（06-19，0.2.85–0.2.87）</a><a class="l3" href="#階段-10穩定化與指南prd-補強06-192002880295">階段 10：穩定化與指南／PRD 補強（06-19~20，0.2.88–0.2.95）</a><a class="l3" href="#階段-11對話窗體驗與選單調整06-20029602103">階段 11：對話窗體驗與選單調整（06-20，0.2.96–0.2.103）</a><a class="l3" href="#階段-12可診斷化知識來源-ai-對話與提示詞解析06-21220210402113">階段 12：可診斷化、知識來源 AI 對話與提示詞解析（06-21~22，0.2.104–0.2.113）</a><a class="l3" href="#階段-13來源檔案下載知識頁審核階段二與階段三-rag-規格06-23260211402121">階段 13：來源檔案下載、知識頁審核（階段二）與階段三 RAG 規格（06-23~26，0.2.114–0.2.121）</a><a class="l2" href="#3-開發總結與說明">3. 開發總結與說明</a><a class="l2" href="#4-建議">4. 建議</a><a class="l2" href="#5-未來開發方向roadmap">5. 未來開發方向（Roadmap）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/planning/09-開發歷程總覽與未來建議.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

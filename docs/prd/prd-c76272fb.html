@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識圖譜（Graph RAG）PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>知識圖譜（Graph RAG）PRD</h1><p class="sub">定義「從蒸餾內容抽取實體關係、經人工治理後納入檢索與全域問答」之功能需求與設計</p></header><div class="docwrap"><main><ul><li>文件用途：定義「從蒸餾內容抽取實體關係、經人工治理後納入檢索與全域問答」之功能需求與設計</li><li>主要讀者：產品、開發團隊</li><li>文件版本：1.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.100</li><li>首次實作版本：1.0.83</li><li>最後核對日期：2026/07/29</li><li>建立日期：2026/07/29</li><li>對應版本：1.0.83–1.0.96（P1–P13，已實作）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>導入前分析與分階段藍圖見 <a href="../../docs/strategy/graph-rag-blueprint.html">strategy/2026-07-27 Graph RAG 導入分析與實作藍圖</a>；檢索設計細節見 <a href="../../docs/architecture/rag-design.html">architecture/知識庫 RAG 設計與執行 §4.2–§4.4</a>；現況與缺口總表見 <a href="../../docs/planning/2026-07-28-graphrag-3db703d7.html">planning/2026-07-28 GraphRAG 待辦盤點</a>；使用者操作見 <a href="../../docs/guides/knowledge-graph.html">guides/知識圖譜使用指南</a>。</p></blockquote>
+<h2 id="一目標與範圍" class="t1">一、目標與範圍</h2>
+<p>補上一般 RAG（向量＋關鍵字混合檢索）結構上答不好的兩類問題：</p>
+<ol><li><strong>多跳關聯</strong>：答案的推理鏈分散在多份文件，沒有任何單一片段同時涵蓋頭尾。</li><li><strong>全域綜觀</strong>：問題需要「看過全部內容再歸納」（整體風險、系統性根因、趨勢），取 TopK 片段等於隨機抽樣。</li></ol>
+<p>對應兩條產品能力：<strong>多跳圖檢索</strong>（融合進混合檢索的第三路）與<strong>社群摘要全域問答</strong>（map-reduce）。</p>
+<p><strong>核心設計原則：LLM 提案、人工核可。</strong> LLM 抽出的關係一律為「待審核」，只有經人工核可者才進入檢索加分。錯誤的關係若直接生效，會把錯的內容排到前面——比沒有圖譜更糟。</p>
+<p><strong>加分項而非取代品</strong>：<code>SystemSettings.Retrieval.GraphWeight</code> 設 0 即完全回到 1.0.82 之前的檢索行為，向量與關鍵字兩路不受影響。</p>
+<p><strong>非目標</strong>（刻意不做，理由見 <a href="../../docs/planning/2026-07-28-graphrag-3db703d7.html">待辦盤點 §4</a>）：節點嵌入與圖神經網路、專用圖資料庫（Neo4j 等）、rerank、Agentic RAG 多輪規劃、寫入型 Web API、多執行個體共享的檢索快取。</p>
+<h2 id="二流程" class="t2">二、流程</h2>
+<pre><code>知識來源（已蒸餾、Wiki 頁已核可）
+   │
+   ├─按「抽取／重抽三元組」──► GraphExtraction 佇列 ──背景──► 讀現行 Wiki 頁 ──LLM──► 三元組（待審核）
+   │                                                                                    │
+   │                                                          人工核可 ──► 已完成 ──► 納入檢索加分
+   │                                                          人工退回 ──► 已退回 ──► 永不生效
+   │
+   └─Wiki 頁核可／編修 ──► 解析 [[標題]] ──► GraphEdge（概念連結邊，無 LLM、冪等重建）
+
+已核可三元組 ＋ 已核可別名 ──按「重建社群摘要」──► 建圖 → 社群偵測 → 每群 LLM 摘要 → 整批取代
+                                                                                  │
+                                                              全域問答 map-reduce ─┘</code></pre>
+<ul><li><strong>兩種邊，來源不同</strong>：<code>GraphEdge</code> 由 Wiki 頁的 <code>[[標題]]</code> 連結具體化（純字串解析、無 LLM、無需審核）；三元組邊由 LLM 抽取（需審核）。</li><li><strong>抽取的輸入是「已完成且現行」的 Wiki 頁</strong>，因此 Wiki 頁未核可 ⇒ 抽取跑完但無產出。這是最常見的使用者踩雷點。</li><li><strong>重抽不覆蓋人工決策</strong>：以「主詞｜關係｜受詞」去重，已核可／已退回者原樣保留。</li><li><strong>社群重建是整批取代</strong>，不做版本化。</li></ul>
+<h2 id="三已實作需求" class="t3">三、已實作需求</h2>
+<h3 id="31-資料模型">3.1 資料模型</h3>
+<p>新增 6 個實體（<code>AccessDatas/Models/</code>）：</p>
+<div class="tw"><table><thead><tr><th>實體</th><th>要點</th></tr></thead><tbody><tr><td><code>GraphNode</code></td><td>實體節點：<code>Name</code>、<code>Type</code>、<code>WikiPageId</code>（<strong>軟錨，刻意無 FK</strong>）、<code>Teams</code></td></tr><tr><td><code>GraphTriple</code></td><td>三元組：主詞／受詞 NodeId、<code>Relation</code>、<code>Confidence</code>、<code>Status</code>（待審核／已完成／已退回）、<code>ReviewedBy</code>／<code>ReviewedAt</code>／<code>ErrorMessage</code></td></tr><tr><td><code>GraphEdge</code></td><td>頁↔頁概念連結邊：<code>SourceWikiPageId</code>／<code>TargetWikiPageId</code> 為<strong>純索引整數、刻意無 FK</strong>（避免 SQL Server 多重串聯路徑）</td></tr><tr><td><code>GraphCommunity</code></td><td>社群摘要：<code>Title</code>、<code>Summary</code>、<code>Teams</code>（成員來源的團隊聯集）、<code>MemberCount</code></td></tr><tr><td><code>GraphEntityAlias</code></td><td>別名→標準名：<code>Confidence</code>、<code>Status</code>、<code>ReviewedBy</code>。<strong>無 Teams、無 FK</strong>（全域治理）</td></tr><tr><td><code>GraphJobState</code></td><td>全域圖譜作業狀態：<code>JobType</code>、<code>Status</code>。<strong>無 Teams</strong>（1.0.95 起）</td></tr></tbody></table></div>
+<p><code>KnowledgeSource</code> 新增抽取任務追蹤欄位：<code>GraphStatus</code>（待抽取／等待中／處理中／<strong>已抽取</strong>／失敗／已取消）、<code>GraphProgressPercentage</code>、<code>GraphErrorMessage</code>、<code>GraphExtractedAt</code>。</p>
+<blockquote><p>⚠️ 兩組狀態語意不同、不可混用：<code>KnowledgeSource.GraphStatus</code> 是<strong>管線狀態</strong>（跑到哪了），<code>GraphTriple.Status</code> 是<strong>審核狀態</strong>（待審核／已完成／已退回）。來源＝「已抽取」時，其三元組仍全為「待審核」。</p></blockquote>
+<p><strong>雙資料庫 migration 各一套</strong>（Sqlite <code>AccessDatas</code> 與 <code>AccessDatas.SqlServerMigrations</code>）：<code>AddGraphEdge</code>(1.0.83)、<code>AddGraphExtraction</code>(1.0.84)、<code>AddGraphCommunity</code>(1.0.85)、<code>AddGraphEntityAlias</code>(1.0.87)、<code>AddGraphEntityAliasConfidence</code>(1.0.88)、<code>AddGraphIndexes</code>(1.0.89)、<code>AddGraphHopParams</code>(1.0.90)、<code>AddRagEvalGraphFields</code>(1.0.92)、<code>AddGraphJobState</code>(1.0.95)。</p>
+<h3 id="32-四條作業">3.2 四條作業</h3>
+<div class="tw"><table><thead><tr><th>作業</th><th>範圍</th><th>LLM</th><th>觸發</th><th>狀態持久化</th></tr></thead><tbody><tr><td>三元組抽取</td><td>per-record</td><td>✅ 每來源一次</td><td>蒸餾完成自動；或手動重抽</td><td><code>KnowledgeSource.GraphStatus</code>；<strong>進入 <code>PipelineNames</code></strong></td></tr><tr><td>概念連結邊重建</td><td>per-record</td><td>❌</td><td>蒸餾完成、Wiki 頁核可／編修</td><td>無（冪等、快速）</td></tr><tr><td>社群摘要重建</td><td><strong>全域單例</strong></td><td>✅ 每群一次</td><td>管理員手動</td><td><code>GraphJobState</code>；<strong>刻意不進 <code>PipelineNames</code></strong></td></tr><tr><td>LLM 別名建議</td><td><strong>全域單例</strong></td><td>✅ 一次</td><td>管理員手動</td><td>同上</td></tr></tbody></table></div>
+<ul><li>抽取的前置守門順序：來源存在 → <strong>團隊權控</strong> → 蒸餾狀態＝已蒸餾 → Chat LLM 已設定 → 非進行中。任一不過即擋下，不浪費 LLM 費用。</li><li>抽取背景服務重啟時，把殘留「處理中」改回「等待中」並重新排程。</li><li>兩條全域作業重用既有的取消登記機制，並在重啟時撿回未完成作業。</li><li>⚠️ 記憶體旗標只反映<strong>本機</strong>，<code>GraphJobState</code> 才是多執行個體下的全域真相。</li></ul>
+<h3 id="33-審核頁與權限">3.3 審核頁與權限</h3>
+<p><strong>頁面</strong>：<code>/knowledge-graph-review</code>（<code>Menu.json</code> id 48，「知識庫」群組），四個分頁：</p>
+<ol><li><strong>三元組審核</strong>：狀態／團隊／關鍵字篩選、分頁表格；編修（主詞／型別／關係／受詞／型別）、核可、退回（可填理由）。</li><li><strong>實體合併</strong>（<strong>僅管理員可見</strong>）：手動新增別名、「LLM 自動建議別名」、狀態篩選與審核。已核可別名以傳遞閉包收斂為同一實體。</li><li><strong>圖譜瀏覽</strong>：實體名 + 跳數（1～3），inline SVG 放射狀圖 + 關係表格。節點上限 100，達上限回傳截斷旗標並在 UI 明示，<strong>不靜默截斷</strong>。</li><li><strong>待抽取來源</strong>：已蒸餾但圖譜為空或抽取失敗者（<strong>進行中刻意排除</strong>），上限 50 筆。</li></ol>
+<p><strong>頁頂</strong>：社群摘要狀態列（社群數／上次建立時間／上次錯誤）＋「重建社群摘要」（僅管理員）。</p>
+<p><strong>權限（三處已同步）</strong>：</p>
+<ul><li><code>MagicObjectHelper.角色_知識圖譜審核</code>，值為 <code>"知識圖譜審核"</code>——<strong>這是少數「選單顯示名＝權限值」完全一致者</strong>，不是遺漏。</li><li><code>RolePermissionService</code> 知識庫權限群組（該群組因此由 8 項變 <strong>9 項</strong>）。</li><li><code>Menu.json</code> id 48。</li><li>頁內細粒度：進頁需 <code>角色_知識圖譜審核</code>；核可／退回／編修需<strong>管理員或 <code>角色_蒸餾審核</code></strong>；實體合併與社群重建<strong>寫死為僅管理員</strong>，不受角色授權影響。</li></ul>
+<h3 id="34-檢索融合與參數">3.4 檢索融合與參數</h3>
+<p><code>總分 = VectorWeight × 向量分 + KeywordWeight × 關鍵字分 + GraphWeight × 圖分</code></p>
+<p>圖分：以向量∪關鍵字命中的 Wiki 頁為種子，沿 <code>GraphEdge</code> 與<strong>已核可</strong>三元組做 BFS，第 h 跳強度 = 種子強度 × <code>GraphHopDecay^(h-1)</code>（第 1 跳不衰減），鄰居頁的現行片段獲得加成，節點數達 <code>GraphMaxNodes</code> 即停止並記 log。</p>
+<div class="tw"><table><thead><tr><th>參數</th><th>預設</th><th>熱調</th></tr></thead><tbody><tr><td><code>GraphWeight</code></td><td>0.2</td><td>✅ <code>/rag-diagnostics</code>（<code>RetrievalParamOverride</code>）</td></tr><tr><td><code>GraphMaxHops</code></td><td>2（範圍 1～3）</td><td>✅</td></tr><tr><td><code>GraphHopDecay</code></td><td>0.5</td><td>✅</td></tr><tr><td><code>GraphMaxNodes</code></td><td>200</td><td>❌ 需重啟</td></tr><tr><td><code>GraphGlobalCommunityCap</code></td><td>20</td><td>❌ 需重啟</td></tr><tr><td><code>GraphMaxCommunities</code></td><td>50</td><td>❌ 需重啟</td></tr><tr><td><code>GraphAliasNameCap</code></td><td>300</td><td>❌ 需重啟</td></tr></tbody></table></div>
+<p>後四項無資料庫覆寫路徑，讀取時以 <code>Math.Max(1, 值)</code> 夾住（填 0 退回 1，不靜默停擺）。</p>
+<p>⚠️ <code>GraphMaxHops</code> 預設 2（1.0.90 起多跳生效）<strong>會使 1.0.89 之前的檢索評測基線位移</strong>；升級後應重跑評測。</p>
+<p><strong>提示詞槽位（5 個，DB <code>Prompt.Name</code> 為中文精確鍵）</strong>：<code>GraphTripleExtract</code>＝<code>圖譜-三元組抽取</code>、<code>GraphCommunitySummary</code>＝<code>圖譜-社群摘要</code>、<code>GraphGlobalMap</code>＝<code>圖譜-全域map</code>、<code>GraphGlobalReduce</code>＝<code>圖譜-全域reduce</code>、<code>EntityAliasPropose</code>＝<code>圖譜-別名建議</code>。皆走四層解析、可於 <code>/prompts</code> 覆蓋、免重啟。</p>
+<h3 id="35-全域問答">3.5 全域問答</h3>
+<p><code>/knowledge-base-chat</code> 設定區「查詢模式」：一般（精準檢索）／全域（社群摘要）。</p>
+<ul><li><strong>map</strong>：逐一取用你有權存取的社群摘要，每個社群一次 LLM 取重點（上限 <code>GraphGlobalCommunityCap</code>）。</li><li><strong>reduce</strong>：彙整成最終答案。<strong>只有 Blazor 聊天頁做完整 map-reduce</strong>；MCP 與 REST 只做 map。</li><li>回答特性：<strong>無出處面板、無相似度</strong>（社群摘要無 chunk 層出處），改回傳取用社群數；<strong>不套用限定來源／分類／團隊篩選</strong>。</li><li>從未重建過社群摘要時，回覆可行動的原因說明而非空白。</li></ul>
+<h3 id="36-評測指標">3.6 評測指標</h3>
+<p><code>/rag-evaluation</code> 新增四個指標：<strong>圖召回增益</strong>（主指標，為保守下界——融合重排效應不計入）、<strong>圖參與率</strong>、<strong>圖獨有命中</strong>、<strong>平均取用社群數</strong>。基線記錄當時的 <code>GraphWeight</code>／<code>GraphMaxHops</code>／<code>GraphHopDecay</code>；未記錄時顯示「未記錄」而非 0（0 會謊稱當時圖是關閉的）。</p>
+<p>支援「全域問答」評測模式：以關鍵詞涵蓋率計分，Precision／NDCG／MRR 顯示「—」。⚠️ 會呼叫 LLM 故<strong>非確定性</strong>；關鍵詞為子字串比對，不處理同義詞。</p>
+<h3 id="37-對外暴露面">3.7 對外暴露面</h3>
+<p><strong>MCP</strong>（1.0.91）：<code>knowledge_graph_neighbors</code>（純 DB 查詢、只回已核可三元組、節點上限 100 並回傳截斷旗標）；<code>knowledge_ask</code> 的 <code>mode=global</code>（<code>sources</code> 恆空、<code>topScore</code> 恆 0、改回 <code>usedCommunities</code>、只 map 不 reduce、無法辨識的 mode 明確拋錯）。</p>
+<p><strong>REST</strong>（1.0.96，<code>KnowledgeGraphController</code>，雙路由 <code>api/[controller]</code> 與 <code>api/v1/[controller]</code>，JWT 認證）：</p>
+<ul><li><code>POST .../global-ask</code>：LLM 未設定回 <strong>503</strong>（服務依賴未備妥，刻意非 500）。</li><li><code>GET .../neighbors?entityName=&amp;maxHops=</code>：<code>maxHops</code> 超界回 <strong>400</strong>（<strong>刻意不靜默夾住</strong>，與 MCP 行為不同）；查無實體回 <strong>200 + <code>found=false</code></strong>。</li><li>身分解析重用 <code>McpIdentityResolver</code>，權控完全交給既有服務，與 MCP 走同一條把關程式碼。</li><li>Token 歸屬用專屬作業別與來源標記，<strong>刻意不重用 Blazor 常數</strong>，以便成本歸因可分辨管道。</li><li>DTO <strong>刻意不含</strong> <code>sources</code>／<code>topScore</code>（全域模式本來就沒有）。</li><li><strong>無寫入型端點</strong>（與 MCP 的既有非目標一致）。</li></ul>
+<h2 id="四資安不變量" class="t4">四、資安不變量</h2>
+<p><strong>越權洩漏＝0。</strong> 權控不是最後過濾一次，而是四層各自套用 <code>TagStringHelper.BuildTeamAccessPredicate</code>／<code>IsTeamAccessible</code>：</p>
+<ol><li><strong>邊</strong>：遍歷時每一條邊都檢查——<strong>而且每一跳都重新檢查</strong>，不能借道無權限節點繞路。</li><li><strong>節點</strong>：他隊實體節點不納入；他隊節點的錨頁不進跨來源合併。</li><li><strong>三元組</strong>：只有已核可且有權存取者參與加分。<strong>他隊三元組即使兩端頁面都公開也不加分</strong>——「這兩者有關係」本身即知識，屬抽出它的來源所在團隊。</li><li><strong>鄰居內容片段</strong>：仍須通過原本的內容層權控。</li></ol>
+<p><strong>社群摘要 ACL 更嚴（子集判定）</strong>：社群涵蓋來源的 Teams 聯集必須是使用者團隊的子集，或該社群完全公開。理由是一份摘要混合多筆來源知識，其中任一筆無權即整份不可給。</p>
+<p><strong>別名表與作業狀態表無 Teams</strong>，屬全域管理員治理；別名只改變連通性，不放寬任何人的可見範圍。</p>
+<p><strong>已知安全待辦</strong>：</p>
+<ul><li>REST <code>global-ask</code> <strong>缺 HTTP 層的越權洩漏端到端測試</strong>（服務層已覆蓋）。</li><li>取消抽取的動作<strong>沿用頁面層級（僅管理員）把關</strong>，未另加團隊權控。</li></ul>
+<h2 id="五規劃中刻意不做" class="t5">五、規劃中／刻意不做</h2>
+<p>本節不重述細節，一律引用 <a href="../../docs/planning/2026-07-28-graphrag-3db703d7.html">planning/2026-07-28 GraphRAG 待辦盤點</a>：</p>
+<ul><li>§3「已知破口」：待補的測試與效能項目（含上述兩條安全待辦、大圖時全表載入別名與社群）。</li><li>§4「選配未做」：節點嵌入、專用圖資料庫、rerank、Agentic RAG、寫入型 API 等，附每一項的不做理由與觸發條件。</li><li>§5「未達觸發」：規模或需求尚未到達門檻、暫不投入的項目。</li></ul>
+<p>⚠️ 這些項目<strong>不得視為現行能力</strong>。</p>
+<h2 id="六相關文件" class="t6">六、相關文件</h2>
+<ul><li>使用者操作：<a href="../../docs/guides/knowledge-graph.html">知識圖譜使用指南</a>、<a href="../../docs/guides/beginner-guide.html">新手完整操作指南 第十二章</a>、<a href="../../docs/guides/hands-on-lab.html">實作練習手冊 第 13 章</a></li><li>檢索設計：<a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a>、<a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li><li>上游能力：<a href="../../docs/prd/prd-5c4f7f11.html">知識頁審核 PRD</a>（三元組抽取的輸入來源）、<a href="../../docs/prd/wiki-prd-85b48f00.html">知識百科與 Wiki 導覽 PRD</a>（<code>LinkTitles</code> 是概念連結邊的來源）</li><li>下游能力：<a href="../../docs/prd/prd-b13bd3af.html">AI 知識問答 PRD</a>（全域查詢模式）、<a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a>（四個圖指標）</li><li>權控：<a href="../../docs/prd/prd-c711f637.html">紀錄分類與團隊權控 PRD</a>、<a href="../../docs/security/auth-and-permissions.html">認證授權與權限機制</a></li><li>對外整合：<a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a>、<a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a></li><li>資料模型：<a href="../../docs/architecture/data-model.html">資料模型與資料庫</a></li></ul>
+<blockquote><p>返回 <a href="../../docs/prd/readme-3c3c34ab.html">prd 主控台</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目標與範圍">一、目標與範圍</a><a class="l2" href="#二流程">二、流程</a><a class="l2" href="#三已實作需求">三、已實作需求</a><a class="l3" href="#31-資料模型">3.1 資料模型</a><a class="l3" href="#32-四條作業">3.2 四條作業</a><a class="l3" href="#33-審核頁與權限">3.3 審核頁與權限</a><a class="l3" href="#34-檢索融合與參數">3.4 檢索融合與參數</a><a class="l3" href="#35-全域問答">3.5 全域問答</a><a class="l3" href="#36-評測指標">3.6 評測指標</a><a class="l3" href="#37-對外暴露面">3.7 對外暴露面</a><a class="l2" href="#四資安不變量">四、資安不變量</a><a class="l2" href="#五規劃中刻意不做">五、規劃中／刻意不做</a><a class="l2" href="#六相關文件">六、相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/知識圖譜-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VER-1 完整版本狀態機 + VER-2 失效標記/as-of（0.3.13→0.3.14）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>VER-1 完整版本狀態機 + VER-2 失效標記/as-of（0.3.13→0.3.14）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-09</li><li>版本：0.3.13 → 0.3.14</li><li>類型：版本化與時效性（VER，核心 RAG 管線）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>收尾 planning/12 延後的 P1：把 design doc <code>2026-07-01-...-design.md</code> §三/§四 的<strong>完整版本化與時效性</strong>落地。此前蒸餾為快照式（重蒸餾即刪除舊 Wiki 頁與向量），無版本歷史、無「只回現行版」、無 as-of。<strong>核心不變量</strong>：概念鍵＝<code>(KnowledgeSourceId, Title)</code>，每概念至多一個 <code>EffectiveStatus==current</code>。</p>
+<h2 id="變更7-階段" class="t2">變更（7 階段）</h2>
+<h3 id="1-模型--雙-migration--backfill">1. 模型 + 雙 migration + backfill</h3>
+<ul><li><code>WikiPage</code> 加 <code>Version</code>/<code>EffectiveStatus</code>(current/superseded/null)/<code>EffectiveDate</code>/<code>ExpiryDate</code>/<code>SupersededByPageId</code>/<code>PreviousVersionPageId</code>/<code>Owner</code>/<code>LastReviewedAt</code>/<code>ChangeSummary</code>。</li><li><code>VectorEmbedding</code> 加 <code>IsCurrent</code>(預設 true)/<code>EffectiveDate</code>/<code>ExpiryDate</code>。</li><li>雙 migration <code>AddVersioningFields</code>；<strong>backfill</strong>：既有「已完成」頁→current、既有向量 <code>IsCurrent=true</code>（避免既有知識從檢索消失）。</li></ul>
+<h3 id="2-蒸餾改保留舊版superseded版本鏈">2. 蒸餾改「保留舊版→superseded→版本鏈」</h3>
+<ul><li><code>DistillationProcessor</code> <strong>不再刪除舊版</strong>（移除 <code>DeleteExistingPagesAsync</code>）：自動核可的新版即成 current、舊 current→superseded（<code>ExpiryDate</code>/<code>SupersededByPageId</code>）＋其向量 <code>IsCurrent=false</code>；待審核新版為草稿、舊版維持 current 到新版核可。</li></ul>
+<h3 id="3-核可狀態轉移">3. 核可狀態轉移</h3>
+<ul><li><code>WikiPageService.ApproveAsync</code>：核可即成 current、同概念舊 current→superseded＋向量失效；版次+1、鏈回舊版。</li></ul>
+<h3 id="4-索引引擎現行感知">4. 索引引擎「現行感知」</h3>
+<ul><li><code>EmbeddingIndexProcessor</code> 只索引「已完成且 current」頁；diff 只作用於 <code>IsCurrent=true</code> 向量（superseded 不被當孤兒刪除，保留）；新向量帶 <code>IsCurrent=true</code>＋Wiki 層 <code>EffectiveDate</code>。</li></ul>
+<h3 id="5-檢索只取現行版--as-of">5. 檢索「只取現行版 + as-of」</h3>
+<ul><li><code>RetrievalQuery.AsOf</code>／<code>VectorQuery.AsOf</code>；<code>EffectiveVersionFilter</code> 疊加在權控之上——預設只回 <code>IsCurrent</code>；as-of(T) 取時點現行 Wiki 版本（Cleaned 恆納入）。<code>DualDbVectorStore</code> 與 <code>RetrievalService</code> 兩路一致。</li></ul>
+<h3 id="6-ui">6. UI</h3>
+<ul><li><code>/knowledge-wiki</code> 閱讀頁顯示<strong>版本歷史</strong>（各版本 Version/生效狀態/日期/變更摘要，可檢視舊版）。</li><li>蒸餾頁加<strong>版次/生效</strong>欄與<strong>治理</strong>模態（Owner/ChangeSummary，<code>UpdateGovernanceAsync</code>）。</li><li><code>/rag-diagnostics</code> 試檢索加 <strong>as-of 日期</strong>。</li></ul>
+<h3 id="7-測試">7. 測試</h3>
+<ul><li>新增：Approve supersede＋向量失效、版本鏈查詢、檢索預設只回現行版、as-of 回時點版本；修正 <code>EmbeddingIndexProcessorTests</code> fixture（已完成頁設 current）。</li><li>全測試 <strong>484 通過、0 失敗</strong>。</li></ul>
+<h2 id="不變量與相容" class="t3">不變量與相容</h2>
+<ul><li>權控<strong>疊加在生效過濾之上不取代</strong>；越權洩漏維持 0（RagEval）。</li><li>向後相容：backfill 讓既有資料行為不變（既有頁＝current、既有向量＝IsCurrent）。</li><li>Cleaned 層不版本化、恆為現行/納入 as-of。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>進度：VER-1 ✅、VER-2 ✅ 完成——<strong>planning/12 全部 P1 至此完成</strong>。</li><li>同步更新 design §十二、<code>知識庫RAG設計與執行</code> §2.1/§六、蒸餾指南、planning/12。</li><li><code>appsettings.json</code> 0.3.13 → 0.3.14；需套用雙 migration。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>dotnet build</code>＋<code>dotnet test</code> 綠燈（484）。</li><li>蒸餾→改內容重蒸餾（高信心自動核可）→ 舊頁 superseded 保留、其向量 IsCurrent=false；問答/試檢索只命中新版；<code>/knowledge-wiki</code> 版本歷史可見舊版。</li><li>as-of：<code>/rag-diagnostics</code> 試檢索設過去時點回舊版、現在回新版。</li><li>權控：非管理員越權洩漏＝0。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更7-階段">變更（7 階段）</a><a class="l3" href="#1-模型--雙-migration--backfill">1. 模型 + 雙 migration + backfill</a><a class="l3" href="#2-蒸餾改保留舊版superseded版本鏈">2. 蒸餾改「保留舊版→superseded→版本鏈」</a><a class="l3" href="#3-核可狀態轉移">3. 核可狀態轉移</a><a class="l3" href="#4-索引引擎現行感知">4. 索引引擎「現行感知」</a><a class="l3" href="#5-檢索只取現行版--as-of">5. 檢索「只取現行版 + as-of」</a><a class="l3" href="#6-ui">6. UI</a><a class="l3" href="#7-測試">7. 測試</a><a class="l2" href="#不變量與相容">不變量與相容</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-09-VER1VER2完整版本化與asof.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

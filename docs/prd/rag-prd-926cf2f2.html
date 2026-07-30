@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>檢索品質評測 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>檢索品質評測 PRD</h1><p class="sub">定義「檢索品質評測」畫面的產品需求、檢索品質量化與權控回歸守門</p></header><div class="docwrap"><main><ul><li>文件用途：定義「檢索品質評測」畫面的產品需求、檢索品質量化與權控回歸守門</li><li>主要讀者：產品、開發、QA、導入顧問</li><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.62</li><li>首次實作版本：0.2.128</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026/06/28</li><li>對應版本：0.2.128（已實作）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>操作教學見 <a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a>；上游清洗品質評測見 <a href="../../docs/prd/prd-6c81ae15.html">清洗品質評測 PRD</a>。</p></blockquote>
+<h2 id="一目標與範圍" class="t1">一、目標與範圍</h2>
+<p>檢索品質評測是知識庫檢索品質與權控合規的回歸測試頁。使用者建立問句樣本與期望命中來源，系統以模擬身分對整個已索引知識庫執行混合檢索，再計算 Precision@k、Recall@k、NDCG@k、MRR、出處正確率、越權洩漏與延遲。</p>
+<p>本 PRD 範圍包含 <code>/rag-evaluation</code> 的樣本 CRUD、載入範本、評測此筆、評測全部、彙總儀表板與明細 JSON。非範圍包含 LLM 生成答案評分、改變實際問答結果、重建索引。</p>
+<h2 id="二使用者與入口" class="t2">二、使用者與入口</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>說明</th></tr></thead><tbody><tr><td>路由</td><td><code>/rag-evaluation</code></td></tr><tr><td>選單</td><td>知識庫 → 檢索品質評測</td></tr><tr><td>權限</td><td><code>MagicObjectHelper.角色_RAG評測</code></td></tr><tr><td>主要使用者</td><td>QA、知識管理者、導入顧問、開發者</td></tr></tbody></table></div>
+<p>檢索品質評測評的是「使用者建立的問句樣本」，檢索打的是「整個已索引知識庫」。未經清洗、蒸餾與索引的來源不會被命中。</p>
+<h2 id="三畫面與欄位" class="t3">三、畫面與欄位</h2>
+<div class="tw"><table><thead><tr><th>欄位</th><th>說明</th></tr></thead><tbody><tr><td>Title</td><td>樣本名稱</td></tr><tr><td>Query</td><td>送入混合檢索的問句</td></tr><tr><td>ExpectedSourceTitles</td><td>期望命中的知識來源標題，每行一項</td></tr><tr><td>ExpectedAnchors</td><td>期望命中的錨點，每行一項，可空</td></tr><tr><td>EvalTeams</td><td>評測時模擬使用者團隊，每行一項</td></tr><tr><td>EvalIsAdmin</td><td>是否模擬管理員</td></tr></tbody></table></div>
+<p>儀表板顯示已評測數、平均 Precision/Recall/NDCG/MRR、平均出處正確率、越權洩漏總數與平均延遲。越權洩漏只要大於 0 即為資安紅線。</p>
+<h2 id="四內部系統運作" class="t4">四、內部系統運作</h2>
+<p>核心流程為 <code>RagEvaluationView → RagEvaluationService → IRetrievalService → RagEvaluator</code>。</p>
+<ol><li>使用者新增樣本，標註問句、期望來源、錨點與模擬身分。</li><li><code>RagEvaluationService.EvaluateOneAsync(id)</code> 讀取樣本，組成 <code>RecordAccessScope(entity.EvalIsAdmin, EvalTeams)</code>。</li><li>呼叫 <code>retrievalService.RetrieveAsync(entity.Query, new RetrievalQuery(scope), ct)</code> 對整庫混合檢索。</li><li><code>RetrievalService</code> 先產生 query embedding；若嵌入未設定或向量路徑失敗，退化為關鍵字檢索。</li><li>服務載入命中 chunk 對應的 <code>KnowledgeSource.Title</code>，組成 <code>RagEvalHit</code>。</li><li>每個命中再用 <code>TagStringHelper.IsTeamAccessible</code> 二次判斷是否越權，作為回歸守門。</li><li><code>RagEvaluator.Evaluate</code> 以純函式計算指標。</li><li>指標序列化到 <code>LastMetricsJson</code>，並更新 <code>LastEvaluatedAt</code>、<code>LastLatencyMs</code>、<code>UpdatedAt</code>。</li></ol>
+<h2 id="五llm--embedding--rag-細節" class="t5">五、LLM / Embedding / RAG 細節</h2>
+<ul><li>本功能不呼叫 chat LLM 生成答案，因此評測結果是確定性的檢索指標。</li><li>若 embedding 已設定，會使用 <code>IEmbeddingClient</code> 產生 query 向量，並透過 <code>IVectorStore.SearchAsync</code> 取候選。</li><li>關鍵字路徑以 query 切詞後對 <code>VectorEmbedding.ChunkText</code> 做 OR 查詢。</li><li>向量與關鍵字分數由 <code>SystemSettings.Retrieval</code> 的權重融合，最後依 <code>TopK</code> 與 <code>MinScore</code> 篩選。</li></ul>
+<h2 id="六權控與資料影響" class="t6">六、權控與資料影響</h2>
+<ul><li>評測可用樣本內的 <code>EvalTeams</code> / <code>EvalIsAdmin</code> 模擬不同身分，不使用目前登入者的團隊作為檢索 scope。</li><li>檢索層依模擬 scope 套團隊權控；非管理員只可命中公開或團隊交集 chunk。</li><li>評測只更新樣本的最近指標欄位，不改變向量索引、不影響實際 AI 知識問答、不修改來源資料。</li></ul>
+<h2 id="七錯誤與邊界" class="t7">七、錯誤與邊界</h2>
+<ul><li>沒有已評測樣本時，彙總報表應顯示 0，不可崩潰。</li><li>期望來源標題若與知識來源標題不一致，Recall 會偏低；這是標註問題，不由系統自動修正。</li><li>未設定嵌入時仍可評測，但結果代表關鍵字退化品質，不代表正式語意檢索品質。</li></ul>
+<h2 id="八驗收與測試" class="t8">八、驗收與測試</h2>
+<ul><li>可新增、編輯、刪除、搜尋與分頁 檢索品質評測樣本。</li><li>評測此筆會更新 <code>LastMetricsJson</code>、<code>LastLatencyMs</code> 與 <code>LastEvaluatedAt</code>。</li><li>模擬受限團隊時，越權洩漏應為 0。</li><li>管理員樣本可命中所有有關來源。</li><li><code>RagEvaluatorTests</code> 覆蓋 P/R/NDCG/MRR/出處/越權指標。</li></ul>
+<h2 id="九相關程式與文件" class="t1">九、相關程式與文件</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/RagEvaluationService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Embeddings/RagEvaluator.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/Embeddings/RetrievalService.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/RagEvaluations/RagEvaluationView.razor.cs</code></li><li><a href="../../docs/guides/retrieval-eval.html">檢索品質評測使用指南</a></li></ul>
+<h2 id="十0334-現況校正" class="t2">十、0.3.34 現況校正</h2>
+<ul><li>評測為純檢索，不呼叫 LLM 生成；針對全部已索引內容套模擬團隊／管理員權限。</li><li>支援 ExpectedSourceTitles、ExpectedAnchors、P@k、R@k、NDCG、MRR、延遲與越權洩漏；來源標題用於重建索引後穩定比對。</li><li>支援查詢期參數基線快照，記錄 TopK、CandidateTopK、權重、MinScore、Reject 與 LowConfidence，便於回歸比較。</li><li>越權洩漏必須為 0；任何非 0 都是安全失敗，不以平均分數抵銷。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li><li><a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一目標與範圍">一、目標與範圍</a><a class="l2" href="#二使用者與入口">二、使用者與入口</a><a class="l2" href="#三畫面與欄位">三、畫面與欄位</a><a class="l2" href="#四內部系統運作">四、內部系統運作</a><a class="l2" href="#五llm--embedding--rag-細節">五、LLM / Embedding / RAG 細節</a><a class="l2" href="#六權控與資料影響">六、權控與資料影響</a><a class="l2" href="#七錯誤與邊界">七、錯誤與邊界</a><a class="l2" href="#八驗收與測試">八、驗收與測試</a><a class="l2" href="#九相關程式與文件">九、相關程式與文件</a><a class="l2" href="#十0334-現況校正">十、0.3.34 現況校正</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/RAG評測-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

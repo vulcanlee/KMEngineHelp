@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>產品需求文件（PRD）：文件轉文字（MarkItDown 轉 Markdown）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>產品需求文件（PRD）：文件轉文字（MarkItDown 轉 Markdown）</h1></header><div class="docwrap"><main><ul><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.61</li><li>首次實作版本：0.2.16</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026-06-03</li><li>狀態：已實作（系統版本 0.2.16）</li><li>編碼：UTF-8（繁體中文）</li></ul>
+<hr>
+<h2 id="一背景與目的" class="t1">一、背景與目的</h2>
+<p>本系統需新增一個「文件轉文字」功能：讓使用者上傳檔案，透過安裝在本機的 <a href="https://github.com/microsoft/markitdown" rel="noopener" target="_blank">MarkItDown</a> 執行檔，將 Office、PDF、圖片、HTML 等 各式檔案轉換為 Markdown 文字內容。轉換以背景工作非同步執行，UI 需即時顯示轉換進度與狀態 （完成或失敗）；轉換結果以檔案方式儲存於可設定的輸出目錄，並以上傳年度切分子目錄。</p>
+<p>本功能為一個 CRUD 頁面，需具備側邊選單項目、<code>Menu.json</code> 設定與角色權限控制。</p>
+<h3 id="設計範本">設計範本</h3>
+<p>程式碼庫已有與本需求高度對應的現成功能 <strong>「影音轉逐字稿」(MediaTranscription)</strong>，其架構正是本需求所需：</p>
+<ul><li>上傳檔案 → 依年度切分目錄儲存</li><li><code>System.Threading.Channels</code> 背景佇列 + <code>BackgroundService</code> + <code>Processor</code></li><li>以 <code>System.Diagnostics.Process</code> 呼叫本機執行檔（ffmpeg，路徑由 <code>appsettings.json</code> 設定）</li><li>資料表存 <code>Status</code>、<code>ProgressPercentage</code>、<code>ErrorMessage</code></li><li>UI 每 5 秒輪詢顯示進度</li><li>結果以 UTF-8（無 BOM）文字檔輸出至依年度切分的目錄</li></ul>
+<p>因此本功能 <strong>以「影音轉逐字稿」為主要架構範本</strong>，CRUD 介面設計參考 <code>ProjectPage</code> / <code>MediaTranscriptionView</code>。</p>
+<hr>
+<h2 id="二需求決策" class="t2">二、需求決策</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>決策</th></tr></thead><tbody><tr><td>紀錄與檔案關係</td><td>一筆紀錄 = 一個檔案（與影音轉逐字稿一致）</td></tr><tr><td>MarkItDown 呼叫方式</td><td>獨立執行檔（<code>markitdown.exe</code> / <code>markitdown</code> 指令），路徑由 <code>appsettings.json</code> 設定</td></tr><tr><td>選單位置與權限名稱</td><td>「專案管理」群組下，名稱「文件轉文字」</td></tr><tr><td>上傳格式限制</td><td><strong>限制於允許清單</strong>（<code>DocumentFormatValidator.AllowedExtensions</code>，含 <code>.txt</code>；自 0.2.92）：前端 <code>&lt;InputFile accept&gt;</code> 預檢＋後端 <code>BeforeAddCheckAsync</code> 驗證，不支援者擋下並提示「僅接受：…」；畫面顯示完整支援副檔名清單。清單內仍交 MarkItDown 處理，個別無法處理者標記為「失敗」</td></tr><tr><td>結果操作</td><td>線上預覽 Markdown 內容 + 下載 <code>.md</code> 檔案</td></tr></tbody></table></div>
+<hr>
+<h2 id="三功能概述" class="t3">三、功能概述</h2>
+<p>新增「文件轉文字」功能：使用者上傳單一檔案，系統透過本機安裝的 MarkItDown 執行檔，於背景將檔案 轉換為 Markdown 文字內容。轉換結果以 <code>.md</code> 檔案儲存於可設定的輸出目錄（依上傳年度切分子目錄）， 使用者可於 UI 查看即時轉換狀態與進度，完成後可線上預覽內容或下載 <code>.md</code> 檔案。</p>
+<p>MarkItDown 支援格式（依官方說明）：PDF、Word、Excel、PowerPoint、圖片（含 EXIF/OCR）、 音訊（含轉錄）、HTML、CSV/JSON/XML、ZIP（遞迴）、EPub 等。<strong>自 0.2.92 起，本系統限制上傳於 <code>DocumentFormatValidator.AllowedExtensions</code> 允許清單</strong>（含 <code>.txt</code>、<code>.pdf</code>、Office、CSV/JSON/XML/HTML/Markdown/YAML、 EPub/ZIP、常見圖片；<code>.yaml</code>／<code>.yml</code> 自 1.0.93 起納入），前端以 <code>&lt;InputFile accept&gt;</code> 預檢、後端於 <code>BeforeAddCheckAsync</code> 再驗證，不在清單者 回「不支援的檔案格式，僅接受：…」並擋下；清單內檔案交 MarkItDown 處理，個別無法處理者標記為「失敗」。 允許清單顯示於上傳表單，讓使用者明確知道可上傳哪些格式。</p>
+<hr>
+<h2 id="四使用者流程" class="t4">四、使用者流程</h2>
+<ol><li>進入「文件轉文字」頁面（路由 <code>/document-extraction</code>）；權限不足者不顯示選單、不可進入。</li><li>點「新增」，於 Modal 中輸入標題、（可選）描述，並選擇單一檔案上傳。</li><li>送出後：檔案存至上傳目錄，建立一筆狀態為「等待中」的紀錄，並加入背景佇列。</li><li>背景服務取出工作 → 狀態轉「處理中」→ 呼叫 MarkItDown 執行檔轉換：</li><li>成功：狀態「已完成」、進度 100%、產生 <code>.md</code> 輸出檔。</li><li>失敗：狀態「失敗」、記錄錯誤訊息。</li><li>列表每 5 秒自動輪詢，更新狀態與進度（當有「等待中／處理中」紀錄時）。</li><li>完成的紀錄可「預覽」（Modal 顯示 Markdown 內容）與「下載」（<code>.md</code> 檔）。</li><li>可編輯標題／描述（中繼資料）、可刪除（連同上傳檔與輸出檔一併清除）。</li></ol>
+<hr>
+<h2 id="五資料模型" class="t5">五、資料模型</h2>
+<p>新增實體 <code>DocumentExtraction</code>（<code>KnowledgeExtraction.AccessDatas/Models/DocumentExtraction.cs</code>）：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>Id</td><td>int</td><td>主鍵</td></tr><tr><td>Title</td><td>string</td><td>標題（必填）</td></tr><tr><td>Description</td><td>string?</td><td>描述</td></tr><tr><td>OriginalFileName</td><td>string</td><td>原始檔名</td></tr><tr><td>StoredFileName</td><td>string</td><td>實體儲存檔名（GUID）</td></tr><tr><td>SourceRelativePath</td><td>string</td><td>上傳檔相對路徑（<code>yyyy/{guid}.ext</code>）</td></tr><tr><td>ContentType</td><td>string</td><td>MIME 類型</td></tr><tr><td>FileSize</td><td>long</td><td>檔案大小</td></tr><tr><td>Status</td><td>string</td><td>等待中／處理中／已完成／失敗／已取消</td></tr><tr><td>ProgressPercentage</td><td>int</td><td>0–100</td></tr><tr><td>ErrorMessage</td><td>string?</td><td>失敗時的錯誤訊息</td></tr><tr><td>MarkdownRelativePath</td><td>string?</td><td>輸出 <code>.md</code> 相對路徑（<code>yyyy/{guid}.md</code>）</td></tr><tr><td>UploadedAt</td><td>DateTime</td><td>上傳時間</td></tr><tr><td>UpdatedAt</td><td>DateTime</td><td>最後更新時間</td></tr></tbody></table></div>
+<ul><li>狀態常數沿用影音轉逐字稿慣例：<code>等待中 / 處理中 / 已完成 / 失敗 / 已取消</code>（見 <code>DocumentExtractionAdapterModel</code> 的 <code>Status*</code> 常數）。</li><li>DbSet 註冊於 <code>BackendDBContext</code>，並新增對應 EF Core Migration（SqlServer 與 Sqlite）。</li><li>進度說明：MarkItDown 無細部進度回報，故「等待中／處理中」進度顯示為不確定（或 0），</li></ul>
+<p>「已完成」為 100；UI 以 Status 為主、Progress 為輔呈現。</p>
+<hr>
+<h2 id="六設定appsettingsjson" class="t6">六、設定（appsettings.json）</h2>
+<ol><li>於 <code>SystemSettings.ExternalFileSystem</code>（<code>KnowledgeExtraction.Models/Systems/SystemSettings.cs</code>）新增：</li><li><code>DocumentExtractionUploadPath</code>：上傳原始檔儲存根目錄。</li><li><code>MarkdownFilePath</code>：<strong>轉換輸出 <code>.md</code> 的根目錄</strong>（可設定的輸出目錄），其下依上傳年度切分子目錄。</li><li>新增設定區段 <code>MarkItDownSettings</code>（對應強型別 Options 類別，比照 <code>OpenAISettings</code> 註冊）：</li><li><code>MarkItDownPath</code>：MarkItDown 執行檔路徑或指令（預設 <code>"markitdown"</code>）。</li><li><code>TimeoutSeconds</code>：轉換逾時秒數（預設 600）。</li><li><code>Program.cs</code> 比照現有 <code>EnsureDirectoryExists</code> 確保新目錄存在。</li><li>依專案規範（CLAUDE.md）：實作完成建置時，<code>SystemSettings.SystemInformation.SystemVersion</code> 版本號 +1，</li></ol>
+<p>並於 commit message 說明版本號變更。</p>
+<p>設定範例：</p>
+<pre><code>"SystemSettings": {
+  "ExternalFileSystem": {
+    "DocumentExtractionUploadPath": "C:\\temp\\KnowledgeExtraction\\DocumentExtractionUpload",
+    "MarkdownFilePath": "C:\\temp\\KnowledgeExtraction\\Markdown"
+  }
+},
+"MarkItDownSettings": {
+  "MarkItDownPath": "markitdown",
+  "TimeoutSeconds": 600
+}</code></pre>
+<hr>
+<h2 id="七架構與元件比照-mediatranscription" class="t7">七、架構與元件（比照 MediaTranscription）</h2>
+<ul><li><strong>資料服務</strong> <code>DocumentExtractionService</code>（Business 層）</li><li><code>GetAsync(DataRequest)</code>：分頁／搜尋／排序列表</li><li><code>GetAsync(int id)</code>：單筆</li><li><code>AddAsync(adapterModel, uploadInput)</code>：存上傳檔 + 建紀錄（等待中）+ 入佇列</li><li><code>UpdateAsync</code>：僅更新標題／描述</li><li><code>DeleteAsync(int id)</code>：刪紀錄並清除上傳檔與輸出 <code>.md</code></li><li><code>GetMarkdownContentAsync(int id)</code>：預覽用，讀取輸出 <code>.md</code>（UTF-8）</li><li><code>GetMarkdownDownloadAsync(int id)</code>：下載用，回傳檔名 + 內容</li><li><strong>背景佇列</strong> <code>IDocumentExtractionQueue</code> / <code>DocumentExtractionQueue</code></li></ul>
+<p>（<code>System.Threading.Channels</code>，比照 <code>ITranscriptionQueue</code>）</p>
+<ul><li><strong>背景服務</strong> <code>DocumentExtractionBackgroundService : BackgroundService</code></li></ul>
+<p>（比照 <code>TranscriptionBackgroundService</code>，每筆工作開新 DI scope）</p>
+<ul><li><strong>處理器</strong> <code>DocumentExtractionProcessor.ProcessAsync(id, ct)</code>：</li></ul>
+<p>更新狀態 → 呼叫轉換器 → 存 <code>.md</code> → 更新狀態／錯誤</p>
+<ul><li><strong>MarkItDown 呼叫器</strong> <code>MarkItDownConverter</code>（比照 <code>MediaChunker</code>，以 <code>System.Diagnostics.Process</code> 執行）</li><li>指令形式：<code>markitdown &lt;輸入檔&gt; -o &lt;輸出.md&gt;</code></li></ul>
+<p>（以 <code>-o</code> 直接輸出檔案，避免 Windows 主控台編碼造成中文亂碼）</p>
+<ul><li><code>RedirectStandardError</code>、<code>UseShellExecute=false</code>、<code>CreateNoWindow=true</code>；</li></ul>
+<p>ExitCode != 0 視為失敗並擲出含 stderr 的例外</p>
+<ul><li><strong>AutoMapper</strong>：於 <code>AutoMapping</code> 新增 <code>DocumentExtraction</code> ↔ AdapterModel 映射</li><li><strong>DI 註冊</strong>（<code>ServiceCollectionExtensions</code> / <code>Program.cs</code>）：</li></ul>
+<p>Service、Queue（Singleton）、Processor（Scoped）、HostedService、<code>MarkItDownSettings</code> Options</p>
+<hr>
+<h2 id="八uiblazor-server--ant-design" class="t8">八、UI（Blazor Server + Ant Design）</h2>
+<ul><li>頁面 <code>DocumentExtractionPage.razor</code>（<code>@page "/document-extraction"</code>、<code>@layout MainLayout</code>），</li></ul>
+<p><code>OnInitializedAsync</code> 以 <code>AuthenticationStateHelper.CheckAccessPage(MagicObjectHelper.角色_文件萃取)</code> 控管。</p>
+<ul><li>檢視元件 <code>DocumentExtractionView</code>（比照 <code>MediaTranscriptionView</code> / <code>ProjectViewView</code>）：</li><li>表格欄位：標題、原始檔名、檔案大小、狀態（Tag）、進度（Progress）、上傳時間、操作</li><li>新增 Modal：標題、描述、單一檔案上傳（<code>InputFile</code>）</li><li>列操作：<strong>預覽</strong>（已完成才可，Modal 顯示 Markdown 內容）、<strong>下載</strong>（<code>.md</code>）、</li></ul>
+<p><strong>編輯</strong>（標題／描述）、<strong>刪除</strong>（含確認）</p>
+<ul><li>當有「等待中／處理中」紀錄時，每 5 秒自動輪詢更新</li></ul>
+<hr>
+<h2 id="九下載--預覽-api" class="t1">九、下載 / 預覽 API</h2>
+<p>新增 <code>DocumentExtractionController</code>（比照 <code>MediaTranscriptionController</code>， <code>api/[controller]</code> + <code>api/v1/[controller]</code>，JWT/Cookie 授權）：</p>
+<ul><li><code>GET {id}/markdown</code>：下載輸出 <code>.md</code>，回傳 <code>File(bytes, "text/markdown; charset=utf-8", fileName)</code>，</li></ul>
+<p>bytes 以 UTF-8 編碼。</p>
+<ul><li>預覽可直接由 Blazor 元件呼叫 <code>DocumentExtractionService.GetMarkdownContentAsync</code> 顯示，不一定需經 API。</li></ul>
+<hr>
+<h2 id="十選單與權限需異動-4-處" class="t2">十、選單與權限（需異動 4 處）</h2>
+<ol><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code>：新增 <code>角色_文件萃取 = "文件萃取"</code>。</li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code>：</li></ol>
+<p>於「專案管理」群組陣列加入 <code>角色_文件萃取</code>。</p>
+<ol><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code>：於「專案管理」(id 2) 的 <code>subMenu</code> 新增項目：</li></ol>
+<pre><code>   {
+     "id": 25,
+     "name": "文件萃取",
+     "icon": "description",
+     "url": "/document-extraction"
+   }</code></pre>
+<ol><li>建立頁面元件（見第八節）。</li></ol>
+<blockquote><p>權限機制說明：本系統授權以選單為基礎（非頁面屬性）。<code>Menu.json</code> 的 <code>name</code> 必須對應 <code>MagicObjectHelper</code> 中的權限常數；<code>RolePermissionService.GetRoleListPermissionAllName()</code> 回傳的二維陣列外層索引需對應選單頂層順序。</p></blockquote>
+<hr>
+<h2 id="十一編碼需求" class="t3">十一、編碼需求</h2>
+<ul><li>所有輸出 Markdown 檔以 <strong>UTF-8（無 BOM）</strong> 寫入</li></ul>
+<p>（比照 <code>TranscriptionProcessor</code> 使用 <code>new UTF8Encoding(false)</code>）。</p>
+<ul><li>預覽讀取、下載皆以 UTF-8 處理，確保繁體中文無亂碼。</li><li>以 <code>markitdown -o</code> 直接輸出檔案，避免擷取 stdout 時受 Windows 主控台 codepage 影響而產生亂碼。</li></ul>
+<hr>
+<h2 id="十二驗收條件" class="t4">十二、驗收條件</h2>
+<ol><li>選單出現「文件轉文字」，無權限角色看不到、無法進入頁面。</li><li>上傳檔案後產生「等待中」紀錄並進入背景佇列。</li><li>背景轉換期間狀態為「處理中」，完成轉「已完成」、進度 100%；失敗轉「失敗」並顯示錯誤訊息。</li><li>完成紀錄可線上預覽 Markdown 內容，且可下載 <code>.md</code>，內容為繁體中文 UTF-8 無亂碼。</li><li>輸出檔位於 <code>MarkdownFilePath/&lt;上傳年度&gt;/</code> 目錄下。</li><li>刪除紀錄會一併移除上傳檔與輸出檔。</li><li><code>appsettings.json</code> 版本號於實作建置時 +1，相關文件同步更新。</li></ol>
+<hr>
+<h2 id="十二之一依提示詞產生衍生內容0277-新增" class="t5">十二之一、依提示詞產生衍生內容（0.2.77 新增）</h2>
+<p>在文件轉文字既有「上傳 → MarkItDown 轉 Markdown → 檢視/下載」之上，新增「依提示詞產生」：以提示詞請 LLM 為該筆文件產生衍生內容（如摘要、重點、改寫），結果落地保存並可線上編修。</p>
+<ul><li><strong>產生來源（對話窗可選）</strong>：</li><li><strong>萃取文字（Markdown）</strong>：以已轉出的 Markdown 文字 ＋ 提示詞送 LLM（<code>OpenAIChatCompletionClient.CompleteAsync</code>）。</li><li><strong>送原始檔案到 LLM</strong>：把原始上傳檔 ＋ 提示詞送 LLM，讓模型看到原始外觀。<strong>僅支援圖片與 PDF</strong>——圖片走視覺解讀（<code>CompleteWithImageAsync</code>）、PDF 以 base64 <code>file</code> 夾帶（<code>CompleteWithFileAsync</code>）。其餘型別（Word/Excel/PPT/HTML 等）此選項<strong>停用</strong>，由 <code>DocumentExtractionService.IsLlmFileSupported</code> 判斷；原始檔另有 20MB 上限（<code>MaxLlmSourceFileSize</code>）。</li><li><strong>儲存與檢視</strong>：結果落 <code>ExternalFileSystem.GeneratedContentPath</code>（<code>{yyyy}/{guid}.md</code>，只保留最新一筆），路徑寫回 <code>DocumentExtraction.GeneratedContentRelativePath</code>／<code>GeneratedAt</code>（新增欄位，雙 migration <code>AddDocumentGeneratedContent</code>）。可由操作區「檢視/編修產生結果」以共用 <code>ContentEditDialog</code> 檢視與編修並存回原檔。</li><li><strong>背景產生與權控</strong>：產生為背景作業（<code>Task.Run</code> + 獨立 DI scope，由 <code>DocumentLlmGenerationService</code> 執行）。<strong>團隊權控與輸入讀取一律在 UI 執行緒先完成</strong>（背景 scope 無使用者驗證情境），再把已授權資料傳入背景產生。</li><li><strong>限制</strong>：PDF 能否成功取決於所設定 GenerationModel 是否支援 <code>file</code> 輸入；不支援時 API 回非 2xx 並以通知呈現，可改用「萃取文字」模式。內容預覽採 Markdig（<code>DisableHtml()</code> 防 XSS）。</li></ul>
+<blockquote><p>列表顯示：文件轉文字清單預設依「上傳時間」遞減排序（最新在前，0.2.78）。</p></blockquote>
+<h2 id="十二之二批次上傳壓縮檔zip自動建立記錄02161-新增" class="t6">十二之二、批次上傳壓縮檔（.zip）自動建立記錄（0.2.161 新增）</h2>
+<p>在既有「單檔上傳」之外，新增一個<strong>獨立入口</strong>「批次上傳壓縮檔」：使用者上傳一個 <code>.zip</code>，系統解壓後為裡面每個支援的檔案各建立一筆記錄並各自排入既有背景佇列。現行「<code>.zip</code> 當單一文件交給 MarkItDown」的單檔行為維持不變（兩者並存）。</p>
+<ul><li><strong>入口與 UI</strong>：<code>DocumentExtractionView</code> 工具列新增「批次上傳壓縮檔」按鈕（Icon <code>drive_folder_upload</code>），開啟獨立 Modal：選共用「分類／團隊」＋ <code>&lt;InputFile accept=".zip"&gt;</code>。送出後以「批次匯入結果」視窗顯示成功筆數與略過／失敗清單。</li><li><strong>每筆記錄</strong>：標題取自檔名（去副檔名，<code>Path.GetFileNameWithoutExtension</code>）；共用的分類／團隊套用到本次所有記錄；ContentType 由副檔名推得（讓圖片／PDF 仍可用「送原始檔案」模式送 LLM）。</li><li><strong>解壓規則</strong>：子資料夾遞迴取出、忽略資料夾結構（僅用 <code>entry.Name</code>）；不支援副檔名的檔案與<strong>嵌套 <code>.zip</code></strong> 一律略過並列入結果清單。</li><li><strong>安全上限（防 zip bomb）</strong>：單一 zip 可匯入檔案數上限 <strong>500</strong>（<code>MaxBatchFileCount</code>）、解壓後總量上限 <strong>2 GB</strong>（<code>MaxBatchUncompressedBytes</code>），超過即整批拒絕、不建立任何記錄；壓縮檔損毀無法讀取時同樣整批拒絕並提示。</li><li><strong>實作</strong>：<code>DocumentExtractionService.AddBatchFromZipAsync(zipStream, categories, teams, ...)</code>，以 <code>System.IO.Compression.ZipArchive</code>（.NET 內建，無需 NuGet）走訪 entries，對每個支援 entry 複用既有 <code>AddAsync</code>（存檔＋建記錄＋<code>queue.EnqueueAsync</code>）。結果型別 <code>BatchZipImportResult</code>（<code>SuccessCount</code> / <code>Skipped</code> / <code>Failed</code> / <code>RejectedWholeBatch</code> / <code>RejectReason</code>）。<strong>不改資料模型、不需 migration。</strong></li></ul>
+<h2 id="十三涉及檔案實作階段參考" class="t7">十三、涉及檔案（實作階段參考）</h2>
+<p><strong>新增：</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/Models/DocumentExtraction.cs</code> 及 EF Core Migration</li><li><code>KnowledgeExtraction.Models/AdapterModel/DocumentExtractionAdapterModel.cs</code> 與上傳輸入模型</li><li><code>KnowledgeExtraction.Business/Services/DataAccess/DocumentExtractionService.cs</code></li><li><code>DocumentExtractionQueue.cs</code> + 介面、<code>DocumentExtractionProcessor.cs</code>、<code>MarkItDownConverter.cs</code></li><li><code>KnowledgeExtraction.Web/BackgroundServices/DocumentExtractionBackgroundService.cs</code></li><li><code>KnowledgeExtraction.Web/Controllers/DocumentExtractionController.cs</code></li><li><code>KnowledgeExtraction.Web/Components/Pages/.../DocumentExtractionPage.razor</code>、</li></ul>
+<p><code>.../DocumentExtractionView.razor</code>(<code>.cs</code>)</p>
+<p><strong>修改：</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/BackendDBContext.cs</code></li><li><code>KnowledgeExtraction.Models/Systems/SystemSettings.cs</code></li><li><code>KnowledgeExtraction.Web/appsettings.json</code></li><li><code>KnowledgeExtraction.Web/Program.cs</code></li><li><code>KnowledgeExtraction.Web/Extensions/ServiceCollectionExtensions.cs</code></li><li><code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code></li><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code></li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code></li><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code></li></ul>
+<h2 id="十四0334-現況校正" class="t8">十四、0.3.34 現況校正</h2>
+<ul><li>狀態機已統一為等待中 → 處理中 → 已完成／失敗／已取消，支援自動暫時性重試、手動重試、取消及應用重啟回復。</li><li>支援 <code>.zip</code> 批次上傳：每個支援檔案建立獨立紀錄，不支援項目與巢狀壓縮檔略過並回報結果。</li><li>萃取 Markdown、LLM 衍生內容可線上原地編修，含 Markdown 預覽、複製與搜尋取代；更新後標記相關知識來源過時。</li><li>「依提示詞產生」可選萃取文字或支援的原始圖片／PDF；輸入讀取與團隊權控必須在使用者驗證情境中完成。</li><li>支援上傳新版本、版本歷史及來源成員接手現行版；詳見 <a href="../../docs/prd/prd-26032bd0.html">資料生命週期 PRD</a>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景與目的">一、背景與目的</a><a class="l3" href="#設計範本">設計範本</a><a class="l2" href="#二需求決策">二、需求決策</a><a class="l2" href="#三功能概述">三、功能概述</a><a class="l2" href="#四使用者流程">四、使用者流程</a><a class="l2" href="#五資料模型">五、資料模型</a><a class="l2" href="#六設定appsettingsjson">六、設定（appsettings.json）</a><a class="l2" href="#七架構與元件比照-mediatranscription">七、架構與元件（比照 MediaTranscription）</a><a class="l2" href="#八uiblazor-server--ant-design">八、UI（Blazor Server + Ant Design）</a><a class="l2" href="#九下載--預覽-api">九、下載 / 預覽 API</a><a class="l2" href="#十選單與權限需異動-4-處">十、選單與權限（需異動 4 處）</a><a class="l2" href="#十一編碼需求">十一、編碼需求</a><a class="l2" href="#十二驗收條件">十二、驗收條件</a><a class="l2" href="#十二之一依提示詞產生衍生內容0277-新增">十二之一、依提示詞產生衍生內容（0.2.77 新增）</a><a class="l2" href="#十二之二批次上傳壓縮檔zip自動建立記錄02161-新增">十二之二、批次上傳壓縮檔（.zip）自動建立記錄（0.2.161 新增）</a><a class="l2" href="#十三涉及檔案實作階段參考">十三、涉及檔案（實作階段參考）</a><a class="l2" href="#十四0334-現況校正">十四、0.3.34 現況校正</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/文件萃取-markitdown-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IIS 佈署與可攜工具設定（C:\KMEngineTools）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 部署與維運</p><header class="hero"><div class="kicker">部署與維運</div><h1>IIS 佈署與可攜工具設定（C:\KMEngineTools）</h1></header><div class="docwrap"><main><h2 id="文件目的" class="t1">文件目的</h2>
+<p>系統的「影音轉逐字稿」與「文件轉文字」會以 <code>System.Diagnostics.Process</code> 呼叫本機外部工具（ffmpeg / yt-dlp / markitdown，以及抖音鏈的 Node.js / Chromium）。</p>
+<p>以 <code>scripts/Install-ExternalTools.ps1</code>（winget / pip / npm）安裝時，工具會落在<strong>安裝使用者的 Home 目錄</strong>下：</p>
+<ul><li>ffmpeg：<code>%LOCALAPPDATA%\Microsoft\WinGet\Links</code></li><li>yt-dlp / markitdown：<code>%LOCALAPPDATA%\Python\...\Scripts</code></li><li>@playwright/cli：<code>%APPDATA%\npm</code></li><li>Chromium：<code>%LOCALAPPDATA%\ms-playwright</code></li></ul>
+<p>在 IIS 下，Web 以<strong>應用程式集區身分（ApplicationPoolIdentity／服務帳號）</strong>執行，<strong>無法存取安裝使用者 Home 目錄</strong> → 這些工具在使用時會找不到而失敗。</p>
+<p>本文件說明另一條路徑：以 <span class="docref" title="../../scripts/Install-PortableTools.ps1"><code>scripts/Install-PortableTools.ps1</code></span> 把工具的<strong>可攜版直接下載到固定目錄 <code>C:\KMEngineTools</code></strong>，授權給 IIS 身分，再以絕對路徑填入 <code>appsettings.json</code>。C# 端本就從設定讀路徑、無硬編碼（見 <a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定 §2</a>），故只要路徑對、集區可讀即可運作。</p>
+<blockquote><p>一般（開發機、以互動帳號執行）仍可用 <code>Install-ExternalTools.ps1</code>；本文件專供 <strong>IIS／服務帳號</strong> 或需要<strong>固定可攜目錄</strong>的情境。</p></blockquote>
+<hr>
+<h2 id="1-前置需求注意事項" class="t2">1. 前置需求（注意事項）</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>需求</th><th>說明</th></tr></thead><tbody><tr><td>執行權限</td><td><strong>系統管理員</strong></td><td>ACL 授權（<code>icacls</code>）與 Machine 範圍環境變數需要提權；未提權腳本會直接中止。</td></tr><tr><td>PowerShell</td><td>建議 <strong>7+</strong></td><td>5.1 亦可執行，但繁中輸出建議 7+：<code>winget install --id Microsoft.PowerShell -e</code>。</td></tr><tr><td>網路</td><td>需可連外下載</td><td>來源：ffmpeg=github.com/BtbN（GitHub CDN）、yt-dlp=github.com、Node=nodejs.org、Python=python.org。</td></tr><tr><td>winget</td><td><strong>不需要</strong></td><td>可攜版直接下載，這是相對 <code>Install-ExternalTools.ps1</code> 的優點。</td></tr></tbody></table></div>
+<h3 id="11-要由腳本安裝的-runtime">1.1 要由腳本安裝的 runtime</h3>
+<p>只有兩個 runtime 由腳本裝可攜版到 <code>C:\KMEngineTools</code>：</p>
+<div class="tw"><table><thead><tr><th>runtime</th><th>為何需要</th><th>落點</th></tr></thead><tbody><tr><td><strong>Node.js</strong>（zip 可攜版）</td><td>執行抖音助手 <code>get-douyin-audio.mjs</code></td><td><code>C:\KMEngineTools\node\node.exe</code></td></tr><tr><td><strong>Python 3</strong></td><td>執行 markitdown</td><td><code>C:\KMEngineTools\python\python.exe</code></td></tr></tbody></table></div>
+<ul><li><strong>ffmpeg / yt-dlp 為獨立執行檔，無 runtime 相依</strong>（yt-dlp 用免 Python 的獨立 exe）。</li><li>markitdown 就地安裝到 <code>C:\KMEngineTools\python</code>，<strong>不搬移</strong>——pip 產生的 <code>.exe</code> 包裝器會內嵌 python 絕對路徑，搬移會失效，故一律就地安裝。</li></ul>
+<h3 id="12-另需手動處理的前置">1.2 另需手動處理的前置</h3>
+<ul><li><strong>App 執行環境</strong>：IIS 主機需安裝 <strong>.NET 10 ASP.NET Core Hosting Bundle</strong>（非本腳本範圍），見 <a href="../../docs/operations/fresh-machine-sop.html">全新機器部署 SOP §1</a>。</li><li><strong>markitdown 相依</strong>：<code>markitdown[all]</code> 相依較多，Windows 多有預編譯 wheel 免編譯；<strong>極少數套件無 wheel 時需 Microsoft C++ Build Tools</strong>，屆時安裝後重跑腳本即可。</li></ul>
+<hr>
+<h2 id="2-目錄佈局" class="t3">2. 目錄佈局</h2>
+<pre><code>C:\KMEngineTools\
+  ffmpeg\bin\ffmpeg.exe               ← FfmpegPath
+  yt-dlp\yt-dlp.exe                   ← YtDlpPath（免 Python 獨立 exe）
+  node\node.exe                       ← NodePath（抖音鏈）
+  python\python.exe
+  python\Scripts\markitdown.exe       ← MarkItDownPath
+  npm\node_modules\@playwright\cli\node_modules\playwright-core   ← KMENGINE_PLAYWRIGHT_CORE
+  ms-playwright\chromium-&lt;版號&gt;\...    ← PLAYWRIGHT_BROWSERS_PATH
+  cookies\cookies.txt                 ← （選用）YtDlpCookiesFile</code></pre>
+<hr>
+<h2 id="3-安裝與驗證" class="t4">3. 安裝與驗證</h2>
+<pre><code># 以系統管理員開啟 PowerShell 7
+# 1) 安裝可攜工具到 C:\KMEngineTools（僅核心可加 -SkipDouyin）
+pwsh -File scripts/Install-PortableTools.ps1 -InstallDir C:\KMEngineTools
+
+# 2) 驗證工具可運作、且 IIS 身分具讀取/執行權
+pwsh -File scripts/Test-PortableTools.ps1 -InstallDir C:\KMEngineTools -AppSettingsPath "C:\apps\KnowledgeExtraction\appsettings.json" -AppPoolName &lt;你的集區名&gt;</code></pre>
+<p><code>Install-PortableTools.ps1</code> 參數：</p>
+<div class="tw"><table><thead><tr><th>參數</th><th>預設</th><th>用途</th></tr></thead><tbody><tr><td><code>-InstallDir</code></td><td><code>C:\KMEngineTools</code></td><td>安裝根目錄</td></tr><tr><td><code>-SkipDouyin</code></td><td>關</td><td>略過抖音鏈（Node / @playwright/cli / Chromium）</td></tr><tr><td><code>-Force</code></td><td>關</td><td>即使已存在仍重裝（否則略過已存在者，可重複執行）</td></tr><tr><td><code>-SkipIisAcl</code></td><td>關</td><td>略過對 InstallDir 的 ACL 授權</td></tr><tr><td><code>-IisIdentity</code></td><td><code>IIS_IUSRS</code></td><td>要授權的身分；亦可 <code>'IIS AppPool\&lt;集區名&gt;'</code></td></tr><tr><td><code>-PythonVersion</code></td><td><code>3.12.10</code></td><td>Python 版本</td></tr><tr><td><code>-NodeVersion</code></td><td>自動最新 LTS</td><td>指定 Node 版本</td></tr></tbody></table></div>
+<p>安裝腳本<strong>不會自動修改 appsettings.json</strong>，結尾會印出可貼上的片段。</p>
+<hr>
+<h2 id="4-acl-授權" class="t5">4. ACL 授權</h2>
+<p>安裝腳本預設已授權 <code>IIS_IUSRS</code>。若要鎖到特定集區身分（最小權限）：</p>
+<pre><code>icacls "C:\KMEngineTools" /grant "IIS AppPool\&lt;集區名&gt;:(OI)(CI)(RX)" /T</code></pre>
+<ul><li><code>(OI)(CI)</code> = 套用到子資料夾與檔案；<code>(RX)</code> = 讀取+執行。</li><li><code>Test-PortableTools.ps1 -AppPoolName &lt;集區名&gt;</code> 會檢查此授權是否存在。</li></ul>
+<hr>
+<h2 id="5-appsettingsjson-設定" class="t6">5. appsettings.json 設定</h2>
+<p>把安裝／驗證腳本印出的絕對路徑填入（反斜線需寫 <code>\\</code>）：</p>
+<pre><code>{
+  "OpenAISettings": {
+    "FfmpegPath": "C:\\KMEngineTools\\ffmpeg\\bin\\ffmpeg.exe",
+    "YtDlpPath": "C:\\KMEngineTools\\yt-dlp\\yt-dlp.exe",
+    "NodePath": "C:\\KMEngineTools\\node\\node.exe",
+    "DouyinHelperScript": "C:\\...\\tools\\douyin-audio\\get-douyin-audio.mjs",
+    "YtDlpCookiesFile": "",
+    "YtDlpCookiesFromBrowser": ""
+  },
+  "MarkItDownSettings": {
+    "MarkItDownPath": "C:\\KMEngineTools\\python\\Scripts\\markitdown.exe"
+  }
+}</code></pre>
+<p>亦可改用環境變數覆寫（雙底線階層鍵，Machine 範圍讓 IIS 看得到）：<code>OpenAISettings__FfmpegPath</code> 等。</p>
+<blockquote><p><strong>IIS 下務必填絕對路徑、不要依賴 PATH</strong>：應用程式集區的 PATH 與登入使用者不同，留空退回 PATH 多半找不到工具。</p></blockquote>
+<hr>
+<h2 id="51-在-iis-設定環境變數機密一律走這裡" class="t7">5.1 在 IIS 設定環境變數（機密一律走這裡）</h2>
+<p>正式環境的機密（JWT 簽章金鑰、support 密碼、OpenAI 金鑰、連線字串）<strong>不要寫進 <code>appsettings.json</code></strong>——那份檔案在版控裡。IIS 上最可靠的做法是寫在<strong>站台目錄的 <code>web.config</code></strong>：</p>
+<pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\KnowledgeExtraction.Web.dll"
+            stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout"
+            hostingModel="inprocess"&gt;
+  &lt;environmentVariables&gt;
+    &lt;environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Production" /&gt;
+    &lt;environmentVariable name="JwtSettings__SigningKey" value="&lt;32 字元以上亂數&gt;" /&gt;
+    &lt;environmentVariable name="BootstrapSettings__SupportPassword" value="&lt;強密碼&gt;" /&gt;
+    &lt;environmentVariable name="OpenAISettings__ApiKey" value="&lt;OpenAI 金鑰&gt;" /&gt;
+  &lt;/environmentVariables&gt;
+&lt;/aspNetCore&gt;</code></pre>
+<ul><li><strong>階層鍵用雙底線 <code>__</code></strong>，不能寫成 <code>:</code>。</li><li><strong>存檔即生效</strong>：ASP.NET Core Module 會自動回收應用程式集區，<strong>不需重建、不需重部署</strong>。</li><li><code>&lt;environmentVariables&gt;</code> 必須放在 <code>&lt;aspNetCore&gt;</code> <strong>元素內</strong>。</li></ul>
+<h3 id="與-setx-m-的差異這是常見踩雷點">與 <code>setx /M</code> 的差異（這是常見踩雷點）</h3>
+<div class="tw"><table><thead><tr><th>做法</th><th>生效方式</th><th>適用</th></tr></thead><tbody><tr><td><code>web.config</code> 的 <code>&lt;environmentVariables&gt;</code></td><td><strong>存檔即回收生效</strong></td><td><strong>IIS 建議優先用這個</strong>；設定隨站台走，換機部署好複製</td></tr><tr><td><code>setx NAME "值" /M</code>（Machine 範圍）</td><td>需<strong>重啟 IIS／WAS 服務</strong>（有時要重開機）工作處理序才讀得到</td><td>多站台共用、或不想把值放在站台目錄時</td></tr></tbody></table></div>
+<blockquote><p>只設 <code>setx /M</code> 卻沒重啟 IIS，是「明明設了卻沒生效」最常見的原因。</p></blockquote>
+<blockquote><p><strong>權衡</strong>：<code>web.config</code> 內的機密會隨站台目錄被備份／複製，請確保該目錄的 ACL 只開給必要帳號。若要更嚴格，改用 Machine 環境變數或密碼保管服務，代價是需要重啟 IIS。</p></blockquote>
+<h3 id="產生強金鑰與強密碼">產生強金鑰與強密碼</h3>
+<pre><code># 48 字元十六進位金鑰（遠超過 32 字元下限）
+-join ((1..48) | ForEach-Object { '0123456789abcdef'[(Get-Random -Maximum 16)] })
+
+# 20 字元強密碼
+$c = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&amp;*'
+-join ((1..20) | ForEach-Object { $c[(Get-Random -Maximum $c.Length)] })</code></pre>
+<blockquote><p>support 帳號密碼<strong>每次啟動都會依設定值重設</strong>，所以改了這裡就等於改了 support 的登入密碼。</p></blockquote>
+<hr>
+<h2 id="6-應用程式集區設定注意" class="t8">6. 應用程式集區設定注意</h2>
+<ul><li><strong>載入使用者設定檔</strong>：進階設定 <code>setProfileEnvironment</code> / 「載入使用者設定檔（Load User Profile）」建議設為 <code>True</code>，讓工具有 <code>%TEMP%</code> 等可用。</li><li><strong>媒體/暫存目錄寫入權</strong>：App 會寫 <code>C:\temp\KnowledgeExtraction</code>（媒體下載、轉錄輸出、抖音產出與登入設定檔）與 <code>NLog:BasePath</code>；集區身分需對這些路徑有<strong>寫入</strong>權（<code>ExternalFileSystem:*</code> 詳見 <a href="../../docs/operations/fresh-machine-sop.html">全新機器部署 SOP §7</a>）。</li><li><strong>環境變數生效</strong>：安裝腳本以 Machine 範圍寫入 <code>PLAYWRIGHT_BROWSERS_PATH</code>、<code>KMENGINE_PLAYWRIGHT_CORE</code>；需<strong>重啟應用程式集區或主機</strong>服務身分才會讀到。</li></ul>
+<hr>
+<h2 id="7-抖音鏈在-iis-的限制重要" class="t1">7. 抖音鏈在 IIS 的限制（重要）</h2>
+<p>抖音助手 <code>get-douyin-audio.mjs</code> 以 <code>headless: false</code> 開啟<strong>可見瀏覽器</strong>、需<strong>人工登入／通過驗證</strong>，並使用持久登入設定檔。<strong>IIS 應用程式集區身分無互動桌面，無法真正跑起來。</strong></p>
+<ul><li>把抖音鏈裝進 <code>C:\KMEngineTools</code> 只是讓<strong>路徑可攜</strong>（解除舊版 <code>.mjs</code> 內硬編碼的使用者路徑；改讀 <code>KMENGINE_PLAYWRIGHT_CORE</code> 與 <code>PLAYWRIGHT_BROWSERS_PATH</code>）。</li><li><strong>實際抖音下載須於互動桌面工作階段執行</strong>：於有桌面的機器（或該機的互動登入 session）跑 <code>node tools/douyin-audio/get-douyin-audio.mjs "&lt;連結&gt;"</code> 產出 mp3，再以「檔案上傳」匯入系統。</li><li>若佈署主機無桌面，建議 IIS 的 <code>DouyinHelperScript</code> 可留空——App 會以清楚訊息略過抖音下載，不影響其他功能。</li></ul>
+<hr>
+<h2 id="8-yt-dlp-cookies-在-iis-的注意事項" class="t2">8. yt-dlp cookies 在 IIS 的注意事項</h2>
+<div class="tw"><table><thead><tr><th>設定</th><th>對應 yt-dlp 參數</th><th>IIS 適用性</th></tr></thead><tbody><tr><td><code>YtDlpCookiesFile</code></td><td><code>--cookies "&lt;檔&gt;"</code></td><td>✅ <strong>IIS 請用此法</strong>，指向可攜目錄下的 <code>cookies.txt</code>（如 <code>C:\KMEngineTools\cookies\cookies.txt</code>）</td></tr><tr><td><code>YtDlpCookiesFromBrowser</code></td><td><code>--cookies-from-browser &lt;瀏覽器&gt;</code></td><td>❌ 不適用：服務身分無瀏覽器設定檔、讀不到互動使用者 Home 的 cookie DB</td></tr></tbody></table></div>
+<ul><li>兩者皆設時 <strong><code>YtDlpCookiesFile</code> 優先</strong>；皆空白則不帶 cookies。</li><li>公開 YouTube 多半免填；抖音/小紅書、年齡或會員限制才需要（抖音走助手腳本、cookies 對其無效）。</li><li><strong>安全性</strong>：<code>cookies.txt</code> 含登入 session 憑證 → 限制 ACL、<strong>勿進版控</strong>、定期更新。</li></ul>
+<hr>
+<h2 id="9-疑難排解" class="t3">9. 疑難排解</h2>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>處理</th></tr></thead><tbody><tr><td><strong>HTTP 500.30 — ASP.NET Core app failed to start</strong></td><td>應用程式在啟動階段就結束。常見：<code>JwtSettings:SigningKey</code> 留空或短於 32 字元（選項驗證）、資料庫連線失敗、日誌／檔案目錄無寫入權</td><td><strong>先看 Windows 事件檢視器 → Windows 記錄 → 應用程式</strong>，訊息含例外型別與堆疊。原因對照表與處置見 <a href="../../docs/operations/fresh-machine-sop.html">全新機器部署 SOP §6.4</a></td></tr><tr><td>500.30 但事件紀錄看不出原因</td><td>未開 stdout 記錄</td><td>把 <code>web.config</code> 的 <code>stdoutLogEnabled</code> 改為 <code>true</code>、確認 <code>.\logs</code> 目錄存在且集區身分可寫，重現一次後看 <code>logs\stdout_*.log</code>；<strong>查完記得關掉</strong>（會持續長大）</td></tr><tr><td>腳本一開始就中止「需系統管理員」</td><td>未提權</td><td>以系統管理員重開 PowerShell</td></tr><tr><td><code>Test-PortableTools.ps1</code> 報 IIS ACL 未找到</td><td>未授權集區身分</td><td>依 §4 執行 <code>icacls</code></td></tr><tr><td>App 內轉錄/萃取找不到工具</td><td>appsettings 未填絕對路徑或集區無讀取權</td><td>§5 填絕對路徑、§4 授權、重啟集區</td></tr><tr><td>markitdown pip 安裝失敗（編譯錯誤）</td><td>個別套件無 wheel</td><td>裝 Microsoft C++ Build Tools 後重跑</td></tr><tr><td>抖音在 IIS 無反應</td><td>服務身分無互動桌面（預期限制）</td><td>見 §7，改於桌面工作階段執行</td></tr><tr><td>健康度檢查頁 yt-dlp/markitdown 偶發紅色「版本：無法取得」</td><td>可攜版 yt-dlp(PyInstaller)/markitdown(Python) 首次冷啟需自解、匯入約數秒，並發探測下超過舊逾時</td><td>探測逾時已放寬至 15s（1.0.29）；仍偶發可重整頁面（暖啟後即正常）</td></tr><tr><td>健康度檢查頁 Node.js 顯示黃色降級</td><td>舊版硬性期待 v22.x，但安裝抓最新 LTS（如 v24）</td><td>已放寬為接受 v20+ LTS（1.0.29）；v24 免重裝即轉綠</td></tr></tbody></table></div>
+<hr>
+<h2 id="相關文件" class="t4">相關文件</h2>
+<ul><li><a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a>（工具用途、路徑解析規則、平台差異、cookies 細節）</li><li><a href="../../docs/operations/fresh-machine-sop.html">全新機器部署 SOP</a>（.NET/DB/appsettings/啟動/驗證的完整流程）</li><li><a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a>（各設定項語意）</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（部署與維運）</h3><ul><li><a href="../../docs/operations/rag-troubleshooting.html">RAG 問題診斷手冊（維運用）</a></li><li><a href="../../docs/operations/fresh-machine-sop.html">全新機器部署 SOP</a></li><li><a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a></li><li><a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a></li><li><a href="../../docs/operations/help-site-build.html">文件說明網站：產生與佈署</a></li><li><a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a></li><li><a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a></li><li><a href="../../docs/operations/maintenance-rules.html">維護規範</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#文件目的">文件目的</a><a class="l2" href="#1-前置需求注意事項">1. 前置需求（注意事項）</a><a class="l3" href="#11-要由腳本安裝的-runtime">1.1 要由腳本安裝的 runtime</a><a class="l3" href="#12-另需手動處理的前置">1.2 另需手動處理的前置</a><a class="l2" href="#2-目錄佈局">2. 目錄佈局</a><a class="l2" href="#3-安裝與驗證">3. 安裝與驗證</a><a class="l2" href="#4-acl-授權">4. ACL 授權</a><a class="l2" href="#5-appsettingsjson-設定">5. appsettings.json 設定</a><a class="l2" href="#51-在-iis-設定環境變數機密一律走這裡">5.1 在 IIS 設定環境變數（機密一律走這裡）</a><a class="l3" href="#與-setx-m-的差異這是常見踩雷點">與 setx /M 的差異（這是常見踩雷點）</a><a class="l3" href="#產生強金鑰與強密碼">產生強金鑰與強密碼</a><a class="l2" href="#6-應用程式集區設定注意">6. 應用程式集區設定注意</a><a class="l2" href="#7-抖音鏈在-iis-的限制重要">7. 抖音鏈在 IIS 的限制（重要）</a><a class="l2" href="#8-yt-dlp-cookies-在-iis-的注意事項">8. yt-dlp cookies 在 IIS 的注意事項</a><a class="l2" href="#9-疑難排解">9. 疑難排解</a><a class="l2" href="#相關文件">相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/operations/IIS佈署與可攜工具設定.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

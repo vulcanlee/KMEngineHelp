@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識庫問答 Query Rewrite（0.2.142）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>知識庫問答 Query Rewrite（0.2.142）</h1></header><div class="docwrap"><main><ul><li>日期：2026/06/28</li><li>版本：0.2.141 → 0.2.142</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>知識庫問答新增條件式上下文補全 Query Rewrite：在多輪對話中，若使用者以「它」、「剛剛那個」、「怎麼處理」等短問句或代詞延續前文，系統會先用最近對話補成可獨立檢索的查詢，再交給既有混合檢索。回答仍保留使用者原始問題，避免改寫影響回答語氣或意圖。</p>
+<h2 id="變更內容" class="t2">變更內容</h2>
+<ul><li>新增 <code>KnowledgeBaseQueryRewriteService</code>，回傳原始查詢、有效查詢、是否改寫與原因。</li><li><code>KnowledgeBaseChatService.RetrieveAsync</code> 可接收 history，檢索用改寫後 query；團隊權控仍完全由 <code>IRetrievalService</code> 套用。</li><li>新增 <code>SystemSettings.Retrieval.QueryRewrite</code> 設定：</li><li><code>Enabled</code></li><li><code>Mode</code></li><li><code>MinQueryChars</code></li><li><code>MaxHistoryMessages</code></li><li><code>FallbackToOriginalOnError</code></li><li>新增 Query Rewrite 專用 LLM 設定，預設使用較小模型 <code>gpt-5.4-mini</code>：</li><li><code>OpenAISettings.QueryRewriteModel</code></li><li><code>OpenAISettings.QueryRewriteTimeoutSeconds</code></li><li><code>OpenAISettings.LocalQueryRewriteModel</code></li><li>新增提示詞槽位 <code>知識庫-查詢改寫</code> / <code>LlmPrompts.KnowledgeBaseQueryRewrite</code>，沿用四層提示詞解析。</li><li>後續不在本版實作的 HyDE、多查詢展開、rerank、query drift guard、adjacent chunk expansion 已加入優化待辦清單。</li><li><code>SystemVersion</code> 升至 <code>0.2.142 (2026/06/28)</code>。</li></ul>
+<h2 id="注意事項" class="t3">注意事項</h2>
+<p>Query Rewrite 只改變送進檢索層的查詢文字，不新增任何資料權限；越權內容仍不可進候選、context 或出處。若改寫模型失敗或逾時，預設會回退原始查詢，避免中斷問答流程。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#變更內容">變更內容</a><a class="l2" href="#注意事項">注意事項</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-28-知識庫問答QueryRewrite.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

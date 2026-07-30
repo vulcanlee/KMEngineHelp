@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>智庫引擎 地端授權保護機制設計｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 策略與規劃</p><header class="hero"><div class="kicker">策略與規劃</div><h1>智庫引擎 地端授權保護機制設計</h1><p class="sub">定義智庫引擎（KnowledgeExtraction.AI）地端授權／保護機制的設計與分階段實作規劃，供日後據以開工</p></header><div class="docwrap"><main><ul><li>文件用途：定義智庫引擎（KnowledgeExtraction.AI）地端授權／保護機制的設計與分階段實作規劃，供日後據以開工</li><li>主要讀者：產品負責人、後端／全端開發、維運、業務（商業模式段落）</li><li>文件版本：0.1</li><li>文件狀態：規劃中（尚未實作）</li><li>現行系統版本：1.0.14</li><li>建立日期：2026/07/18</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>本文為需求／設計原稿；實際開工時可據各章節結構直接落地，並依規模拆為 PRD 與代辦清單。相關商業背景見 <a href="../../docs/strategy/business-value.html">商業價值與行銷策略</a>、<a href="../../docs/strategy/open-questions-risks.html">待釐清問題與技術風險清單</a>。</p></blockquote>
+<hr>
+<h2 id="1-文件定位與商業背景" class="t1">1. 文件定位與商業背景</h2>
+<h3 id="11-定位">1.1 定位</h3>
+<p>本文承接 <code>docs/strategy/02-商業價值與行銷策略.md</code>（地端授權年費＋導入服務＋維運訂閱；雲端依使用者數／知識量分級）與 <code>docs/strategy/05-待釐清問題與技術風險清單.md</code>（「地端授權 vs 雲端訂閱的計費單位與級距」列為待釐清）。本文把「授權計費維度」落地為<strong>可簽發、可驗證、可執法</strong>的技術機制。</p>
+<h3 id="12-商業目標">1.2 商業目標</h3>
+<ul><li>提供 <strong>6 個月免費試用</strong>，讓客戶把知識灌入系統、累積資料黏著度（switching cost）。</li><li>試用到期後轉付費；廠商須能以「離線簽發授權碼」授予／延長使用權，並精細控制功能模組、用量、帳號數。</li><li>授權過期或無效 → <strong>完全阻擋登入</strong>，除輸入新授權碼外不可操作。</li></ul>
+<h3 id="13-部署前提與強度定位">1.3 部署前提與強度定位</h3>
+<ul><li>地端封閉網路，<strong>完全離線為主</strong>；不得依賴外部時間源或線上啟用伺服器。</li><li>客戶端原始碼／二進位在客戶掌握中 → 本機制目標為 <strong>中等強度</strong>：提高破解成本、嚇阻一般客戶違約，而非對抗專業逆向。此邊界於第 13 章誠實列明。</li></ul>
+<hr>
+<h2 id="2-整體架構與角色" class="t2">2. 整體架構與角色</h2>
+<h3 id="21-角色">2.1 角色</h3>
+<ul><li><strong>客戶端（知識庫主機）</strong>：執行中的 Blazor Server / ASP.NET Core .NET 10 應用。內嵌「廠商公鑰」，負責產生機器指紋、驗證授權碼、執法阻擋。</li><li><strong>廠商端（簽發系統）</strong>：新增獨立 console 專案 <code>KnowledgeExtraction.LicenseTool</code>（<code>OutputType=Exe</code>，不進主部署）。保管私鑰、依客戶購買狀態簽發授權碼。</li><li><strong>離線交換媒介</strong>：純文字字串（機器指紋請求字串、授權碼），可經 email／隨身碟傳遞。</li></ul>
+<h3 id="22-離線啟用時序">2.2 離線啟用時序</h3>
+<pre><code>sequenceDiagram
+    participant Admin as 客戶管理員
+    participant App as 客戶端(知識庫主機)
+    participant Vendor as 廠商(LicenseTool)
+    App-&gt;&gt;App: 首次啟動→產生機器指紋(Host ID)
+    Admin-&gt;&gt;App: 進入 /license 啟用頁
+    App--&gt;&gt;Admin: 顯示「請求字串」(含指紋+客戶資訊+版本)
+    Admin-&gt;&gt;Vendor: 傳送請求字串(離線)
+    Vendor-&gt;&gt;Vendor: 驗證請求→依購買狀態決定授權維度
+    Vendor-&gt;&gt;Vendor: 用私鑰簽發授權碼(payload+簽章)
+    Vendor--&gt;&gt;Admin: 回傳授權碼(離線)
+    Admin-&gt;&gt;App: 貼上授權碼→按啟用
+    App-&gt;&gt;App: 內嵌公鑰驗簽→比對指紋→寫入 LicenseState(DB+檔案)
+    App--&gt;&gt;Admin: 啟用成功→解除鎖定→正常登入</code></pre>
+<h3 id="23-執行期驗證流每次啟動與請求">2.3 執行期驗證流（每次啟動與請求）</h3>
+<pre><code>flowchart TD
+    A[讀取 LicenseState DB+檔案] --&gt; B{有有效授權碼?}
+    B -- 否 --&gt; T{在試用期內?}
+    T -- 是 --&gt; OK[放行, 標記試用剩餘天數]
+    T -- 否 --&gt; LOCK[鎖定→導向 /license]
+    B -- 是 --&gt; V{公鑰驗簽通過?}
+    V -- 否 --&gt; LOCK
+    V -- 是 --&gt; M{指紋多數符合?}
+    M -- 否 --&gt; LOCK
+    M -- 是 --&gt; C{單調時鐘未回撥?}
+    C -- 否 --&gt; LOCK2[標記 tampered→鎖定]
+    C -- 是 --&gt; E{未過期?}
+    E -- 否 --&gt; LOCK
+    E -- 是 --&gt; OK</code></pre>
+<hr>
+<h2 id="3-機器指紋host-id設計" class="t3">3. 機器指紋（Host ID）設計</h2>
+<h3 id="31-目的">3.1 目的</h3>
+<p>把授權碼「綁定」到特定部署主機，防止同一份授權碼被複製到多台機器。指紋<strong>只用於綁定與比對，不含任何個資或機敏資料</strong>（法遵考量見第 13 章）。</p>
+<h3 id="32-採集特徵windows-優先容錯設計">3.2 採集特徵（Windows 優先；容錯設計）</h3>
+<p>逐項採集下列硬體／OS 特徵，各自雜湊為子指紋：</p>
+<div class="tw"><table><thead><tr><th>代號</th><th>特徵</th><th>取得方式</th><th>穩定度</th></tr></thead><tbody><tr><td>F1</td><td>Windows MachineGuid</td><td>Registry <code>HKLM\SOFTWARE\Microsoft\Cryptography\MachineGuid</code></td><td>高（重灌 OS 才變）</td></tr><tr><td>F2</td><td>主機名稱 MachineName</td><td><code>Environment.MachineName</code></td><td>中</td></tr><tr><td>F3</td><td>系統磁碟序號</td><td>WMI <code>Win32_DiskDrive.SerialNumber</code>（主碟）</td><td>高</td></tr><tr><td>F4</td><td>主網卡 MAC</td><td><code>NetworkInterface</code> 取實體卡、排除虛擬／Loopback</td><td>中（VM 遷移可能變）</td></tr><tr><td>F5</td><td>CPU 識別</td><td>WMI <code>Win32_Processor.ProcessorId</code></td><td>高</td></tr><tr><td>F6</td><td>主機板／BIOS 序號</td><td>WMI <code>Win32_BaseBoard.SerialNumber</code></td><td>高</td></tr></tbody></table></div>
+<h3 id="33-組合與容錯比對">3.3 組合與容錯比對</h3>
+<ul><li>每個子指紋以 SHA-256 各自雜湊，組成「子指紋集合」。授權碼內存放的是<strong>簽發當時採集到的子指紋集合雜湊值</strong>（不存原始值）。</li><li><strong>容錯比對（多數符合即通過）</strong>：啟用時記錄 N 個子指紋；日後驗證時，只要當前主機與已記錄集合 <strong>符合 ≥ 門檻（建議 6 取 4）</strong> 即視為同一主機。寬容單一零件更換／VM 遷移，降低誤殺。</li><li>對外顯示的「Host ID」為整體集合再雜湊後的短碼（Base32，便於人工朗讀／核對）。</li></ul>
+<h3 id="34-跨平台考量">3.4 跨平台考量</h3>
+<p>目前僅 Windows；Linux 部署時 F1／F3／F6 取得方式不同（<code>/etc/machine-id</code>、<code>lsblk</code>、DMI）。以介面 <code>IHostFingerprintProvider</code> 抽象，先實作 <code>WindowsHostFingerprintProvider</code>，Linux 留待第 14 章待決。</p>
+<h3 id="35-程式落點">3.5 程式落點</h3>
+<ul><li>純採集邏輯（跨專案共用、無 DB 相依）→ <code>KnowledgeExtraction.Share/Helpers</code>（如 <code>HostFingerprintHelper</code>），比照現有 <code>MagicObjectHelper</code>／<code>RuntimeEnvironmentInfo</code>。</li><li>需注入設定／記錄的封裝 → <code>KnowledgeExtraction.Business/Services/DataAccess</code>。</li><li>執行期快取 → <code>SystemStartupState</code>（Singleton；避免每次請求重跑 WMI）。</li></ul>
+<hr>
+<h2 id="4-金鑰體系與授權碼格式" class="t4">4. 金鑰體系與授權碼格式</h2>
+<h3 id="41-金鑰體系非對稱">4.1 金鑰體系（非對稱）</h3>
+<ul><li>沿用 <code>Web/Auth/JwtTokenService.cs</code> 的「簽章 + <code>TokenValidationParameters</code> 驗證」<strong>骨架思路</strong>，但因 JWT 目前用對稱 HMAC（<code>SymmetricSecurityKey</code>），<strong>授權碼必須改用非對稱</strong>：廠商私鑰簽、客戶端內嵌公鑰驗，避免客戶用同一把金鑰偽造授權碼。</li><li>Codebase 目前無 RSA／ECDsa／X509 用法，需新引入 <code>System.Security.Cryptography</code>。</li><li><strong>演算法建議：ECDSA P-256（或 Ed25519）</strong>。理由：金鑰／簽章短，適合離線人工傳遞的字串；P-256 為 .NET 內建 <code>ECDsa</code> 直接支援。備選 RSA-2048（相容性最廣但簽章較長）。</li><li><strong>公鑰內嵌</strong>：以常數／內嵌資源方式編進客戶端組件（並可放一份於 <code>LicenseSettings</code>），避免單純替換設定檔即換公鑰。私鑰僅存於廠商端 <code>LicenseTool</code>（離線保管、不進版控、不進部署）。</li></ul>
+<h3 id="42-授權碼封裝格式類-jwt離線可驗">4.2 授權碼封裝格式（類 JWT，離線可驗）</h3>
+<p><code>Base64Url(header).Base64Url(payload).Base64Url(signature)</code>，三段以 <code>.</code> 連接。header 標示演算法與授權碼版本。</p>
+<h3 id="43-payload-欄位">4.3 Payload 欄位</h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>說明</th></tr></thead><tbody><tr><td><code>ver</code></td><td>授權碼格式版本（供日後演進／金鑰輪替）</td></tr><tr><td><code>cust</code></td><td>客戶識別（公司代號／合約號）</td></tr><tr><td><code>fp</code></td><td>機器指紋子指紋集合雜湊（多值，供容錯比對）</td></tr><tr><td><code>iat</code></td><td>簽發時間（UTC）</td></tr><tr><td><code>exp</code></td><td>到期日（UTC，日級）</td></tr><tr><td><code>features</code></td><td>功能模組旗標（bitmask 或字串集合）：影音轉逐字稿／文件轉文字／圖片辨識／知識頁審核／RAG 問答／MCP／統計報表… 逐一開關</td></tr><tr><td><code>limits.sources</code></td><td>知識來源筆數上限</td></tr><tr><td><code>limits.documents</code></td><td>文件筆數上限</td></tr><tr><td><code>limits.vectors</code></td><td>向量筆數上限</td></tr><tr><td><code>limits.users</code></td><td>使用者帳號數上限</td></tr><tr><td><code>plan</code></td><td>方案名稱（trial / standard / pro…，僅顯示用）</td></tr><tr><td><code>nonce</code></td><td>防重放隨機值</td></tr></tbody></table></div>
+<h3 id="44-請求字串格式">4.4 請求字串格式</h3>
+<p><code>Base64Url(JSON)</code>，內容：機器指紋子指紋集合、客戶自填識別資訊、客戶端版本（讀自 <code>SystemSettings:SystemInformation:SystemVersion</code>）、產生時間。供 <code>LicenseTool</code> 可讀並回填 <code>fp</code>／<code>cust</code>。</p>
+<h3 id="45-請求字串是否加密">4.5 請求字串是否加密</h3>
+<p><strong>釐清</strong>：請求字串本身<strong>非機密</strong>（只是指紋與客戶名），真正需要防偽的是「授權碼」——靠廠商私鑰簽章即可，客戶無法偽造。</p>
+<ul><li><strong>最低要求</strong>：請求字串至少加 CRC／雜湊校驗，避免人工複製漏字導致簽出錯誤指紋。</li><li><strong>可選加強</strong>：以廠商公鑰加密請求字串（防止傳遞途中被竄改指紋、把授權綁到攻擊者主機）。取捨：加密會讓字串變長、且客戶端也要內嵌加密邏輯，對「中等強度」屬過度設計。<strong>建議 MVP 僅做校驗，不加密</strong>；日後如需再升級。</li></ul>
+<hr>
+<h2 id="5-授權狀態儲存licensestate" class="t5">5. 授權狀態儲存（LicenseState）</h2>
+<h3 id="51-資料表">5.1 資料表</h3>
+<p>新增單列狀態表 <code>LicenseState</code>（比照 <code>AccessDatas/Models/RetrievalSettingOverride.cs</code> 的「單列」慣例，及 <code>Business/Services/DataAccess/RetrievalSettingsProvider.cs</code> 的 upsert Provider 模式）。</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td><code>Id</code></td><td>int</td><td>主鍵（固定單列）</td></tr><tr><td><code>LicenseCode</code></td><td>string?</td><td>目前授權碼（原文，供重驗）</td></tr><tr><td><code>CustomerId</code></td><td>string?</td><td>客戶識別</td></tr><tr><td><code>ExpireAt</code></td><td>DateTime?</td><td>到期日</td></tr><tr><td><code>FeatureFlags</code></td><td>string</td><td>功能旗標（JSON／bitmask 序列化）</td></tr><tr><td><code>LimitSources</code> / <code>LimitDocuments</code> / <code>LimitVectors</code> / <code>LimitUsers</code></td><td>int?</td><td>各項用量／帳號上限</td></tr><tr><td><code>HostFingerprint</code></td><td>string</td><td>啟用時綁定的子指紋集合</td></tr><tr><td><code>TrialStartedAt</code></td><td>DateTime?</td><td>試用起算日（首次啟動寫入）</td></tr><tr><td><code>MonotonicMaxSeenUtc</code></td><td>DateTime</td><td>單調時鐘：曾見過的最大時間戳</td></tr><tr><td><code>ActivatedAt</code></td><td>DateTime?</td><td>啟用時間</td></tr><tr><td><code>Status</code></td><td>string</td><td><code>Trial</code> / <code>Activated</code> / <code>Expired</code> / <code>Invalid</code> / <code>Tampered</code></td></tr><tr><td><code>UpdatedAt</code> / <code>UpdatedBy</code></td><td>DateTime / string?</td><td>稽核（沿用既有慣例）</td></tr></tbody></table></div>
+<h3 id="52-provider">5.2 Provider</h3>
+<p>新增 <code>LicenseStateProvider</code>（Business/Services/DataAccess），比照 <code>RetrievalSettingsProvider</code>：單列讀取、<code>FirstOrDefault→若無則 Add</code>、<code>SaveChangesAsync</code>；<code>AsNoTracking</code> 讀取。</p>
+<h3 id="53-db檔案雙寫防單點刪除">5.3 DB＋檔案雙寫防單點刪除</h3>
+<p>DB 之外，另在檔案系統寫一份<strong>鏡像檔</strong>（落點：<code>SystemSettings.ExternalFileSystem.DatabasePath</code> 同目錄，即 <code>C:\temp\KnowledgeExtraction\*</code>，複用 <code>SystemHealthService.DirectoryIsWritable</code> 探測可寫）。內容為簽章保護的 <code>TrialStartedAt</code> 與 <code>MonotonicMaxSeenUtc</code>。啟動時<strong>DB 與檔案取較嚴格值</strong>（試用起算取較早、時鐘取較大），任一被刪即以另一方補回，防止「刪 DB 重裝重刷試用」。</p>
+<h3 id="54-雙-migrationclaudemd-不變量">5.4 雙 migration（CLAUDE.md 不變量）</h3>
+<p>於 <code>KnowledgeExtraction.AccessDatas</code>（SQLite）與 <code>KnowledgeExtraction.AccessDatas.SqlServerMigrations</code>（SqlServer）<strong>兩個專案各產生一支 migration</strong>。<code>SystemSettings.GetDatabaseProvider()</code> 決定 provider；<code>BackendDBContext</code> 需加 <code>DbSet&lt;LicenseState&gt;</code>。</p>
+<hr>
+<h2 id="6-試用期機制" class="t6">6. 試用期機制</h2>
+<ul><li><strong>起算點</strong>：首次啟動時若 <code>LicenseState</code> 無資料且無授權碼 → 寫入 <code>TrialStartedAt = now</code>、<code>Status = Trial</code>，同時寫檔案鏡像。</li><li><strong>期限</strong>：<code>TrialStartedAt + 6 個月</code>（實際天數列入設定 <code>LicenseSettings.TrialDays</code>，預設 183；最終值第 14 章待決）。</li><li><strong>防繞過</strong>：DB＋檔案雙寫；且以單調時鐘偵測時間回撥（把系統時間調回過去以延長試用會被偵測，見第 8 章）。</li><li><strong>狀態轉換</strong>：<code>Trial →（輸入有效授權碼）→ Activated</code>；<code>Trial →（超過試用天數）→ Expired（鎖定）</code>；<code>Activated →（超過 exp）→ Expired</code>。</li><li>到期一律<strong>完全阻擋登入</strong>。</li></ul>
+<hr>
+<h2 id="7-分散式授權檢查設計核心防篡改" class="t7">7. 分散式授權檢查設計（核心防篡改）</h2>
+<h3 id="71-原則">7.1 原則</h3>
+<p><strong>不提供單一 <code>IsLicensed()</code> 函式</strong>。授權判定拆成多個獨立檢查點，嵌入不同層與正常商業邏輯中，各點自帶「驗簽＋讀狀態＋單調時鐘」的小段判斷，任一發現異常即進入鎖定。目的：改一處無法解鎖全系統。</p>
+<h3 id="72-檢查點佈署">7.2 檢查點佈署</h3>
+<div class="tw"><table><thead><tr><th>#</th><th>位置（真實檔案）</th><th>手法</th></tr></thead><tbody><tr><td>1</td><td><strong>需自行新增</strong>啟動期閘門（<code>Program.cs</code> 於 <code>WebApplication.CreateBuilder</code> 之後、<code>builder.Build()</code> 之前）</td><td>啟動期最早閘門：Production 下驗證授權／試用，不通過則拋例外或標記鎖定。⚠️ 原本規劃沿用的 <code>Web/Configuration/StartupSafetyValidator.cs</code> <strong>已於 1.0.68 移除</strong>（它兩度擋住正式部署），實作時需另建</td></tr><tr><td>2</td><td>Program.cs <code>UseAuthorization()</code>（L479）之後、<code>MapControllers()</code>（L481）之前</td><td>新增授權 middleware：覆蓋 API＋Razor＋MCP；未授權一律導向 <code>/license</code>（放行 <code>/license</code>、登出、健康檢查、靜態資源白名單）</td></tr><tr><td>3</td><td><code>Business/Services/Other/AuthenticationStateHelper.Check()</code>（被 45+ 頁 <code>OnInitializedAsync</code> 呼叫、<code>MainLayout.razor.cs</code> L65 為全站入口）</td><td>於既有認證檢查中內聯授權判斷；異常則 <code>NavigateTo("/license")</code></td></tr><tr><td>4</td><td>各背景服務啟動（7 條 <code>HostedService</code>，Program.cs L324–343）</td><td>啟動時各自檢查對應功能旗標是否開啟、授權是否有效；未授權則不排程</td></tr><tr><td>5</td><td>關鍵功能進入點（匯入／清洗／蒸餾／問答／MCP／統計報表）</td><td>在功能 Service 入口內聯「功能旗標＋用量上限」檢查（如向量筆數逼近 <code>LimitVectors</code> 時阻擋建立索引）</td></tr><tr><td>6</td><td><code>Web/Health/SystemHealthService.cs</code>（<code>GetReportAsync</code> items list）</td><td>新增「授權狀態」健康項（見第 9.4 章）</td></tr></tbody></table></div>
+<h3 id="73-降低一次全找到">7.3 降低「一次全找到」</h3>
+<ul><li>各檢查點<strong>命名不含 license 字樣</strong>（如混用 <code>EnvironmentGate</code>、<code>RuntimeGuard</code>、<code>FeatureAvailability</code>、<code>UsageQuota</code> 等中性名）。</li><li>判斷邏輯<strong>內聯</strong>進既有方法，不集中成單一 helper。</li><li>驗簽用的公鑰以多來源交叉（內嵌常數 + 設定），並以常數時間比對（複用 <code>CryptographicOperations.FixedTimeEquals</code>，同 <code>McpAccessKeyService.FindEnabledMatchAsync</code>）。</li><li>可選：啟動期做輕量「程式碼完整性」自檢（關鍵組件雜湊比對），但明確標註此為嚇阻性、非防護性。</li></ul>
+<h3 id="74-誠實邊界">7.4 誠實邊界</h3>
+<p>中等強度<strong>無法</strong>防逆向工程、記憶體修改、重打包（原始碼在客戶手上）。本設計只提高破解成本與違約門檻。詳見第 13 章。</p>
+<hr>
+<h2 id="8-時鐘防篡改離線單調遞增時鐘" class="t8">8. 時鐘防篡改（離線，單調遞增時鐘）</h2>
+<h3 id="81-設計">8.1 設計</h3>
+<ul><li>在 <code>LicenseState.MonotonicMaxSeenUtc</code> 記錄「曾見過的最大時間戳」，並鏡像至檔案。</li><li><strong>寫入時機</strong>：啟動時、定時（背景服務每 N 分鐘）、以及每次授權檢查點觸發時 → 若 <code>now &gt; MonotonicMaxSeenUtc</code> 則更新為 <code>now</code>。</li><li><strong>回撥偵測</strong>：若 <code>now &lt; MonotonicMaxSeenUtc - 容忍值（如 5 分鐘 ClockSkew）</code> → 判定時間被調回 → 標記 <code>Status = Tampered</code>。</li></ul>
+<h3 id="82-反應策略">8.2 反應策略</h3>
+<ul><li><code>Tampered</code> → 立即鎖定（導向 <code>/license</code>），或（較寬容選項）縮短寬限、要求重新啟用。建議 MVP 直接鎖定，客服可核發新授權碼解除。</li><li>到期判斷同時參考 <code>now</code> 與 <code>MonotonicMaxSeenUtc</code>：<strong>取兩者較大者</strong>與 <code>exp</code> 比較，確保「調回時間」無法延長使用。</li></ul>
+<hr>
+<h2 id="9-執法點與使用者流程" class="t1">9. 執法點與使用者流程</h2>
+<h3 id="91-阻擋登入實作面">9.1 阻擋登入實作面</h3>
+<ul><li>新增 <code>/license</code> 啟用頁（Razor 元件，<strong>不套用需授權的 Layout</strong>，避免自我鎖死）。</li><li>middleware（檢查點 2）與 <code>AuthenticationStateHelper.Check</code>（檢查點 3）在未授權時一律導向 <code>/license</code>；白名單：<code>/license</code>、<code>/Auths/Logout</code>、<code>/health/*</code>、靜態資源。</li></ul>
+<h3 id="92-管理員啟用流程">9.2 管理員啟用流程</h3>
+<p><code>/license</code> 頁提供：顯示「請求字串」（可複製）與 Host ID 短碼、貼上授權碼欄位、「啟用」按鈕。啟用時：公鑰驗簽 → 指紋容錯比對 → 寫入 <code>LicenseState</code>（DB＋檔案）→ 成功則解鎖。</p>
+<h3 id="93-授權資訊顯示">9.3 授權資訊顯示</h3>
+<ul><li>授權管理頁（管理員可見）：剩餘天數、目前方案、各功能模組開關狀態、各項用量（現用量 / 上限，用量數字複用既有統計，如 <code>context.KnowledgeSource.CountAsync</code>、<code>VectorEmbedding.CountAsync</code>，見 <code>SystemHealthService.CheckDatabaseStatsAsync</code>）、帳號數 / 上限。</li><li>健康檢查頁「授權狀態」項（第 9.4 章）。</li></ul>
+<h3 id="94-健康檢查項">9.4 健康檢查項</h3>
+<p>比照 <code>SystemHealthService.CheckMcpServerAsync</code> 新增 <code>CheckLicenseAsync</code>，用 <code>CreateItem("授權狀態", "License", weight, status, evidence, failureMessage)</code>：顯示狀態、到期日、剩餘天數、指紋是否吻合、時鐘是否異常。到期／tampered → <code>Unhealthy</code>；逼近到期 → <code>Degraded</code>。</p>
+<hr>
+<h2 id="10-廠商端簽發系統knowledgeextractionlicensetool" class="t2">10. 廠商端簽發系統（KnowledgeExtraction.LicenseTool）</h2>
+<h3 id="101-專案">10.1 專案</h3>
+<p>新增 console 專案 <code>KnowledgeExtraction.LicenseTool</code>（<code>OutputType=Exe</code>，<strong>不加入主部署</strong>、不進 Docker/發佈）。可參考 <code>Share/Helpers</code> 共用密碼學工具（簽章／Base64Url 封裝），與客戶端共用同一份 payload schema（放 <code>Models</code> 或 <code>Share</code>）。</p>
+<h3 id="102-流程">10.2 流程</h3>
+<ol><li>輸入請求字串 → 解碼／校驗 → 讀出指紋與客戶資訊。</li><li>操作者依客戶購買狀態設定授權維度（到期日、功能旗標、用量／帳號上限）。</li><li>用<strong>私鑰</strong>簽發授權碼 → 輸出字串。</li><li>記錄簽發歷史（MVP 可用本機 SQLite／CSV；欄位：客戶、指紋、方案、簽發時間、到期日、授權碼）。</li></ol>
+<h3 id="103-私鑰保管">10.3 私鑰保管</h3>
+<p>私鑰離線保管（加密檔／HSM／密碼管理器），絕不進版控與部署。金鑰輪替策略見第 13 章。</p>
+<h3 id="104-未來">10.4 未來</h3>
+<p>可升級為網頁簽發後台（含客戶／合約管理、批次簽發、到期提醒）。第 14 章待決。</p>
+<hr>
+<h2 id="11-商業模式建議" class="t3">11. 商業模式建議</h2>
+<p>針對「地端知識庫 ＋ 6 個月試用轉付費」情境：</p>
+<div class="tw"><table><thead><tr><th>模式</th><th>說明</th><th>優點</th><th>缺點</th></tr></thead><tbody><tr><td>一次買斷（永久授權）</td><td>一次付費永久使用</td><td>客戶心理門檻低</td><td>無持續營收；更新／維運難收費</td></tr><tr><td>純訂閱（年費）</td><td>每年續費，過期停用</td><td>營收可預期；本機制天然支援到期執法</td><td>客戶對地端「還要每年付費」抗性</td></tr><tr><td>混合（授權年費＋維運訂閱）</td><td>授權費涵蓋使用權，維運訂閱涵蓋更新／支援／模型調校</td><td>兼顧持續營收與客戶接受度；對接 strategy 02</td><td>需清楚切分「授權」與「維運」權益</td></tr><tr><td>用量分級</td><td>依功能模組／用量／帳號數分級定價</td><td>與本機制四維度天然對齊；可低價入門、隨用量升級</td><td>需明確用量計量與升級流程</td></tr></tbody></table></div>
+<h3 id="建議">建議</h3>
+<p>採 <strong>混合模式：授權年費（依方案分級）＋ 維運/更新訂閱</strong>，並以本機制的四個維度作為分級槓桿：</p>
+<ul><li><strong>依功能模組</strong>：基礎版（文件轉文字＋RAG 問答）／進階版（加影音轉逐字稿、圖片辨識、知識頁審核）／旗艦版（加 MCP、統計報表）。</li><li><strong>依用量</strong>：知識來源／文件／向量筆數級距。</li><li><strong>依帳號數</strong>：席次分級。</li><li><strong>依期限</strong>：年約為主；6 個月試用到期後轉年約。</li></ul>
+<p>理由：地端客戶接受「年費＋維運」優於純訂閱的停用焦慮；四維度讓業務有充足的向上銷售（upsell）空間，且全部可由授權碼即時調整、無需改程式。定價數字列第 14 章待決。</p>
+<hr>
+<h2 id="12-分階段實作路線圖phases" class="t4">12. 分階段實作路線圖（Phases）</h2>
+<blockquote><p>每階段皆須遵守 CLAUDE.md 不變量：模型變更同時產生 <strong>SQLite 與 SqlServer 雙 migration</strong>；<code>SystemSettings:SystemInformation:SystemVersion</code> 版本號 +1（格式 <code>x.y.z (yyyy/MM/dd)</code>）；文件同步更新。</p></blockquote>
+<h3 id="phase-0密碼學與設定基礎">Phase 0：密碼學與設定基礎</h3>
+<ul><li>產出：<code>LicenseSettings</code>（內嵌公鑰、發行者、<code>TrialDays</code>、寬限天數、指紋門檻）註冊於 <code>ServiceCollectionExtensions.AddConfiguredOptions</code>；<code>Share/Helpers</code> 密碼學工具（ECDSA 簽/驗、Base64Url 封裝）；payload schema。</li><li>驗收：單元測試「簽/驗」往返成立；錯誤簽章被拒。</li></ul>
+<h3 id="phase-1mvp期限簽章驗證阻擋登入單一啟用頁">Phase 1（MVP）：期限＋簽章驗證＋阻擋登入＋單一啟用頁</h3>
+<ul><li>產出：<code>LicenseState</code> 表＋雙 migration＋<code>LicenseStateProvider</code>；<code>/license</code> 啟用頁；middleware 閘（檢查點 2）＋<code>AuthenticationStateHelper.Check</code> 內聯（檢查點 3）；到期／無效完全阻擋。</li><li>驗收：無授權→鎖定並導向 <code>/license</code>；貼上有效授權碼→解鎖；過期→再次鎖定。</li></ul>
+<h3 id="phase-2功能模組旗標">Phase 2：功能模組旗標</h3>
+<ul><li>產出：<code>FeatureFlags</code> 解析；關鍵功能進入點（檢查點 5）與背景服務（檢查點 4）依旗標開關。</li><li>驗收：關閉某模組→該功能與其背景服務停用、UI 提示。</li></ul>
+<h3 id="phase-3用量與帳號上限">Phase 3：用量與帳號上限</h3>
+<ul><li>產出：用量計量（複用既有 Count 查詢）；達上限阻擋新增；帳號數上限於建立使用者時檢查。</li><li>驗收：逼近／達上限的阻擋與提示正確。</li></ul>
+<h3 id="phase-4機器指紋">Phase 4：機器指紋</h3>
+<ul><li>產出：<code>IHostFingerprintProvider</code> ＋ Windows 實作；容錯比對；啟用時綁定、驗證時比對；<code>SystemStartupState</code> 快取。</li><li>驗收：換單一零件仍通過；整機更換則需重新啟用。</li></ul>
+<h3 id="phase-5單調時鐘防回撥">Phase 5：單調時鐘防回撥</h3>
+<ul><li>產出：<code>MonotonicMaxSeenUtc</code> 雙寫；回撥偵測→<code>Tampered</code>；到期判斷取 <code>max(now, seen)</code>。</li><li>驗收：調回系統時間→偵測並鎖定。</li></ul>
+<h3 id="phase-6分散檢查強化">Phase 6：分散檢查強化</h3>
+<ul><li>產出：檢查點 1（<strong>需新建啟動閘</strong>，原 <code>StartupSafetyValidator</code> 已於 1.0.68 移除）、更多內聯點、中性命名、輕量完整性自檢。</li><li>驗收：移除單一檢查點無法整體解鎖。</li></ul>
+<h3 id="phase-7廠商簽發工具">Phase 7：廠商簽發工具</h3>
+<ul><li>產出：<code>KnowledgeExtraction.LicenseTool</code> console；簽發歷史；私鑰保管流程。</li><li>驗收：由請求字串簽出可被客戶端接受的授權碼。</li></ul>
+<h3 id="phase-8健康項與管理頁">Phase 8：健康項與管理頁</h3>
+<ul><li>產出：<code>SystemHealthService</code> 授權健康項；授權管理頁（剩餘天數／用量／功能狀態）。</li><li>驗收：健康頁與管理頁正確反映授權狀態。</li></ul>
+<hr>
+<h2 id="13-風險限制與誠實邊界" class="t5">13. 風險、限制與誠實邊界</h2>
+<ul><li><strong>能擋</strong>：一般客戶「試用到期後繼續用」「複製到多台機器」「調系統時間延長試用」「刪 DB 重刷試用」「改單一設定換公鑰」。</li><li><strong>擋不了</strong>：原始碼／二進位在客戶手上 → 專業者可逆向、記憶體修改、移除檢查點、重打包。本機制為<strong>中等強度嚇阻</strong>，非強保護。</li><li><strong>誤殺與客服</strong>：硬體更換／VM 遷移可能使指紋不符 → 靠「多數符合」寬容；仍不符時走客服重新啟用（重出請求字串→簽新授權碼）。時鐘 <code>Tampered</code> 亦以客服核發新碼解除。</li><li><strong>金鑰風險</strong>：私鑰外洩＝可偽造任意授權碼。對策：私鑰離線保管；payload 含 <code>ver</code> 支援<strong>金鑰輪替</strong>（新版客戶端內嵌新公鑰、舊碼設落日）；輪替需隨版本發佈。</li><li><strong>法遵／隱私</strong>：指紋僅雜湊硬體識別碼，<strong>不含個資</strong>；請求字串中客戶自填資訊由客戶掌控。文件應載明資料用途。</li></ul>
+<hr>
+<h2 id="14-待決問題清單" class="t6">14. 待決問題清單</h2>
+<ol><li>定價數字：各方案年費、維運訂閱比例、用量級距、席次定價。</li><li>試用天數最終值（183？）與到期寬限天數。</li><li>機器指紋最終採用哪幾項特徵、容錯門檻（6 取 4？）。</li><li>時鐘 <code>Tampered</code> 反應：直接鎖定 vs 縮短寬限。</li><li>簽發後台是否網頁化、是否納入客戶／合約管理。</li><li>跨平台 Linux 部署的指紋與檔案落點方案。</li><li>演算法最終選型：ECDSA P-256 vs Ed25519 vs RSA-2048。</li><li>請求字串是否加密（MVP 建議僅校驗）。</li><li>授權管理頁的權限範圍（僅 support／管理員帳號？）。</li></ol>
+<hr>
+<h2 id="附錄對接的真實檔案專案索引" class="t7">附錄：對接的真實檔案／專案索引</h2>
+<ul><li>簽章骨架參考：<code>Web/Auth/JwtTokenService.cs</code>（改對稱為非對稱）</li><li>常數時間比對：<code>Business/Services/DataAccess/McpAccessKeyService.cs</code>（<code>FindEnabledMatchAsync</code>）＋ <code>Web/Auth/McpApiKeyAuthenticationHandler.cs</code></li><li>單列狀態表範本：<code>AccessDatas/Models/RetrievalSettingOverride.cs</code> ＋ <code>Business/Services/DataAccess/RetrievalSettingsProvider.cs</code></li><li>單例快取：<code>Web/Health/SystemStartupState.cs</code></li><li>啟動閘：<strong>需新建</strong>（原 <code>Web/Configuration/StartupSafetyValidator.cs</code> 已於 1.0.68 移除）</li><li>middleware 插入點：<code>Web/Program.cs</code> L479–481</li><li>UI 攔截：<code>Business/Services/Other/AuthenticationStateHelper.cs</code>（<code>Check</code>）＋ <code>Web/Components/Layout/MainLayout.razor.cs</code>（L65）</li><li>健康項：<code>Web/Health/SystemHealthService.cs</code>（<code>CreateItem</code>／<code>CheckMcpServerAsync</code>／<code>DirectoryIsWritable</code>）</li><li>設定註冊：<code>Web/Extensions/ServiceCollectionExtensions.cs</code>（<code>AddConfiguredOptions</code>）</li><li>雙 migration 專案：<code>KnowledgeExtraction.AccessDatas</code>（SQLite）＋ <code>KnowledgeExtraction.AccessDatas.SqlServerMigrations</code>（SqlServer）</li><li>可寫落點：<code>SystemSettings.ExternalFileSystem.DatabasePath</code>（<code>C:\temp\KnowledgeExtraction\*</code>）</li></ul>
+<hr>
+<blockquote><p>返回 <a href="../../docs/strategy/strategy-index.html">strategy 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（策略與規劃）</h3><ul><li><a href="../../docs/strategy/scope-and-vision.html">計畫範圍與遠景</a></li><li><a href="../../docs/strategy/business-value.html">商業價值與行銷策略</a></li><li><a href="../../docs/strategy/architecture-research.html">知識庫架構研究與建議</a></li><li><a href="../../docs/strategy/dev-roadmap.html">開發建議與路線圖</a></li><li><a href="../../docs/strategy/open-questions-risks.html">待釐清問題與技術風險清單</a></li><li><a href="../../docs/strategy/expected-deliverables.html">期望產出清單</a></li><li><a href="../../docs/strategy/gstack-playbook.html">以 gstack 技能精煉計畫的執行流程（Playbook）</a></li><li><a href="../../docs/strategy/cleaning-stage-design.html">資料清洗階段設計與分析</a></li><li><a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a></li><li><a href="../../docs/strategy/source-cleaning-value.html">知識來源管理與資料清洗：功能、價值與行銷</a></li><li><a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：功能、欄位、價值與行銷</a></li><li><a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#1-文件定位與商業背景">1. 文件定位與商業背景</a><a class="l3" href="#11-定位">1.1 定位</a><a class="l3" href="#12-商業目標">1.2 商業目標</a><a class="l3" href="#13-部署前提與強度定位">1.3 部署前提與強度定位</a><a class="l2" href="#2-整體架構與角色">2. 整體架構與角色</a><a class="l3" href="#21-角色">2.1 角色</a><a class="l3" href="#22-離線啟用時序">2.2 離線啟用時序</a><a class="l3" href="#23-執行期驗證流每次啟動與請求">2.3 執行期驗證流（每次啟動與請求）</a><a class="l2" href="#3-機器指紋host-id設計">3. 機器指紋（Host ID）設計</a><a class="l3" href="#31-目的">3.1 目的</a><a class="l3" href="#32-採集特徵windows-優先容錯設計">3.2 採集特徵（Windows 優先；容錯設計）</a><a class="l3" href="#33-組合與容錯比對">3.3 組合與容錯比對</a><a class="l3" href="#34-跨平台考量">3.4 跨平台考量</a><a class="l3" href="#35-程式落點">3.5 程式落點</a><a class="l2" href="#4-金鑰體系與授權碼格式">4. 金鑰體系與授權碼格式</a><a class="l3" href="#41-金鑰體系非對稱">4.1 金鑰體系（非對稱）</a><a class="l3" href="#42-授權碼封裝格式類-jwt離線可驗">4.2 授權碼封裝格式（類 JWT，離線可驗）</a><a class="l3" href="#43-payload-欄位">4.3 Payload 欄位</a><a class="l3" href="#44-請求字串格式">4.4 請求字串格式</a><a class="l3" href="#45-請求字串是否加密">4.5 請求字串是否加密</a><a class="l2" href="#5-授權狀態儲存licensestate">5. 授權狀態儲存（LicenseState）</a><a class="l3" href="#51-資料表">5.1 資料表</a><a class="l3" href="#52-provider">5.2 Provider</a><a class="l3" href="#53-db檔案雙寫防單點刪除">5.3 DB＋檔案雙寫防單點刪除</a><a class="l3" href="#54-雙-migrationclaudemd-不變量">5.4 雙 migration（CLAUDE.md 不變量）</a><a class="l2" href="#6-試用期機制">6. 試用期機制</a><a class="l2" href="#7-分散式授權檢查設計核心防篡改">7. 分散式授權檢查設計（核心防篡改）</a><a class="l3" href="#71-原則">7.1 原則</a><a class="l3" href="#72-檢查點佈署">7.2 檢查點佈署</a><a class="l3" href="#73-降低一次全找到">7.3 降低「一次全找到」</a><a class="l3" href="#74-誠實邊界">7.4 誠實邊界</a><a class="l2" href="#8-時鐘防篡改離線單調遞增時鐘">8. 時鐘防篡改（離線，單調遞增時鐘）</a><a class="l3" href="#81-設計">8.1 設計</a><a class="l3" href="#82-反應策略">8.2 反應策略</a><a class="l2" href="#9-執法點與使用者流程">9. 執法點與使用者流程</a><a class="l3" href="#91-阻擋登入實作面">9.1 阻擋登入實作面</a><a class="l3" href="#92-管理員啟用流程">9.2 管理員啟用流程</a><a class="l3" href="#93-授權資訊顯示">9.3 授權資訊顯示</a><a class="l3" href="#94-健康檢查項">9.4 健康檢查項</a><a class="l2" href="#10-廠商端簽發系統knowledgeextractionlicensetool">10. 廠商端簽發系統（KnowledgeExtraction.LicenseTool）</a><a class="l3" href="#101-專案">10.1 專案</a><a class="l3" href="#102-流程">10.2 流程</a><a class="l3" href="#103-私鑰保管">10.3 私鑰保管</a><a class="l3" href="#104-未來">10.4 未來</a><a class="l2" href="#11-商業模式建議">11. 商業模式建議</a><a class="l3" href="#建議">建議</a><a class="l2" href="#12-分階段實作路線圖phases">12. 分階段實作路線圖（Phases）</a><a class="l3" href="#phase-0密碼學與設定基礎">Phase 0：密碼學與設定基礎</a><a class="l3" href="#phase-1mvp期限簽章驗證阻擋登入單一啟用頁">Phase 1（MVP）：期限＋簽章驗證＋阻擋登入＋單一啟用頁</a><a class="l3" href="#phase-2功能模組旗標">Phase 2：功能模組旗標</a><a class="l3" href="#phase-3用量與帳號上限">Phase 3：用量與帳號上限</a><a class="l3" href="#phase-4機器指紋">Phase 4：機器指紋</a><a class="l3" href="#phase-5單調時鐘防回撥">Phase 5：單調時鐘防回撥</a><a class="l3" href="#phase-6分散檢查強化">Phase 6：分散檢查強化</a><a class="l3" href="#phase-7廠商簽發工具">Phase 7：廠商簽發工具</a><a class="l3" href="#phase-8健康項與管理頁">Phase 8：健康項與管理頁</a><a class="l2" href="#13-風險限制與誠實邊界">13. 風險、限制與誠實邊界</a><a class="l2" href="#14-待決問題清單">14. 待決問題清單</a><a class="l2" href="#附錄對接的真實檔案專案索引">附錄：對接的真實檔案／專案索引</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/strategy/軟體授權保護機制設計.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

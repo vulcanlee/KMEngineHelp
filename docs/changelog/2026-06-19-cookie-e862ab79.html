@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>修正抖音下載 UNDERRSOCKET：改用瀏覽器 context 帶 cookie 下載（0.2.87）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>修正抖音下載 UNDERRSOCKET：改用瀏覽器 context 帶 cookie 下載（0.2.87）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-19</li><li>版本：0.2.86 → 0.2.87</li><li>類型：缺陷修正</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p>0.2.85 為抖音下載加了「逾時＋3 次重試」後，實測仍失敗：三次重試<strong>全部</strong> <code>UND_ERR_SOCKET</code> （other side closed）後放棄（log Id=67）。證明這不是偶發抖動，而是 Node <code>fetch</code> 對抖音 CDN 網址<strong>系統性被斷線</strong>，重試無法解決。</p>
+<h2 id="根因" class="t2">根因</h2>
+<p><code>get-douyin-audio.mjs</code> 原本先 <code>context.close()</code> 關閉瀏覽器，再以 Node undici <code>fetch</code> 下載已 攔截的 CDN 網址。undici 是純 Node HTTP 客戶端、僅送極簡標頭、且<strong>不帶任何 cookie</strong>。0.2.85 註解假設「URL 已預簽章、不需 cookie」並不成立：抖音 TOS CDN 的防盜鏈會把「沒有瀏覽器 session cookie／瀏覽器標頭」的請求直接斷線。瀏覽器當初能載入串流，正是因為它自動帶上 context 內的 cookie（<code>ttwid</code> 等）與完整標頭。</p>
+<h2 id="修正" class="t3">修正</h2>
+<p><code>tools/douyin-audio/get-douyin-audio.mjs</code> 下載區塊：</p>
+<ul><li>改為<strong>在關閉瀏覽器前</strong>，用 Playwright <code>context.request.get(chosen, { headers: { Referer, User-Agent }, timeout, maxRedirects })</code> 下載，再 <code>await resp.body()</code> 取得位元組。<code>context.request</code></li></ul>
+<p>會自動沿用瀏覽器 context 的 cookie 與近似瀏覽器標頭，繞過 CDN 防盜鏈斷線。</p>
+<ul><li>保留 3 次重試 + 退避以防真正的偶發抖動；下載成功或耗盡後於 <code>finally</code> 關閉瀏覽器。</li><li>頁內 <code>fetch</code> 因 CDN 跨網域受 CORS 阻擋、無法讀取位元組，故不採用。</li></ul>
+<p>不改 C#（<code>DouyinAudioDownloader</code> 仍以 exit code 包裝，150 秒總逾時足夠）。</p>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>變更檔案：<code>tools/douyin-audio/get-douyin-audio.mjs</code>、<code>tools/douyin-audio/README.md</code>、</li></ul>
+<p><code>appsettings.json</code>（版本號）。無模型／資料庫變更，不需 migration。</p>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>node --check tools/douyin-audio/get-douyin-audio.mjs</code> 語法正確。</li><li><code>node tools/douyin-audio/get-douyin-audio.mjs "&lt;抖音連結&gt;" --out &lt;暫存.mp3&gt;</code> 應成功產出 mp3、</li></ol>
+<p>無 <code>UND_ERR_SOCKET</code>。</p>
+<ol><li>系統「音訊轉錄」貼抖音連結，背景下載成功並完成轉錄。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#根因">根因</a><a class="l2" href="#修正">修正</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-19-抖音下載改用瀏覽器cookie.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

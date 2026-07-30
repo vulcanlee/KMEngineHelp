@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清洗結果對話窗可複製、預覽與線上編修（0.2.83）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>清洗結果對話窗可複製、預覽與線上編修（0.2.83）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-17</li><li>版本：0.2.82 → 0.2.83</li><li>類型：功能強化 / UI</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p><code>/knowledge-sources</code>「檢視清洗結果」原為唯讀檢視，需比照音訊轉錄頁「編修產生結果」對話窗：</p>
+<ol><li>對話窗要有<strong>複製按鈕</strong>（複製清洗結果內容）。</li><li>右方要有 <strong>Markdown 預覽</strong>。</li><li>對話窗邊界與做法比照「編修產生結果」（共用 <code>ContentEditDialog</code>：90vw、<code>top:3vh</code>、90vh、左編輯／右預覽）。</li><li>要有<strong>修改內容＋儲存</strong>功能。</li><li>確認清洗結果<strong>不存資料庫</strong>、而是存到 appsettings.json 指定目錄下的檔案。</li></ol>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="contenteditdialog共用元件"><code>ContentEditDialog</code>（共用元件）</h3>
+<ul><li>新增 <code>ShowCopy</code>（預設 <code>false</code>）：為真時於編輯區標題列顯示「複製」鈕，呼叫 <code>navigator.clipboard.writeText</code> 複製目前編輯內容（含成功/失敗訊息）。</li><li>新增 <code>Note</code>（可選）：於編輯區上方顯示一行備註（此處用於審核者資訊）。</li><li>注入 <code>IJSRuntime</code> 與 AntDesign <code>MessageService</code>。現有三處使用點（逐字稿、產生結果、文件萃取、圖片辨識）預設不顯示複製鈕、無備註，行為不變。</li></ul>
+<h3 id="knowledgesourceview"><code>KnowledgeSourceView</code></h3>
+<ul><li>「檢視清洗結果」由唯讀 <code>&lt;pre&gt;</code> Modal 改為 <code>&lt;ContentEditDialog ShowPreview="true" ShowCopy="true" Note="@cleanedReviewInfo" OnSave="OnSaveCleanedAsync" /&gt;</code>。</li><li>新增 <code>OnSaveCleanedAsync</code>：呼叫 <code>UpdateCleanedContentAsync</code>，成功關窗＋提示、失敗顯示錯誤（比照 <code>MediaTranscriptionView.OnSaveEditAsync</code>）。</li></ul>
+<h3 id="knowledgesourceservice"><code>KnowledgeSourceService</code></h3>
+<ul><li>新增 <code>UpdateCleanedContentAsync(int id, string content)</code>，比照 <code>MediaTranscriptionService.UpdateGeneratedContentAsync</code> 不變量：<code>CleanTrackingHelper.Clean&lt;KnowledgeSource&gt;</code> → 追蹤查詢 → 團隊權控（<code>IsTeamAccessible</code>）→ 原地覆寫同一相對路徑（<code>Encoding.UTF8</code>，與 <code>CleaningProcessor</code> 寫入一致）→ 僅更新 <code>UpdatedAt</code>。</li><li><strong>狀態維持不變</strong>（不因編修而重新送審）。</li></ul>
+<h2 id="儲存機制確認需求-5" class="t3">儲存機制確認（需求 5）</h2>
+<p>清洗結果<strong>只存檔案、不存資料庫</strong>：<code>CleaningProcessor</code> 以 <code>Encoding.UTF8</code> 寫入 <code>ExternalFileSystem.CleanedSourcePath</code>（appsettings.json，預設 <code>C:\temp\KnowledgeExtraction\CleanedSource</code>）下 <code>{年}/{guid}.md</code>；DB <code>KnowledgeSource</code> 僅存相對路徑 <code>CleanedContentRelativePath</code>，<strong>無內容欄位</strong>。本次編修亦覆寫同一檔案，未新增任何內容欄位 → <strong>不需 migration</strong>。</p>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>變更檔案：<code>Components/Commons/ContentEditDialog.razor</code>、<code>Components/Views/KnowledgeSources/KnowledgeSourceView.razor</code>(+<code>.razor.cs</code>)、<code>Business/Services/DataAccess/KnowledgeSourceService.cs</code>。</li><li>無模型／資料庫變更。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li>對「已清洗／待審核」紀錄點「檢視清洗結果」：寬版對話窗、左編輯／右預覽、上方審核者資訊、複製鈕可用。</li><li>修改後儲存：成功提示、關窗、重開為新內容、來源狀態不變、<code>UpdatedAt</code> 更新；<code>CleanedSourcePath</code> 下對應檔案已更新。</li><li>權控：非管理員且無團隊交集無法讀/寫。</li><li>回歸：其他 <code>ContentEditDialog</code> 使用點行為不變。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#contenteditdialog共用元件">ContentEditDialog（共用元件）</a><a class="l3" href="#knowledgesourceview">KnowledgeSourceView</a><a class="l3" href="#knowledgesourceservice">KnowledgeSourceService</a><a class="l2" href="#儲存機制確認需求-5">儲存機制確認（需求 5）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-17-清洗結果可編修複製預覽.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

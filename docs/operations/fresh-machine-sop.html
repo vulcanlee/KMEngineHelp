@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>全新機器部署 SOP｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 部署與維運</p><header class="hero"><div class="kicker">部署與維運</div><h1>全新機器部署 SOP</h1></header><div class="docwrap"><main><h2 id="文件目的" class="t1">文件目的</h2>
+<p>提供一份<strong>可照著操作的步驟手冊</strong>：在一台全新的 Windows 電腦上，把「智庫引擎」從零安裝到可正常使用。涵蓋執行環境、外部工具、資料庫、<code>appsettings.json</code> 參數與機密設定、啟動、首次登入與功能驗證。</p>
+<blockquote><p>與其他文件的關係（本文件<strong>串起流程並交叉引用</strong>，細節不重複）：</p>
+<ul><li>外部工具安裝細節 → <a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a></li><li>IIS／服務帳號的可攜工具安裝 → <a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定</a></li><li>各設定項完整說明 → <a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a></li><li>上線前安全稽核 → <a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a></li><li>改用 SQL Server → <a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li>Google 登入 → <a href="../../docs/security/google-oauth2.html">Google OAuth2 第三方登入</a></li></ul></blockquote>
+<hr>
+<h2 id="0-先做決策決定後續要裝什麼" class="t2">0. 先做決策（決定後續要裝什麼）</h2>
+<div class="tw"><table><thead><tr><th>決策</th><th>選項</th><th>影響</th></tr></thead><tbody><tr><td>資料庫</td><td><strong>SQLite</strong>（預設、免安裝）／ <strong>SQL Server</strong></td><td>SQL Server 需另裝 DB 並提供連線字串（步驟 4）</td></tr><tr><td>快取</td><td><strong>Memory</strong>（預設、單機）／ <strong>Redis</strong>（多節點共享）</td><td>Redis 需另裝並提供連線字串</td></tr><tr><td>影音轉逐字稿功能</td><td>用／不用</td><td>需 OpenAI 金鑰 + ffmpeg + yt-dlp；抖音另需 Node + playwright</td></tr><tr><td>文件轉文字功能</td><td>用／不用</td><td>需 markitdown</td></tr><tr><td>Google 第三方登入</td><td>用／不用</td><td>需 Google OAuth 用戶端憑證</td></tr><tr><td>執行身分</td><td>互動式登入帳號／IIS 應用程式集區／Windows 服務</td><td>影響 PATH 與目錄權限（建議工具填絕對路徑）</td></tr></tbody></table></div>
+<blockquote><p>ℹ️ <strong>關於 <code>appsettings.Production.json</code></strong>：倉庫內的這份檔案目前<strong>只有一個 <code>OpenAISettings:ApiKey</code> 佔位符</strong>，不含資料庫、記錄檔或安全性設定。也就是說 Production 環境的所有設定值都繼承自 <code>appsettings.json</code>（例如 <code>DatabaseProvider</code> 為 <code>Sqlite</code>），要覆寫請自行於該檔或環境變數補上（見步驟 6）。</p></blockquote>
+<hr>
+<h2 id="1-安裝-net-10-執行環境" class="t3">1. 安裝 .NET 10 執行環境</h2>
+<p>所有專案目標框架為 <strong><code>net10.0</code></strong>。</p>
+<ul><li>僅執行已發布產物：安裝 <strong>ASP.NET Core Runtime 10.0</strong>（Hosting Bundle，若走 IIS）。</li><li>要在本機建置／發布：安裝 <strong>.NET SDK 10.0</strong>。</li></ul>
+<pre><code>winget install --id Microsoft.DotNet.SDK.10 -e        # 開發/建置
+# 或僅執行：winget install --id Microsoft.DotNet.AspNetCore.10 -e
+dotnet --info                                          # 確認 10.0 已安裝</code></pre>
+<blockquote><p><strong>PowerShell 7+（選配，建議）</strong>：程式本身執行<strong>不需要</strong> PowerShell，但本專案附的便利／檢測腳本（如 <code>scripts/Test-ExternalTools.ps1</code>、<code>scripts/Install-ExternalTools.ps1</code>）建議以 PowerShell 7 以上執行。Windows 內建為 5.1，建議另裝：<code>winget install --id Microsoft.PowerShell -e</code>，並以 <code>pwsh --version</code> 確認為 7.x。</p></blockquote>
+<blockquote><p><strong>一鍵檢測</strong>：安裝完成後可執行 <code>pwsh -File scripts/Test-ExternalTools.ps1</code> 一次檢查 <strong>.NET 10 執行時、PowerShell 版本、ffmpeg/yt-dlp/markitdown 及抖音鏈（Node/npm/playwright）</strong>；缺少 .NET 10 執行時會以阻斷狀態（結束碼 1）提示先行安裝。</p></blockquote>
+<hr>
+<h2 id="2-取得程式" class="t4">2. 取得程式</h2>
+<p>擇一：</p>
+<ul><li><strong>A. 由原始碼建置</strong>（需 SDK）：</li></ul>
+<pre><code>  git clone https://github.com/vulcanlee/KnowledgeExtraction.AI.git C:\Vulcan\Github\KnowledgeExtraction.AI</code></pre>
+<ul><li><strong>B. 發布產物部署</strong>（建議正式環境）：在有 SDK 的機器執行</li></ul>
+<pre><code>  dotnet publish src/KnowledgeExtraction/KnowledgeExtraction.Web -c Release -o C:\apps\KnowledgeExtraction</code></pre>
+<p>將 <code>C:\apps\KnowledgeExtraction</code> 複製到目標機器。</p>
+<hr>
+<h2 id="3-安裝外部工具依步驟-0-的功能決策" class="t5">3. 安裝外部工具（依步驟 0 的功能決策）</h2>
+<p>完整安裝指令與「如何查出工具絕對路徑」見 <a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a>。</p>
+<blockquote><p><strong>建議用腳本一鍵安裝與檢測</strong>（細節見該文件 §3.0）：</p>
+<pre><code>pwsh -File scripts/Install-ExternalTools.ps1   # 安裝（預設全部；僅核心可加 -SkipDouyin）
+pwsh -File scripts/Test-ExternalTools.ps1      # 檢測並取得各工具絕對路徑（含版本訊息）</code></pre>
+<p>檢測腳本會輸出可貼入 <code>appsettings.json</code> 的路徑片段（步驟 6）。</p>
+<p>⚠️ <strong>若以 IIS／服務帳號執行</strong>（步驟 0 的「執行身分」）：上述腳本把工具裝在<strong>使用者 Home 目錄</strong>，應用程式集區身分讀不到。請改用可攜安裝把工具集中到 <code>C:\KMEngineTools</code> 並授權集區：</p>
+<pre><code># 以系統管理員執行
+pwsh -File scripts/Install-PortableTools.ps1 -InstallDir C:\KMEngineTools
+pwsh -File scripts/Test-PortableTools.ps1 -InstallDir C:\KMEngineTools -AppPoolName &lt;集區名&gt;</code></pre>
+<p>完整說明見 <a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定</a>。</p></blockquote>
+<p>手動安裝摘要：</p>
+<div class="tw"><table><thead><tr><th>功能</th><th>需要的工具</th><th>安裝</th></tr></thead><tbody><tr><td>影音轉逐字稿（檔案、YouTube／小紅書連結）</td><td><strong>ffmpeg</strong>、<strong>yt-dlp</strong></td><td><code>winget install Gyan.FFmpeg</code>；<code>python -m pip install --upgrade yt-dlp</code></td></tr><tr><td>文件轉文字</td><td><strong>markitdown</strong></td><td><code>python -m pip install --upgrade "markitdown[all]"</code></td></tr><tr><td><strong>抖音</strong>音訊（半自動助手）</td><td><strong>Node.js</strong>、<strong>@playwright/cli</strong>（含 Chromium）</td><td>見外部工具文件 §3.3；抖音無法走 yt-dlp（見該文件 §8）</td></tr></tbody></table></div>
+<blockquote><p>安裝後務必查出每支工具的<strong>絕對路徑</strong>填入 <code>appsettings.json</code>（步驟 6），避免服務帳號 PATH 找不到工具。</p></blockquote>
+<hr>
+<h2 id="4-安裝資料庫僅-sql-server-需要" class="t6">4. 安裝資料庫（僅 SQL Server 需要）</h2>
+<ul><li><strong>SQLite（預設）</strong>：免安裝。資料庫檔由系統於 <code>SystemSettings:ExternalFileSystem:DatabasePath</code> 下自動建立（<code>BackendDB.db</code>）。</li><li><strong>SQL Server</strong>：安裝 SQL Server（Express 以上）或使用 Azure SQL；建立空資料庫；備妥連線字串。切換步驟與 migration assembly 細節見 <a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a>。</li></ul>
+<blockquote><p>啟動時系統會自動套用 EF Core migrations（有 migration 則 <code>Migrate()</code>、否則 <code>EnsureCreated()</code>），<strong>無須手動建表</strong>。</p></blockquote>
+<hr>
+<h2 id="5-選用安裝-redis" class="t7">5. （選用）安裝 Redis</h2>
+<p>僅當步驟 0 選擇 Redis 快取時。安裝 Redis 伺服器，記下連線字串（如 <code>localhost:6379</code>），於步驟 6 設定。</p>
+<hr>
+<h2 id="6-設定-appsettings-與機密核心" class="t8">6. 設定 appsettings 與機密（核心）</h2>
+<p>設定來源優先序（高→低）：<strong>環境變數</strong> → <strong>User Secrets（開發）</strong> → <strong><code>appsettings.{Environment}.json</code></strong> → <strong><code>appsettings.json</code></strong>。 階層鍵的環境變數寫法：用雙底線，如 <code>OpenAISettings:ApiKey</code> → <code>OpenAISettings__ApiKey</code>。</p>
+<blockquote><p><strong>機密（金鑰、密碼、連線字串）一律不進版控</strong>：正式環境用環境變數或部署平台 secret；開發機可用 <code>dotnet user-secrets</code>。</p></blockquote>
+<h3 id="61-必改必確認參數總表環境同步重點">6.1 必改／必確認參數總表（環境同步重點）</h3>
+<div class="tw"><table><thead><tr><th>參數鍵</th><th>預設值</th><th>機密</th><th>何時需更新／確認</th><th>環境變數名</th></tr></thead><tbody><tr><td><code>SystemSettings:SystemInformation:SystemVersion</code></td><td>目前版本</td><td>否</td><td>每次建置遞增（見<a href="../../docs/operations/maintenance-rules.html">維護規範</a>）</td><td>—</td></tr><tr><td><code>SystemSettings:DatabaseProvider</code></td><td><code>Sqlite</code></td><td>否</td><td><strong>務必確認</strong>符合步驟 0 選擇（<code>appsettings.Production.json</code> 未覆寫，Production 亦為 <code>Sqlite</code>）</td><td><code>SystemSettings__DatabaseProvider</code></td></tr><tr><td><code>SystemSettings:ConnectionStrings:DefaultConnection</code></td><td>空</td><td><strong>是</strong></td><td>用 SqlServer 時<strong>必填</strong></td><td><code>SystemSettings__ConnectionStrings__DefaultConnection</code></td></tr><tr><td><code>SystemSettings:ExternalFileSystem:*</code>（各目錄）</td><td><code>C:\temp\KnowledgeExtraction\*</code></td><td>否</td><td>確認磁碟與<strong>寫入權限</strong>；正式環境建議改到專屬資料碟</td><td><code>SystemSettings__ExternalFileSystem__DownloadPath</code> 等</td></tr><tr><td><code>NLog:BasePath</code></td><td><code>C:\temp\Logs</code></td><td>否</td><td>確認路徑與保留策略；正式環境調整位置</td><td><code>NLog__BasePath</code></td></tr><tr><td><code>JwtSettings:SigningKey</code></td><td>開發預設字串（<code>DevelopmentOnly-</code> 開頭）</td><td><strong>是</strong></td><td><strong>Production 必改</strong>（≥32 字元、亂數）。⚠️ <strong>沒有程式會擋</strong>（1.0.68 起無啟動安全檢查），須自行確認；留空或短於 32 字元則會被選項驗證擋下，見 §6.4</td><td><code>JwtSettings__SigningKey</code></td></tr><tr><td><code>BootstrapSettings:SupportPassword</code></td><td><code>1qaz@WSX</code></td><td><strong>是</strong></td><td><strong>Production 必改</strong>。⚠️ <strong>沒有程式會擋</strong>（1.0.68 起無啟動安全檢查），沿用 <code>1qaz@WSX</code> 不會有任何提示，須自行確認</td><td><code>BootstrapSettings__SupportPassword</code></td></tr><tr><td><code>BootstrapSettings:SupportAccount</code>／<code>SupportName</code>／<code>SupportEmail</code></td><td><code>support</code></td><td>否</td><td>視需要調整預設管理者帳號</td><td><code>BootstrapSettings__SupportAccount</code> 等</td></tr><tr><td><code>Swagger:EnabledInProduction</code></td><td><code>false</code></td><td>否</td><td>Production 建議明確設 true/false（1.0.68 起不再強制）</td><td><code>Swagger__EnabledInProduction</code></td></tr><tr><td><code>Security:ReturnExceptionDetails</code></td><td>未設定（<code>null</code>）</td><td>否</td><td><code>appsettings.Production.json</code> 無此區段，<strong>正式環境請明確設為 <code>false</code></strong> 以免外洩例外細節</td><td><code>Security__ReturnExceptionDetails</code></td></tr><tr><td><code>Cors:AllowedOrigins</code></td><td><code>[]</code></td><td>否</td><td>若有跨來源前端，填允許的網域</td><td><code>Cors__AllowedOrigins__0</code> 等</td></tr><tr><td><code>CacheSettings:Provider</code></td><td><code>Memory</code></td><td>否</td><td>多節點改 <code>Redis</code></td><td><code>CacheSettings__Provider</code></td></tr><tr><td><code>CacheSettings:RedisConnection</code></td><td>空</td><td>視情況</td><td><code>Provider=Redis</code> 時<strong>必填</strong>（1.0.68 起留空不會被擋，但快取會失效）</td><td><code>CacheSettings__RedisConnection</code></td></tr><tr><td><code>OpenAISettings:ApiKey</code></td><td>空</td><td><strong>是</strong></td><td>用轉錄功能時<strong>必填</strong></td><td><code>OpenAISettings__ApiKey</code></td></tr><tr><td><code>OpenAISettings:FfmpegPath</code></td><td><code>C:\KMEngineTools\ffmpeg\bin\ffmpeg.exe</code></td><td>否</td><td>用轉錄時填 <strong>ffmpeg.exe 絕對路徑</strong></td><td><code>OpenAISettings__FfmpegPath</code></td></tr><tr><td><code>OpenAISettings:YtDlpPath</code></td><td><code>C:\KMEngineTools\yt-dlp\yt-dlp.exe</code></td><td>否</td><td>用連結來源時填 <strong>yt-dlp.exe 絕對路徑</strong></td><td><code>OpenAISettings__YtDlpPath</code></td></tr><tr><td><code>OpenAISettings:YtDlpCookiesFile</code>／<code>YtDlpCookiesFromBrowser</code></td><td>空</td><td>視情況</td><td>選用，給其他需 cookie 的平台（YouTube／小紅書不需要、抖音無效，見外部工具文件 §8）</td><td><code>OpenAISettings__YtDlpCookiesFile</code></td></tr><tr><td><code>OpenAISettings:NodePath</code></td><td><code>C:\KMEngineTools\node\node.exe</code></td><td>否</td><td>需轉錄抖音時，指向 Node.js</td><td><code>OpenAISettings__NodePath</code></td></tr><tr><td><code>OpenAISettings:DouyinHelperScript</code></td><td>（appsettings 已填本機絕對路徑）</td><td>否</td><td>需轉錄抖音時必填；<strong>部署到他機需改成該機 get-douyin-audio.mjs 的絕對路徑</strong>；僅本機</td><td><code>OpenAISettings__DouyinHelperScript</code></td></tr><tr><td><code>OpenAISettings:DouyinTimeoutSeconds</code></td><td><code>150</code></td><td>否</td><td>視需要調整</td><td><code>OpenAISettings__DouyinTimeoutSeconds</code></td></tr><tr><td><code>MarkItDownSettings:MarkItDownPath</code></td><td><code>C:\KMEngineTools\python\Scripts\markitdown.exe</code></td><td>否</td><td>用文件轉文字時填 <strong>markitdown.exe 絕對路徑</strong></td><td><code>MarkItDownSettings__MarkItDownPath</code></td></tr><tr><td><code>GoogleOAuthSettings:Enabled</code>／<code>ClientId</code>／<code>ClientSecret</code></td><td><code>false</code>／空／空</td><td>ClientSecret 為<strong>是</strong></td><td>啟用 Google 登入時設定</td><td><code>GoogleOAuthSettings__ClientSecret</code> 等</td></tr></tbody></table></div>
+<p>各參數的詳細語意見 <a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a> 第 4 節。</p>
+<h3 id="62-正式環境設定機密的範例環境變數">6.2 正式環境設定機密的範例（環境變數）</h3>
+<blockquote><p><strong>跑在 IIS 的話，優先用 <code>web.config</code> 的 <code>&lt;environmentVariables&gt;</code>，不要用 <code>setx</code>。</strong> <code>setx /M</code> 寫的是 Machine 範圍變數，<strong>IIS 工作處理序要重啟 IIS／WAS 才讀得到</strong>——「明明設了卻沒生效」多半是這個原因。 <code>web.config</code> 則是<strong>存檔即回收生效、不需重建重部署</strong>。完整範例與權衡見 <a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定 §5.1</a>：</p>
+<pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\KnowledgeExtraction.Web.dll" hostingModel="inprocess"&gt;
+  &lt;environmentVariables&gt;
+    &lt;environmentVariable name="JwtSettings__SigningKey" value="&lt;32 字元以上亂數&gt;" /&gt;
+    &lt;environmentVariable name="BootstrapSettings__SupportPassword" value="&lt;強密碼&gt;" /&gt;
+  &lt;/environmentVariables&gt;
+&lt;/aspNetCore&gt;</code></pre></blockquote>
+<p>非 IIS（如以服務或主控台方式執行）可用 Machine 環境變數：</p>
+<pre><code>setx ASPNETCORE_ENVIRONMENT "Production" /M
+setx JwtSettings__SigningKey "&lt;32 字元以上的亂數字串&gt;" /M
+setx BootstrapSettings__SupportPassword "&lt;強密碼&gt;" /M
+setx OpenAISettings__ApiKey "&lt;OpenAI 金鑰&gt;" /M
+setx SystemSettings__ConnectionStrings__DefaultConnection "&lt;SQL Server 連線字串&gt;" /M
+# 用 SQLite 的話，覆寫回 Sqlite：
+setx SystemSettings__DatabaseProvider "Sqlite" /M</code></pre>
+<h3 id="63-開發機設定機密user-secrets">6.3 開發機設定機密（User Secrets）</h3>
+<pre><code>cd src/KnowledgeExtraction/KnowledgeExtraction.Web
+dotnet user-secrets set "OpenAISettings:ApiKey" "&lt;OpenAI 金鑰&gt;"</code></pre>
+<h3 id="64-以-production-啟動失敗http-50030怎麼查">6.4 以 Production 啟動失敗（HTTP 500.30）怎麼查</h3>
+<p><strong>HTTP 500.30 代表應用程式在啟動階段就結束了</strong>，IIS 拿不到可服務的處理序。原因不會顯示在瀏覽器上，必須從別處取得。</p>
+<blockquote><p><strong>1.0.68 起沒有「啟動安全檢查」了</strong>。先前有一支 <code>StartupSafetyValidator</code> 會在 Production 沿用開發預設金鑰／密碼時中止啟動，因兩度擋住正式部署已移除；1.0.69 連健康檢查的金鑰內容判定也一併移除。</p>
+<p><strong>1.0.72 恢復了偵測能力，但改為「只提示、不阻斷」</strong>：Production 啟動時若偵測到仍在用開發預設金鑰或 support 預設密碼，會在日誌記一筆 <code>Error</code>（訊息開頭是 <code>Production 安全風險：</code>），且 <code>/system-health</code> 的「身分驗證」項轉<strong>黃燈</strong>。<strong>站台仍會正常啟動。</strong></p>
+<p>⚠️ <strong>因此：日誌裡看到 <code>Production 安全風險</code> 這筆 Error，不是 500.30 的原因。</strong> 它只是提示你去換金鑰，不會讓處理序結束。查 500.30 請往下看第 1 步。安全性仍須由部署流程確保（見 §6.1、§6.2 與《正式部署與安全檢查清單》的人工核對項）。</p></blockquote>
+<p><strong>第 1 步：看 Windows 事件檢視器</strong>（<code>eventvwr</code> → Windows 記錄 → 應用程式）。ASP.NET Core Module 會把啟動期的未處理例外寫在這裡，訊息含例外型別與堆疊。</p>
+<blockquote><p>啟動期失敗多半發生在 <strong>NLog 初始化之前或期間</strong>，所以 <code>NLog:BasePath</code> 底下的日誌檔<strong>可能完全沒有紀錄</strong>。別只看日誌檔就下結論。</p></blockquote>
+<p><strong>第 2 步：對照常見原因。</strong></p>
+<div class="tw"><table><thead><tr><th>事件訊息關鍵字</th><th>原因</th><th>處置</th></tr></thead><tbody><tr><td><code>OptionsValidationException: DataAnnotation validation failed for 'JwtSettings' members: 'SigningKey'</code></td><td><code>JwtSettings:SigningKey</code> <strong>留空或短於 32 字元</strong>。這是 ASP.NET Core 的選項驗證（<code>ValidateDataAnnotations().ValidateOnStart()</code>），<strong>不是已移除的那支安全檢查</strong></td><td>依 §6.2 設一組 32 字元以上的亂數金鑰</td></tr><tr><td><code>SqliteException</code> ／ <code>SqlException</code> ／ 連線逾時</td><td>資料庫路徑不存在、無寫入權，或 SQL Server 連線字串錯誤</td><td>確認 §7 的目錄權限；SQL Server 確認連線字串與網路</td></tr><tr><td><code>UnauthorizedAccessException</code> ／ <code>DirectoryNotFoundException</code></td><td><code>NLog:BasePath</code> 或 <code>ExternalFileSystem:*</code> 目錄不存在／應用程式集區身分無寫入權</td><td>建立目錄並依 §7 授權</td></tr><tr><td><code>The type initializer for ... threw an exception</code></td><td>多半是設定繫結失敗（型別不符、JSON 格式錯）</td><td>檢查 <code>appsettings.Production.json</code> 是否為合法 JSON</td></tr></tbody></table></div>
+<p><strong>第 3 步（事件紀錄仍看不出原因時）</strong>：把 <code>web.config</code> 的 <code>stdoutLogEnabled</code> 改為 <code>true</code>，確認 <code>.\logs</code> 目錄存在且應用程式集區身分可寫，重現一次後看 <code>logs\stdout_*.log</code>。<strong>查完務必關掉</strong>，該檔會持續長大。</p>
+<hr>
+<h2 id="7-目錄與權限" class="t1">7. 目錄與權限</h2>
+<ul><li>系統啟動時會自動建立 <code>ExternalFileSystem:*</code> 與 <code>NLog:BasePath</code> 各目錄，<strong>無須手動建立</strong>。</li><li>但需<strong>確認執行身分對這些路徑有讀寫權限</strong>（IIS 應用程式集區／Windows 服務帳號常與登入使用者不同）。</li><li>確認磁碟空間足夠（媒體下載、轉錄輸出、文件轉文字會佔用）。</li></ul>
+<hr>
+<h2 id="8-啟動系統" class="t2">8. 啟動系統</h2>
+<h3 id="81-開發驗證">8.1 開發／驗證</h3>
+<pre><code>dotnet run --project src/KnowledgeExtraction/KnowledgeExtraction.Web
+# 預設網址：https://localhost:7044 （http://localhost:5189）
+# 首次本機 HTTPS：dotnet dev-certs https --trust</code></pre>
+<h3 id="82-正式已發布產物kestrel">8.2 正式（已發布產物，Kestrel）</h3>
+<pre><code># 已設 ASPNETCORE_ENVIRONMENT=Production（觸發啟動安全檢查、套用 appsettings.Production.json）
+$env:ASPNETCORE_URLS = "https://0.0.0.0:7044"
+C:\apps\KnowledgeExtraction\KnowledgeExtraction.Web.exe</code></pre>
+<ul><li>正式環境會 <code>UseHttpsRedirection()</code> + HSTS；HTTPS 憑證請由反向代理（IIS／Nginx）或 Kestrel 憑證設定提供。</li><li>走 IIS 時系統已支援轉發標頭（<code>UseConfiguredForwardedHeaders</code>）；安裝 ASP.NET Core Hosting Bundle。</li><li>健康檢查：<code>/health/live</code>、<code>/health/ready</code>；人工巡檢頁 <code>/system-health</code>（僅管理員）。</li></ul>
+<blockquote><p><strong>沒有啟動期的設定安全檢查</strong>（1.0.68 起移除，原因見 §6.4）。<code>JwtSettings:SigningKey</code>、<code>BootstrapSettings:SupportPassword</code>、<code>Swagger:EnabledInProduction</code>、<code>CacheSettings:RedisConnection</code> 這幾項<strong>沿用不安全值不會被程式擋下</strong>，請依 §6.1 的必改清單自行確認。</p>
+<p>唯一還會擋啟動的是 ASP.NET Core 對 <code>JwtSettings</code> 的選項驗證（<code>SigningKey</code> 為必填且至少 32 字元）——留空或過短會回 500.30，訊息為 <code>OptionsValidationException</code>。</p>
+<p>⚠️ <strong>沒有任何自動偵測</strong>：1.0.69 起 <code>/system-health</code> 的「身分驗證」項也不再檢查金鑰內容（只看 Cookie/JWT scheme、Issuer/Audience 是否設定、金鑰長度是否 ≥32）。<strong>Production 是否沿用開發預設金鑰，只能靠部署時人工確認。</strong></p></blockquote>
+<hr>
+<h2 id="9-首次登入" class="t3">9. 首次登入</h2>
+<ul><li>系統首次啟動會自動建立預設管理者帳號（取自 <code>BootstrapSettings</code>）與預設角色「預設角色」。</li><li>預設帳號：<code>BootstrapSettings:SupportAccount</code>（預設 <code>support</code>），密碼為 <code>BootstrapSettings:SupportPassword</code>。</li><li>⚠️ 目前<strong>每次啟動都會以設定值覆寫該帳號密碼</strong>；正式環境務必透過 secret 設定強密碼（見步驟 6 與<a href="../../docs/operations/production-checklist.html">安全檢查清單</a>）。</li><li>系統<strong>有</strong>強制改密碼流程：登入後 <code>AuthenticationStateHelper</code> 若偵測到密碼等於 <code>MagicObjectHelper.NeedChangePassword</code>（<code>123456</code>），會導向 <code>/ChangePassword</code> 強制更換後才能使用其他頁面。注意此流程只認這一個特定值，設成其他弱密碼不會觸發。</li></ul>
+<hr>
+<h2 id="10-功能驗證逐項確認可用" class="t4">10. 功能驗證（逐項確認可用）</h2>
+<ol><li><strong>登入</strong>：以 support 帳號登入成功。</li><li><strong>資料庫</strong>：能正常 CRUD（任一管理頁新增/查詢）。</li><li><strong>影音轉逐字稿 — 檔案</strong>：上傳一個音檔，背景轉錄成功、可下載逐字稿。</li><li><strong>影音轉逐字稿 — 連結</strong>：貼 YouTube 或小紅書連結，轉錄成功。</li><li><strong>抖音</strong>（若需要）：於「影片連結」貼上抖音連結或分享文字 → 送出後系統自動呼叫 playwright 助手下載（瀏覽器視窗跳出，必要時當場手動過驗證）→ 轉錄完成。前提：已設定 <code>OpenAISettings:DouyinHelperScript</code>、本機已登入抖音。（亦可獨立執行 <code>node tools/douyin-audio/get-douyin-audio.mjs "&lt;連結&gt;"</code> 產出 mp3 後改用「檔案上傳」。）</li><li><strong>文件轉文字</strong>：上傳 PDF/Word，產出 Markdown。</li><li><strong>健康檢查</strong>：<code>/health/ready</code> 回 200。</li></ol>
+<hr>
+<h2 id="11-上線前硬化與驗收" class="t5">11. 上線前硬化與驗收</h2>
+<p>部署到正式環境前，逐項完成 <a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a>（JWT、預設帳號、Swagger、快取、HTTPS/HSTS、CORS、備份、監控、建置與測試驗收）。</p>
+<hr>
+<h2 id="12-疑難排解" class="t6">12. 疑難排解</h2>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>參考</th></tr></thead><tbody><tr><td>Production 啟動即中止</td><td>安全檢查未過（金鑰/密碼/Swagger/Redis）</td><td>步驟 8 訊息、<a href="../../docs/operations/production-checklist.html">安全檢查清單</a></td></tr><tr><td>轉錄/萃取失敗、找不到工具</td><td>工具未裝或 PATH 找不到</td><td>填絕對路徑，見<a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a></td></tr><tr><td>抖音下載失敗 <code>Fresh cookies needed</code></td><td>抖音簽章限制，yt-dlp 無法</td><td>改用助手腳本，見外部工具文件 §8</td></tr><tr><td>資料庫連不上</td><td>連線字串錯誤或 DB 未啟動</td><td><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></td></tr><tr><td>目錄寫入失敗</td><td>執行身分無權限</td><td>步驟 7</td></tr></tbody></table></div><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>導入顧問：我要把系統部署到客戶的機器</li></ul></div><div class="card"><h3>同類文件（部署與維運）</h3><ul><li><a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定（C:\KMEngineTools）</a></li><li><a href="../../docs/operations/rag-troubleshooting.html">RAG 問題診斷手冊（維運用）</a></li><li><a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a></li><li><a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a></li><li><a href="../../docs/operations/help-site-build.html">文件說明網站：產生與佈署</a></li><li><a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a></li><li><a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a></li><li><a href="../../docs/operations/maintenance-rules.html">維護規範</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#文件目的">文件目的</a><a class="l2" href="#0-先做決策決定後續要裝什麼">0. 先做決策（決定後續要裝什麼）</a><a class="l2" href="#1-安裝-net-10-執行環境">1. 安裝 .NET 10 執行環境</a><a class="l2" href="#2-取得程式">2. 取得程式</a><a class="l2" href="#3-安裝外部工具依步驟-0-的功能決策">3. 安裝外部工具（依步驟 0 的功能決策）</a><a class="l2" href="#4-安裝資料庫僅-sql-server-需要">4. 安裝資料庫（僅 SQL Server 需要）</a><a class="l2" href="#5-選用安裝-redis">5. （選用）安裝 Redis</a><a class="l2" href="#6-設定-appsettings-與機密核心">6. 設定 appsettings 與機密（核心）</a><a class="l3" href="#61-必改必確認參數總表環境同步重點">6.1 必改／必確認參數總表（環境同步重點）</a><a class="l3" href="#62-正式環境設定機密的範例環境變數">6.2 正式環境設定機密的範例（環境變數）</a><a class="l3" href="#63-開發機設定機密user-secrets">6.3 開發機設定機密（User Secrets）</a><a class="l3" href="#64-以-production-啟動失敗http-50030怎麼查">6.4 以 Production 啟動失敗（HTTP 500.30）怎麼查</a><a class="l2" href="#7-目錄與權限">7. 目錄與權限</a><a class="l2" href="#8-啟動系統">8. 啟動系統</a><a class="l3" href="#81-開發驗證">8.1 開發／驗證</a><a class="l3" href="#82-正式已發布產物kestrel">8.2 正式（已發布產物，Kestrel）</a><a class="l2" href="#9-首次登入">9. 首次登入</a><a class="l2" href="#10-功能驗證逐項確認可用">10. 功能驗證（逐項確認可用）</a><a class="l2" href="#11-上線前硬化與驗收">11. 上線前硬化與驗收</a><a class="l2" href="#12-疑難排解">12. 疑難排解</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/operations/全新機器部署SOP.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

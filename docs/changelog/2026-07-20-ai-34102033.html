@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>會議 AI 自動化：錄音 → 逐字稿 → AI 會議紀錄 → 待辦轉工作項目（1.0.20）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>會議 AI 自動化：錄音 → 逐字稿 → AI 會議紀錄 → 待辦轉工作項目（1.0.20）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/20</li><li>版本：1.0.19 → <strong>1.0.20</strong></li><li>類型：新功能（第 8 條背景管線）</li><li>對應 PRD：<a href="../../docs/prd/prd-e9230a97.html">專案協作模組強化 PRD</a> 第四階段（<strong>四階段至此全數完成</strong>）</li><li>代辦清單：<a href="../../docs/planning/todo-19efa315.html">專案協作模組強化開發代辦清單</a></li></ul>
+<hr>
+<h2 id="一端到端流程" class="t1">一、端到端流程</h2>
+<pre><code>會議清單點「上傳錄音」
+  → MeetingService.AttachRecordingAsync（UI 執行緒完成團隊權控）
+    建立 MediaTranscription（繼承會議的 Categories/Teams）
+    寫回 Meeting.SourceTranscriptionId；MinutesStatus = 轉錄中
+  → 既有轉錄管線：TranscriptionQueue → BackgroundService → Processor
+  → 轉錄成功後的「加值步驟」TryEnqueueMeetingMinutesAsync
+    MinutesStatus = 轉錄完成，入列會議紀錄產生佇列
+  → MeetingMinutesQueue → MeetingMinutesBackgroundService → MeetingMinutesProcessor
+    MinutesStatus = 產生中 → 讀逐字稿檔 → MeetingMinutesGenerationService
+  → LlmPromptResolver 取「會議-紀錄生成」→ LLM → 解析 JSON
+      markdown       → 落地 GeneratedContentPath/{yyyy}/{guid}.md
+      summary/decisions/participants → 只填空白欄位
+      actionItems[]  → PendingActionItemsJson（草稿，不建工作）
+    MinutesStatus = 已產生
+  → 使用者開「待辦確認」勾選 → MeetingActionItemService 批次建立工作項目</code></pre>
+<p><strong>本階段零 migration</strong> —— 階段三（1.0.19）已把 10 個欄位全部建好。</p>
+<hr>
+<h2 id="二五個設計決策與理由" class="t2">二、五個設計決策與理由</h2>
+<h3 id="21-這是第-8-條管線更正舊文件的錯誤">2.1 這是第 8 條管線（更正舊文件的錯誤）</h3>
+<p>規劃階段的文件寫「第五條管線」，實查後確認<strong>既有已有 7 條</strong>：媒體轉錄、文件萃取、圖片識別、資料清洗、知識蒸餾、AI 技能產生、嵌入索引。本次新增的是<strong>第 8 條</strong>。</p>
+<p><code>docs/architecture/開發慣例與限制速查.md</code> §1.8 原本寫「三條匯入管線同構」——那是管線只有三條時的說法，已隨管線增加而過時多年。本次一併更正為列出全部 8 條，<code>PipelineNames</code>／<code>PipelineCancellationRegistry</code>／<code>PipelineRetryHelper</code> 三處的同名過時註解也一併修正。</p>
+<h3 id="22-自動產生只填空白欄位解掉一個設計衝突">2.2 自動產生「只填空白欄位」（解掉一個設計衝突）</h3>
+<p>先前決策有矛盾：一邊定「AI 產生會覆寫摘要／決議／出席者，但<strong>產生前跳確認對話窗</strong>」，一邊定「轉錄完成後<strong>自動</strong>觸發」。自動觸發時沒有人在現場，<strong>跳不了確認</strong>。</p>
+<p><strong>解法</strong>：自動產生時只填<strong>原本空白</strong>的欄位，絕不覆寫使用者已寫的內容；Markdown 全文一律落檔。使用者若想改用 AI 版本，到會議頁按「<strong>套用 AI 結果</strong>」，那時才跳確認並覆寫。自動化因此永遠不會弄丟任何人工輸入。</p>
+<h3 id="23-加值步驟放在已完成寫入之後">2.3 加值步驟放在「已完成」寫入之後</h3>
+<p><code>TranscriptionProcessor</code> 的觸發鉤子刻意放在 <code>UpdateStatusAsync(StatusCompleted)</code> <strong>之後</strong>。放之前若拋例外，會被 <code>ProcessAsync</code> 的外層 catch 接到而把轉錄標成<strong>失敗</strong>——但轉錄其實是成功的。</p>
+<p>鉤子本身<strong>自帶總 try/catch</strong>（比照 <code>VideoTranscoder.EnsurePlayableAsync</code> 的加值步驟慣例）：失敗只 <code>LogWarning</code>，不影響轉錄結果。</p>
+<h3 id="24-json-解析失敗記日誌不沿用既有的靜默降級">2.4 JSON 解析失敗記日誌，不沿用既有的靜默降級</h3>
+<p>全專案原本只有一處解析 LLM 回傳的 JSON：<code>DistillationEnhancer.ParsePages</code>。它用「第一個 <code>{</code>／<code>[</code> 到最後一個 <code>}</code>／<code>]</code>」的括號掃描（可順帶越過 ```<code> </code>`<code>json </code>``<code> 圍欄），但**失敗時是空的 </code>catch (JsonException) { }`，完全不記日誌**。</p>
+<p>括號掃描的做法沿用了（有測試涵蓋圍欄與前後綴文字），但<strong>解析失敗一律 <code>LogWarning</code> 並記下回應前 500 字</strong>。靜默 catch 違反日誌鐵則（<code>LoggingConventionTests</code> 擋空 <code>catch {}</code>，但有型別的 <code>catch (JsonException) { }</code> 擋不到），模型不聽話時要留得下線索。</p>
+<p>降級行為：整份回應當 Markdown 落檔、其餘欄位留空、狀態仍為「已產生」——<strong>不會整筆失敗</strong>。</p>
+<h3 id="25-重啟回復只撈產生中">2.5 重啟回復只撈「產生中」</h3>
+<p><code>MeetingMinutesBackgroundService.RecoverPendingAsync</code> <strong>刻意不撈「轉錄中」</strong>。那是轉錄管線的狀態，<code>TranscriptionBackgroundService</code> 會自行復原該筆轉錄，完成後加值步驟會再次入列本管線。撈了會造成「轉錄還沒好就跑產生」而必然失敗。</p>
+<hr>
+<h2 id="三待辦草稿的生命週期" class="t3">三、待辦草稿的生命週期</h2>
+<p>AI 抽出的待辦<strong>不會自動建立</strong>工作項目——LLM 會把閒聊當待辦，自動寫入會污染工作清單且難以清理。一律由使用者在確認對話窗勾選（可就地微調標題／負責人／期限）後才建立。</p>
+<p>建立的工作<strong>繼承會議的 <code>ProjectId</code>／<code>Teams</code>／<code>Categories</code></strong>；<code>Owner</code> 空白時填「未指定」（該欄位為 Required）；<code>DueDate</code> 解析不出 <code>YYYY-MM-DD</code> 時 <code>EndDate</code> 留空，<strong>不自行推測日期</strong>。</p>
+<p>建立後草稿<strong>保留並標記 <code>Created</code></strong>（置灰、不可再勾），供追溯「AI 當初建議了什麼、我採納了哪些」，同時避免重複建立。</p>
+<hr>
+<h2 id="四其他變更" class="t4">四、其他變更</h2>
+<ul><li><strong>上傳上限 1GB → 2GB</strong>（<code>MediaTranscriptionService.MaxUploadFileSize</code>，同步更正錯誤訊息文字）</li><li><strong><code>MediaTranscriptionService</code> 抽出 <code>AddCoreAsync</code></strong>：原 <code>AddAsync</code> 只回傳 <code>VerifyRecordResult</code>，拿不到新建的 Id，而會議需要它寫入 <code>SourceTranscriptionId</code>。抽共用核心後新增 <code>AddForMeetingAsync</code> 回傳 <code>(Result, Id)</code>，<code>AddAsync</code> 委派過去，<strong>行為完全不變</strong>。</li><li><strong>新提示詞鍵「會議-紀錄生成」</strong>：走既有四層解析。注意 <code>LlmPromptsSettings.Get()</code> 的 switch 用的是<strong>寫死的中文字面值</strong>而非 <code>LlmPromptKeys</code> 常數，新增鍵要改<strong>三處</strong>（常數、屬性、switch），漏掉 switch 會讓 appsettings 層靜默失效。</li><li><strong><code>MeetingService</code> 新增</strong> <code>GetGeneratedContentAsync</code>／<code>UpdateGeneratedContentAsync</code>（<strong>原地覆寫同檔</strong>，比照四種內容編修的既有慣例）／<code>ApplyGeneratedFieldsAsync</code>。</li></ul>
+<hr>
+<h2 id="五異動檔案" class="t5">五、異動檔案</h2>
+<p><strong>新增（10）</strong></p>
+<ul><li><code>Business/Services/Meetings/</code>：<code>IMeetingMinutesQueue.cs</code>、<code>MeetingMinutesQueue.cs</code>、<code>MeetingMinutesProcessor.cs</code>、<code>MeetingMinutesGenerationService.cs</code>、<code>MeetingMinutesResult.cs</code></li><li><code>Business/Services/DataAccess/MeetingActionItemService.cs</code></li><li><code>Web/BackgroundServices/MeetingMinutesBackgroundService.cs</code></li><li><code>Web/Components/Views/Projects/MeetingRecordingUploadModal.razor(.cs)</code>、<code>MeetingActionItemsModal.razor(.cs)</code></li><li><code>Tests/MeetingMinutesParsingTests.cs</code>（9 筆）、<code>Tests/MeetingActionItemServiceTests.cs</code>（8 筆）</li><li><code>docs/prd/會議AI自動化-prd.md</code>、本 changelog</li></ul>
+<p><strong>修改</strong></p>
+<ul><li><code>Business/Services/Prompts/LlmPromptKeys.cs</code>、<code>LlmPromptDefaults.cs</code></li><li><code>Models/Systems/LlmPromptsSettings.cs</code>（屬性 ＋ switch）</li><li><code>Models/AdapterModel/MeetingAdapterModel.cs</code>（<code>MinutesStatus*</code> 常數，<code>MinutesStatusOptions</code> 改用常數組成）</li><li><code>Business/Services/Pipelines/PipelineNames.cs</code>（＋ 過時註解更正）、<code>PipelineCancellationRegistry.cs</code>、<code>PipelineRetryHelper.cs</code></li><li><code>Business/Services/DataAccess/MediaTranscriptionService.cs</code>（<code>AddCoreAsync</code>、2GB）</li><li><code>Business/Services/DataAccess/MeetingService.cs</code>（掛載錄音、會議紀錄讀寫、套用 AI 結果）</li><li><code>Business/Services/Transcription/TranscriptionProcessor.cs</code>（加值步驟）</li><li><code>Web/Components/Views/Projects/MeetingViewView.razor(.cs)</code></li><li><code>Web/Extensions/ServiceCollectionExtensions.cs</code>、<code>Web/Program.cs</code>、<code>Web/appsettings.json</code></li><li><code>Tests/CrudActionIconTests.cs</code>（<code>mic</code>／<code>playlist_add_check</code>）、<code>Tests/MeetingFieldPersistenceTests.cs</code>（fixture 補新建構式參數）</li><li><code>docs/architecture/開發慣例與限制速查.md</code> §1.8（8 條管線 ＋ 更正舊說法）</li></ul>
+<hr>
+<h2 id="六驗證" class="t6">六、驗證</h2>
+<ul><li><code>dotnet build KnowledgeExtraction.slnx</code>：<strong>建置成功</strong></li><li><code>dotnet test KnowledgeExtraction.Tests</code>：<strong>612 通過 / 0 失敗</strong>（595 → 612，新增 17 筆）</li><li><code>scripts/Test-DocsEncoding.ps1</code>：全綠</li></ul>
+<h3 id="實作過程中抓到的一個-build-抓不到的錯">實作過程中抓到的一個 build 抓不到的錯</h3>
+<p><code>ContentEditDialog</code> 沒有 <code>OnClose</code> 參數（它用 <code>@bind-Visible</code>），但一開始寫成了 <code>OnClose="..."</code>。<strong>Razor 對未知元件參數不會在建置期報錯</strong>，會在執行期才拋「does not have a property matching the name」。是靠實際去讀該元件的 <code>[Parameter]</code> 宣告才發現，已改為 <code>@bind-Visible</code>。</p>
+<h3 id="待人工於瀏覽器驗收">待人工於瀏覽器驗收</h3>
+<ul class="check"><li><span class="box">☐</span>上傳 5 分鐘錄音 → 狀態依序 轉錄中 → 轉錄完成 → 產生中 → 已產生</li><li><span class="box">☐</span><strong>先手寫摘要再上傳</strong>：產生後摘要仍是手寫那份，決議／出席者才被填入</li><li><span class="box">☐</span>按「套用 AI 結果」→ 跳確認 → 確認後摘要才被覆寫</li><li><span class="box">☐</span>會議紀錄可檢視編修，存回原地覆寫同一檔案</li><li><span class="box">☐</span>勾選 2 筆待辦建立 → 工作項目頁出現 2 筆且專案／團隊／分類與會議一致；回對話窗那 2 筆顯示「已建立」</li><li><span class="box">☐</span>把 DB「會議-紀錄生成」改成「請用純文字回答」→ 狀態仍為已產生、Markdown 為純文字、日誌有 warning</li><li><span class="box">☐</span>從音訊轉錄頁一般上傳 → 不會產生任何會議紀錄</li><li><span class="box">☐</span>產生中時重啟 → 該筆重新排程；轉錄中的會議不被會議管線撈走</li><li><span class="box">☐</span>非同團隊使用者看不到該會議、無法上傳與看待辦</li><li><span class="box">☐</span>上傳 &gt;1GB 檔案可成功</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一端到端流程">一、端到端流程</a><a class="l2" href="#二五個設計決策與理由">二、五個設計決策與理由</a><a class="l3" href="#21-這是第-8-條管線更正舊文件的錯誤">2.1 這是第 8 條管線（更正舊文件的錯誤）</a><a class="l3" href="#22-自動產生只填空白欄位解掉一個設計衝突">2.2 自動產生「只填空白欄位」（解掉一個設計衝突）</a><a class="l3" href="#23-加值步驟放在已完成寫入之後">2.3 加值步驟放在「已完成」寫入之後</a><a class="l3" href="#24-json-解析失敗記日誌不沿用既有的靜默降級">2.4 JSON 解析失敗記日誌，不沿用既有的靜默降級</a><a class="l3" href="#25-重啟回復只撈產生中">2.5 重啟回復只撈「產生中」</a><a class="l2" href="#三待辦草稿的生命週期">三、待辦草稿的生命週期</a><a class="l2" href="#四其他變更">四、其他變更</a><a class="l2" href="#五異動檔案">五、異動檔案</a><a class="l2" href="#六驗證">六、驗證</a><a class="l3" href="#實作過程中抓到的一個-build-抓不到的錯">實作過程中抓到的一個 build 抓不到的錯</a><a class="l3" href="#待人工於瀏覽器驗收">待人工於瀏覽器驗收</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-20-會議AI自動化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

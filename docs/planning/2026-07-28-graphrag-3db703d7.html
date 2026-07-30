@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph RAG 待辦盤點（P1～P9 完成後）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 開發代辦</p><div class="warn">⚠ 對內文件，不交付客戶。</div><header class="hero"><div class="kicker">開發代辦</div><h1>Graph RAG 待辦盤點（P1～P9 完成後）</h1></header><div class="docwrap"><main><blockquote><p>建立日期：2026-07-28　｜　對版：1.0.91　｜　定位：Graph RAG 九個階段交付後的<strong>剩餘事項總表</strong></p>
+<p>本文回答一個問題：<strong>Graph RAG 還有哪些事情需要處理？</strong> 內容含「要做的」與「<strong>刻意不做的</strong>（附理由）」，避免同一個問題被反覆重新討論。</p>
+<p>相關：<a href="../../docs/strategy/graph-rag-blueprint.html">Graph RAG 導入分析與實作藍圖</a>（§9 分階段藍圖）、<a href="../../docs/changelog/readme-436e4418.html">各階段 changelog</a>、<a href="../../docs/planning/12-rag-b561e5d2.html">12-RAG 系統補強總彙整與優先序</a></p></blockquote>
+<hr>
+<h2 id="1-現況已完成1083--1091" class="t1">1. 現況（已完成，1.0.83 → 1.0.91）</h2>
+<div class="tw"><table><thead><tr><th>階段</th><th>內容</th><th>版本</th></tr></thead><tbody><tr><td>P1</td><td>概念連結邊（<code>LinkTitles</code> → <code>GraphEdge</code>）＋圖檢索融合第三路</td><td>1.0.83</td></tr><tr><td>P2</td><td>LLM 三元組抽取＋人工審核＋接進檢索</td><td>1.0.84</td></tr><tr><td>P3</td><td>社群摘要＋global 全域問答（map-reduce）</td><td>1.0.85</td></tr><tr><td>P4</td><td>跨來源實體合併（正規化名稱，行為式合併）</td><td>1.0.86</td></tr><tr><td>P5</td><td>實體別名與合併審核（<code>GraphEntityAlias</code>）</td><td>1.0.87</td></tr><tr><td>P6</td><td>LLM 自動別名候選（建議 → 人工核可）</td><td>1.0.88</td></tr><tr><td>P7</td><td>接線與效能修補（手動重抽補權控、四個索引、三個成本上限可設定）</td><td>1.0.89</td></tr><tr><td>P8</td><td>多跳遍歷（BFS，預設 2 跳）＋圖譜瀏覽</td><td>1.0.90</td></tr><tr><td>P9</td><td>MCP 暴露圖譜能力（<code>knowledge_ask</code> 的 <code>mode=global</code>、<code>knowledge_graph_neighbors</code>）</td><td>1.0.91</td></tr></tbody></table></div>
+<p>功能面已覆蓋藍圖 §9 的全部規劃項目。<strong>剩下的問題不在功能，而在「量測、效能、可觀測性、暴露面」四類。</strong></p>
+<hr>
+<h2 id="2-要做p10p13" class="t2">2. 要做：P10～P13</h2>
+<h3 id="p10-圖檢索評測題組--已於-1092-完成">P10　圖檢索評測題組　✅ 已於 1.0.92 完成</h3>
+<blockquote><p>詳見 <a href="../../docs/changelog/2026-07-28-graphrag-p10-5e0d9a46.html">changelog</a>。實作時另發現並修掉一個資安缺口：<code>GlobalMapAsync</code> 取的是<strong>評測執行者</strong>的環境身分而非樣本標註的模擬身分，等於<strong>全域問答的權控從來測不到</strong>。</p></blockquote>
+<p><strong>問題</strong>：九個階段做完，<strong>沒有任何數據能回答「圖到底有沒有提升召回」</strong>。<code>Services/Embeddings/RagEvaluator.cs</code> 全檔沒有圖的概念；<code>RagEvalParamSnapshot</code> 只記 <code>TopK</code>／<code>VectorWeight</code>／<code>KeywordWeight</code>／<code>MinScore</code> 與兩個門檻，<strong>沒記 <code>GraphWeight</code>／<code>GraphMaxHops</code>／<code>GraphHopDecay</code></strong>，所以既有基線根本無法對應到產生它的圖參數。</p>
+<p>這是目前最大的風險：後續任何優化都沒有判準，也無法證明沒有改壞。</p>
+<p><strong>要點</strong>：<code>RetrievalHit</code> 已帶 <code>VectorScore</code>／<code>KeywordScore</code>／<code>GraphScore</code> 三個分項，因此確定性的圖指標<strong>不必跑第二次對照組檢索</strong>——直接由單次檢索推導「沒有圖就召不回的命中」即可，零額外成本。另加 global 模式評測（需 LLM），並補上 <code>GlobalMapAsync</code> 的模擬身分參數，否則 global 的權控從來測不到。</p>
+<h3 id="p11-檢索熱路徑快取--已於-1094-完成">P11　檢索熱路徑快取　✅ 已於 1.0.94 完成</h3>
+<blockquote><p>詳見 <a href="../../docs/changelog/2026-07-28-graphrag-p11-807797fa.html">changelog</a>。⚠️ 最大的設計約束是「<strong>只能快取未套 ACL 的原始列</strong>」——快取全域共用且鍵不含身分，存進過濾結果就會讓先檢索者的可見範圍被後檢索者取用。</p></blockquote>
+<p><strong>問題</strong>：<code>RetrievalService.SearchGraphAsync</code> <strong>每次檢索</strong>都全表載入已核可別名、全部錨頁節點、全部已核可三元組（含雙 join）——<code>RetrievalService.cs:143 / 157 / 178</code>。P4 記載、P7 只補索引、P8 再記，至今未做。</p>
+<p><strong>紅線</strong>：只能快取<strong>未套 ACL 的原始列</strong>，per-request 才在記憶體過濾；絕不快取已套 ACL 的結果。別名表無 <code>Teams</code>，可直接快取建好的對照表。</p>
+<h3 id="p12-全域圖譜作業狀態表--零三元組重抽入口--已於-1095-完成">P12　全域圖譜作業狀態表 ＋ 零三元組重抽入口　✅ 已於 1.0.95 完成</h3>
+<blockquote><p>詳見 <a href="../../docs/changelog/2026-07-28-graphrag-p12-3aec586e.html">changelog</a>。關鍵設計：<strong>刻意不進 <code>PipelineNames</code></strong>（那是 per-record 管線的常數集，硬塞會讓 <code>recordId</code> 失去意義），改以 <code>JobType</code> 字串識別但仍重用取消註冊表。</p></blockquote>
+<p><strong>問題一</strong>：社群重建／別名生成的狀態只活在記憶體（<code>GraphCommunityBuildState</code>、<code>GraphAliasBuildState</code>），而 <code>PipelineJobQueryService</code> <strong>一律由 DB 狀態推導、刻意不讀佇列深度</strong>——所以這兩個作業在 <code>/pipeline-jobs</code> 看不到、不能取消、服務重啟靜默丟失訊號。不建表就無解。</p>
+<p><strong>問題二</strong>：「抽取／重抽三元組」入口在知識來源頁，而知識圖譜審核頁是三元組導向的，<strong>看不到「零三元組（抽取失敗）」的來源</strong>——而那正是最需要重抽的情況（P7 自陳）。</p>
+<h3 id="p13-圖譜唯讀-web-api--已於-1096-完成">P13　圖譜唯讀 Web API　✅ 已於 1.0.96 完成</h3>
+<blockquote><p>詳見 <a href="../../docs/changelog/2026-07-28-graphrag-p13-b9b91209.html">changelog</a>。實作時另修掉一個既有問題：host 型整合測試的間歇性紅燈（<code>ApiTestApplicationFactory</code> 寫行程層級環境變數、多實例並行互相蓋掉）。</p></blockquote>
+<p><strong>問題</strong>：<code>Web/Controllers/</code> 沒有圖譜控制器，P9 的兩項能力只有 MCP 用戶端能用，一般 REST 呼叫端取用不到。開兩支唯讀端點（全域問答、實體鄰域），<strong>走與 MCP 同一條 ACL 把關程式碼</strong>，不另寫一套。</p>
+<hr>
+<h2 id="3-已知破口暫不處理附出處與理由" class="t3">3. 已知破口：暫不處理（附出處與理由）</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>出處</th><th>暫不處理的理由</th></tr></thead><tbody><tr><td>同名不同物誤併（兩來源不相關的「王小明」）</td><td>P4</td><td>精確名合併是 GraphRAG 實體解析的基準做法；要解需嵌入式實體解析，成本遠高於目前受益</td></tr><tr><td>不支援逐團隊別名</td><td>P5</td><td>別名為全域治理；若未來確有「僅某團隊套用」需求，再擴 <code>Teams</code> 欄與 ACL</td></tr><tr><td>別名無稽核歷程</td><td>P5</td><td>目前核可紀錄已足夠追溯；歷程表屬治理強化，非正確性問題</td></tr><tr><td><code>NameCap=300</code> 跨批同義對漏配</td><td>P6</td><td>目前以單次（≤cap）LLM 呼叫為主；分批比對需跨批交叉，複雜度不成比例</td></tr><tr><td>三個成本上限不可線上熱調（需重啟）</td><td>P7</td><td>刻意只做 appsettings 層；若確有線上調參需求，再比照 <code>GraphWeight</code> 走四點同步鏈</td></tr><tr><td><code>GraphMaxNodes</code> 截斷非全域最佳</td><td>P8</td><td>它是<strong>防爆安全閥、不是排序機制</strong>，語意本就如此</td></tr><tr><td>圖譜瀏覽 SVG 節點多時擁擠</td><td>P8</td><td><strong>表格才是完整資料的權威呈現</strong>，SVG 為輔助</td></tr><tr><td>MCP <code>global</code> 只做 map 不做 reduce</td><td>P9</td><td>刻意設計：MCP 工具回傳「參考資料」而非「最終答案」，與 <code>knowledge_ask</code> 既有語意一致</td></tr><tr><td>MCP 無圖譜專用節流</td><td>P9</td><td><code>GraphGlobalCommunityCap</code>（預設 20）已限住單次成本；頻率節流待實際壓力出現再做</td></tr><tr><td>無寫入型 MCP 圖譜工具</td><td>P9</td><td>與 MCP 文件的既有非目標一致：受治理資料一律經人工審核介面寫入</td></tr></tbody></table></div>
+<hr>
+<h2 id="4-選配未做" class="t4">4. 選配未做</h2>
+<ul><li><strong>節點／社群摘要向量嵌入</strong>：藍圖 §8 即標為選配，P8 仍列未實作。目前圖檢索以「頁↔頁」邊與三元組展開為主，尚未出現需要對節點做語意近似的場景。</li><li><strong>rerank</strong>：至今僅有 <a href="../../docs/architecture/rag-rerank-analysis.html">分析文件</a>，未實作。藍圖 §10 原建議優先序是 rerank 早於 Graph RAG，實際執行順序相反——建議待 P10 的評測數據出來後再依數據決定。</li></ul>
+<hr>
+<h2 id="5-未達觸發條件建議不做" class="t5">5. 未達觸發條件：建議不做</h2>
+<ul><li><strong>專用圖庫（Neo4j／PostgreSQL AGE）</strong>：藍圖 §4.4 的三個觸發條件——(a) 需 3 跳以上深度遍歷、(b) 邊數達百萬級、(c) 需 PageRank 等複雜圖演算法且關聯式方案效能不足——<strong>目前皆未達成</strong>。跳數上限目前為 3，已足夠。屆時可經一層 <code>IGraphStore</code> 抽象替換（比照現有 <code>IVectorStore</code>）。</li><li><strong>Agentic RAG</strong>：屬另一條技術路線，見<a href="../../docs/strategy/tech-route-analysis.html">技術路線分析</a>，不在 Graph RAG 範圍內。</li></ul>
+<hr>
+<h2 id="6-驗證債" class="t6">6. 驗證債</h2>
+<ul><li><strong>P9 自陳未執行</strong>：以真實 MCP 用戶端＋兩把不同團隊的 API Key 做端到端交叉驗證（需部署環境與金鑰）。單元測試已釘住 <code>RecordAccessScopeProvider</code> 的三條解析路徑與 global 的社群子集判定，但<strong>端到端未實跑</strong>，留給部署後驗收。</li><li><strong><code>docs/guides/</code> 22 份操作手冊仍對版 1.0.71</strong>，未涵蓋知識圖譜審核頁、圖譜瀏覽與全域問答的操作說明（文件債補正一文已記載）。</li></ul>
+<hr>
+<blockquote><p>返回 <a href="../../docs/planning/readme-04c0bd48.html">planning 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（開發代辦）</h3><ul><li><a href="../../docs/planning/07-todo-f1c7d6cc.html">資料清洗開發代辦清單 TODO</a></li><li><a href="../../docs/planning/08-todo-74ef467f.html">優化建議清單 TODO</a></li><li><a href="../../docs/planning/09-c4d93ce1.html">開發歷程總覽與未來建議</a></li><li><a href="../../docs/planning/12-rag-b561e5d2.html">RAG 系統補強：總彙整與優先序清單</a></li><li><a href="../../docs/planning/todo-19efa315.html">專案協作模組強化開發代辦清單 TODO</a></li><li><a href="../../docs/planning/todo-720ef565.html">知識來源規模守門開發代辦清單 TODO</a></li><li><a href="../../docs/planning/todo-f4f1025f.html">知識庫統計報表開發代辦清單 TODO</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#1-現況已完成1083--1091">1. 現況（已完成，1.0.83 → 1.0.91）</a><a class="l2" href="#2-要做p10p13">2. 要做：P10～P13</a><a class="l3" href="#p10-圖檢索評測題組--已於-1092-完成">P10　圖檢索評測題組　✅ 已於 1.0.92 完成</a><a class="l3" href="#p11-檢索熱路徑快取--已於-1094-完成">P11　檢索熱路徑快取　✅ 已於 1.0.94 完成</a><a class="l3" href="#p12-全域圖譜作業狀態表--零三元組重抽入口--已於-1095-完成">P12　全域圖譜作業狀態表 ＋ 零三元組重抽入口　✅ 已於 1.0.95 完成</a><a class="l3" href="#p13-圖譜唯讀-web-api--已於-1096-完成">P13　圖譜唯讀 Web API　✅ 已於 1.0.96 完成</a><a class="l2" href="#3-已知破口暫不處理附出處與理由">3. 已知破口：暫不處理（附出處與理由）</a><a class="l2" href="#4-選配未做">4. 選配未做</a><a class="l2" href="#5-未達觸發條件建議不做">5. 未達觸發條件：建議不做</a><a class="l2" href="#6-驗證債">6. 驗證債</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/planning/2026-07-28-GraphRAG待辦盤點.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

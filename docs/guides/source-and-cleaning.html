@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識來源加工與清洗規則設定｜使用教育訓練指南｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>知識來源加工與清洗規則設定｜使用教育訓練指南</h1></header><div class="docwrap"><main><ul><li>文件版本：1.2</li><li>更新日期：2026/07/26</li><li>對應系統版本：1.0.71（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<h2 id="文件目的與適用對象" class="t1">文件目的與適用對象</h2>
+<p>本文件給<strong>第一次使用</strong>「知識來源加工」與「清洗規則設定」的使用者。讀完你將能回答：</p>
+<ul><li>這兩個功能是做什麼的、在整個知識管理系統裡扮演什麼角色、重不重要。</li><li>「管理成員」要怎麼挑要加入的資料來源，有沒有操作依據。</li><li>「清洗」的目的是什麼、會得到什麼成果、操作上有什麼建議。</li><li>清洗規則設定的五個提示詞欄位（去重／遮罩／分類／摘要／信心自評）各代表什麼、怎麼寫，並透過 5 個實際範例看「清洗後會長成什麼樣」。</li></ul>
+<blockquote><p>想先把整套系統從零跑起來，請看 <a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊</a>；三個功能（清洗／設定檔／清洗品質評測）的關係與端到端例子見 <a href="../../docs/guides/import-to-knowledge-flow.html">從匯入到知識的操作流程</a>。本文聚焦在「知識來源加工」與「清洗規則設定」兩個畫面的深入用法。</p></blockquote>
+<hr>
+<h2 id="1-一分鐘觀念它們在系統裡的角色" class="t2">1. 一分鐘觀念：它們在系統裡的角色</h2>
+<p>整個知識管理的主線是四步：<strong>匯入 → 檢視 → 清洗 → 評量</strong>。</p>
+<pre><code>匯入素材              聚合成一包            清洗成知識             把關品質
+（音訊/文件/圖片）  →  知識來源(成員)   →  乾淨 Markdown      →  信心門檻＋人工審核＋清洗品質評測
+                       〔知識來源加工〕      〔清洗＋清洗規則設定〕</code></pre>
+<ul><li><strong>知識來源加工</strong>：把多筆「已完成」的零散素材<strong>聚合</strong>成一個有主題、有團隊歸屬的單位（一個「知識來源」），當成<strong>一次清洗的單位</strong>。</li><li><strong>清洗規則設定</strong>：一組可重複使用的清洗「配方」（要怎麼去重／遮罩／分類／摘要／評信心）。</li></ul>
+<p><strong>它重要嗎？</strong> 重要，不是可有可無的過場。沒有它，素材只是一堆零散檔案；有了它，素材才會變成「<strong>敢用</strong>（去敏）、<strong>找得到</strong>（分類摘要）、<strong>可被信賴</strong>（信心分數＋人工審核）、<strong>可被管理</strong>（狀態可視）」的知識資產。</p>
+<hr>
+<h2 id="2-知識來源加工knowledge-sources" class="t3">2. 知識來源加工（<code>/knowledge-sources</code>）</h2>
+<p>這個畫面列出你所有的「知識來源」，並讓你建立、聚合素材、觸發清洗、檢視結果與審核。</p>
+<p><strong>列表欄位（共 12 欄）：</strong> 標題、描述、分類、團隊、<strong>成員數</strong>、<strong>狀態</strong>、進度、<strong>信心</strong>、<strong>蒸餾</strong>、<strong>索引</strong>、更新時間、操作。可用分類／團隊過濾與關鍵字搜尋。</p>
+<p>後兩個狀態欄常被忽略，但它們決定了「這筆知識到底能不能被問答查到」：</p>
+<div class="tw"><table><thead><tr><th>欄位</th><th>可能的值</th></tr></thead><tbody><tr><td><strong>蒸餾</strong></td><td><code>待蒸餾</code>（還沒蒸餾過）／<code>等待中</code>／<code>處理中（NN%）</code>／<code>已蒸餾</code>／<code>失敗</code>／<code>已取消</code></td></tr><tr><td><strong>索引</strong></td><td><code>待索引</code>／<code>等待中</code>／<code>處理中（NN%）</code>／<code>已索引</code>／<code>失敗</code>／<code>已取消</code></td></tr></tbody></table></div>
+<p><strong>工具列</strong>：<code>新增</code>、<code>重新整理</code>、<strong><code>全量重建索引</code></strong>（見 §2.2），右側是分類過濾／團隊過濾／關鍵字搜尋。</p>
+<p><strong>狀態（狀態機）：</strong></p>
+<div class="tw"><table><thead><tr><th>狀態</th><th>意義</th></tr></thead><tbody><tr><td>草稿</td><td>已建立、尚未清洗。</td></tr><tr><td>等待中 / 處理中</td><td>已排入清洗佇列／清洗進行中。</td></tr><tr><td>已清洗</td><td>清洗完成且信心達門檻（或無 LLM 直接完成）。</td></tr><tr><td>待審核</td><td>信心未達門檻（或無法評分），需人工核准。</td></tr><tr><td>已退回</td><td>人工審核退回。</td></tr><tr><td>失敗 / 已取消</td><td>清洗失敗或被取消。</td></tr></tbody></table></div>
+<h3 id="21-列上動作按鈕與出現條件">2.1 列上動作按鈕與出現條件</h3>
+<p>這頁的按鈕會依狀態動態出現／消失——<strong>「找不到某顆按鈕」幾乎都是狀態不對，而不是權限問題</strong>。完整對照：</p>
+<div class="tw"><table><thead><tr><th>按鈕</th><th>什麼時候才看得到</th></tr></thead><tbody><tr><td>清洗</td><td>狀態不是「等待中」也不是「處理中」</td></tr><tr><td>取消清洗</td><td>狀態是「等待中」或「處理中」</td></tr><tr><td>重試清洗</td><td>狀態是「失敗」或「已取消」</td></tr><tr><td>檢視清洗結果</td><td>狀態是「已清洗」「待審核」或「已退回」</td></tr><tr><td>核准 / 退回</td><td>狀態是「待審核」<strong>且</strong>你有「知識審核」權限（或是管理員）</td></tr><tr><td><strong>蒸餾</strong></td><td>狀態是「已清洗」<strong>且</strong>蒸餾狀態不是「等待中／處理中」</td></tr><tr><td><strong>取消蒸餾</strong></td><td>蒸餾狀態是「等待中」或「處理中」</td></tr><tr><td><strong>重試蒸餾</strong></td><td>蒸餾狀態是「失敗」或「已取消」</td></tr><tr><td><strong>清除蒸餾結果</strong></td><td>蒸餾狀態是「已蒸餾」</td></tr><tr><td><strong>建立索引</strong> / <strong>重建索引</strong></td><td>狀態是「已清洗」<strong>且</strong>索引狀態不是「等待中／處理中」（已索引過就顯示「重建索引」）</td></tr><tr><td><strong>AI 對話</strong>（下拉）</td><td>一直都在。兩個選項：「<strong>對清洗後內容對話</strong>」（沒有清洗結果時不可點）、「<strong>對原始來源對話</strong>」（成員數為 0 時不可點）</td></tr><tr><td>管理成員 / 修改 / 刪除</td><td>一直都在</td></tr></tbody></table></div>
+<blockquote><p><strong>建立索引不需要重新蒸餾。</strong> 只要狀態是「已清洗」就能按。常見誤解是「補了嵌入設定後要重跑一次蒸餾」——不用，那會白花一次昂貴的 LLM 費用。</p></blockquote>
+<h3 id="22-全量重建索引">2.2 全量重建索引</h3>
+<p>工具列的「<strong>全量重建索引</strong>」會把你可存取的所有「已清洗」來源逐一排入索引佇列。按下後先確認（逐字）：</p>
+<blockquote><p>將對您可存取的所有『已清洗』知識來源逐一排入建立/重建索引（背景處理）。索引為增量更新，內容未變動的來源不會重新嵌入，可安全執行。</p></blockquote>
+<p>執行完會彈出「<strong>全量重建索引：略過清單</strong>」，顯示「已排入重建：N 筆；略過：M 筆。」與每一筆的略過原因。</p>
+<p>因為是<strong>增量更新</strong>（內容沒變的不會重新嵌入、不會重複計費），這個動作<strong>可以安心重複執行</strong>。適用時機：換了嵌入模型、改了切塊參數、或懷疑索引不完整。</p>
+<blockquote><p>權限：非管理員只看得到「無團隊（公開）或與自己角色團隊有交集」的知識來源；管理員不受限。</p></blockquote>
+<hr>
+<h2 id="3-管理成員要加入哪些資料來源怎麼選" class="t4">3. 管理成員：要加入哪些資料來源、怎麼選</h2>
+<p>點某筆知識來源的「<strong>管理成員</strong>」會開啟成員管理視窗。</p>
+<p><strong>「成員」是什麼？</strong> 一筆來自下列四種素材、且狀態為「<strong>已完成</strong>」的素材（1.0.25 起新增第四型「會議紀錄」）：</p>
+<div class="tw"><table><thead><tr><th>成員類型</th><th>來自畫面</th></tr></thead><tbody><tr><td>影音轉逐字稿</td><td><code>/media-transcription</code></td></tr><tr><td>文件轉文字</td><td><code>/document-extraction</code></td></tr><tr><td>圖片解讀</td><td><code>/image-recognition</code></td></tr><tr><td>會議紀錄（AI 會議紀錄，1.0.25）</td><td><code>/meeting</code>（只列「會議紀錄狀態＝已產生」者；索引的是 AI 會議紀錄，非逐字稿）</td></tr></tbody></table></div>
+<p>你可以在同一個知識來源裡<strong>自由混搭</strong>這四類，並用上／下移調整順序（清洗時會依此順序合併）。</p>
+<blockquote><p>⚠️ <strong>右側「加入素材」的型別下拉，顯示的是素材本身的名稱</strong>：<code>影音轉逐字稿</code>／<code>文件轉文字</code>／<code>圖片解讀</code>／<code>會議紀錄</code>（前三個在 1.0.70 已與選單名對齊）。</p></blockquote>
+<p><strong>挑選輔助</strong>：右側「加入素材（僅顯示已完成）」除了型別下拉與「搜尋標題」，還有：</p>
+<ul><li>「<strong>分類過濾</strong>」「<strong>團隊過濾</strong>」兩個多選下拉</li><li>排序下拉：<strong>最近更新優先</strong> / <strong>最舊更新優先</strong></li><li>「上一頁 / 第 N / M 頁（共 K 筆）/ 下一頁」分頁</li><li>已加入的素材會顯示「已加入」而不是「加入」按鈕</li></ul>
+<p>左側「已加入成員（依順序）」每列有「上移」「下移」「移除」；沒有成員時顯示「尚無成員」。</p>
+<p><strong>系統的硬限制（程式強制）：</strong></p>
+<ol><li>只能加入狀態「<strong>已完成</strong>」的素材。</li><li>只能加入你<strong>有團隊權限</strong>的素材。</li><li><strong>不可重複</strong>加入同一筆素材。</li></ol>
+<p><strong>怎麼挑？操作依據（建議，非程式強制）：</strong></p>
+<blockquote><p>一個知識來源 = 一個主題／一個用途。請把「<strong>同一主題、同一用途</strong>」的素材放在一起。</p></blockquote>
+<p>原因：清洗會把<strong>所有成員合併成一份</strong>再做摘要與分類。主題太雜，摘要會失焦、分類會變亂、信心分數也會偏低。</p>
+<div class="tw"><table><thead><tr><th>好的分組（建議）</th><th>不好的分組（避免）</th></tr></thead><tbody><tr><td>「2026 Q2 產品週會」：放該會議的逐字稿＋會議簡報萃取</td><td>把「產品週會」「客服退款」「員工合約」全丟進同一筆</td></tr><tr><td>「客服－退款流程」：放退款通話逐字稿＋退款 FAQ 文件</td><td>把不同季度、不同專案的會議混在一包</td></tr><tr><td>「A 產品使用手冊」：放手冊各章節文件轉文字</td><td>主題不相關、只是「剛好都已完成」就全加進來</td></tr></tbody></table></div>
+<blockquote><p>不確定時，<strong>寧可拆成多筆、分主題管理</strong>（退款、帳務、物流各一筆），日後查找與維護都更輕鬆。</p></blockquote>
+<h3 id="成員順序上移下移有什麼影響">成員順序（上移／下移）有什麼影響？</h3>
+<p>左側「已加入成員」可用上移／下移調整每筆成員的位置。<strong>這個順序就是「合併順序」</strong>：</p>
+<ul><li>清洗在開始時，會<strong>由上而下、依此順序把所有成員內容合併成一份</strong>，再送進 LLM。</li><li><strong>影響</strong>：</li><li>清洗結果 Markdown 的<strong>正文段落順序</strong>會直接反映此排序（每個成員一段）。</li><li><strong>間接影響 LLM 產出</strong>：模型常把較前面的內容視為主軸，順序會影響摘要重點、建議分類傾向。<strong>建議把最關鍵／最具代表性的素材排在前面</strong>。</li><li><strong>不影響</strong>：哪些成員被納入（所有「已完成」成員都會納入，與順序無關）、團隊權控、是否觸發。</li><li><strong>重要：調整順序不會自動重跑。</strong> 若該筆已是「已清洗／已完成」，重新排序<strong>不會改變已產出的結果</strong>；要讓新順序生效，需再按一次「清洗」／「產生」重新執行。</li></ul>
+<h3 id="成員異動後該怎麼做清洗蒸餾索引會過期">成員異動後該怎麼做？（清洗/蒸餾/索引會過期）</h3>
+<p>當你<strong>新增、移除或重排成員</strong>，或在其他頁面<strong>編輯了某成員的原始內容</strong>後，這筆來源既有的「清洗 → 蒸餾 → 索引」結果就<strong>過期</strong>了——AI 知識問答仍會用到舊內容。</p>
+<ul><li>系統會把該筆標記為「<strong>內容已變更，建議重新清洗→蒸餾</strong>」（清單頁狀態欄顯示提示）。</li><li><strong>成員的原始內容在別的畫面被編修，系統也會自動偵測</strong>：四種素材型別（影音轉逐字稿／文件轉文字／圖片解讀／<strong>會議紀錄</strong>）只要在各自畫面編修過文字內容，系統就會把所有引用它的知識來源標記為過時，你不必自己記得哪些來源受影響。刪除素材時還會順便清掉指向它的孤兒成員。</li><li>但有兩種情況<strong>刻意不標記</strong>（因為不影響聚合內容）：①只改素材的標題／分類／團隊等中介資料；②會議把 AI 產出的摘要／決議事項／與會人員套用到欄位（這三個欄位不進知識來源內容，只有 <code>GeneratedContentRelativePath</code> 指向的會議紀錄 .md 全文才算）。</li><li><strong>重跑順序</strong>：</li><li>按「<strong>清洗</strong>」重新清洗（完成後提示消失）。</li><li>按「<strong>蒸餾</strong>」重新蒸餾（VER-1，0.3.14：產生新版頁，舊現行版轉「已汰換」保留，不刪舊頁）。</li><li>蒸餾完成會<strong>自動建立索引</strong>（若已設定嵌入端點）；也可手動按「建立索引」。</li><li><strong>內容變多或變少都會正確反映</strong>：變多→新增新版 Wiki 頁與向量；變少→不再產生的概念其舊版轉「已汰換」保留、向量標為非現行而退出檢索（版本化，非刪除）。不需手動處理（詳見 <a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行 §2.1</a>）。</li><li>每個動作的<strong>開始與完成</strong>都會有畫面訊息通知；處理中清單會自動刷新狀態。</li></ul>
+<hr>
+<h2 id="4-清洗目的成果與產出長相" class="t5">4. 清洗：目的、成果與產出長相</h2>
+<p>在知識來源按「<strong>清洗</strong>」，於對話窗選擇要套用的清洗規則設定（或「預設／全域」），系統就會在背景把這包素材清成一份乾淨知識。</p>
+<p><strong>清洗會做什麼（依序）：</strong></p>
+<ol><li><strong>彙整</strong>：依成員順序把所有內容<strong>合併成一份</strong>。</li><li><strong>繁體正規化</strong>：把簡體轉成台灣繁體（標題保留原文）。</li><li><strong>LLM 五步</strong>：去重 → 遮罩 → 分類 → 摘要 → 信心自評。</li><li><strong>產出單一 Markdown</strong> 並依<strong>信心分數</strong>路由狀態。</li></ol>
+<p><strong>你會得到什麼（清洗結果的固定結構）：</strong></p>
+<pre><code># {知識來源標題}
+
+## 摘要
+（約 100–200 字重點摘要；下一行「關鍵實體：」列出重要的人/組織/產品/主題）
+
+## 建議分類
+標籤A、標籤B、標籤C
+
+&gt; 註記：（若某步驟降級或未設金鑰才會出現）
+
+---
+
+（這裡是「去重＋遮罩」後的正文，每個成員以「## 類型：標題」分段）</code></pre>
+<p><strong>完成後：</strong></p>
+<ul><li><strong>信心 ≥ 門檻（預設 0.70）</strong> → 直接「已清洗」。</li><li><strong>信心 &lt; 門檻或無法評分</strong> → 「待審核」，由具「知識審核」權限者核准或退回。</li><li>「建議分類」會<strong>自動併入</strong>該知識來源的分類欄位。</li><li>隨時可「<strong>檢視清洗結果</strong>」：預覽、複製、線上編修。<strong>清洗結果只存成檔案</strong>（在 <code>C:\temp\KnowledgeExtraction\CleanedSource\{年}\</code>），不存資料庫。</li><li><strong>未設定 OpenAI 金鑰</strong>時：清洗只做「彙整＋繁體化」，<strong>跳過</strong>去重/遮罩/分類/摘要，並在結果開頭加上這行註記（逐字）：</li></ul>
+<p><code>&gt; 註記：未設定 LLM（OpenAI ApiKey），略過去重/遮罩/分類/摘要，僅輸出彙整與繁體正規化內容。</code></p>
+<p><strong>操作建議：</strong></p>
+<ul><li>清洗前先把成員的<strong>關鍵字修對</strong>（人名、料號、專案代號）——錯字會一路被帶到摘要和分類。</li><li>高敏感資料（個資、合約）把<strong>信心門檻訂保守</strong>，刻意讓多數走人工關卡。</li></ul>
+<hr>
+<h2 id="5-清洗到底在做什麼常見疑問直答" class="t6">5. 清洗到底在做什麼？（常見疑問直答）</h2>
+<p><strong>Q：清洗是把所有成員的原始內容全部合併成一個新檔案嗎？</strong> 是。系統會把指定知識來源的所有成員<strong>依序合併成一份</strong>，輸出成一個 Markdown 檔。</p>
+<p><strong>Q：那是直接用原文，還是會重新生成內容？兩者都有，要分清楚：</strong></p>
+<ul><li><strong>正文</strong>＝原始合併內容經「<strong>去重＋遮罩</strong>」後的版本——<strong>保留原意</strong>，只移除重複/雜訊與個資。但「去重」是 LLM 操作，<strong>可能輕微改動措辭</strong>。</li><li><strong>摘要與建議分類</strong>＝<strong>額外新生成</strong>的層疊資訊（獨立區塊），<strong>不會取代正文</strong>。</li></ul>
+<p><strong>Q：那會不會跟原意有差異？怎麼防？</strong> 因為去重/遮罩是 LLM 操作，確實有風險，所以系統設了<strong>三道把關</strong>：</p>
+<ol><li><strong>信心自評＋信心門檻</strong>：分數不夠就不自動放行。</li><li><strong>人工審核</strong>（待審核 → 核准／退回）。</li><li><strong>清洗品質評測</strong>：用標準答案題庫量「遮罩召回率、<strong>必保留詞</strong>、分類 F1、摘要涵蓋率」，校準門檻。</li></ol>
+<p>此外安全設計是「<strong>遮罩失敗＝整筆清洗失敗</strong>」——寧可重跑，也不讓沒遮乾淨的內容外流。</p>
+<p><strong>Q：AI 知識問答，是用清洗後的內容來回答嗎？</strong> 是。乾淨內容會經「蒸餾」煉成互連 Wiki 頁、再自動建立向量索引；之後即可於 <strong>AI 知識問答 <code>/knowledge-base-chat</code></strong> 跨來源自然語言問答、附出處、受團隊權控（<strong>RAG／向量檢索／問答已於階段三 0.2.123–0.2.128 實作</strong>）。清洗的價值是：產出<strong>乾淨、去敏、已分類摘要、可信任</strong>的知識資產，並可線上預覽與編修，作為蒸餾、索引與問答的基礎。</p>
+<hr>
+<h2 id="6-清洗規則設定cleaning-profiles五個提示詞欄位" class="t7">6. 清洗規則設定（<code>/cleaning-profiles</code>）：五個提示詞欄位</h2>
+<p>清洗規則設定是一組「配方」，<strong>五段提示詞</strong>各對應清洗的一個 LLM 步驟。<strong>這五段可以留空——留空就用系統內建預設</strong>。下面列出每段的用途、內建預設原文與撰寫建議。</p>
+<p>除了五段提示詞，表單還有三個欄位（<strong>這三個不是提示詞，語意不同</strong>）：</p>
+<div class="tw"><table><thead><tr><th>欄位（畫面標籤）</th><th>必填</th><th>說明</th></tr></thead><tbody><tr><td><strong>名稱</strong></td><td>✅</td><td>清洗時的下拉選單會顯示它；<strong>不可與其他設定檔重複</strong>（不分大小寫）。建議用「用途＋策略」命名，例如「客服對話-完整保留」</td></tr><tr><td><strong>描述</strong></td><td>—</td><td>說明採用什麼策略、適合哪種來源，方便日後自己或同事挑選</td></tr><tr><td><strong>啟用狀態</strong></td><td>—</td><td>控制它是否出現在「清洗」的選單。<strong>停用後不能再被新的清洗選用，但先前已使用它的知識來源仍會記得曾套用它</strong>（重試時沿用）。想暫時收起某個設定檔又不想刪除時使用</td></tr></tbody></table></div>
+<p>清單欄位為：名稱、描述、啟用狀態、更新時間（預設依更新時間新到舊）。</p>
+<blockquote><p>套用規則：知識來源若<strong>指定了設定檔</strong>，每個步驟「設定檔有填→用設定檔；留空→用內建預設」，並略過全域AI 提示詞。若<strong>未指定設定檔</strong>，則改用「AI 提示詞 <code>/prompts</code>」中名為 <code>清洗-去重/遮罩/分類/摘要/信心</code> 的啟用項，再退回內建預設。</p></blockquote>
+<h3 id="61-去重提示詞dedupeprompt">6.1 去重提示詞（DedupePrompt）</h3>
+<ul><li><strong>用途</strong>：移除重複段落與明顯雜訊（重複客套、無意義填充），保留有資訊價值的內容、維持原意。輸出成為正文的基礎。</li><li><strong>內建預設</strong>：</li></ul>
+<blockquote><p>你是資料清洗助手。請移除以下內容中的重複段落與明顯雜訊（重複客套、無意義填充），保留所有有資訊價值的內容，維持原意與繁體中文。直接輸出清理後的內容，不要任何額外說明或前後綴。</p></blockquote>
+<ul><li><strong>撰寫建議</strong>：想保留原話（訪談、法律）→ 要求「只刪完全重複、不要改寫」；想精煉（會議、客服）→ 可放寬。<strong>務必加上「維持原意」「直接輸出、不要額外說明」</strong>。</li></ul>
+<h3 id="62-遮罩提示詞maskprompt">6.2 遮罩提示詞（MaskPrompt）</h3>
+<ul><li><strong>用途</strong>：把個資與機密以【已遮罩】取代，其餘原樣保留。<strong>這步失敗＝整筆清洗失敗</strong>，最關鍵。</li><li><strong>內建預設</strong>：</li></ul>
+<blockquote><p>你是資安遮罩助手。請將以下內容中的個資與機密（身分證號、電話、Email、地址、金融帳號、密碼、金鑰等）以【已遮罩】取代，其餘內容原樣保留，維持繁體中文。直接輸出遮罩後內容，不要任何額外說明。</p></blockquote>
+<ul><li><strong>撰寫建議</strong>：依產業<strong>明列</strong>要遮的項目（如統一編號、病歷號、合約金額）；同時<strong>明列「必須保留」</strong>的關鍵詞（如退款規則、條款用語），避免誤遮。</li></ul>
+<h3 id="63-分類提示詞classifyprompt">6.3 分類提示詞（ClassifyPrompt）</h3>
+<ul><li><strong>用途</strong>：建議主題標籤，會併入知識來源分類，幫助日後查找。內建預設建議 1–5 個；<strong>系統最多保留 10 個標籤</strong>，故設定檔可要求更細的分類。</li><li><strong>內建預設</strong>：</li></ul>
+<blockquote><p>請閱讀以下內容，建議 1-5 個最貼切的主題分類標籤。僅輸出分類名稱、以「、」分隔於同一行，不要其他文字。</p></blockquote>
+<ul><li><strong>撰寫建議</strong>：可限定分類詞庫（如「只從：客服、財務、物流、技術 中挑」），分類會更一致；想分得更細可要求涵蓋多個面向（主題、對象、情境、產品／流程），最多保留 10 個。<strong>務必維持「以、分隔、單行、不要其他文字」</strong>的輸出格式，否則解析會受影響。</li></ul>
+<h3 id="64-摘要提示詞summaryprompt">6.4 摘要提示詞（SummaryPrompt）</h3>
+<ul><li><strong>用途</strong>：產生重點摘要與關鍵實體列表，放在結果最上方。</li><li><strong>內建預設</strong>：</li></ul>
+<blockquote><p>請為以下內容寫一段約 100-200 字的繁體中文重點摘要；摘要後另起一行，以「關鍵實體：」開頭列出重要的人/組織/產品/主題（以「、」分隔）。直接輸出，不要額外說明。</p></blockquote>
+<ul><li><strong>撰寫建議</strong>：可指定<strong>輸出格式</strong>讓產出穩定好讀，例如會議要求「分『決議』『待辦』『負責人』三段條列」。</li></ul>
+<h3 id="65-信心自評提示詞confidenceprompt">6.5 信心自評提示詞（ConfidencePrompt）</h3>
+<ul><li><strong>用途</strong>：讓模型自評清洗結果整體正確/完整的信心，輸出 0–1 小數。分數會與門檻（預設 0.70）比較決定「已清洗」或「待審核」。</li><li><strong>內建預設</strong>：</li></ul>
+<blockquote><p>請評估你對上述清洗結果（去重、遮罩、摘要、分類）整體正確與完整的信心，僅輸出 0 到 1 之間的一個小數（例如 0.85），不要任何其他文字。</p></blockquote>
+<ul><li><strong>撰寫建議</strong>：高敏感場景可要求「對遮罩有疑慮就給較低分」，把更多結果推向人工審核。<strong>務必維持「只輸出一個 0–1 小數」</strong>的格式。</li></ul>
+<h3 id="66-快速上手三種預設範本按鈕與欄位說明圖示">6.6 快速上手：三種預設範本按鈕與欄位說明圖示</h3>
+<p>第一次使用不知道各欄位怎麼填？畫面上有兩個輔助功能：</p>
+<p><strong>（一）三顆「預設範本」按鈕（清單頁工具列）</strong></p>
+<p>清洗規則設定頁面工具列（<code>新增</code>／<code>重新整理</code> 旁）有三顆範本按鈕。按下後會<strong>開啟新增表單並自動帶入</strong>該範本的名稱、描述與五段提示詞，你可以先檢視、微調（例如改名、依產業補上要保留的關鍵詞）再按確定儲存。除了快速上手，也能藉此<strong>學習</strong>提示詞的寫法。</p>
+<div class="tw"><table><thead><tr><th>範本</th><th>保留程度</th><th>適用情境</th></tr></thead><tbody><tr><td><strong>最大保留範本</strong></td><td>最高：幾乎不去重、只遮最高風險機密（密碼／金鑰／完整卡號）、分類 5–10 個</td><td>怕漏細節、需要完整內容做AI 知識問答的來源</td></tr><tr><td><strong>低度清洗範本</strong></td><td>高：只移除明顯重複與雜訊、僅遮最敏感個資（身分證／金融帳號／密碼／金鑰），姓名、電話、Email、地址等保留</td><td>想保留大部分內容、又要基本去敏</td></tr><tr><td><strong>中度清洗範本</strong></td><td>中：標準去重、遮罩常見個資但<strong>保留姓名</strong>、分類適中</td><td>想要乾淨去敏又不要砍太多的一般來源</td></tr></tbody></table></div>
+<blockquote><p>三者保留程度由高到低為：<strong>最大保留 ＞ 低度清洗 ＞ 中度清洗 ＞（系統全域預設）</strong>。也就是說，即使是「中度清洗」，保留的內容也比「未選任何設定檔（預設／全域）」更多——這正是為了解決「清洗後原有內容常常消失」的痛點。範本名稱後綴「（範本）」，儲存前可自行改名；名稱不可與既有設定檔重複。</p></blockquote>
+<p><strong>（二）欄位說明圖示（游標移上顯示用法）</strong></p>
+<p>新增／修改表單的<strong>每個欄位</strong>標籤旁都有一個「?」說明圖示，游標移上去會顯示該欄位的詳細用法：該填什麼、留空會怎樣、清洗後會得到什麼結果。搭配上述範本，第一次使用也能快速理解每個提示詞的作用。</p>
+<hr>
+<h2 id="7-5-個實際清洗規則設定範例含清洗後會看到什麼" class="t8">7. 5 個實際清洗規則設定範例（含清洗後會看到什麼）</h2>
+<p>以下每個範例給「情境 → 五欄位填法 → 清洗後會看到什麼」。<strong>留空＝用內建預設</strong>，故只列出需要客製的欄位。</p>
+<h3 id="範例-1會議知識摘要要決議待辦負責人">範例 1：會議知識（摘要要「決議／待辦／負責人」）</h3>
+<ul><li><strong>情境</strong>：產品週會逐字稿，要快速看到決議與待辦。</li><li><strong>設定</strong>：摘要提示詞＝「請寫繁體中文摘要，並分『決議』『待辦』『負責人』三段條列；最後一行以『關鍵實體：』列出人/產品/專案。直接輸出。」；其餘留空。</li><li><strong>清洗後</strong>：<code>## 摘要</code> 直接呈現三段條列（決議／待辦／負責人），<code>## 建議分類</code> 出現如「產品、會議、規劃」，正文為去重遮罩後的逐字稿。信心多半 ≥0.70 自動「已清洗」。</li></ul>
+<h3 id="範例-2客服退款流程遮罩客戶個資保留退款規則">範例 2：客服－退款流程（遮罩客戶個資、保留退款規則）</h3>
+<ul><li><strong>情境</strong>：退款通話逐字稿＋退款 FAQ。</li><li><strong>設定</strong>：遮罩提示詞＝「將客戶姓名、電話、Email、訂單號、信用卡號以【已遮罩】取代；<strong>務必保留</strong>退款金額規則、計費條件、處理時效等業務用語。直接輸出。」；分類提示詞＝「只從：客服、財務、物流、退款 中挑 1–3 個。以、分隔單行。」</li><li><strong>清洗後</strong>：正文中客戶個資變【已遮罩】，但「7 日內全額退款」「運費不退」等規則完整保留；分類落在客服/財務/退款。建議拿一筆相近黃金樣本評測，確認「<strong>該遮的遮掉、該留的留住</strong>」。</li></ul>
+<h3 id="範例-3hr合約高敏感門檻保守">範例 3：HR／合約（高敏感，門檻保守）</h3>
+<ul><li><strong>情境</strong>：合約 PDF＋員工名冊，個資極敏感。</li><li><strong>設定</strong>：遮罩提示詞＝「強化遮罩：身分證號、統一編號、金融帳號、薪資數字、密碼、住址以【已遮罩】取代；<strong>保留</strong>合約條款編號與關鍵條款用語。直接輸出。」；信心自評提示詞＝「若對任何個資是否遮乾淨有疑慮，請給較低分。只輸出 0–1 小數。」；並把系統信心門檻訂保守。</li><li><strong>清洗後</strong>：個資被嚴格遮罩、條款用語保留；信心常 &lt;0.70 自動進「<strong>待審核</strong>」，由具「知識審核」權限者確認後核准/退回。<strong>寧可多走人工關卡</strong>。</li></ul>
+<h3 id="範例-4技術文件faq強去重技術分類">範例 4：技術文件／FAQ（強去重、技術分類）</h3>
+<ul><li><strong>情境</strong>：多份重疊的產品手冊、FAQ，重複內容多。</li><li><strong>設定</strong>：去重提示詞＝「積極移除重複說明與重出的步驟，合併同義段落，保留所有設定值、指令、參數與限制，維持原意。直接輸出。」；分類提示詞＝「只從：安裝、設定、疑難排解、API、限制 中挑 1–5 個。以、分隔單行。」</li><li><strong>清洗後</strong>：正文大幅精簡、重複段落消失，但指令/參數/限制完整；分類偏技術主題；摘要列出關鍵實體（產品名、模組）。適合當成內部知識庫底稿。</li></ul>
+<h3 id="範例-5研究訪談輕去重保留原話">範例 5：研究／訪談（輕去重保留原話）</h3>
+<ul><li><strong>情境</strong>：受訪者逐字稿，需保留語氣與原話供引用。</li><li><strong>設定</strong>：去重提示詞＝「僅移除完全重複的句子與口頭語贅字（嗯、那個…），<strong>不要改寫或精簡語句</strong>，保留受訪者原話與順序。直接輸出。」；摘要提示詞＝「寫 150 字內主題摘要，並以『關鍵實體：』列出受訪者、機構、議題。直接輸出。」</li><li><strong>清洗後</strong>：正文幾乎是原話（僅去贅字），可安心引用；上方有研究主題摘要與關鍵實體；分類落在研究主題。</li></ul>
+<blockquote><p>提醒：所有範例都假設已設定 OpenAI 金鑰。<strong>未設金鑰時</strong>清洗只做彙整＋繁體化，不會有摘要/分類/遮罩。</p></blockquote>
+<hr>
+<h2 id="8-新手操作步驟端到端" class="t1">8. 新手操作步驟（端到端）</h2>
+<ol><li><strong>準備素材</strong>：到 <code>/media-transcription</code>、<code>/document-extraction</code> 或 <code>/image-recognition</code>（圖片解讀），把素材轉成文字並確認狀態「已完成」。</li><li><strong>建立知識來源</strong>：<code>/knowledge-sources</code> →「新增」，填標題、描述，設定分類與團隊。</li><li><strong>管理成員</strong>：按「管理成員」，挑<strong>同主題</strong>的已完成素材加入，調整順序。</li><li><strong>（選配）建立清洗規則設定</strong>：<code>/cleaning-profiles</code> →「新增」，依第 6、7 節填你需要客製的欄位（其餘留空用預設）。</li><li><strong>清洗</strong>：回知識來源按「清洗」，選設定檔（或「預設／全域」）。</li><li><strong>看結果</strong>：背景完成後「檢視清洗結果」，預覽摘要/分類/正文，必要時線上編修。</li><li><strong>審核（若為待審核）</strong>：具「知識審核」權限者核准或退回（填理由）。</li><li><strong>（選配）校準品質</strong>：到 <code>/golden-samples</code> 建標準答案題庫並「評測」，依建議調整信心門檻與提示詞。</li></ol>
+<hr>
+<h2 id="9-常見誤用與注意事項" class="t2">9. 常見誤用與注意事項</h2>
+<ul><li><strong>主題混雜</strong>：一筆知識來源塞太多不相關素材 → 摘要失焦、分類變亂、信心偏低。<strong>分主題拆多筆</strong>。</li><li><strong>未設 OpenAI 金鑰</strong>：清洗只會彙整＋繁體化，<strong>沒有</strong>去重/遮罩/分類/摘要。需要這些就先填金鑰並重啟。</li><li><strong>遮罩失敗＝整筆清洗失敗</strong>：這是刻意的安全設計，避免個資外流。失敗請重跑或檢查遮罩提示詞與金鑰。</li><li><strong>先修關鍵字再清洗</strong>：成員裡的人名/料號/專案代號錯字會一路帶到摘要與分類。</li><li><strong>格式要求別省略</strong>：分類要「以、分隔、單行」、信心要「只輸出 0–1 小數」，破壞格式會影響解析。</li><li><strong>高敏感場景門檻訂保守</strong>：刻意讓多數走人工審核，比全自動更安心。</li></ul>
+<hr>
+<h2 id="10-相關文件" class="t3">10. 相關文件</h2>
+<ul><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊</a>（§7 核心流程：匯入→檢視→清洗→評量；§7.5 企業情境）</li><li><a href="../../docs/guides/import-to-knowledge-flow.html">從匯入到知識的操作流程</a>（清洗／設定檔／清洗品質評測關係＋蒸餾現況）</li><li><a href="../../docs/prd/prd-8e3d2ab7.html">清洗規則設定 PRD</a></li><li><a href="../../docs/prd/prd-a1cd6b20.html">資料清洗與品質保證 PRD</a></li><li><a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：功能、欄位、價值</a></li><li><a href="../../docs/prd/prd-e8b774d3.html">知識來源管理 PRD</a></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：我要把各種格式的資料匯進來</li><li>知識庫管理者：我要讓答案更準、更可信</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#文件目的與適用對象">文件目的與適用對象</a><a class="l2" href="#1-一分鐘觀念它們在系統裡的角色">1. 一分鐘觀念：它們在系統裡的角色</a><a class="l2" href="#2-知識來源加工knowledge-sources">2. 知識來源加工（/knowledge-sources）</a><a class="l3" href="#21-列上動作按鈕與出現條件">2.1 列上動作按鈕與出現條件</a><a class="l3" href="#22-全量重建索引">2.2 全量重建索引</a><a class="l2" href="#3-管理成員要加入哪些資料來源怎麼選">3. 管理成員：要加入哪些資料來源、怎麼選</a><a class="l3" href="#成員順序上移下移有什麼影響">成員順序（上移／下移）有什麼影響？</a><a class="l3" href="#成員異動後該怎麼做清洗蒸餾索引會過期">成員異動後該怎麼做？（清洗/蒸餾/索引會過期）</a><a class="l2" href="#4-清洗目的成果與產出長相">4. 清洗：目的、成果與產出長相</a><a class="l2" href="#5-清洗到底在做什麼常見疑問直答">5. 清洗到底在做什麼？（常見疑問直答）</a><a class="l2" href="#6-清洗規則設定cleaning-profiles五個提示詞欄位">6. 清洗規則設定（/cleaning-profiles）：五個提示詞欄位</a><a class="l3" href="#61-去重提示詞dedupeprompt">6.1 去重提示詞（DedupePrompt）</a><a class="l3" href="#62-遮罩提示詞maskprompt">6.2 遮罩提示詞（MaskPrompt）</a><a class="l3" href="#63-分類提示詞classifyprompt">6.3 分類提示詞（ClassifyPrompt）</a><a class="l3" href="#64-摘要提示詞summaryprompt">6.4 摘要提示詞（SummaryPrompt）</a><a class="l3" href="#65-信心自評提示詞confidenceprompt">6.5 信心自評提示詞（ConfidencePrompt）</a><a class="l3" href="#66-快速上手三種預設範本按鈕與欄位說明圖示">6.6 快速上手：三種預設範本按鈕與欄位說明圖示</a><a class="l2" href="#7-5-個實際清洗規則設定範例含清洗後會看到什麼">7. 5 個實際清洗規則設定範例（含清洗後會看到什麼）</a><a class="l3" href="#範例-1會議知識摘要要決議待辦負責人">範例 1：會議知識（摘要要「決議／待辦／負責人」）</a><a class="l3" href="#範例-2客服退款流程遮罩客戶個資保留退款規則">範例 2：客服－退款流程（遮罩客戶個資、保留退款規則）</a><a class="l3" href="#範例-3hr合約高敏感門檻保守">範例 3：HR／合約（高敏感，門檻保守）</a><a class="l3" href="#範例-4技術文件faq強去重技術分類">範例 4：技術文件／FAQ（強去重、技術分類）</a><a class="l3" href="#範例-5研究訪談輕去重保留原話">範例 5：研究／訪談（輕去重保留原話）</a><a class="l2" href="#8-新手操作步驟端到端">8. 新手操作步驟（端到端）</a><a class="l2" href="#9-常見誤用與注意事項">9. 常見誤用與注意事項</a><a class="l2" href="#10-相關文件">10. 相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/知識來源加工與清洗規則設定-使用指南.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

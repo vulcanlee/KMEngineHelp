@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>選單「系統監控與日誌」拆分與 flyout 溢出修正（1.0.96 → 1.0.97）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>選單「系統監控與日誌」拆分與 flyout 溢出修正（1.0.96 → 1.0.97）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-28</li><li>版本：1.0.96 → 1.0.97</li><li>類型：UI 修正（<strong>無新表、無 migration、不動權限</strong>）</li></ul>
+<h2 id="問題" class="t1">問題</h2>
+<p>側邊欄<strong>收合狀態</strong>下，滑過「系統管理 › 系統監控與日誌」彈出的第三層面板有 <strong>8 個項目</strong>，高度超過視窗，最後一項「資料表使用狀況」被切在畫面外——<strong>看得到一半但點不到</strong>。</p>
+<h2 id="根因" class="t2">根因</h2>
+<p>收合態的側邊欄不是 AntDesign Menu，而是 <code>NavMenu.razor</code> 自製的 CSS flyout。<code>.collapsed-submenu-flyout</code>（第三層面板）是 <code>position: absolute; top: 0; left: 100%</code>——<strong>對齊觸發列頂端往下長，既沒有 <code>max-height</code> 也沒有 <code>overflow</code></strong>。「系統監控與日誌」那一列位在第二層面板偏下的位置，8 項面板的起點就低，直接掉出視窗底部。</p>
+<p>展開態沒這問題（走 AntDesign inline Menu，包在 <code>overflow-y: auto</code> 的 <code>.nav-scrollable</code> 裡）。</p>
+<h2 id="為什麼不是再加一層子功能表" class="t3">⚠️ 為什麼不是「再加一層子功能表」</h2>
+<p>這是最直覺的想法，但 <code>NavMenu.razor:71</code> 的註解顯示<strong>前人正是為了「單一面板過長溢出」才做出現在這層巢狀</strong>——再加一層是重複同一招：</p>
+<ul><li><code>NavMenu.razor</code> 的收合態標記<strong>寫死三層</strong>（item → child → grandChild），第四層要改標記與 CSS；</li><li>導覽變成三次 hover，往右還可能撞到視窗右緣；</li><li>而且新面板一樣沒有高度上限、一樣會溢出，<strong>根因沒解到</strong>。</li></ul>
+<p>改採「同層拆兩組（解眼前）＋ 第三層加高度上限（解根因）」。</p>
+<h2 id="變更" class="t4">變更</h2>
+<h3 id="1-menujson502-拆成兩組">1. <code>Menu.json</code>：502 拆成兩組</h3>
+<p>「系統管理」的子分類由 3 組變 4 組：</p>
+<div class="tw"><table><thead><tr><th>群組</th><th>id</th><th>圖示</th><th>項目</th></tr></thead><tbody><tr><td>系統監控（沿用 502、改名）</td><td>502</td><td><code>monitor_heart</code></td><td>統計儀表板、系統健康監控、待處理背景工作、資料表使用狀況</td></tr><tr><td>診斷與日誌（新增）</td><td><strong>504</strong></td><td><code>troubleshoot</code></td><td>檢索診斷與調校、資料一致性巡檢、日誌等級切換、日誌下載</td></tr></tbody></table></div>
+<p>分法是「<strong>現在系統怎麼樣</strong>」vs「<strong>查問題／看日誌</strong>」。葉節點的 id／url／icon 一律未動，只是換掛群組。</p>
+<p><strong>刻意不重編 503 的 id</strong>：陣列位置決定顯示順序，id 只是識別碼，現況本來就不連號（502 底下是 513、53…）。重編是無益的擾動。</p>
+<h3 id="2-navmenurazorcss只給第三層加高度上限">2. <code>NavMenu.razor.css</code>：只給第三層加高度上限</h3>
+<pre><code>.collapsed-submenu-flyout {
+    max-height: calc(100vh - 2rem);
+    overflow: hidden auto;
+}</code></pre>
+<p>⚠️ <strong>第二層 <code>.collapsed-menu-flyout</code> 完全沒動</strong>，並在該處補上 guard 註解。原因是 <code>開發慣例與限制速查.md</code> 記載的 <strong>1.0.44 踩雷點</strong>：第二層是第三層 flyout（定位在 <code>left:100%</code>、於框外）的 containing block，一加 <code>overflow</code> 就把第三層整個裁掉，懸停子分類將看不到功能頁。</p>
+<p>第三層可以加，是因為<strong>它底下只有葉節點連結、框外沒有任何定位元素</strong>，overflow 裁不到東西。</p>
+<p>⚠️ <code>overflow</code> <strong>明寫兩軸</strong>（<code>hidden auto</code>）：只寫 <code>overflow-y: auto</code> 會讓 <code>overflow-x</code> 隱含變成 <code>auto</code>，產生 1.0.44 那個假的水平捲軸。</p>
+<h3 id="3-menuicontestsallowedparenticons-補-troubleshoot">3. <code>MenuIconTests.AllowedParentIcons</code> 補 <code>troubleshoot</code></h3>
+<p>新群組圖示須在白名單內。<code>troubleshoot</code> 本來就在 <code>AllowedLeafIcons</code>（被「檢索診斷與調校」使用），與 <code>monitor_heart</code>／<code>auto_awesome</code> 同時列在兩份白名單的既有慣例一致。</p>
+<h3 id="4-文件">4. 文件</h3>
+<ul><li><strong><code>開發慣例與限制速查.md</code></strong>：①子分類 3 組 → 4 組與新名稱；②<strong>把「兩層 flyout 皆不可加 <code>overflow</code>/<code>max-height</code>」改寫為分層敘述</strong>。原敘述會讓後人以為第三層也不能加，而本次正好證明第三層可以且應該加——踩雷點的敘述不精確，比沒寫更危險。</li><li><strong>12 份 live 文件的導覽路徑</strong>（約 34 處）依該頁實際落在哪一組改成「系統監控」或「診斷與日誌」。其中 <code>系統健康監控-prd.md</code> 需<strong>改寫而非換字</strong>：<code>/system-health</code>、<code>/log-settings</code>、<code>/log-download</code> 三頁原本同群組，現在分屬兩組。</li><li><strong><code>docs/changelog/*</code> 一律未動</strong>：那是歷史紀錄，記載當時為真的事（<code>docs/README.md:201</code> 那筆 changelog 索引條目同理保留）。</li></ul>
+<h2 id="為什麼不需要權限三處同步" class="t5">為什麼不需要權限三處同步</h2>
+<p>權限樹（<code>RolePermissionService</code>）只對應<strong>最上層</strong> 8 組選單，而整個「系統管理」子樹都是 <code>adminOnly=true</code>、<strong>不在權限樹裡</strong>——<code>MenuPermissionAlignmentTests.EachGroup_HasEnoughChildPermissions_ForItsSubMenu</code> 對 adminOnly 群組直接 <code>continue</code> 跳過。故 <code>MagicObjectHelper</code> 與 <code>RolePermissionService</code> 皆未動，頂層順序與數量（8 組）亦未變。</p>
+<h2 id="驗證" class="t6">驗證</h2>
+<ul><li><code>dotnet build</code> 成功、<strong>警告數與位置完全相同</strong>（26 條，逐條比對零新增）。</li><li><code>dotnet test</code> <strong>950 全綠</strong>（數量不變，本次未新增測試）。守門測試皆續綠：<code>MenuIconTests</code>、<code>MenuPermissionAlignmentTests</code>、<code>SidebarMenuServiceTests</code>。</li><li>無 model 變更，<strong>確認未產生 migration</strong>。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 0 失敗；版本 1.0.97。</li></ul>
+<h2 id="已知限制" class="t7">已知限制</h2>
+<ul><li><strong>本次未新增自動化測試</strong>：問題與修正都在 CSS 與選單資料層，專案沒有 UI 視覺回歸測試基礎設施；<code>MenuIconTests</code>／<code>MenuPermissionAlignmentTests</code> 只能守住「圖示在白名單」與「位置索引對齊」，守不住「面板會不會被裁掉」。</li><li><strong>⚠️ 未執行瀏覽器實測</strong>：以下需人工驗收——①收合側邊欄後第二層出現 4 個子分類；②兩個新群組的第三層面板 4 項全部可見可點；③<strong>回歸 1.0.44</strong>：滑過子分類時第三層仍能正常彈出在第二層框外（沒有被裁）；④縮小視窗高度時第三層應出現<strong>垂直</strong>捲軸、<strong>不得</strong>出現水平捲軸。</li><li>第三層面板的 <code>top</code> 仍對齊觸發列，<code>max-height</code> 只保證「不超過視窗高度」，並未做視窗感知的重新定位。極矮視窗下面板起點仍可能偏低（此時會出現捲軸而非被裁掉）。純 CSS 無法可靠做到視窗感知定位，需要 JS 或 CSS anchor positioning（瀏覽器支援度不足）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#問題">問題</a><a class="l2" href="#根因">根因</a><a class="l2" href="#為什麼不是再加一層子功能表">⚠️ 為什麼不是「再加一層子功能表」</a><a class="l2" href="#變更">變更</a><a class="l3" href="#1-menujson502-拆成兩組">1. Menu.json：502 拆成兩組</a><a class="l3" href="#2-navmenurazorcss只給第三層加高度上限">2. NavMenu.razor.css：只給第三層加高度上限</a><a class="l3" href="#3-menuicontestsallowedparenticons-補-troubleshoot">3. MenuIconTests.AllowedParentIcons 補 troubleshoot</a><a class="l3" href="#4-文件">4. 文件</a><a class="l2" href="#為什麼不需要權限三處同步">為什麼不需要權限三處同步</a><a class="l2" href="#驗證">驗證</a><a class="l2" href="#已知限制">已知限制</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-28-選單系統監控與日誌拆分.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

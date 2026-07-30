@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>檢索診斷與查詢期調校 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>檢索診斷與查詢期調校 PRD</h1></header><div class="docwrap"><main><ul><li>文件版本：1.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.62</li><li>首次實作版本：0.3.3–0.3.6</li><li>最後核對日期：2026/07/25</li></ul>
+<h2 id="一產品目標與範圍" class="t1">一、產品目標與範圍</h2>
+<p>讓管理員在 <code>/rag-diagnostics</code> 用實際問答稽核資料與索引狀態判斷「為何查不到、為何信心低、門檻是否合理」，並在不重啟系統下安全調校查詢期參數。此能力不修改來源內容、不執行 LLM 生成，也不取代 檢索品質評測回歸集。</p>
+<h2 id="二使用者與入口" class="t2">二、使用者與入口</h2>
+<ul><li>僅管理員可見及操作。</li><li>入口：系統管理 → 檢索診斷與調校，路由 <code>/rag-diagnostics</code>。</li><li>典型時機：查無依據增加、低信心增加、引用不相關、內容明明存在卻查不到。</li></ul>
+<h2 id="三現行功能需求" class="t3">三、現行功能需求</h2>
+<h3 id="31-門檻觀察與調整">3.1 門檻觀察與調整</h3>
+<ul><li>顯示目前生效與建議的 <code>RejectThreshold</code>、<code>LowConfidenceThreshold</code>。</li><li>合法關係為 <code>0 ≤ RejectThreshold ≤ LowConfidenceThreshold ≤ 1</code>。</li><li>支援手動套用、套用建議及回復設定預設；套用後下一則問答熱生效。</li><li>顯示是否有執行期覆蓋，避免管理員誤認已永久寫回 <code>appsettings.json</code>。</li></ul>
+<h3 id="32-查詢期參數">3.2 查詢期參數</h3>
+<ul><li>顯示並可調整 TopK、CandidateTopK、VectorWeight、KeywordWeight、MinScore 等查詢參數。</li><li>權重與數值必須通過服務端驗證；不合法組合不可生效。</li><li>調整只影響後續查詢，不回寫既有問答或評測結果。</li></ul>
+<h3 id="33-分析與模擬">3.3 分析與模擬</h3>
+<ul><li>topScore 分佈呈現實際檢索分數區間。</li><li>門檻效果模擬以既有稽核資料估算查無依據、低信心及正常回答比例，不改動正式設定。</li><li>樣本不足時明確標示建議不可靠，不以少量資料自動套用。</li></ul>
+<h3 id="34-索引健康自檢與試檢索">3.4 索引健康、自檢與試檢索</h3>
+<ul><li>顯示已清洗／已索引來源、片段數、Cleaned／Wiki chunk、最後索引時間與紅黃綠狀態。</li><li>自檢列出嵌入未設定、空索引、過時來源及樣本不足等症狀。</li><li>試檢索接受查詢與權限範圍，顯示命中來源、片段、向量／關鍵字／融合分；不呼叫 LLM。</li><li>顯示近期問答稽核紀錄，供管理員連結症狀與實際案例。</li></ul>
+<h2 id="四權限安全與資料影響" class="t4">四、權限、安全與資料影響</h2>
+<ul><li>頁面僅管理員可見；服務端仍須驗證管理員，不可只依選單隱藏。</li><li>試檢索必須依指定或目前權限範圍套團隊過濾，不能成為越權內容預覽器。</li><li>熱套用會影響所有後續問答，必須記錄操作者、時間、舊值與新值。</li><li>頁面不得顯示 API Key、完整秘密或不必要的敏感原文。</li></ul>
+<h2 id="五錯誤與恢復" class="t5">五、錯誤與恢復</h2>
+<ul><li>不合法門檻或參數顯示明確訊息且不更新目前值。</li><li>診斷資料不足時保持頁面可用，以提示取代錯誤結論。</li><li>嵌入端點不可用時試檢索可顯示關鍵字退化或失敗原因。</li><li>回復預設只移除執行期覆蓋；永久設定仍以 <code>appsettings.json</code> 為來源。</li></ul>
+<h2 id="六驗收條件" class="t6">六、驗收條件</h2>
+<ol><li>非管理員無法進頁或呼叫調校服務。</li><li>門檻與查詢參數合法值能熱生效，不合法值保持原設定。</li><li>模擬不改正式設定，套用與回復能從頁面狀態辨識。</li><li>索引健康、自檢及試檢索可定位空索引、過時來源及低分命中。</li><li>試檢索不呼叫 LLM，且越權片段命中為 0。</li></ol>
+<h2 id="七規劃中需求" class="t7">七、規劃中需求</h2>
+<ul><li>尚未實作：按租戶分組的參數、核准／排程套用、調參版本歷史回滾、線上 A/B 實驗。</li></ul>
+<h2 id="八相關文件" class="t8">八、相關文件</h2>
+<ul><li><a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/operations/rag-troubleshooting.html">RAG 問題診斷手冊</a></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li><li><a href="../../docs/prd/prd-55a99ddc.html">嵌入索引與混合檢索 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一產品目標與範圍">一、產品目標與範圍</a><a class="l2" href="#二使用者與入口">二、使用者與入口</a><a class="l2" href="#三現行功能需求">三、現行功能需求</a><a class="l3" href="#31-門檻觀察與調整">3.1 門檻觀察與調整</a><a class="l3" href="#32-查詢期參數">3.2 查詢期參數</a><a class="l3" href="#33-分析與模擬">3.3 分析與模擬</a><a class="l3" href="#34-索引健康自檢與試檢索">3.4 索引健康、自檢與試檢索</a><a class="l2" href="#四權限安全與資料影響">四、權限、安全與資料影響</a><a class="l2" href="#五錯誤與恢復">五、錯誤與恢復</a><a class="l2" href="#六驗收條件">六、驗收條件</a><a class="l2" href="#七規劃中需求">七、規劃中需求</a><a class="l2" href="#八相關文件">八、相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/RAG診斷與查詢期調校-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

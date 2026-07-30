@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>階段三步驟 3：Chunker + 嵌入索引管線（0.2.125）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>階段三步驟 3：Chunker + 嵌入索引管線（0.2.125）</h1></header><div class="docwrap"><main><ul><li>日期：2026/06/26</li><li>版本：0.2.124 → 0.2.125</li><li>對應設計：<a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格 §5、§6</a>；路線圖步驟：strategy/12 §12.2 步驟 3</li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>階段三第三步驟：把嵌入用戶端（步驟 1）與向量存取層（步驟 2）接成<strong>自動化索引管線</strong>。知識來源蒸餾完成後，自動把「清洗內容」與「已核准 Wiki 頁」切塊、嵌入、寫入 <code>VectorEmbedding</code>，支援重啟回復、取消、增量重建與孤兒清除。完全仿照既有「知識蒸餾」三件套的結構與慣例。</p>
+<h2 id="設計重點" class="t2">設計重點</h2>
+<ul><li><strong>切塊器 <code>Chunker</code></strong>：段落/語意感知（以空行切段落、追蹤最近 Markdown 標題作為 <code>AnchorRef</code>、累積至目標長度才切、保留少量重疊、超長段落硬切）。切塊參數為類別常數（待 PoC 調整，規格 T2）。</li><li><strong>三件套</strong>（仿 Distillations）：<code>IEmbeddingIndexQueue</code>/<code>EmbeddingIndexQueue</code>（Channel、Singleton）、<code>EmbeddingIndexBackgroundService</code>（消費迴圈 + <code>RecoverPendingAsync</code> 重啟回復 + 取消標記）、<code>EmbeddingIndexProcessor</code>（重試/取消/狀態機 + 增量 + 孤兒清除）。</li><li><strong>增量重建</strong>：以 <code>(SourceLayer, WikiPageId, ContentHash)</code> 比對既有向量，僅對新增/變更 chunk 呼叫 <code>IEmbeddingClient.EmbedAsync</code>（批次），不變者不重嵌；移除的 chunk 即孤兒清除。向量寫入前 <code>VectorMath.Normalize</code>（L2 正規化，規格 §4.4）。</li><li><strong>觸發</strong>：<code>DistillationProcessor</code> 蒸餾成功後，若 <code>IsEmbeddingConfigured()</code> 即設來源 <code>EmbeddingIndexStatus=等待中</code> 並入列；未設定則略過（問答退回單一來源模式，規格 §4.3）。</li><li><strong>FK 孤兒清除（關鍵正確性）</strong>：<code>VectorEmbedding.WikiPageId</code> 為 Restrict FK；重蒸餾刪除 Wiki 頁前、以及 <code>WikiPageService.DeleteAsync</code> 刪單頁前，皆先清除對應 Wiki 層向量，避免外鍵違規。Cleaned 層向量保留，交由增量 diff 處理。</li></ul>
+<h2 id="變更內容" class="t3">變更內容</h2>
+<ul><li><strong>狀態欄位</strong>：<code>KnowledgeSource</code> 新增 <code>EmbeddingIndexStatus</code>/<code>EmbeddingIndexProgressPercentage</code>/<code>EmbeddingIndexErrorMessage</code>/<code>IndexedAt</code>；<code>KnowledgeSourceAdapterModel</code> 新增對應狀態常數（待索引/等待中/處理中/已索引/失敗/已取消）。雙 migration <code>AddEmbeddingIndexStatus</code>。</li><li><strong>管線</strong>（<code>KnowledgeExtraction.Business/Services/Embeddings/</code>）：<code>Chunker</code>、<code>IEmbeddingIndexQueue</code>/<code>EmbeddingIndexQueue</code>、<code>EmbeddingIndexProcessor</code>；<code>VectorMath</code> 新增 <code>Normalize</code>；<code>PipelineNames.EmbeddingIndex</code>。</li><li><strong>背景服務</strong>：<code>KnowledgeExtraction.Web/BackgroundServices/EmbeddingIndexBackgroundService.cs</code>。</li><li><strong>觸發與清理</strong>：<code>DistillationProcessor</code> 注入 <code>IEmbeddingIndexQueue</code>＋<code>IOptions&lt;OpenAISettings&gt;</code>、成功後入列、重蒸餾清 Wiki 層向量；<code>WikiPageService.DeleteAsync</code> 清對應向量。</li><li><strong>DI</strong>：<code>ServiceCollectionExtensions</code> 註冊 <code>Chunker</code>/<code>IEmbeddingIndexQueue</code>/<code>EmbeddingIndexProcessor</code>；<code>Program.cs</code> 加 <code>AddHostedService&lt;EmbeddingIndexBackgroundService&gt;()</code>。</li><li><strong>測試</strong>：<code>ChunkerTests</code>（切塊/標題錨點/長文切多塊/超長硬切/空輸入）、<code>VectorMathTests</code> 補 <code>Normalize</code>、<code>EmbeddingIndexProcessorTests</code>（索引兩層、增量不重嵌、內容變更孤兒清除、未核准頁不索引、退回頁向量被清、未設定略過、已取消不動作）。全套 339 個測試綠燈。</li></ul>
+<h2 id="後續" class="t4">後續</h2>
+<p>依 strategy/12 §12.2，下一步為<strong>步驟 4</strong>：混合檢索（<code>IRetrievalService</code>：向量 + 全文並行、分數融合、檢索層即套團隊權控、雙層取用），驗收越權洩漏 0 命中。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#設計重點">設計重點</a><a class="l2" href="#變更內容">變更內容</a><a class="l2" href="#後續">後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-26-階段三嵌入索引管線.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登入後預設導向改為知識庫問答（1.0.14 → 1.0.15）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>登入後預設導向改為知識庫問答（1.0.14 → 1.0.15）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-18</li><li>版本：1.0.14 → 1.0.15</li><li>類型：導向行為調整＋文件同步</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>先前 commit <code>0c20eb9</code> 已把 <code>SplashView</code> 的驗證成功導向從 <code>/app</code> 改為 <code>/knowledge-base-chat</code>，但該路徑只涵蓋「已登入使用者開啟根路徑 <code>/</code>」的情境。實際的帳密登入與 Google 登入仍導向 <code>/App</code>（統計儀表板），造成三條路徑行為不一致。本次補齊其餘兩條，並同步更新描述「登入後落地頁」的文件。</p>
+<h2 id="變更" class="t2">變更</h2>
+<ol><li><strong>帳密登入</strong>（<code>Components/Auths/Login.razor.cs</code>）：<code>ReturnUrl</code> 為空時的預設導向 <code>/App</code> → <code>/knowledge-base-chat</code>。</li><li><strong>Google 登入</strong>（<code>Controllers/ExternalAuthController.cs</code>）：<code>GetSafeReturnUrl</code> 的 fallback <code>/App</code> → <code>/knowledge-base-chat</code>。</li><li><code>appsettings.json</code>：SystemVersion 1.0.14 → 1.0.15。</li><li>文件同步：<code>docs/prd/首頁與導覽-prd.md</code>（範圍、畫面、驗收、相關程式、現況校正）、<code>docs/prd/README.md</code>、<code>README.md</code>、<code>docs/guides/完整操作手冊.md</code>、<code>docs/guides/新手完整操作指南.md</code>（含登入流程圖）、<code>docs/guides/實作練習手冊-Hands-on Lab.md</code>、<code>docs/guides/AI知識問答使用指南.md</code>、<code>docs/security/Google OAuth2 第三方登入.md</code>（含流程圖）。</li></ol>
+<h2 id="刻意不變更" class="t3">刻意不變更</h2>
+<ul><li><strong><code>Menu.json</code></strong>：選單第一項「首頁」仍指向 <code>/App</code>。選單順序與 <code>MagicObjectHelper</code>／<code>RolePermissionService</code> 以位置索引對應，調整風險高且非本次需求；儀表板仍可由選單進入。</li><li><strong><code>ChangePassword.razor</code>／<code>Profile.razor</code></strong>：儲存或取消後回 <code>/App</code>，屬「回首頁」語意，非登入落地頁。</li><li><strong><code>KnowledgeBaseChatView.razor.cs</code> 的 <code>GoBack()</code></strong>：從問答頁返回 <code>/App</code>；若改成問答頁會變成導回自己。</li><li><strong><code>AuthenticationStateHelper.cs</code></strong>：強制變更密碼者仍優先導向 <code>/ChangePassword</code>，此優先權高於落地頁。</li><li><strong><code>ReturnUrl</code> 行為</strong>：使用者帶 <code>ReturnUrl</code> 登入時仍回原本要去的頁面，不被落地頁覆蓋。</li><li>既有 changelog 為歷史紀錄，不回頭改寫。</li></ul>
+<h2 id="驗證" class="t4">驗證</h2>
+<ul><li><code>dotnet build</code>。</li><li><code>dotnet test</code>；<code>AuthenticationStateHelperTests</code> 以 <code>http://localhost/App</code> 作為現行 URI，測的是 <code>Check</code> 行為而非導向目標，不受影響。</li><li>手動：帳密登入、已登入開啟 <code>/</code> 皆落在 <code>/knowledge-base-chat</code>；帶 <code>ReturnUrl</code> 登入仍回原頁；選單「首頁」仍可進入 <code>/App</code>；強制改密碼帳號仍先導向 <code>/ChangePassword</code>。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 確認文件為 UTF-8 含 BOM。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#變更">變更</a><a class="l2" href="#刻意不變更">刻意不變更</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-18-登入後預設導向改為知識庫問答.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

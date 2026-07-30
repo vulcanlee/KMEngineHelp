@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>「專案分類」選單項移至「團隊清單」下方（1.0.55）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>「專案分類」選單項移至「團隊清單」下方（1.0.55）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-25</li><li>版本：1.0.54 → 1.0.55</li><li>類型：使用體驗調整（選單順序）＋ 測試補強</li></ul>
+<h2 id="變更" class="t1">變更</h2>
+<p>「資料定義」群組的子選單順序由</p>
+<blockquote><p>分類清單 → 團隊清單 → 提示詞清單 → 清洗設定檔 → <strong>專案分類</strong></p></blockquote>
+<p>改為</p>
+<blockquote><p>分類清單 → 團隊清單 → <strong>專案分類</strong> → 提示詞清單 → 清洗設定檔</p></blockquote>
+<p><code>Menu.json</code> 的 <code>id</code> 一併重編為連號，維持專案「群組×10+序」慣例：61 分類清單、62 團隊清單、63 專案分類、64 提示詞清單、65 清洗設定檔。</p>
+<h2 id="三處同步" class="t2">三處同步</h2>
+<p><code>Menu.json</code> 與 <code>RolePermissionService</code> 權限樹以<strong>位置索引</strong>對應（<code>SidebarMenuService.ApplyChildPermissionStructure</code> 是 <code>permissionNames[index]</code>，名稱不參與比對），因此換序必須成對修改：</p>
+<ol><li><code>KnowledgeExtraction.Web/Datas/Menu.json</code> — 資料定義 <code>subMenu</code> 換序、id 重編。</li><li><code>KnowledgeExtraction.Business/Services/Other/RolePermissionService.cs</code> — <code>角色_專案分類</code> 由群組末端移到 <code>角色_團隊清單</code> 之後。</li><li><code>KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code> — 常數宣告順序同步調整。<code>const</code> 宣告順序無語意，<strong>純為可讀性</strong>；所有字串值一律未動。</li></ol>
+<h2 id="既有角色權限不受影響" class="t3">既有角色權限不受影響</h2>
+<p>角色權限存於 <code>RoleView.TabViewJson</code>，內容是權限<strong>名稱字串陣列</strong>（例如 <code>["資料定義功能","分類清單","專案分類"]</code>），不是 id 也不是索引。讀取時 <code>RolePermissionService.SetPermissionInput</code> 以 <code>HashSet&lt;string&gt;.Contains</code> 做名稱比對，與順序無關；頁面授權 <code>CheckAccessPage(MagicObjectHelper.角色_XXX)</code> 同樣走字串常數。</p>
+<p>因此本次換序<strong>不影響任何既有角色已儲存的授權，也不需要資料庫 migration</strong>。「位置索引」只存在於執行期記憶體，用途是把選單項配對到權限名稱。</p>
+<h2 id="測試補強堵住靜默失效盲點" class="t4">測試補強：堵住「靜默失效」盲點</h2>
+<p>原有的 <code>MenuPermissionAlignmentTests</code> 三個測試只檢查<strong>數量</strong>（頂層組數相等、子權限數量足夠、槽位存在）。同群組內換位時數量不變，<strong>只改 Menu.json 而漏改 RolePermissionService 仍會全綠</strong>，但權限已經錯位——正是 CLAUDE.md 警告的靜默失效。</p>
+<p>新增 <code>EverySubMenuItem_PairsWith_ItsOwnPermissionName</code>：逐一比對每個非 <code>adminOnly</code> 選單子項與它實際配到的權限名是否語意相符。</p>
+<p>實作時發現一個既有的刻意分歧：<code>MagicObjectHelper.角色_會議項目 = "會議項目"</code>，但 Menu.json 顯示名為「會議記錄」。以白名單明確記錄此例外，而非放寬比對規則把它吸收掉：</p>
+<pre><code>private static readonly Dictionary&lt;string, string&gt; DisplayNameToPermissionName = new(StringComparer.Ordinal)
+{
+    ["會議記錄"] = MagicObjectHelper.角色_會議項目,
+};</code></pre>
+<p><strong>守護力已實證</strong>：在「只改 Menu.json、未改 RolePermissionService」的中間狀態實測，既有三個測試全數通過，新測試則精準失敗並指出</p>
+<blockquote><p>[5][2] 選單「專案分類」配到權限「提示詞清單」，應為「專案分類」；[5][3] 選單「提示詞清單」配到權限「清洗設定檔」…</p></blockquote>
+<h2 id="影響範圍" class="t5">影響範圍</h2>
+<ul><li>無資料庫 migration、無資料異動、無 API 變更。</li><li><code>appsettings.json</code> <code>SystemVersion</code> 1.0.54 → 1.0.55。</li><li>選單有快取（<code>SidebarMenuService</code> 的 <code>sidebar:menu:raw</code>），部署後需<strong>重啟站台</strong>才會看到新順序。</li></ul>
+<h2 id="驗證" class="t6">驗證</h2>
+<ol><li><code>dotnet test</code> 通過：639 個測試全數通過（原 638 + 新增 1）。</li><li>守護力反證：中間狀態下新測試如期失敗，補上 <code>RolePermissionService</code> 後恢復全綠。</li><li>實機（需重啟站台）：管理員登入確認子選單順序與五個頁面皆可進入；另以「只勾提示詞清單」的測試角色登入，確認側邊欄不會出現專案分類（此為唯一能抓出權限錯位的驗收步驟）。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#變更">變更</a><a class="l2" href="#三處同步">三處同步</a><a class="l2" href="#既有角色權限不受影響">既有角色權限不受影響</a><a class="l2" href="#測試補強堵住靜默失效盲點">測試補強：堵住「靜默失效」盲點</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-25-專案分類選單位置調整.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

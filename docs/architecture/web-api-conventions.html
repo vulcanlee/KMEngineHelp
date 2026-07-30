@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Web API 設計慣例｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 系統架構</p><header class="hero"><div class="kicker">系統架構</div><h1>Web API 設計慣例</h1></header><div class="docwrap"><main><h2 id="目的" class="t1">目的</h2>
+<p>本文件記錄腳手架 Web API 的固定設計規範，未來新增 API 時應遵守同一套 contract，讓前端與外部用戶端能用一致格式處理成功、失敗、驗證錯誤、授權錯誤與例外。</p>
+<h2 id="controller-規範" class="t2">Controller 規範</h2>
+<ul><li>API Controller 放在 <code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Controllers/</code>。</li><li>路由需同時提供 <code>[Route("api/[controller]")]</code> 與 <code>[Route("api/v1/[controller]")]</code>；新用戶端優先使用 <code>/api/v1/...</code>。</li><li>Controller 必須使用 <code>[ApiController]</code> 與 <code>[ApiValidationFilter]</code>。</li><li>需要保護的 CRUD API 必須加上 <code>[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]</code>。</li><li>API request/response 必須使用 DTO，不可以直接接收或回傳 Entity。</li><li>Entity 與 DTO 轉換優先使用 AutoMapper profile 維護。</li></ul>
+<h2 id="統一回傳格式" class="t3">統一回傳格式</h2>
+<p>所有一般 Web API 回應固定使用 <code>KnowledgeExtraction.Dtos.Commons.ApiResult&lt;T&gt;</code> 或非泛型 <code>ApiResult</code>。</p>
+<p>標準欄位：</p>
+<ul><li><code>Success</code>：是否成功。</li><li><code>StatusCode</code>：HTTP 狀態碼。</li><li><code>Message</code>：使用者可讀訊息。</li><li><code>Data</code>：成功時的回傳資料。</li><li><code>Errors</code>：欄位或規則錯誤集合。</li><li><code>TraceId</code>：請求追蹤識別碼。</li><li><code>Exception</code>：例外資訊。Development 或 <code>Security:ReturnExceptionDetails=true</code> 時回傳；Production 預設不回傳。</li></ul>
+<p>相容欄位：</p>
+<ul><li><code>ErrorMessage</code>：舊版錯誤訊息欄位，暫時保留。</li><li><code>ErrorDetail</code>：舊版錯誤詳細欄位，暫時保留。</li><li><code>Timestamp</code>：舊版時間戳欄位，暫時保留。</li></ul>
+<h2 id="http-狀態碼" class="t4">HTTP 狀態碼</h2>
+<p>API 必須維持語意正確的 HTTP 狀態碼，Body 再包成 <code>ApiResult&lt;T&gt;</code>。</p>
+<div class="tw"><table><thead><tr><th>狀態碼</th><th>使用情境</th></tr></thead><tbody><tr><td>200</td><td>查詢、更新、刪除等成功</td></tr><tr><td>400</td><td>ModelState 或商業規則驗證失敗</td></tr><tr><td>401</td><td>未登入、未提供 Bearer token、token 無效</td></tr><tr><td>403</td><td>已登入但權限不足</td></tr><tr><td>404</td><td>找不到指定資源</td></tr><tr><td>409</td><td>資料衝突，例如名稱重複</td></tr><tr><td>500</td><td>未預期例外</td></tr><tr><td>503</td><td>依賴的外部服務未設定或不可用（例如未設定 LLM ApiKey）。<strong>刻意不用 400</strong>——那是呼叫端送錯東西，而這是伺服器組態問題，回 400 會誤導</td></tr></tbody></table></div>
+<blockquote><p><strong>參數超出合法範圍一律回 400，不靜默夾住。</strong> 例如 <code>KnowledgeGraphController.Neighbors</code> 的 <code>maxHops</code> 以 <code>[Range(1, 3)]</code> 驗證，傳 <code>99</code> 回 400 而<strong>不是</strong>自動改成 3——呼叫端必須知道自己傳錯了。這與 MCP 工具層刻意靜默夾住的行為不同：MCP 的呼叫端是 LLM，夾住比報錯更能讓對話繼續；REST 的呼叫端是程式，明確報錯才能讓 bug 及早浮現。</p>
+<p>對照範例（<code>Controllers/KnowledgeGraphController.cs</code>，1.0.96）：<code>POST .../global-ask</code> 在 LLM 未設定時回 <strong>503</strong>（伺服器組態問題）；<code>GET .../neighbors</code> 在 <code>maxHops</code> 超界時回 <strong>400</strong>（呼叫端參數問題），而<strong>查無實體時回 200 + <code>found=false</code></strong>（查不到不是錯誤，是一個有效的查詢結果）。</p></blockquote>
+<h2 id="jwt-與-swagger" class="t5">JWT 與 Swagger</h2>
+<p>Swagger 已設定 Bearer security definition。開發者可在 Swagger UI 透過 Authorize 輸入 JWT access token 後測試受保護 API。</p>
+<p>JWT access token 與 refresh token 由 <code>AuthController</code> 提供：</p>
+<ul><li><code>POST /api/Auth/login</code></li><li><code>POST /api/Auth/refresh</code></li><li><code>GET /api/Auth/me</code></li><li><code>POST /api/v1/Auth/login</code></li><li><code>POST /api/v1/Auth/refresh</code></li><li><code>GET /api/v1/Auth/me</code></li></ul>
+<h2 id="例外與驗證" class="t6">例外與驗證</h2>
+<ul><li><code>ApiValidationFilter</code> 會將 ModelState 錯誤轉成 <code>ApiResult&lt;T&gt;.Errors</code>。</li><li><code>ApiExceptionFilter</code> 會攔截未處理 API 例外，依 <code>Security:ReturnExceptionDetails</code> 決定是否填入 <code>ApiResult.Exception</code>。</li><li>既有 Controller 內手動 catch 的例外也應呼叫 <code>ApiResult.ServerErrorResult(message, exception)</code>，保留完整 exception。</li></ul>
+<h2 id="已完成檢查項" class="t7">已完成檢查項</h2>
+<ul class="check"><li><span class="box">☑</span>補完整 integration tests，實際驗證 400、401、403、404、409、500 的 HTTP body。</li><li><span class="box">☑</span>正式環境預設隱藏 <code>Exception.StackTrace</code>。</li><li><span class="box">☑</span>已導入 <code>/api/v1/...</code> 平行路由，目前保留 <code>/api/...</code> 相容路由。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（系統架構）</h3><ul><li><a href="../../docs/architecture/two-stage-threshold.html">AI 知識問答：兩段式相似度門檻與查無依據攔截（設計文件）</a></li><li><a href="../../docs/architecture/knowledge-type-versioning.html">知識型態抽象 × 版本化 × 時效性（設計文件）</a></li><li><a href="../../docs/architecture/api-versioning.html">API Versioning 策略</a></li><li><a href="../../docs/architecture/dto-boundaries.html">DTO 與模型邊界規範</a></li><li><a href="../../docs/architecture/llm-prompts-usage.html">LLM 提示詞與用量透明化</a></li><li><a href="../../docs/architecture/mcp-server-design.html">MCP Server 整合設計與使用指南</a></li><li><a href="../../docs/architecture/rag-rerank-analysis.html">RAG 是否導入 Re-rank（二階重排）分析與建議</a></li><li><a href="../../docs/architecture/wiki-vs-cleaned.html">Wiki 與 Cleaned 的角色差異</a></li><li><a href="../../docs/architecture/architecture-overview.html">架構總覽</a></li><li><a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行</a></li><li><a href="../../docs/architecture/data-model.html">資料模型與資料庫</a></li><li><a href="../../docs/architecture/data-lifecycle.html">資料生命週期與維護（更新、刪除、級聯與孤兒）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#目的">目的</a><a class="l2" href="#controller-規範">Controller 規範</a><a class="l2" href="#統一回傳格式">統一回傳格式</a><a class="l2" href="#http-狀態碼">HTTP 狀態碼</a><a class="l2" href="#jwt-與-swagger">JWT 與 Swagger</a><a class="l2" href="#例外與驗證">例外與驗證</a><a class="l2" href="#已完成檢查項">已完成檢查項</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/architecture/Web API 設計慣例.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>資料版本、時效性與一致性生命週期 PRD｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>資料版本、時效性與一致性生命週期 PRD</h1></header><div class="docwrap"><main><ul><li>文件版本：1.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.62</li><li>首次實作版本：0.3.12–0.3.21</li><li>最後核對日期：2026/07/25</li></ul>
+<h2 id="一產品目標與範圍" class="t1">一、產品目標與範圍</h2>
+<p>確保素材改版、內容編修或刪除後，知識來源、清洗、Wiki 與索引能辨識現行版本與過時狀態；管理員可在 <code>/data-consistency</code> 找出孤兒關聯及過時來源，依風險選擇單筆或批次修復。</p>
+<h2 id="二版本與現行資料" class="t2">二、版本與現行資料</h2>
+<ul><li>支援對既有素材「上傳新版本」，建立版本鏈並保留舊檔與歷史。</li><li>主清單預設只顯示最新版；舊版標示已被取代，可由版本歷史查閱。</li><li>來源成員沿版本鏈解析現行版，避免每次上傳新版本都要人工重新加入。</li><li>as-of 查詢在指定時間點解析當時有效版本；未指定時使用目前現行版。</li><li>版本關係、狀態與實體檔案必須一致，不能只改畫面標籤。</li></ul>
+<h2 id="三時效性傳播" class="t3">三、時效性傳播</h2>
+<ul><li>上游逐字稿、Markdown、圖片解讀或生成內容原地編修後，相關知識來源標記過時。</li><li>成員版本更新、移除或檔案變更後，下游清洗／蒸餾／索引不得繼續被視為最新。</li><li>修復順序為重新清洗 → 蒸餾 → 索引；各階段完成時間用於判斷下游是否追上上游。</li><li>單一小修可在對應內容編修，但若重新執行上游處理，人工修改可能被覆蓋，產品必須提示。</li></ul>
+<h2 id="四資料一致性巡檢" class="t4">四、資料一致性巡檢</h2>
+<ul><li>入口：系統管理 → 資料一致性巡檢，路由 <code>/data-consistency</code>，僅管理員。</li><li>報告至少包含孤兒成員與過時來源的數量、識別資訊、原因及建議動作。</li><li>孤兒成員指來源成員關聯的上游素材不存在或不可解析。</li><li>過時來源指上游內容／版本晚於下游處理成果，可能讓問答引用舊知識。</li><li>提供單筆處置，以及「清除所有孤兒成員」「重新清洗所有過時來源」等批次動作。</li></ul>
+<h2 id="五刪除與檔案生命週期" class="t5">五、刪除與檔案生命週期</h2>
+<ul><li>EF 外鍵與實體檔案是兩個生命週期；Service 必須明確處理檔案，不能假設資料列 Cascade 會刪檔。</li><li>刪除素材時清除或阻擋相關來源成員，避免留下孤兒。</li><li><code>Project</code>／<code>MyTask</code>／<code>Meeting</code> 附件可 Cascade 資料列，但實體檔案仍由服務層刪除。</li><li>清洗、Wiki、索引與 LLM 生成產物多為檔案＋相對路徑；重置或備份必須同時涵蓋資料庫與檔案根目錄。</li></ul>
+<h2 id="六權限安全與成本" class="t6">六、權限、安全與成本</h2>
+<ul><li>巡檢頁及批次修復僅管理員；一般使用者不得取得跨團隊異常清單。</li><li>批次重清洗可能呼叫 LLM 並連動蒸餾／索引，執行前需確認範圍、成本及維護時段。</li><li>清理孤兒會刪除關聯，執行前應保存報告並確認上游不是暫時不可用。</li><li>修復日誌記錄操作者、數量、成功／失敗及錯誤，但不記敏感本文。</li></ul>
+<h2 id="七錯誤與恢復" class="t7">七、錯誤與恢復</h2>
+<ul><li>個別修復失敗不應中斷整份報告；保留每筆結果供重試。</li><li>檔案遺失、權限不足、背景作業失敗與嵌入不可用須分類顯示。</li><li>批次操作不可默默略過；完成後重新巡檢並顯示剩餘異常。</li></ul>
+<h2 id="八驗收條件" class="t8">八、驗收條件</h2>
+<ol><li>上傳新版本後主清單顯示新版，版本歷史保留舊版。</li><li>來源成員可解析現行版，as-of 能回到指定時間版本。</li><li>上游編修／改版能標記下游過時，重跑後狀態恢復一致。</li><li>刪除上游不留下不可見孤兒；既有孤兒能被報告及安全清除。</li><li>非管理員不能存取一致性報告或批次動作。</li><li>批次修復留下逐筆結果，失敗可診斷與重試。</li></ol>
+<h2 id="九規劃中需求" class="t1">九、規劃中需求</h2>
+<ul><li>尚未實作：跨版本內容差異檢視、自動保留政策、排程巡檢通知、可回復的軟刪除與法遵留存鎖定。</li></ul>
+<h2 id="十相關文件" class="t2">十、相關文件</h2>
+<ul><li><a href="../../docs/features/versioning-freshness.html">版本化與時效性</a></li><li><a href="../../docs/architecture/data-lifecycle.html">資料生命週期與維護</a></li><li><a href="../../docs/prd/prd-e8b774d3.html">知識來源管理 PRD</a></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一產品目標與範圍">一、產品目標與範圍</a><a class="l2" href="#二版本與現行資料">二、版本與現行資料</a><a class="l2" href="#三時效性傳播">三、時效性傳播</a><a class="l2" href="#四資料一致性巡檢">四、資料一致性巡檢</a><a class="l2" href="#五刪除與檔案生命週期">五、刪除與檔案生命週期</a><a class="l2" href="#六權限安全與成本">六、權限、安全與成本</a><a class="l2" href="#七錯誤與恢復">七、錯誤與恢復</a><a class="l2" href="#八驗收條件">八、驗收條件</a><a class="l2" href="#九規劃中需求">九、規劃中需求</a><a class="l2" href="#十相關文件">十、相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/資料版本時效性與一致性生命週期-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>提示詞槽位鍵收成單一來源、/prompts 加即時判定提示、PDF 轉換偵測輸出被截斷（1.0.76→1.0.77）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>提示詞槽位鍵收成單一來源、/prompts 加即時判定提示、PDF 轉換偵測輸出被截斷（1.0.76→1.0.77）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-26</li><li>版本：1.0.76 → 1.0.77</li><li>類型：可用性修正 ＋ 資料正確性修正 ＋ 重複來源收斂</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>使用者問「<code>PdfUseLlm = true</code> 時送給 LLM 的提示詞是什麼、能不能在 <code>appsettings.json</code> 指定、內建預設是什麼」。答案是可以（三層：DB <code>/prompts</code> &gt; appsettings <code>LlmPrompts:DocumentPdfToMarkdown</code> &gt; 程式 <code>LlmPromptDefaults</code>），但追這條鏈時查出<strong>三個會讓人「以為改了卻沒生效」或「拿到壞資料卻不知道」的缺口</strong>。</p>
+<h3 id="一prompts-打錯槽位名稱完全靜默">一、<code>/prompts</code> 打錯槽位名稱完全靜默</h3>
+<p>要覆蓋系統內建提示詞，<code>Prompt.Name</code> 必須<strong>逐字等於</strong>槽位鍵（DB 比對是 <code>x.Name == name</code>，精確）。但該頁的「名稱」是<strong>自由文字輸入、沒有任何提示</strong>——打成「文件-PDF轉 Markdown」（多一個空白）或「PDF轉Markdown」（少前綴），<strong>不會有任何錯誤、日誌或警告</strong>，只會安靜地退回內建預設。使用者會以為改好了。</p>
+<h3 id="二槽位鍵字串在兩處各寫死一份">二、槽位鍵字串在兩處各寫死一份</h3>
+<p><code>LlmPromptKeys.cs</code>（Business）與 <code>LlmPromptsSettings.Get()</code>（Models）<strong>各有一份中文鍵字面值、互不引用</strong>。任一邊改字（含未來的全域替換）會讓 <strong>appsettings 層靜默失效</strong>（<code>Get()</code> 回 null → 直接跳到程式 fallback），而 DB 層仍正常運作，所以完全不會有人發現。</p>
+<h3 id="三pdf-輸出被截斷會被當成成功">三、PDF 輸出被截斷會被當成成功</h3>
+<p>PDF 全文轉換是最容易撞到模型輸出上限的用途。撞到時回應仍是 <strong>HTTP 200、<code>content</code> 也有值</strong>，只是內容不完整——而程式不看 <code>finish_reason</code>。結果：<strong>殘缺的 Markdown 直接落檔、狀態「已完成」、無任何提示</strong>，之後整條 RAG（切塊／嵌入／問答）都建立在殘缺內容上。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="1-llmpromptkeys-移到-models收成單一來源">1. <code>LlmPromptKeys</code> 移到 Models，收成單一來源</h3>
+<p><code>LlmPromptKeys.cs</code> 由 <code>Business/Services/Prompts/</code> 移到 <strong><code>Models/Systems/</code></strong>，<code>LlmPromptsSettings.Get()</code> 的 switch 改為引用 <code>LlmPromptKeys.X</code> 常數，<strong>消除第二份字面值</strong>。</p>
+<p>搬移方向是必然的：專案相依是 <code>Business → Models</code>，Models 不能引用 Business，而需要引用常數的 <code>LlmPromptsSettings</code> 就在 Models。9 個引用檔多數已有 <code>using KnowledgeExtraction.Models.Systems;</code>，實際只需補 1 個 using（<code>KnowledgeSourceChatService</code>）並修 1 處部分限定名（<code>TranscriptionProcessor.cs:147</code> 的 <code>Prompts.LlmPromptKeys.Transcription</code>）。</p>
+<p>同時新增 <code>AllKeys</code>（畫面與測試用）、<code>KeysWithoutAppSettings</code>（記錄 <code>轉錄-提示</code> 刻意不走 appsettings、沿用 <code>OpenAISettings.Prompt</code>）、<code>IsSlotKey()</code>（精確比對）。</p>
+<h3 id="2-prompts-名稱欄加即時判定">2. <code>/prompts</code> 名稱欄加即時判定</h3>
+<ul><li>名稱標籤加說明泡泡（<code>Tooltip</code>，比照 <code>CleaningProfileViewView</code> 的既有 <code>HelpIcon</code> 慣例），講清楚兩種用途。</li><li>輸入框（<code>BindValueMode.OnInput</code>）下方即時顯示：</li><li><strong>命中</strong> → <code>✅ 對應系統槽位「…」——儲存並啟用後會覆蓋該用途的系統內建提示詞（免重啟、立即生效）</code></li><li><strong>未命中</strong> → <code>ℹ️ 這是自訂提示詞，會出現在「依提示詞產生」與對話頁的提示詞選單中</code> ＋ 提醒覆蓋需逐字一致 ＋ <strong>15 個槽位鍵的可點擊清單（點一下直接填入）</strong></li></ul>
+<p>⚠️ <strong>刻意不改成「槽位下拉限定」。</strong> <code>Prompt</code> 表<strong>同時</strong>服務兩種用途：系統槽位覆蓋層，<strong>以及</strong>使用者自由提示詞清單——<code>PromptService.GetAllEnabledAsync()</code> 被 4 個檢視當選單來源（<code>DocumentExtractionView</code>／<code>ImageRecognitionView</code>／<code>KnowledgeBaseChatView</code>／<code>KnowledgeSourceChatView</code>）。任意名稱是合法且必要的，所以只能提示、不能阻擋。</p>
+<p>判定用 <code>LlmPromptKeys.IsSlotKey</code>，<strong>與 DB 一樣是精確比對</strong>——若畫面比對比較寬鬆，就會對「多一個空白」給出「✅ 對應系統槽位」這種錯誤保證。</p>
+<h3 id="3-pdf-轉換偵測輸出被截斷">3. PDF 轉換偵測輸出被截斷</h3>
+<p><code>PdfMarkdownLlmClient.ExtractMarkdownAsync</code> 在解析內容前檢查 <code>choices[0].finish_reason == "length"</code>，命中即擲例外 → 由 <code>DocumentExtractionProcessor</code> 走既有降級路徑改用 MarkItDown。</p>
+<ul><li>抽為 <code>public static bool IsTruncatedByOutputLimit(string)</code>（純函式，比照同檔 <code>ResolveModel</code> 的既有作法以便直接單元測試），logging 與擲例外留在實例方法。</li><li>解析失敗／欄位缺漏一律<strong>不阻擋</strong>——內容有效性由 <code>ParseContent</code> 把關，這道檢查不該把「解析不出來」升級成失敗。</li></ul>
+<p>⚠️ <strong>刻意不放進共用的 <code>OpenAIChatCompletionClient.ParseContent</code>。</strong> 該方法另有 4 個呼叫端（一般對話、查詢改寫、圖片、手動送檔產生），那些路徑被截斷未必要當失敗，改共用方法會把行為變更擴散到整站。已用 <code>git diff</code> 確認該檔未被改動。</p>
+<p>⚠️ <strong>刻意不加 <code>max_tokens</code></strong>：模型預設輸出上限通常大於我們能合理硬設的值，硬設反而會更早截斷。目標是「截斷要被發現」，不是「提高上限」。</p>
+<h2 id="測試" class="t3">測試</h2>
+<p>712 → <strong>735</strong>（+23，全綠）。</p>
+<h3 id="llmpromptslottests13-條-已實證守到既有測試守不到的缺口"><code>LlmPromptSlotTests</code>（13 條）—— 已實證守到既有測試守不到的缺口</h3>
+<p>守「新增槽位鍵要同步 3 處」。<strong>關鍵驗證</strong>：注入一個新槽位鍵（常數與 <code>AllKeys</code> 都加了，但忘記同步 <code>LlmPromptsSettings</code>），分別跑兩組：</p>
+<div class="tw"><table><thead><tr><th>測試</th><th>結果</th></tr></thead><tbody><tr><td>既有 <code>LlmPromptResolverTests</code></td><td><strong>8 條全部通過</strong> ← 偵測不到</td></tr><tr><td>新 <code>LlmPromptSlotTests</code></td><td><strong>紅燈</strong>，訊息指出「…會靜默失效…：新功能-提示」</td></tr></tbody></table></div>
+<p>原因很直接：<code>LlmPromptResolverTests</code> 是<strong>逐鍵手寫</strong>的（它確實有 <code>DocumentPdfToMarkdown</code> 的兩條），而<strong>沒有人會為「自己剛忘記接線的鍵」補一條測試</strong>。反射比對才抓得到。</p>
+<p>另含 <code>IsSlotKey_MatchesExactly</code>（9 個 InlineData，涵蓋大小寫／前置／尾隨／中間空白／少前綴），守住畫面判定不得比 DB 寬鬆。</p>
+<h3 id="pdfmarkdownllmclienttests-新增-10-條"><code>PdfMarkdownLlmClientTests</code> 新增 10 條</h3>
+<p><code>finish_reason = "length"</code>／<code>"Length"</code>（大小寫不敏感）必須判為截斷；<code>"stop"</code>／<code>"tool_calls"</code>／<code>"content_filter"</code> 不判；欄位缺漏、<code>choices</code> 為空、非合法 JSON 一律不阻擋。</p>
+<h2 id="影響與相容性" class="t4">影響與相容性</h2>
+<ul><li><strong>提示詞解析行為完全未變</strong>：三層優先序、預設全文、<code>Get()</code> 的對應關係都一模一樣，只是鍵字串來源收成一份。</li><li><strong><code>/prompts</code> 只多了畫面提示</strong>，不阻擋任何名稱、不改變儲存邏輯。</li><li><strong>PDF 轉換多一個失敗判定</strong>：先前被截斷會靜默採用，現在會降級改用 MarkItDown 並在訊息欄留下原因。這是修正——原行為是靜默資料損毀。</li><li>無資料庫 migration、無 API 合約變更、無設定檔鍵名變更。</li></ul>
+<h2 id="文件同步" class="t5">文件同步</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>改什麼</th></tr></thead><tbody><tr><td><code>operations/日誌與設定檔說明.md</code> §4.8.2</td><td>補「這條路徑實際只有 3 層」「名稱必須逐字精確、打錯靜默失效」「1.0.77 起有畫面提示」「截斷也算失敗」與不加 <code>max_tokens</code> 的理由</td></tr><tr><td><code>architecture/LLM 提示詞與用量透明化.md</code> §10.1</td><td>槽位鍵已收成單一來源、為何搬到 Models、新增槽位要同步 3 處、<code>/prompts</code> 逐字精確</td></tr><tr><td><code>changelog/2026-07-25-PDF改用大語言模型萃取.md</code></td><td><strong>加勘誤</strong>：該篇寫「單次操作 &gt; DB &gt; appsettings &gt; fallback」是 resolver 通則，但 PDF 這條路徑第 1 層硬傳 <code>null</code>、從未生效</td></tr><tr><td><code>architecture/開發慣例與限制速查.md</code></td><td>新增不變量「新增 LLM 提示詞槽位要同步 3 處」，含「<code>Prompt</code> 表雙用途故不可改成下拉限定」的約束</td></tr></tbody></table></div>
+<h2 id="版本" class="t6">版本</h2>
+<ul><li><code>appsettings.json</code> <code>SystemVersion</code>：<code>1.0.76</code> → <code>1.0.77</code>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l3" href="#一prompts-打錯槽位名稱完全靜默">一、/prompts 打錯槽位名稱完全靜默</a><a class="l3" href="#二槽位鍵字串在兩處各寫死一份">二、槽位鍵字串在兩處各寫死一份</a><a class="l3" href="#三pdf-輸出被截斷會被當成成功">三、PDF 輸出被截斷會被當成成功</a><a class="l2" href="#變更">變更</a><a class="l3" href="#1-llmpromptkeys-移到-models收成單一來源">1. LlmPromptKeys 移到 Models，收成單一來源</a><a class="l3" href="#2-prompts-名稱欄加即時判定">2. /prompts 名稱欄加即時判定</a><a class="l3" href="#3-pdf-轉換偵測輸出被截斷">3. PDF 轉換偵測輸出被截斷</a><a class="l2" href="#測試">測試</a><a class="l3" href="#llmpromptslottests13-條-已實證守到既有測試守不到的缺口">LlmPromptSlotTests（13 條）—— 已實證守到既有測試守不到的缺口</a><a class="l3" href="#pdfmarkdownllmclienttests-新增-10-條">PdfMarkdownLlmClientTests 新增 10 條</a><a class="l2" href="#影響與相容性">影響與相容性</a><a class="l2" href="#文件同步">文件同步</a><a class="l2" href="#版本">版本</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-26-提示詞槽位提示與PDF截斷偵測.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

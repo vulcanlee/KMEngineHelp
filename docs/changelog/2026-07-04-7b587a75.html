@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登入頁科技神秘風重設計紀錄｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>登入頁科技神秘風重設計紀錄</h1></header><div class="docwrap"><main><h2 id="變更目的" class="t1">變更目的</h2>
+<p>將 <code>/Auths/Login</code> 由既有的翡翠綠玻璃擬態，升級為「霓虹翡翠・科技神秘風」：暗黑底 + neon emerald 發光 + cyan 點綴，並同步更新首頁 Splash 的配色與文案，維持全站一致的登場感。</p>
+<h2 id="設計方向" class="t2">設計方向</h2>
+<ul><li><strong>主色調</strong>：暗綠黑底（<code>#04120b</code>→<code>#0a3322</code>）＋霓虹翡翠（<code>#34d399</code> / <code>#6ee7b7</code>）＋青藍點綴（<code>#22d3ee</code>），延續品牌綠、轉為暗黑矩陣感。</li><li><strong>四種特效</strong>：① 動態透視網格（數位地平線）② 粒子連線節點（canvas constellation）③ 掃描線 + 卡片光暈脈動 ④ 標題微 glitch + kicker 打字游標。</li></ul>
+<h2 id="本次修改檔案" class="t3">本次修改檔案</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Auths/Login.razor</code>（裝飾層、標題 <code>data-text</code>、打字 kicker、文案、引用 login-fx.js）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Auths/Login.razor.css</code>（全面改寫為霓虹翡翠暗黑風）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Auths/Login.razor.cs</code>（登入失敗訊息語氣微調）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/wwwroot/js/login-fx.js</code>（新增：粒子連線 canvas 特效）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/Commons/SplashView.razor</code>（+ <code>.razor.css</code>，同步配色與文案）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json</code>（版本 0.2.155→0.2.156）</li></ul>
+<h2 id="文案調整登入頁" class="t4">文案調整（登入頁）</h2>
+<ul><li>Badge：<code>ENTERPRISE ACCESS</code> → <code>SECURE GATEWAY</code></li><li>定位文案：改為「串接企業分散的文件、會議與影音，淬鍊為可搜尋、可問答、可傳承的智慧知識核心。」</li><li>表單 kicker（打字效果）：<code>Welcome Back</code> → <code>IDENTITY VERIFICATION</code></li><li>副標：<code>使用者登入</code> → <code>身分核驗</code>；說明：改為「請完成身分驗證以連線至知識核心。」</li><li>安全提示：<code>企業級安全登入</code> → <code>端對端加密連線</code></li><li>登入失敗預設訊息：改為「身分驗證失敗，請重新確認帳號與密碼。」</li><li>欄位標籤、placeholder、<code>使用 Google 登入</code> 等維持不變（功能清晰優先）。</li></ul>
+<h2 id="文案調整splash" class="t5">文案調整（Splash）</h2>
+<ul><li>eyebrow：<code>Welcome</code> → <code>SYSTEM ONLINE</code></li><li>載入句：改為「正在初始化知識核心，為你準備工作環境…」</li><li>定位文案與登入頁保持一致。</li></ul>
+<h2 id="可及性與效能" class="t6">可及性與效能</h2>
+<ul><li>全面支援 <code>prefers-reduced-motion</code>：使用者偏好減少動態時，網格／掃描線／glitch／打字／粒子動畫皆停止，畫面仍完整可用。</li><li><code>login-fx.js</code> 為自足 vanilla JS，無相依；找不到 canvas 或偏好減少動態時安全略過；分頁隱藏時暫停 rAF 省資源；節點數依面積計算並設上限保護效能。</li><li>響應式維持 960/768/480 三斷點；小螢幕降低特效強度（隱藏透視網格）確保表單可用。</li></ul>
+<h2 id="未變更" class="t7">未變更</h2>
+<ul><li>登入後端邏輯、表單欄位 <code>name</code>／繫結、<code>FormName="login"</code>、SSR POST 流程、路由與 AntDesign 設定皆未更動。</li></ul>
+<h2 id="編碼要求" class="t8">編碼要求</h2>
+<ul><li>本次新增與更新的文件皆以 UTF-8（含 BOM）保存，內容為繁體中文、無亂碼。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#變更目的">變更目的</a><a class="l2" href="#設計方向">設計方向</a><a class="l2" href="#本次修改檔案">本次修改檔案</a><a class="l2" href="#文案調整登入頁">文案調整（登入頁）</a><a class="l2" href="#文案調整splash">文案調整（Splash）</a><a class="l2" href="#可及性與效能">可及性與效能</a><a class="l2" href="#未變更">未變更</a><a class="l2" href="#編碼要求">編碼要求</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-04-登入頁科技神秘風重設計.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>維護規範｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 部署與維運</p><header class="hero"><div class="kicker">部署與維運</div><h1>維護規範</h1></header><div class="docwrap"><main><h2 id="文件目的" class="t1">文件目的</h2>
+<p>定義本專案在「每次提交異動」時必須遵循的最低規範，包含版本遞增、文件同步、檔案編碼，以及 commit 前的自我檢查清單。</p>
+<blockquote><p>任何 PR 或 commit 在進入主線前，請先逐項對照本文件確認。</p></blockquote>
+<hr>
+<h2 id="1-規範一每次更新必須-bump-版本" class="t2">1. 規範一：每次更新必須 bump 版本</h2>
+<p>唯一版本來源是：</p>
+<pre><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json
+└─ SystemSettings.SystemInformation.SystemVersion</code></pre>
+<h3 id="11-版號格式">1.1 版號格式</h3>
+<pre><code>Major.Minor.Patch (YYYY/MM/DD)</code></pre>
+<p>例：<code>0.1.69 (2026/05/11)</code></p>
+<h3 id="12-遞增規則">1.2 遞增規則</h3>
+<div class="tw"><table><thead><tr><th>異動性質</th><th>應遞增的位元</th></tr></thead><tbody><tr><td>一般 bug 修正、文件更新、UI 微調、欄位細節</td><td><code>Patch</code> +1</td></tr><tr><td>新增功能、新 API、新 Entity、新增頁面</td><td><code>Minor</code> +1，<code>Patch</code> 歸 0</td></tr><tr><td>不相容性變更、資料庫結構大改、整體架構重組</td><td><code>Major</code> +1，<code>Minor</code> 與 <code>Patch</code> 歸 0</td></tr></tbody></table></div>
+<h3 id="13-日期同步">1.3 日期同步</h3>
+<p>括號內日期必須更新為 commit 當天日期，格式 <code>YYYY/MM/DD</code>，與 <code>Asia/Taipei</code> 時區的當天一致。</p>
+<h3 id="14-檢查方式">1.4 檢查方式</h3>
+<pre><code>Select-String -Path "src/KnowledgeExtraction/KnowledgeExtraction.Web/appsettings.json" -Pattern "SystemVersion"</code></pre>
+<hr>
+<h2 id="2-規範二影響到既有文件就必須同步更新" class="t3">2. 規範二：影響到既有文件就必須同步更新</h2>
+<p>請參照下表檢核：</p>
+<div class="tw"><table><thead><tr><th>異動類型</th><th>必須同步更新的文件</th></tr></thead><tbody><tr><td>新增 / 修改 / 刪除 Entity 或欄位</td><td><a href="../../docs/architecture/data-model.html"><code>資料模型與資料庫.md</code></a></td></tr><tr><td>新增 / 變更 Migration</td><td><a href="../../docs/architecture/data-model.html"><code>資料模型與資料庫.md</code></a> + <a href="../../docs/guides/efcore.html"><code>EFCore.md</code></a>（若操作流程改變）</td></tr><tr><td>新增 / 變更 API Controller、回應格式、Search DTO</td><td><a href="../../docs/architecture/web-api-conventions.html"><code>Web API 設計慣例.md</code></a></td></tr><tr><td>變更登入、登出、權限、<code>Menu.json</code>、<code>RoleView</code> 結構</td><td><a href="../../docs/security/auth-and-permissions.html"><code>認證授權與權限機制.md</code></a> + 必要時 <a href="../../docs/security/remember-me.html"><code>記住我登入原理說明.md</code></a></td></tr><tr><td>變更登入頁 UI / 功能</td><td><a href="../../docs/changelog/login-redesign-4241d694.html"><code>login-redesign.md</code></a></td></tr><tr><td>變更支援文化、新增 Resource 字串、<code>AntDesignLocaleFactory</code></td><td><a href="../../docs/features/i18n.html"><code>多語系與本地化.md</code></a></td></tr><tr><td>變更附件機制、新增上傳模組</td><td><a href="../../docs/features/file-upload.html"><code>檔案上傳機制.md</code></a></td></tr><tr><td>變更日誌規則、新增 NLog target、<code>appsettings.json</code> 區段</td><td><a href="../../docs/operations/logging-and-settings.html"><code>日誌與設定檔說明.md</code></a></td></tr><tr><td>變更專案結構、依賴方向、啟動流程、DI 註冊</td><td><a href="../../docs/architecture/architecture-overview.html"><code>架構總覽.md</code></a></td></tr><tr><td>新增 / 移除一份 docs 文件</td><td>依分類規則放入對應 <code>docs/&lt;分類&gt;/</code> 子目錄（無適用分類時自動新增分類目錄），並同步更新 <a href="../../docs/docs-index.html"><code>docs/README.md</code></a> 與主 <span class="docref" title="../../readme.md"><code>readme.md</code></span> 第 9 節「文件索引」</td></tr></tbody></table></div>
+<blockquote><p>一次異動可能同時觸及多份文件，請完整對照後再 commit。</p></blockquote>
+<hr>
+<h2 id="3-規範三utf-8-編碼" class="t4">3. 規範三：UTF-8 編碼</h2>
+<h3 id="31-適用範圍">3.1 適用範圍</h3>
+<ul><li><code>docs/**/*.md</code>：必須為 <strong>UTF-8 含 BOM</strong>，並以繁體中文撰寫，不得有亂碼。</li><li><code>.razor</code>、<code>.cs</code>、<code>.json</code>、<code>.css</code> 與非 <code>docs/</code> 的 <code>.md</code>：採 UTF-8，並確認繁體中文未出現 <code>?</code>、亂碼方塊或其他不可讀字元。</li></ul>
+<h3 id="32-推薦設定">3.2 推薦設定</h3>
+<ul><li>文件目錄內的 Markdown 請使用 UTF-8 BOM；這是 <code>scripts/Test-DocsEncoding.ps1</code> 的檢查條件。</li><li>程式與設定檔請維持 UTF-8，避免 PowerShell 預設 UTF-16 LE。</li><li>編輯後請確認繁體中文未出現 <code>?</code>、亂碼方塊或其他不可讀字元。</li></ul>
+<h3 id="33-powershell-自我驗證">3.3 PowerShell 自我驗證</h3>
+<pre><code>powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test-DocsEncoding.ps1</code></pre>
+<blockquote><p>對於 PowerShell 自身建立的檔案（例如 <code>Out-File</code>、<code>Set-Content</code>），請明確指定 UTF-8；若是 <code>docs/*.md</code>，需使用 UTF-8 BOM。</p></blockquote>
+<hr>
+<h2 id="31-規範四文件引用程式碼一律用符號名不用行號" class="t5">3.1 規範四：文件引用程式碼一律用「符號名」，不用行號</h2>
+<p>文件引用程式碼時，寫<strong>檔名 + 符號名</strong>（類別／方法／region），<strong>不要寫行號</strong>：</p>
+<ul><li>✅ <code>ServiceCollectionExtensions.AddApplicationServices</code>、<code>Program.cs</code> 的 <code>EnsureDirectoryExists</code> 呼叫序列</li><li>❌ <code>Program.cs:155-169</code>、<code>Login.razor.cs:111-115</code></li></ul>
+<p>原因：1.0.59 的文件稽核發現，六份長青文件中的行號引用<strong>無一存活</strong>——程式一改就全部失準，且不會有任何工具提醒。符號名則相對穩定，即使搬移檔案也還找得到。</p>
+<p>同理，<strong>不要在文件中複製程式碼的完整清單</strong>（DI 服務清單、常數全文、設定鍵列舉）。複製一份就是多一個漂移來源；請改為指向單一真實來源的檔案，必要時只放「代表性節錄」並明講它不完整。</p>
+<h2 id="4-commit-前自我檢查清單" class="t6">4. Commit 前自我檢查清單</h2>
+<blockquote><p>本節是每次 commit / release 的操作檢查清單；項目需依當次異動逐項確認，不視為常駐 backlog。</p></blockquote>
+<p>請於 commit 前逐項確認（建議貼到 PR 描述中）：</p>
+<ul><li><code>appsettings.json</code> 的 <code>SystemVersion</code> 已遞增（含日期）。</li><li>本次異動所影響的 docs 文件已同步更新（對照第 2 節）。</li><li><code>docs/*.md</code> 皆通過 <code>scripts/Test-DocsEncoding.ps1</code>（UTF-8 BOM、無亂碼），其他新增 / 修改檔案皆採 UTF-8。</li><li>新 / 改 API：已寫 <code>Debug</code> 進站、<code>Information</code> 成功、<code>Warning</code> 失敗、<code>Error</code> 例外四類日誌。</li><li>新 / 改 Entity：已執行 <code>Add-Migration</code> 並通過 <code>Update-Database</code>。</li><li>新 / 改 Razor 元件：已驗證 Sidebar 權限項目（若需要）。</li><li>本機 <code>dotnet build src/KnowledgeExtraction/KnowledgeExtraction.Web/KnowledgeExtraction.Web.csproj</code> 成功。</li><li>文件相對連結可正確開啟（<code>docs/</code> 內互引、與 <code>readme.md</code> 之間皆通）。</li></ul>
+<hr>
+<h2 id="5-異動範例" class="t7">5. 異動範例</h2>
+<blockquote><p>假設本次新增了「Issue（議題追蹤）」實體：</p></blockquote>
+<ol><li>新增 <code>KnowledgeExtraction.AccessDatas/Models/Issue.cs</code>。</li><li>新增 Migration → 更新 <a href="../../docs/architecture/data-model.html">資料模型與資料庫.md</a>、<a href="../../docs/guides/efcore.html">EFCore.md</a>。</li><li>新增 <code>IssueController</code>、DTO → 更新 <a href="../../docs/architecture/web-api-conventions.html">Web API 設計慣例.md</a>。</li><li>新增 <code>Menu.json</code> 節點與權限 → 更新 <a href="../../docs/security/auth-and-permissions.html">認證授權與權限機制.md</a>。</li><li>若有附件 → 更新 <a href="../../docs/features/file-upload.html">檔案上傳機制.md</a>。</li><li>主 <span class="docref" title="../../readme.md">readme.md</span> 第 4、6 節（功能列表 / 結構樹）若改變需同步。</li><li><code>appsettings.json</code>：<code>SystemVersion</code> 由 <code>0.1.x</code> → <code>0.2.0</code>（屬於新功能 → Minor +1，Patch 歸 0），日期更新為 commit 當天。</li></ol>
+<hr>
+<h2 id="6-執行測試套件" class="t8">6. 執行測試套件</h2>
+<pre><code># 全部測試
+dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests/KnowledgeExtraction.Tests.csproj
+
+# 只跑某一組
+dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests/KnowledgeExtraction.Tests.csproj --filter "FullyQualifiedName~KnowledgeBaseChatServiceTests"
+
+# 文件編碼檢查（繁中 UTF-8 含 BOM、無亂碼）
+pwsh -NoProfile -File scripts/Test-DocsEncoding.ps1</code></pre>
+<p><strong>開發伺服器鎖檔（最常見的測試失敗原因）</strong>：若本機正在跑 Web 開發伺服器，<code>bin/Debug</code> 的 DLL 會被鎖住，<code>dotnet test</code> 因無法覆寫而失敗。解法是暫停開發伺服器，或把建置輸出重導到 <strong>repo 內</strong>的臨時資料夾——必須留在 repo 內，否則會定位原始碼的測試（如 <code>CrudActionIconTests</code>）會找不到檔案：</p>
+<pre><code>dotnet test src/KnowledgeExtraction/KnowledgeExtraction.Tests/KnowledgeExtraction.Tests.csproj `
+  --filter "FullyQualifiedName~KnowledgeBaseChatServiceTests" `
+  -p:BaseOutputPath="src/KnowledgeExtraction/_ketestout/"
+# 跑完刪除：Remove-Item -Recurse -Force src/KnowledgeExtraction/_ketestout</code></pre>
+<p><strong>測試基礎設施</strong>：<code>KnowledgeExtraction.Tests</code> 使用 in-memory SQLite（<code>Data Source=:memory:</code>）＋ <code>EnsureCreatedAsync()</code> 由 model 直接建表——<strong>新增 <code>DbSet</code> 後測試資料庫會自動包含新表，不需在測試裡跑 migration</strong>。</p>
+<hr>
+<h2 id="7-延伸閱讀" class="t1">7. 延伸閱讀</h2>
+<ul><li><span class="docref" title="../../readme.md">readme.md</span> 第 8 節「版本管理與維護規範」</li><li><a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a></li><li><a href="../../docs/architecture/architecture-overview.html">架構總覽</a></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：上線之後的日常維運與盤點</li></ul></div><div class="card"><h3>同類文件（部署與維運）</h3><ul><li><a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定（C:\KMEngineTools）</a></li><li><a href="../../docs/operations/rag-troubleshooting.html">RAG 問題診斷手冊（維運用）</a></li><li><a href="../../docs/operations/fresh-machine-sop.html">全新機器部署 SOP</a></li><li><a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a></li><li><a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a></li><li><a href="../../docs/operations/help-site-build.html">文件說明網站：產生與佈署</a></li><li><a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a></li><li><a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#文件目的">文件目的</a><a class="l2" href="#1-規範一每次更新必須-bump-版本">1. 規範一：每次更新必須 bump 版本</a><a class="l3" href="#11-版號格式">1.1 版號格式</a><a class="l3" href="#12-遞增規則">1.2 遞增規則</a><a class="l3" href="#13-日期同步">1.3 日期同步</a><a class="l3" href="#14-檢查方式">1.4 檢查方式</a><a class="l2" href="#2-規範二影響到既有文件就必須同步更新">2. 規範二：影響到既有文件就必須同步更新</a><a class="l2" href="#3-規範三utf-8-編碼">3. 規範三：UTF-8 編碼</a><a class="l3" href="#31-適用範圍">3.1 適用範圍</a><a class="l3" href="#32-推薦設定">3.2 推薦設定</a><a class="l3" href="#33-powershell-自我驗證">3.3 PowerShell 自我驗證</a><a class="l2" href="#31-規範四文件引用程式碼一律用符號名不用行號">3.1 規範四：文件引用程式碼一律用「符號名」，不用行號</a><a class="l2" href="#4-commit-前自我檢查清單">4. Commit 前自我檢查清單</a><a class="l2" href="#5-異動範例">5. 異動範例</a><a class="l2" href="#6-執行測試套件">6. 執行測試套件</a><a class="l2" href="#7-延伸閱讀">7. 延伸閱讀</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/operations/維護規範.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

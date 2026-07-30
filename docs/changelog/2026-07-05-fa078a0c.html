@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文件庫功能同步：策略／行銷／簡報現況校正（0.2.160）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>文件庫功能同步：策略／行銷／簡報現況校正（0.2.160）</h1></header><div class="docwrap"><main><h2 id="版本" class="t1">版本</h2>
+<ul><li><code>appsettings.json</code>：<code>SystemSettings.SystemInformation.SystemVersion</code> 由 <code>0.2.159 (2026/07/04)</code> 遞增為 <code>0.2.160 (2026/07/05)</code>。</li></ul>
+<h2 id="背景" class="t2">背景</h2>
+<p>策略、行銷與簡報文件仍停留在早期狀態，宣稱版本 <code>v0.2.42</code>、C# 檔約 <code>277 個</code>，並把「清洗」標為僅格式轉換、「知識庫」與「附加應用」標為「尚無」。但實際程式碼早已完成完整清洗管線（去重／遮罩／分類／摘要／品質過濾）、知識蒸餾、階段三 RAG 全流程（向量庫、切塊、Embedding、索引、混合檢索、Query Rewrite、問答 UI、RAG 評測）、AI 技能產生器，以及 chunk 級團隊權控。本次以程式現況為準，全庫掃描並校正「與程式碼牴觸」的現況敘述。</p>
+<h2 id="異動內容僅文件與版本號" class="t3">異動內容（僅文件與版本號）</h2>
+<ul><li>更新 <a href="../../docs/strategy/scope-and-vision.html">strategy/01 計畫範圍與遠景</a>：修正版本（v0.2.160）、C# 檔數（約 340，不含 migrations）、重寫「與現有系統的關係」現況表（清洗／知識庫／附加應用由 ⚠️/❌ 改為 ✅ 並保留真實待補），並為階段二／三／四補上「現況」段落。</li><li>更新 <a href="../../docs/strategy/scenario-catalog.html">strategy/09 企業應用情境型錄</a>：各情境「平台對應」移除已實作的「向量檢索／問答 UI／權控檢索」，保留仍未實作項目（版本控管、結構化抽取、Agent 工作流等）；同步更新開頭「既有能力／共通待補」清單。</li><li>更新 <a href="../../docs/marketing/deck-investor.html">marketing/商業簡報-決策投資版</a>：現況表與 C# 檔數同步；「近期路線圖」標註各階段已交付版本；並重建 <code>.pptx</code>、同步 <code>.html</code>。</li><li>更新 <a href="../../docs/presentation/flagship-deck.html">presentation/旗艦簡報</a>：「我們在哪裡」能力狀態表由「🔄 即將上線」改為「✅ 現已可用」（僅 AI Agent 自動化工作流保留「🔄 規劃中」）；重建 <code>.html</code> 與 <code>.pptx</code>。</li><li>更新 <a href="../../docs/presentation/deck-speaker-notes.html">presentation/旗艦簡報・講者指南</a>：「誠實分層」原則由「匯入以外尚在開發」改為「完整閉環已可用、可當場示範，僅 Agent 工作流規劃中」，並同步逐頁講稿、Q&amp;A、反對意見與時間配置。</li><li>收尾：以 marp CLI 重新產生 <code>商業簡報-決策投資版.html</code>（取代先前手動同步）；並回填 <a href="../../docs/docs-index.html">docs/README</a> 與 <a href="../../docs/changelog/readme-436e4418.html">changelog/README</a> 落後的 changelog 索引條目（補齊 0.2.132–0.2.138、0.2.153–0.2.159 等，docs/README 維持「最近 50 筆」）。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li>本次只更新文件、簡報產出物與版本號，不變更 API、DTO、Entity、migration、路由或 UI 行為。</li><li>保留 PRD／changelog／design 既有「對應版本：0.2.xxx（已實作）」等歷史標註不動。</li><li>仍為待補的能力（Email/IM 匯入、檔案伺服器/DB 直連、內建 Agent 自動化工作流、結構化 PDF 專屬 RAG、知識型態版本化/時效性）維持標示為未實作。</li><li>詳細審計結果補記於 <a href="../../docs/archive/11-68d22fc1.html">planning/11 系統功能與文件同步審計</a> 第 5 節。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#版本">版本</a><a class="l2" href="#背景">背景</a><a class="l2" href="#異動內容僅文件與版本號">異動內容（僅文件與版本號）</a><a class="l2" href="#影響範圍">影響範圍</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-05-文件庫功能同步.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>基礎設定指南：團隊、分類、角色、使用者與提示詞｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>基礎設定指南：團隊、分類、角色、使用者與提示詞</h1><p class="sub">教你在開始匯入與清洗之前，先把「團隊、知識庫分類、專案分類、角色、使用者、提示詞」這些基礎設定建好——這些決定了「誰能看到什麼、能做什麼，以及內容怎麼被標記與生成」。</p></header><div class="docwrap"><main><ul><li>文件用途：教你在開始匯入與清洗之前，先把「團隊、知識庫分類、專案分類、角色、使用者、提示詞」這些基礎設定建好——這些決定了「誰能看到什麼、能做什麼，以及內容怎麼被標記與生成」。</li><li>主要讀者：系統管理員、導入顧問、知識庫管理者</li><li>文件版本：1.2（§六 新增「知識圖譜審核的三層權限」、§九 補圖譜權控觀念、§十 FAQ 新增一列）</li><li>建立日期：2026/06/26</li><li>更新日期：2026/07/29</li><li>對應系統版本：1.0.100（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>相關：上手地圖見 <a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a>；安裝與登入見 <a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊</a>；權限機制細節見 <a href="../../docs/security/auth-and-permissions.html">認證授權與權限機制</a>。</p></blockquote>
+<hr>
+<h2 id="一為什麼先設定這些" class="t1">一、為什麼先設定這些</h2>
+<p>本系統用<strong>團隊</strong>做資料權控、用<strong>分類</strong>做標籤過濾、用<strong>角色</strong>決定能進哪些頁與能做哪些動作、用<strong>使用者</strong>對應到人。先把這些設好，匯入與清洗時才能把內容<strong>標對團隊／分類</strong>，避免事後逐筆補、或發生「不該看的人看到」。</p>
+<hr>
+<h2 id="二建議設定順序" class="t2">二、建議設定順序</h2>
+<ol><li><strong>團隊</strong>（<code>/teams</code>）：先有團隊，後面所有素材/知識才有得標。</li><li><strong>知識庫分類</strong>（<code>/categories</code>）：先備好知識庫用的主題標籤。</li><li><strong>專案分類</strong>（<code>/work-categories</code>）：專案／工作／會議用的分類 —— <strong>這是另一份獨立主檔</strong>，很多人會漏掉這一步（見 §五）。</li><li><strong>角色</strong>（<code>/roleviews</code>）：定義各角色能進的頁與動作，並設角色的<strong>預設團隊</strong>。</li><li><strong>使用者</strong>（<code>/myusers</code>）：建立帳號並指派角色。</li><li>（內容階段才用）<strong>提示詞</strong>（<code>/prompts</code>）與清洗規則設定（<code>/cleaning-profiles</code>）。</li></ol>
+<blockquote><p>這 6 個畫面都在左側選單「<strong>基礎資料設定</strong>」群組下（角色管理與使用者管理在「系統管理 → 權限管理」）。</p></blockquote>
+<hr>
+<h2 id="三團隊管理teams-資料權控的核心" class="t3">三、團隊管理（<code>/teams</code>）—— 資料權控的核心</h2>
+<p><strong>能做什麼</strong>：新增/修改/刪除團隊；欄位有<strong>名稱、團隊代號（選填、有填則唯一）、描述、啟用狀態</strong>；可搜尋。</p>
+<p><strong>為什麼最重要</strong>：每一筆紀錄（匯入素材、知識來源、Wiki 頁、向量 chunk）都帶<strong>團隊標籤</strong>；非管理員只看得到「無團隊（公開）或與自己角色團隊有交集」的內容（見 §九）。</p>
+<p><strong>建議</strong>：</p>
+<ul><li>用組織實際單位或專案命名（如「人資」「客服」「研發」）。</li><li>寧可少而清楚，不要建一堆語意重疊的團隊（權控會難維護）。</li><li>命名一致：匯入素材、知識來源都要用<strong>同一套團隊名</strong>，才能正確聚合與權控。</li></ul>
+<hr>
+<h2 id="四知識庫分類categories" class="t4">四、知識庫分類（<code>/categories</code>）</h2>
+<p><strong>能做什麼</strong>：新增/修改/刪除分類；欄位有<strong>名稱、描述、啟用狀態</strong>；名稱唯一（忽略大小寫與頭尾空白）；可搜尋。</p>
+<p><strong>用途</strong>：作為內容的主題標籤，供清單過濾與清洗時的分類參考（與團隊不同——分類<strong>不</strong>做權控，只做歸類與篩選）。</p>
+<p><strong>建議</strong>：建立一組穩定的主題詞庫（如「會議、產品、客服、財務、人事、技術」），清洗規則設定的「分類提示詞」也可限定 LLM 只能從這組詞挑，分類才一致可比。</p>
+<p><strong>這份主檔餵給誰</strong>（共 7 個畫面）：知識來源加工、知識百科、知識頁審核、圖片解讀、文件轉文字、影音轉逐字稿、統計報表－內容清點統計。</p>
+<blockquote><p>注意：<strong>AI 知識問答的「限定分類」下拉不是讀這份主檔</strong>，而是從實際已索引的內容裡取出真正用到的分類。所以剛建好一個新分類、還沒有任何內容用它時，問答頁的下拉不會出現它，這是正常的。</p></blockquote>
+<hr>
+<h2 id="五專案分類work-categories-別漏掉這一份" class="t5">五、專案分類（<code>/work-categories</code>）—— 別漏掉這一份</h2>
+<p><strong>這是與「知識庫分類」完全獨立的第二份分類主檔</strong>（1.0.18 起）。兩者資料互不影響，欄位長得一樣，但<strong>餵給不同的畫面</strong>：</p>
+<div class="tw"><table><thead><tr><th></th><th>知識庫分類 <code>/categories</code></th><th>專案分類 <code>/work-categories</code></th></tr></thead><tbody><tr><td>選單顯示名</td><td>知識庫分類</td><td>專案分類</td></tr><tr><td>餵給哪些畫面</td><td>知識來源加工、知識百科、知識頁審核、圖片解讀、文件轉文字、影音轉逐字稿、內容清點統計（7 處）</td><td><strong>專案管理、工作任務、會議管理</strong>（各自的清單「分類過濾」與編輯表單的分類下拉，共 6 處）</td></tr><tr><td>權限樹上的名稱</td><td><code>分類清單</code></td><td><code>專案分類</code></td></tr></tbody></table></div>
+<p><strong>為什麼要分開</strong>：知識庫的主題詞庫（會議、產品、客服…）和專案管理的分類（例如「內部專案」「客戶專案」「維運」）本質不同，混在一起會讓兩邊的下拉都變得又長又雜。</p>
+<p><strong>能做什麼</strong>：新增／修改／刪除；工具列有「新增」「重新整理」「搜尋」「清空搜尋」；清單欄位為<strong>名稱、描述、啟用狀態、更新時間</strong>（預設依更新時間新到舊）。</p>
+<p><strong>表單欄位</strong>：</p>
+<div class="tw"><table><thead><tr><th>欄位（畫面標籤）</th><th>必填</th><th>說明</th></tr></thead><tbody><tr><td>名稱</td><td>✅</td><td>上限 100 字；<strong>不可與其他專案分類重複</strong>（比對時忽略大小寫與頭尾空白）。重複時訊息為 <code>專案分類名稱 'XXX' 已存在。</code></td></tr><tr><td>描述</td><td>—</td><td>上限 2000 字</td></tr><tr><td>啟用狀態</td><td>—</td><td>新增時預設「啟用」。<strong>停用只是讓它不出現在下拉</strong>，清單頁還是看得到</td></tr></tbody></table></div>
+<p><strong>沒有</strong>排序序號、顏色、代碼、父子階層這些欄位。</p>
+<h3 id="兩個容易踩的坑">⚠️ 兩個容易踩的坑</h3>
+<p><strong>1. 刪除不會檢查有沒有被使用。</strong> 系統不會擋你刪掉正在被專案／工作／會議引用的分類。因為分類是以<strong>名稱字串</strong>存在各筆紀錄上（不是外鍵），所以刪掉主檔不會影響既有紀錄的顯示值，只是下拉少一個選項。</p>
+<p><strong>2. 刪掉「仍被引用」的分類，重啟後會自己復活。</strong> 系統<strong>每次啟動</strong>都會掃描專案／工作／會議三張表裡出現過的分類名稱，把不在主檔裡的補回來（補進來的是啟用狀態、描述空白）。所以：</p>
+<blockquote><p><strong>想讓某個分類不再被選用，正確做法是把它改成「停用」，不是刪除。</strong> 停用的項目不會被重複補進來，也不會出現在下拉；刪除則會在下次重啟時原封不動地回來。</p></blockquote>
+<p>這個自動回填是刻意設計的——它讓「直接改資料庫」或「還原舊備份」帶進來的分類值能持續被吸收，不會出現「紀錄上有這個分類、但主檔查不到」的狀況。</p>
+<hr>
+<h2 id="六角色管理roleviews" class="t6">六、角色管理（<code>/roleviews</code>）</h2>
+<p><strong>能做什麼</strong>：新增/修改/刪除角色；為角色勾選<strong>權限樹</strong>；設定角色的<strong>預設團隊</strong>。</p>
+<p><strong>權限有兩種</strong>：</p>
+<ul><li><strong>頁面權限</strong>：能不能進某個功能頁。</li><li><strong>動作權限</strong>：不對應選單、而是某個動作的服務層強制檢查——例如 <strong><code>知識審核</code></strong>（清洗結果核准/退回）、<strong><code>蒸餾審核</code></strong>（Wiki 頁核准/退回）。</li></ul>
+<blockquote><p>⚠️ <strong>權限樹上的名稱與左側選單不一樣，這是最常卡住的地方。</strong> 例如你想給「清洗品質評測」的權限，在權限樹上要找的是「<strong>黃金評測</strong>」；想給「知識百科」要找「<strong>知識瀏覽</strong>」；想給「知識來源加工」要找「<strong>知識來源管理清單</strong>」。</p>
+<p>這些舊名是<strong>刻意保留</strong>的——權限字串被寫進每個角色的資料裡，一改就會讓所有既有角色掉權限。<strong>完整的對照表見 <a href="../../docs/guides/complete-manual.html#%E9%81%B8%E5%96%AE%E5%90%8D%E8%88%87%E6%AC%8A%E9%99%90%E6%A8%B9%E5%90%8D%E5%B0%8D%E7%85%A7%E8%A1%A8">完整操作手冊 §3.1</a></strong>，設定角色前請先打開它對照。</p>
+<p>只有兩個項目<strong>顯示名＝權限名</strong>：「<strong>專案分類</strong>」（1.0.18 新增）與「<strong>知識圖譜審核</strong>」（1.0.84 新增）——它們沒有舊名包袱，看到一致不是漏改。</p>
+<p>權限樹的<strong>群組名</strong>也有落差：選單「知識庫」＝權限樹「清洗與蒸餾功能」；選單「基礎資料設定」＝權限樹「資料定義功能」。</p></blockquote>
+<p><strong>「知識圖譜審核」的三層權限（容易誤解，1.0.84 起）</strong>：</p>
+<div class="tw"><table><thead><tr><th>想做的事</th><th>需要什麼</th></tr></thead><tbody><tr><td>進入 <code>/knowledge-graph-review</code> 看四個分頁</td><td>權限樹勾 <strong><code>知識圖譜審核</code></strong>（頁面權限）</td></tr><tr><td><strong>核可／退回／編修</strong>三元組</td><td>上面之外，還要<strong>管理員身分或 <code>蒸餾審核</code></strong> 動作權限</td></tr><tr><td>「<strong>實體合併</strong>」分頁、「<strong>重建社群摘要</strong>」按鈕</td><td><strong>只有管理員</strong>。程式寫死，勾任何角色權限都開不出來</td></tr></tbody></table></div>
+<blockquote><p>也就是說：給一位知識維護者 <code>知識圖譜審核</code> ＋ <code>蒸餾審核</code>，他就能審三元組；但別名治理與社群摘要重建仍必須由管理員執行。</p></blockquote>
+<p><strong>預設團隊</strong>：角色可設一組預設團隊，影響該角色使用者的資料可見範圍。</p>
+<p><strong>建議（最小權限原則）</strong>：只給角色完成工作所需的頁面與動作；審核類動作權限只給真正負責把關的人。</p>
+<hr>
+<h2 id="七使用者管理myusers" class="t7">七、使用者管理（<code>/myusers</code>）</h2>
+<p><strong>能做什麼</strong>：新增/修改/刪除帳號；欄位有<strong>帳號、名稱、Email、角色（必填）、狀態、是否管理員</strong>；可搜尋。</p>
+<p><strong>預設管理帳號（重要安全事項）</strong>：</p>
+<ul><li>系統內建帳號 <code>support</code>、密碼 <code>1qaz@WSX</code>，<strong>每次啟動會被設定檔重設、且不可在介面變更</strong>。</li><li><strong>請先建立你自己的管理員帳號</strong>日常使用；正式環境請於設定檔 <code>BootstrapSettings</code> 調整或停用預設帳號（見 <a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a>）。</li></ul>
+<p><strong>建議</strong>：一人一帳號（不要共用）；以角色控制權限而非逐人特例；離職/轉調即時停用或調整角色。</p>
+<hr>
+<h2 id="八ai-提示詞prompts" class="t8">八、AI 提示詞（<code>/prompts</code>）</h2>
+<p><strong>能做什麼</strong>：新增/修改/刪除提示詞模板；欄位有<strong>名稱、描述、啟用狀態、提示詞內容</strong>；可搜尋。</p>
+<p><strong>用在哪</strong>：文件轉文字「依提示詞產生」、圖片視覺解讀、AI 知識問答系統提示、知識來源對話，以及<strong>清洗管線</strong>。</p>
+<p><strong>全域提示詞 vs 清洗規則設定（要點）</strong>：</p>
+<ul><li>清洗管線會讀名為 <strong><code>清洗-*</code></strong> 的啟用提示詞作為全域預設步驟提示。</li><li>若要針對某一批內容客製清洗行為，請改用<strong>清洗規則設定</strong>（<code>/cleaning-profiles</code>）——它是「可重複套用的一組清洗提示詞」。兩者的互動與注意事項詳見 <a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定指南</a>。</li></ul>
+<p><strong>建議</strong>：提示詞講清楚「輸入是什麼、要產出什麼格式」；用描述欄註明用途與適用場景，方便他人挑選。</p>
+<hr>
+<h2 id="九團隊權控觀念貫穿全系統" class="t1">九、團隊權控觀念（貫穿全系統）</h2>
+<ul><li><strong>管理員</strong>：不受團隊限制，看得到全部。</li><li><strong>非管理員</strong>：只看得到「<strong>無團隊（公開）</strong>，或<strong>與自己角色團隊有交集</strong>」的紀錄——這條規則套用在所有紀錄查詢、清單、下載，以及<strong>AI 知識問答的檢索結果與出處</strong>（越權內容不會被檢索出來）。</li><li>因此：<strong>素材與知識來源的團隊一定要標對</strong>，否則不是外洩、就是該看的人看不到。</li><li><strong>關係本身也是知識</strong>（知識圖譜，1.0.83 起）：他人團隊抽出的「實體—關係—實體」三元組，<strong>即使兩端頁面都是公開的，也不會替你加分</strong>——「這兩者之間有關係」這件事屬於抽出它的來源所在團隊。另外，<strong>社群摘要的權控比一般紀錄更嚴</strong>，採「社群團隊聯集 ⊆ 你的團隊」的<strong>子集判定</strong>（其餘紀錄都是交集即可），因為一份摘要混了多筆來源的知識。詳見 <a href="../../docs/guides/knowledge-graph.html">知識圖譜使用指南 §八</a>。</li></ul>
+<hr>
+<h2 id="十常見問題faq" class="t2">十、常見問題（FAQ）</h2>
+<div class="tw"><table><thead><tr><th>症狀</th><th>可能原因</th><th>解法</th></tr></thead><tbody><tr><td>使用者看不到某些資料</td><td>該資料的團隊與其角色團隊無交集</td><td>確認資料的團隊標記、或調整角色的（預設）團隊</td></tr><tr><td>進某頁顯示無權限</td><td>角色未勾該頁面權限</td><td>到 <code>/roleviews</code> 補勾對應頁面權限</td></tr><tr><td>在權限樹裡找不到某個頁面</td><td>權限樹用的是<strong>舊名</strong>，與選單顯示名不同</td><td>對照 <a href="../../docs/guides/complete-manual.html#%E9%81%B8%E5%96%AE%E5%90%8D%E8%88%87%E6%AC%8A%E9%99%90%E6%A8%B9%E5%90%8D%E5%B0%8D%E7%85%A7%E8%A1%A8">完整操作手冊 §3.1</a>；例如「知識百科」在權限樹叫「知識瀏覽」</td></tr><tr><td>系統管理／統計報表的頁面勾不到</td><td>這兩組是 <code>adminOnly</code>，不受權限樹控制</td><td>把該使用者設為管理員；權限樹上的「統計報表功能」只是位置佔位</td></tr><tr><td>刪掉的專案分類重啟後又出現</td><td>該分類仍被專案/工作/會議引用，啟動時自動回填</td><td>改用「停用」而非刪除（見 §五）</td></tr><tr><td>新建的知識庫分類在 AI 知識問答的下拉看不到</td><td>該頁下拉只列<strong>實際已索引內容用到</strong>的分類</td><td>正常行為；等有內容用到該分類並建好索引後就會出現</td></tr><tr><td>能進頁卻不能核准/退回</td><td>缺動作權限（知識審核/蒸餾審核）</td><td>給該角色對應動作權限</td></tr><tr><td>勾了 <code>知識圖譜審核</code> 卻不能核可三元組、也看不到「實體合併」分頁</td><td>那是<strong>兩種不同的權限</strong>：核可／退回三元組要<strong>另外</strong>有 <code>蒸餾審核</code>（或管理員）；「實體合併」與「重建社群摘要」則<strong>程式寫死僅管理員</strong></td><td>補勾 <code>蒸餾審核</code>；別名治理與社群重建交給管理員做（見 §六）</td></tr><tr><td>忘記自己建的帳號密碼</td><td>—</td><td>用管理員帳號到 <code>/myusers</code> 重設</td></tr><tr><td>預設 <code>support</code> 帳號安全疑慮</td><td>內建帳號密碼固定</td><td>先建自己的管理員帳號；正式環境調整/停用預設帳號</td></tr><tr><td>分類/團隊一直重複建</td><td>命名不一致</td><td>收斂為一套穩定詞庫；停用不再用的項目</td></tr></tbody></table></div><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫管理者：匯入正式資料前，要先訂好命名與分類詞庫</li><li>知識庫管理者：我要讓不該看的人看不到</li><li>導入顧問：我要幫客戶設計基礎設定與提示詞</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li><li><a href="../../docs/guides/new-crud-page.html">手動開發新 CRUD 頁面的計畫</a></li><li><a href="../../docs/guides/import-to-knowledge-flow.html">從客戶匯入到完成知識：操作流程指南</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一為什麼先設定這些">一、為什麼先設定這些</a><a class="l2" href="#二建議設定順序">二、建議設定順序</a><a class="l2" href="#三團隊管理teams-資料權控的核心">三、團隊管理（/teams）—— 資料權控的核心</a><a class="l2" href="#四知識庫分類categories">四、知識庫分類（/categories）</a><a class="l2" href="#五專案分類work-categories-別漏掉這一份">五、專案分類（/work-categories）—— 別漏掉這一份</a><a class="l3" href="#兩個容易踩的坑">⚠️ 兩個容易踩的坑</a><a class="l2" href="#六角色管理roleviews">六、角色管理（/roleviews）</a><a class="l2" href="#七使用者管理myusers">七、使用者管理（/myusers）</a><a class="l2" href="#八ai-提示詞prompts">八、AI 提示詞（/prompts）</a><a class="l2" href="#九團隊權控觀念貫穿全系統">九、團隊權控觀念（貫穿全系統）</a><a class="l2" href="#十常見問題faq">十、常見問題（FAQ）</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/基礎設定指南-團隊分類角色與使用者.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

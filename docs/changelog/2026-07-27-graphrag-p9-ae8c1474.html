@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph RAG P9：MCP 暴露圖譜能力（1.0.90 → 1.0.91）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>Graph RAG P9：MCP 暴露圖譜能力（1.0.90 → 1.0.91）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-27</li><li>版本：1.0.90 → 1.0.91</li><li>類型：新增功能（Graph RAG 第九階段；<strong>無新表、無 migration</strong>）</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>P1～P8 把 Graph RAG 做完整了，但<strong>全部只有 Blazor UI 使用者能用</strong>：<code>Web/Mcp/</code> 的五個工具沒有任何圖譜參數，<code>Web/Controllers/</code> 也沒有圖譜 API。也就是說外部 AI Agent 透過 MCP 只能做精準檢索，<strong>問不出「綜觀全部」也問不出「A 和 B 有什麼關聯」</strong>——而這兩件事正是導入 Graph RAG 的理由。</p>
+<p>本階段把兩項圖譜能力接到 MCP：<code>knowledge_ask</code> 的 <code>global</code> 模式、以及新工具 <code>knowledge_graph_neighbors</code>（直接重用 P8 的 <code>GetNeighborhoodAsync</code>）。</p>
+<h2 id="動工前先驗的紅線結論安全且已補測試釘住" class="t2">動工前先驗的紅線（結論：安全，且已補測試釘住）</h2>
+<p>計畫列的唯一 leak=0 風險是：<code>GraphCommunityService.GetAccessibleSummariesAsync</code> 用 <code>IRecordAccessScopeProvider.GetAsync()</code> 取 scope，而 MCP 沒有 Blazor circuit——<strong>萬一取不到正確身分，global 模式就會以錯誤 scope 放行他隊社群摘要</strong>。</p>
+<p>逐條讀 <code>Web/Auth/RecordAccessScopeProvider.cs</code> 後確認<strong>三條解析路徑都安全</strong>：</p>
+<ol><li><code>McpIdentityResolver.ResolveAsync</code> 已填 <code>CurrentUserService</code>（含 <code>IsAdmin</code>／<code>TeamList</code>）→ 直接用它。</li><li>未填時 fallback 到 <code>HttpContext</code> 的 <code>Sid</code> claim（MCP 的 API Key／JWT 認證會帶）→ 從 DB 取回角色團隊。</li><li>兩者皆無法解析 → 回 <code>(false, [])</code>＝<strong>fail-closed</strong>，只看得到公開內容。</li></ol>
+<p>前提是<strong>工具要先 <code>ResolveAsync</code> 再呼叫 <code>GlobalMapAsync</code></strong>——<code>KnowledgeAskTool</code> 本來就是這個順序。另有既有實證：<code>KnowledgeSearchTool</code> 早就在 MCP 下用同一個 provider。</p>
+<p>⚠️ 既有的 MCP 測試都用 <strong>stub scope</strong>，等於這條路徑從來沒被測過。本次新增 <code>Mcp/McpAccessScopeTests</code>，<strong>直接測真正的 <code>RecordAccessScopeProvider</code></strong>，把上述三條路徑各釘一條（外加管理員旗標的傳遞）。</p>
+<h2 id="變更" class="t3">變更</h2>
+<h3 id="1-knowledge_ask-新增-mode-參數">1. <code>knowledge_ask</code> 新增 <code>mode</code> 參數</h3>
+<div class="tw"><table><thead><tr><th>mode</th><th>行為</th></tr></thead><tbody><tr><td><code>local</code>（預設，省略即此值）</td><td>精準檢索：向量＋關鍵字＋圖鄰域三路混合。<strong>與 1.0.90 之前完全相同</strong>。</td></tr><tr><td><code>global</code></td><td>全域問答：對「呼叫者有權的社群摘要」做 map-reduce（P3）。</td></tr></tbody></table></div>
+<p><code>global</code> 模式的回傳差異（已寫進工具的 <code>[Description]</code>，Agent 讀得到）：</p>
+<ul><li><code>sources</code> <strong>恆為空</strong>、<code>topScore</code> <strong>恆為 0</strong>——社群摘要沒有 chunk 層出處，也沒有相似度可言。</li><li><code>confidence</code> 僅表示「有無取到可用的社群重點」。</li><li>取用的社群改由<strong>新欄位 <code>usedCommunities</code></strong>（標題清單）回報；<code>KnowledgeAskResult</code> 另加 <code>mode</code> 欄位讓呼叫端能自我確認。</li><li><strong>不套用 <code>categories</code>／<code>teams</code> 篩選</strong>（社群是跨來源全域聚合，逐社群篩選沒有意義）。</li><li>無可用社群時 <code>answerContext</code> 帶回可行動的原因（提示先建立社群摘要），而非空字串。</li><li>聊天紀錄的 <code>ScopeNote</code> 加上「模式：local/global」。</li></ul>
+<p>⚠️ <strong>無法辨識的 <code>mode</code> 值明確拋 <code>ArgumentException</code>，不靜默退回 <code>local</code></strong>——靜默退回會讓呼叫端以為自己走了 global。大小寫與前後空白則接受（<code>"Global "</code> → <code>global</code>）。</p>
+<h3 id="2-新工具-knowledgegraphneighbors">2. 新工具 <code>knowledge_graph_neighbors</code></h3>
+<p>仿 <code>KnowledgeSearchTool</code> 結構（<code>McpToolLog.BeginToolScope</code> ＋ <code>McpIdentityResolver</code>），包一層 P8 的 <code>GraphTripleService.GetNeighborhoodAsync</code>：</p>
+<ul><li>參數：<code>entityName</code>（別名自動解析）、<code>maxHops</code>（1～3，預設 2）。</li><li>回傳：<code>nodes</code>（實體名＋跳數）、<code>relations</code>（主詞—關係—受詞＋跳數）、<code>found</code>、<code>truncated</code>。</li><li>只回傳<strong>已核可</strong>三元組；三元組與兩端節點兩層都套團隊權控；節點上限 100，達上限 <code>truncated=true</code>。</li><li><strong>純資料庫查詢、不呼叫 LLM</strong>，故刻意<strong>不推 <code>OperationContext</code>、不新增 <code>LlmTokenUsage.Operation*</code> 常數</strong>（沒有 token 可歸屬，加了只會多一個永遠是 0 的作業別）。</li><li>註冊方式：<code>WithToolsFromAssembly()</code> 會自動掃描 <code>[McpServerToolType]</code>，<strong>不需改 DI 或 Program.cs</strong>。</li></ul>
+<h2 id="安全與相容leak0" class="t4">安全與相容（leak=0）</h2>
+<ul><li><code>global</code> 模式的 ACL 由 <code>GetAccessibleSummariesAsync</code> 把關，且社群摘要採<strong>更嚴的子集判定</strong>——需社群 <code>Teams</code> 聯集 ⊆ 使用者團隊或純公開。已由測試釘住：只屬甲隊者看不到「乙隊」社群，<strong>也看不到「甲隊∪乙隊」社群</strong>。</li><li><code>knowledge_graph_neighbors</code> 的 leak=0 由 <code>GetNeighborhoodAsync</code> 的雙層權控保證（任一端節點越權，整條關係就不出現）。</li><li><strong>向後相容</strong>：省略 <code>mode</code> 時行為與 1.0.90 完全相同（回歸測試釘住）；<code>KnowledgeAskResult</code> 只<strong>新增</strong>欄位（<code>mode</code>／<code>usedCommunities</code>），既有欄位語意不變。</li></ul>
+<h2 id="已知限制未來增量" class="t5">已知限制（未來增量）</h2>
+<ul><li><code>global</code> 模式<strong>只做 map、不做 reduce</strong>：回傳的是各社群重點的彙整文字，最後的綜合成答留給呼叫端的 Agent 自己做（與 Blazor UI 會再跑一次 reduce 串流不同）。這是刻意的——MCP 工具回傳「參考資料」而非「最終答案」，與 <code>knowledge_ask</code> 既有語意一致。</li><li><code>global</code> 模式的 LLM 成本＝可存取社群數次呼叫（受 <code>GraphGlobalCommunityCap</code> 控管，預設 20）。Agent 若頻繁呼叫會放大成本，<strong>目前沒有針對 MCP 的額外節流</strong>。</li><li>仍<strong>沒有寫入型圖譜工具</strong>（新增/核可三元組），與 MCP 文件的既有非目標一致。</li><li>圖譜能力仍未暴露為 Web API Controller（只有 MCP）。</li></ul>
+<h2 id="驗證" class="t6">驗證</h2>
+<ul><li><code>dotnet build</code> 成功、<strong>無新增警告</strong>（22 個，與 1.0.90 完全相同的檔案與行號）。</li><li><code>dotnet test</code> <strong>877 全綠</strong>（既有 861 + 新增 16）：</li><li><code>Mcp/McpAccessScopeTests</code> +4（<strong>紅線</strong>）：resolver 填入後 scope 正確、管理員旗標傳遞、無 <code>CurrentUserService</code> 時由 <code>Sid</code> claim 補上、完全無身分時 fail-closed。</li><li><code>Mcp/KnowledgeAskToolTests</code> +7：省略 mode 等同 local（回歸）、global 取用社群且無 chunk 出處、<strong>global 的 leak=0（他隊與跨隊社群都不可見）</strong>、無社群回 Insufficient 且帶原因、mode 大小寫/空白不敏感（Theory 2 列）、未知 mode 拋錯。</li><li><code>Mcp/KnowledgeGraphNeighborsToolTests</code> +5：欄位對映、預設 2 跳可達第 2 跳、<code>maxHops=1</code> 不含第 2 跳、<strong>他隊關係不得外洩（leak=0）</strong>、查無實體回 <code>found=false</code>。</li><li>無 model 變更，<strong>本次不產 migration</strong>。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 0 失敗；版本 1.0.91。</li><li><strong>未執行</strong>：以真實 MCP 用戶端＋兩把不同團隊的 API Key 做端到端交叉驗證（需部署環境與金鑰）。<strong>本次不宣稱已驗</strong>，留給部署後驗收。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#動工前先驗的紅線結論安全且已補測試釘住">動工前先驗的紅線（結論：安全，且已補測試釘住）</a><a class="l2" href="#變更">變更</a><a class="l3" href="#1-knowledge_ask-新增-mode-參數">1. knowledge_ask 新增 mode 參數</a><a class="l3" href="#2-新工具-knowledgegraphneighbors">2. 新工具 knowledgegraphneighbors</a><a class="l2" href="#安全與相容leak0">安全與相容（leak=0）</a><a class="l2" href="#已知限制未來增量">已知限制（未來增量）</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-27-GraphRAG-P9.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

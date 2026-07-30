@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 知識問答「新對話」按鈕、「我的對話」關鍵字搜尋（1.0.104 → 1.0.105）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>AI 知識問答「新對話」按鈕、「我的對話」關鍵字搜尋（1.0.104 → 1.0.105）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-29</li><li>版本：1.0.104 → 1.0.105</li><li>類型：功能新增（AI 知識問答／我的對話）</li><li><strong>有 migration</strong>：<code>AddChatSessionQuestionsIndex</code>（SQLite <code>20260729113727</code>；SqlServer <code>20260729113744</code>）</li></ul>
+<h2 id="背景" class="t1">背景</h2>
+<p>使用者提出兩個缺口：</p>
+<ol><li>「AI 知識問答」頁<strong>沒有任何方式開始新的一段對話</strong>。<code>sessionId</code> 在首次送出時 lazy 建立，之後只能一直往同一段追加；想換題目只能重新整理頁面。而同一段對話的前文會被帶進 AI 的脈絡，主題跳掉還沿用舊對話容易讓答案被帶偏。</li><li>「我的對話」抽屜沒有搜尋。對話一多只能一頁一頁翻，而清單上只有「首輪提問前 40 字」的標題——第 2 輪之後問了什麼既看不到也搜不到。</li></ol>
+<blockquote><p>分頁<strong>維持原狀</strong>（AntDesign <code>Pagination</code>、每頁 10 筆）：確認過現況已足夠，本次不動。</p></blockquote>
+<h2 id="設計決策" class="t2">設計決策</h2>
+<h3 id="搜尋範圍提問文字標題不含-ai-回答">搜尋範圍：提問文字＋標題，不含 AI 回答</h3>
+<p>資料庫裡原本<strong>完全沒有問答文字</strong>——<code>LlmChatSession</code> 只有中繼資料（標題、時間、輪數），全文存在磁碟 <code>sessions/{yyyy}/{sessionId}.json</code>。要能同時搜得到內容又讓 SQL 正確分頁，只有把可搜文字放進資料庫一途。</p>
+<p>因此新增 <code>LlmChatSession.QuestionsIndex</code>：該段對話<strong>各輪提問</strong>以 <code>\n</code> 串接（換行分隔可避免跨輪誤命中），上限 4000 字、超出從尾端截斷（保留最早輪次）。</p>
+<p>⚠️ <strong>刻意不建索引、也不設 <code>HasMaxLength</code></strong>：查詢是 <code>LIKE '%關鍵字%'</code>，前置萬用字元讓 B-tree 索引失效（補了也用不到），SQL Server 的 <code>nvarchar(max)</code> 更無法直接建索引；長度只在程式端截斷，DB 端不設限就永遠不會因超長導致 <code>SaveChanges</code> 失敗。</p>
+<h3 id="null-尚未建索引這是回填的唯一判準"><code>null</code> ＝尚未建索引，這是回填的唯一判準</h3>
+<p><code>QuestionsIndex</code> 為 <code>null</code> 代表該列還沒建索引，<code>""</code> 代表已處理但無可索引內容。這個區分讓一次性回填能收斂，也讓搜尋在回填尚未跑完時仍可靠 <code>Title</code> 命中（predicate 有 <code>QuestionsIndex != null</code> 的短路）。</p>
+<h3 id="維護時重算而非串接舊值">維護時「重算」而非「串接舊值」</h3>
+<p><code>AppendTurnAsync</code> 在寫檔前已把本輪加進 <code>file.Turns</code>，記憶體裡就是完整清單，所以新對話與續談兩條路徑都只要 <code>QuestionsIndex = BuildQuestionsIndex(file.Turns)</code> 一行。回填器共用同一個函式，兩條路徑產出<strong>逐字相同</strong>，不會有「續談後 DB 值落後」或「回填與 append 互相覆蓋成不一致」的情形。</p>
+<h3 id="串流中新對話停用而非中斷">串流中「新對話」停用而非中斷</h3>
+<p>串流中若清空狀態，<code>SendAsync</code> 的 <code>finally</code> 仍會執行 <code>LogTurnAsync</code>：該輪會被寫進已清成 <code>null</code> 的 session、序號被推進，設定快照還會落在已不存在於 <code>messages</code> 的孤兒鍵上。要正確處理必須把「取消 → 等 finally 結束 → 再清」串起來，複雜度遠高於需求；輸入區既有的「停止」已提供中斷路徑。因此以 <code>Disabled="@isStreaming"</code> ＋ handler 內 early-return 兩層擋下。</p>
+<h2 id="變更" class="t3">變更</h2>
+<h3 id="1-資料模型llmchatsession--雙-provider-migration">1. 資料模型（<code>LlmChatSession</code> ＋ 雙 provider migration）</h3>
+<ul><li><code>LlmChatSession</code> 新增 <code>string? QuestionsIndex</code>。</li><li><code>BackendDBContext</code> 的 <code>LlmChatSession</code> 區塊補註解說明「刻意不建索引」的理由，避免日後有人補一個用不到的索引。</li><li>Migration 雙份：<code>KnowledgeExtraction.AccessDatas</code>（<code>TEXT</code>）與 <code>KnowledgeExtraction.AccessDatas.SqlServerMigrations</code>（<code>nvarchar(max)</code>），皆只有一筆 <code>AddColumn</code>、無 <code>CreateIndex</code>。</li></ul>
+<h3 id="2-chatsessionservice">2. <code>ChatSessionService</code></h3>
+<ul><li>新增 <code>BuildQuestionsIndex(IEnumerable&lt;ChatSessionTurn&gt;)</code> 與 <code>QuestionsIndexMaxLength = 4000</code>。</li><li><code>AppendTurnAsync</code>：新建與續談兩條路徑各補一行維護 <code>QuestionsIndex</code>。</li><li><code>QueryMySessionsAsync</code> 新增 <code>string? keyword</code>（置於 <code>CancellationToken</code> <strong>之前</strong>，唯一呼叫端無位置參數傳 ct，來源相容），predicate 比對 <code>Title</code> 與 <code>QuestionsIndex</code>。大小寫敏感度依資料庫而定（Sqlite 敏感、SQL Server 依 collation），與管理員總覽的使用者關鍵字行為一致。</li><li>新增 <code>BackfillQuestionsIndexAsync(batchSize, ct)</code>：撈 <code>QuestionsIndex == null</code> 的列（<strong>追蹤查詢</strong>）逐列讀全文檔轉換，回傳本批處理列數。</li></ul>
+<h3 id="3-一次性回填chatsessionindexbackfillworker">3. 一次性回填（<code>ChatSessionIndexBackfillWorker</code>）</h3>
+<p>新檔 <code>Web/BackgroundServices/ChatSessionIndexBackfillWorker.cs</code>，啟動後延遲 10 秒開始、每批 200 列、批間喘息 200ms，每批開新 scope 取新 <code>DbContext</code>（避免變更追蹤器累積整表），撈到 0 筆即結束。</p>
+<p>⚠️ <strong>收斂性是關鍵</strong>：讀檔失敗／檔案不存在／JSON 壞掉時<strong>仍寫入空字串</strong>，否則每次啟動都會重撈同一批而永不結束。已由測試釘住（<code>Backfill_MissingFile_MarksProcessed_AndSecondRunDoesNothing</code>）。</p>
+<p>命名刻意<strong>不以 <code>BackgroundService</code> 結尾</strong>：它不是業務管線，不屬於 <code>SystemHealthService.ExpectedPipelineBackgroundServices</code>（由 <code>PipelineNames</code> 反射推導）的範圍。</p>
+<h3 id="4-我的對話抽屜mychatsessionsdrawer">4. 「我的對話」抽屜（<code>MyChatSessionsDrawer</code>）</h3>
+<ul><li>抽屜最上方新增搜尋列：<code>Input</code>（<code>OnPressEnter</code>）＋「搜尋」＋「清除」。</li><li>搜尋列渲染在 <code>loading</code> 判斷<strong>之前</strong>：載入中與查無結果時都看得到，才有辦法改關鍵字或清除。</li><li><strong>不用 <code>AllowClear</code></strong>：AntDesign 的叉叉不會觸發 <code>OnPressEnter</code>，會出現「輸入框空了但清單還停在舊結果」的錯覺，改用明確的「清除」鈕。</li><li>查詢條件變更一律回到第 1 頁；抽屜關閉再開時關鍵字重置。查無結果時文案改為「找不到符合的對話」。</li></ul>
+<p>因為是共用元件，<strong>「知識來源 AI 對話」頁的抽屜也一併有了搜尋</strong>（該頁的 <code>QuestionsIndex</code> 同樣會維護）。</p>
+<h3 id="5-新對話按鈕knowledgebasechatview">5. 「新對話」按鈕（<code>KnowledgeBaseChatView</code>）</h3>
+<p>標題列新增（順序：新對話 → 我的對話 → 系統提示詞設定）。<code>StartNewChat()</code> 清空 <code>ResumeSession</code> 的同一組七個容器（<code>messages</code>／<code>sourcesByMessage</code>／<code>logIdByMessage</code>／<code>feedbackByMessage</code>／<code>settingsByMessage</code>／<code>expandedSourcePanels</code>／<code>expandedSources</code>），並將 <code>sessionId = null</code>、<code>nextTurnIndex = 0</code>。</p>
+<p><strong>刻意不動</strong>：所有設定欄位（需求明定保留）、<code>memberCache</code>（純 id→model 快取，<code>ResumeSession</code> 也沒清）、<code>userInput</code>（使用者正在打的草稿）。<code>sessionId</code> 設為 null 後由下次送出才產生新識別碼，因此<strong>不會留下 0 輪的空對話</strong>。</p>
+<h2 id="測試" class="t4">測試</h2>
+<p>新增 <code>ChatSessionKeywordSearchTests</code>（11 條）：</p>
+<div class="tw"><table><thead><tr><th>面向</th><th>守住什麼</th></tr></thead><tbody><tr><td>索引維護</td><td>首輪寫入、續談串接（<code>\n</code> 分隔）、超長截斷至 4000</td></tr><tr><td>搜尋語意</td><td>命中第 2 輪以後的提問、命中標題、<strong>不</strong>命中 AI 回答、空白關鍵字＝不過濾</td></tr><tr><td>權控</td><td>加了關鍵字之後仍限本人與來源出處（他人同關鍵字的對話不外洩）</td></tr><tr><td>回填</td><td>舊格式檔可回填並搜到、缺檔列標記後第二次呼叫回 0（收斂）、不覆蓋已建索引的列</td></tr></tbody></table></div>
+<p>全量測試 1048 條全綠。</p>
+<h2 id="文件同步" class="t5">文件同步</h2>
+<ul><li><code>Datas/Help/knowledge-base-chat.md</code>：兩顆按鈕 → 三顆，補「新對話」與搜尋說明。</li><li><code>Datas/Help/knowledge-sources-chat.md</code>：補搜尋說明；並<strong>修正既有錯誤</strong>——該檔原本寫「這一頁沒有『我的對話』抽屜」「對話只存在這次瀏覽期間」，但該頁自 1.0.40 起就有這顆按鈕與抽屜。</li><li><code>docs/guides/AI知識問答使用指南.md</code>、<code>docs/guides/完整操作手冊.md</code>：同上兩項。</li><li><code>docs/guides/EFCore.md</code>：migration 清單補 <code>AddChatSessionQuestionsIndex</code>。</li><li><code>docs/architecture/資料模型與資料庫.md</code>：<code>LlmChatSession</code> 說明補 <code>QuestionsIndex</code>。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#背景">背景</a><a class="l2" href="#設計決策">設計決策</a><a class="l3" href="#搜尋範圍提問文字標題不含-ai-回答">搜尋範圍：提問文字＋標題，不含 AI 回答</a><a class="l3" href="#null-尚未建索引這是回填的唯一判準">null ＝尚未建索引，這是回填的唯一判準</a><a class="l3" href="#維護時重算而非串接舊值">維護時「重算」而非「串接舊值」</a><a class="l3" href="#串流中新對話停用而非中斷">串流中「新對話」停用而非中斷</a><a class="l2" href="#變更">變更</a><a class="l3" href="#1-資料模型llmchatsession--雙-provider-migration">1. 資料模型（LlmChatSession ＋ 雙 provider migration）</a><a class="l3" href="#2-chatsessionservice">2. ChatSessionService</a><a class="l3" href="#3-一次性回填chatsessionindexbackfillworker">3. 一次性回填（ChatSessionIndexBackfillWorker）</a><a class="l3" href="#4-我的對話抽屜mychatsessionsdrawer">4. 「我的對話」抽屜（MyChatSessionsDrawer）</a><a class="l3" href="#5-新對話按鈕knowledgebasechatview">5. 「新對話」按鈕（KnowledgeBaseChatView）</a><a class="l2" href="#測試">測試</a><a class="l2" href="#文件同步">文件同步</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-29-新對話按鈕與我的對話關鍵字搜尋.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

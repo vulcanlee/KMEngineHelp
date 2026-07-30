@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>客戶A ERP 系統常見問題 FAQ｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../../../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../../../../index.html">角色首頁</a>
+    <a href="../../../../../all-docs.html">全部文件</a>
+    <a href="../../../../../search.html">搜尋</a>
+    <a href="../../../../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../../../../all-docs.html">全部文件</a> ／ guides/lab-samples/documents/擴充-純文字</p><header class="hero"><div class="kicker">guides/lab-samples/documents/擴充-純文字</div><h1>客戶A ERP 系統常見問題 FAQ</h1></header><div class="docwrap"><main><blockquote><p>彙整自部署 SOP、故障排除筆記與開發環境建置指南；適用客戶端使用者與新進同仁。</p></blockquote>
+<ol><li><strong>登入頁打不開怎麼辦？</strong></li></ol>
+<p>先確認服務已啟動、防火牆已開放應用程式所需連接埠；再檢查系統日誌有無錯誤。</p>
+<ol><li><strong>凌晨批次期間服務中斷？</strong></li></ol>
+<p>多為批次疊加造成記憶體不足：將大型批次排程錯開時段，必要時增加實體記憶體。</p>
+<ol><li><strong>報表可以匯出成 Excel 嗎？</strong></li></ol>
+<p>可以，本期已提供報表匯出 Excel 功能；大型報表採非同步匯出，完成後通知下載。</p>
+<ol><li><strong>為什麼我看不到某些報表？</strong></li></ol>
+<p>系統採權限分級（一般使用者／部門主管／系統管理者），僅顯示授權範圍內的報表。</p>
+<ol><li><strong>伺服器網路燈變橘色？</strong></li></ol>
+<p>代表連線異常，常見為網路線未完全插入交換器埠：重新插拔確認卡榫到位、必要時換線。</p>
+<ol><li><strong>部署新版要注意什麼？</strong></li></ol>
+<p>依部署 SOP：前置檢查（OS/執行環境/防火牆/磁碟）→ 安裝步驟 → 安裝後驗證缺一不可。</p>
+<ol><li><strong>資料庫備份多久驗證一次？</strong></li></ol>
+<p>每月確認備份成功且可還原，並定期執行還原演練驗證 RTO。</p>
+<ol><li><strong>Windows 更新要自己裝嗎？</strong></li></ol>
+<p>由維運例行維護統一套用累積更新，使用者無須自行處理。</p>
+<ol><li><strong>發現異常要通報誰？</strong></li></ol>
+<p>上班時間聯絡駐點維運工程師；緊急故障依合約 SLA 通報維運窗口。</p>
+<ol><li><strong>新進開發人員如何建置環境？</strong></li></ol>
+<p>參閱《公司內部開發環境建置指南》：安裝 SDK → 申請倉庫權限 → 還原套件 → 設定連線 → 本機啟動。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（guides/lab-samples/documents/擴充-純文字）</h3><ul><li><a href="../../../../../docs/guides/lab-samples/documents/擴充-純文字/erp-v2-3-270a85fd.html">ERP 系統 v2.3 版本發行說明</a></li></ul></div></div></main></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/lab-samples/documents/擴充-純文字/客戶A-ERP系統常見問題FAQ.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

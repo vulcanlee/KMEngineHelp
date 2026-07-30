@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識來源 AI 對話：訊息可複製到剪貼簿（0.2.113）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>知識來源 AI 對話：訊息可複製到剪貼簿（0.2.113）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-22</li><li>版本：0.2.112 → 0.2.113</li><li>對應 PRD：<a href="../../docs/prd/prd-e8b774d3.html">知識來源管理 PRD</a></li></ul>
+<h2 id="摘要" class="t1">摘要</h2>
+<p>「知識來源管理清單」的 <strong>AI 對話</strong>頁，比照 ChatGPT 網頁，為<strong>每一輪</strong>對話的「使用者 Prompt」 與「LLM 輸出」各加上一個<strong>複製到剪貼簿</strong>按鈕，可單獨複製任一則內容。</p>
+<h2 id="內容" class="t2">內容</h2>
+<ul><li><strong>每則訊息可複製</strong>：每則氣泡下方新增複製鈕（hover 該則訊息時淡入），點擊後跳出</li></ul>
+<p>「已複製到剪貼簿」提示。多輪對話時，每一則 Prompt 與輸出皆可<strong>獨立</strong>選擇複製。</p>
+<ul><li><strong>複製原始 Markdown</strong>：LLM 輸出在畫面上以 Markdown 渲染，但複製的是</li></ul>
+<p><strong>原始 Markdown 文字</strong>（直接取 <code>ChatMessage.Content</code>，非渲染後 HTML）； 使用者訊息則複製原輸入文字。</p>
+<ul><li><strong>串流友善</strong>：串流產生中、尚未有內容的助理訊息（打字游標階段）不顯示複製鈕，</li></ul>
+<p>產生完成後才出現，避免複製到空字串。</p>
+<h2 id="實作" class="t3">實作</h2>
+<ul><li><code>KnowledgeSourceChatView.razor</code>：每則訊息改為「氣泡 ＋ 動作列」欄式結構，動作列含複製鈕</li></ul>
+<p>（AntDesign <code>Tooltip</code> ＋ <code>Button</code> ＋ <code>Icon Type="copy"</code>）。</p>
+<ul><li><code>KnowledgeSourceChatView.razor.cs</code>：新增 <code>CopyMessageAsync(content)</code>，沿用既有複製範式</li></ul>
+<p>（<code>navigator.clipboard.writeText</code> ＋ <code>MessageService</code> 成功／失敗提示）。</p>
+<ul><li><code>KnowledgeSourceChatView.razor.css</code>：新增 <code>.ke-msg-col</code> / <code>.ke-msg-actions</code> 與 hover 淡入樣式。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#摘要">摘要</a><a class="l2" href="#內容">內容</a><a class="l2" href="#實作">實作</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-22-知識來源對話訊息複製.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

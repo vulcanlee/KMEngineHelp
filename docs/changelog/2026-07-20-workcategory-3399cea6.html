@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新增「專案分類」（WorkCategory）主檔，與知識庫分類清單脫鉤（1.0.18）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>新增「專案分類」（WorkCategory）主檔，與知識庫分類清單脫鉤（1.0.18）</h1></header><div class="docwrap"><main><ul><li>日期：2026/07/20</li><li>版本：1.0.17 → <strong>1.0.18</strong></li><li>類型：新功能（新資料表＋CRUD 頁＋REST API）＋既有資料自動回填</li><li>對應 PRD：<a href="../../docs/prd/prd-18b9200e.html">專案分類 PRD</a>、<a href="../../docs/prd/prd-e9230a97.html">專案協作模組強化 PRD</a> 第二階段</li><li>代辦清單：<a href="../../docs/planning/todo-19efa315.html">專案協作模組強化開發代辦清單</a></li></ul>
+<hr>
+<h2 id="一變更內容" class="t1">一、變更內容</h2>
+<h3 id="11-新增專案分類主檔">1.1 新增「專案分類」主檔</h3>
+<p>專案、工作、會議的「分類」欄位原本共用 <code>Category</code>（分類清單），但那份清單的定位是知識庫主題標籤（8 處在用）。兩種語意混在一起，下拉選單越長越雜。</p>
+<p>新增 <code>WorkCategory</code> 實體與 <code>/work-categories</code> 管理頁（欄位與 <code>Category</code> 完全相同：名稱／描述／啟用狀態／建立時間／更新時間），供專案項目、工作項目、會議記錄使用。</p>
+<p><strong>雙 provider migration <code>AddWorkCategory</code></strong>：SQLite <code>20260720031350</code>、SQL Server <code>20260720031235</code>。兩份皆僅 <code>CreateTable</code>，無 rename／drop。</p>
+<h3 id="12-分工邊界">1.2 分工邊界</h3>
+<div class="tw"><table><thead><tr><th>清單</th><th>路由</th><th>供哪些頁面使用</th></tr></thead><tbody><tr><td><strong>專案分類</strong>（新）</td><td><code>/work-categories</code></td><td>專案項目、工作項目、會議記錄</td></tr><tr><td><strong>分類清單</strong>（原有）</td><td><code>/categories</code></td><td>知識來源、知識瀏覽、Wiki 頁、AI 技能產生器、音訊轉錄、文件萃取、圖片清單、內容清點報表</td></tr></tbody></table></div>
+<p>兩頁各加一行說明文字，提醒使用者用途差異。</p>
+<h3 id="13-下拉來源切換只有-5-處">1.3 下拉來源切換：只有 5 處</h3>
+<p>全站共 13 處以 <code>GetAllEnabledNamesAsync()</code> 填充分類下拉。本次<strong>只切換這 5 處</strong>：</p>
+<ul><li><code>Views/Projects/ProjectViewView.razor.cs</code>（工具列篩選 ＋ 內嵌編輯表單，razor 有兩個迴圈）</li><li><code>Views/Projects/MyTasViewView.razor.cs</code></li><li><code>Views/Projects/MyTasEditModal.razor.cs</code></li><li><code>Views/Projects/MeetingViewView.razor.cs</code></li><li><code>Views/Projects/MeetingEditModal.razor.cs</code></li></ul>
+<p><strong>其餘 8 處維持吃分類清單</strong>（不得誤改）：<code>DocumentExtractionView</code>、<code>ImageRecognitionView</code>、<code>KnowledgeSourceView</code>、<code>KnowledgeWikiView</code>、<code>MediaTranscriptionView</code>、<code>ContentInventoryReportView</code>、<code>SkillView</code>、<code>WikiPageView</code>。</p>
+<blockquote><p><strong><code>ProjectRelatedRecordsModal</code> 不需要改</strong> — 它（專案清單的「工作與會議」對話窗）<strong>完全沒有注入 <code>CategoryService</code></strong>，只注入 <code>MyTasService</code>／<code>MeetingService</code>／<code>ModalService</code>／<code>NotificationService</code>；分類下拉是由它掛載的 <code>MyTasEditModal</code>／<code>MeetingEditModal</code> 各自載入，已被上述兩處涵蓋。<strong>記載於此，免得日後有人白找。</strong></p></blockquote>
+<h3 id="14-既有紀錄的儲存格式完全未變更">1.4 既有紀錄的儲存格式完全未變更</h3>
+<p><code>Project</code>／<code>MyTask</code>／<code>Meeting</code> 的 <code>Categories</code> 欄位仍是 <code>TagStringHelper</code> 的 <code>\n</code> 包夾字串（如 <code>"\nA\nB\n"</code>），AutoMapper <code>ForMember</code> 轉換不動，<code>BuildContainsAnyPredicate</code> 精確成員比對不動。<strong>本次只換了「哪一張表填充下拉選單」，沒有任何資料轉換。</strong></p>
+<h3 id="15-既有分類值自動回填">1.5 既有分類值自動回填</h3>
+<p>新增 <code>WorkCategoryBootstrapSeeder</code>，掛在 <code>Program.cs</code> 既有的 migration／seeding 區塊內（<code>Database.Migrate()</code> 之後、與預設角色／預設帳號同一個 scope）：</p>
+<pre><code>掃三表 Categories（AsNoTracking + Distinct）→ TagStringHelper.ToList 攤平
+→ Trim → 濾空白 → 忽略大小寫去重 → 缺的批次新增（IsEnabled = true）
+→ 記錄 ScannedCount / InsertedCount</code></pre>
+<ul><li><strong>每次啟動都執行（冪等）</strong>，不用一次性旗標——三個單欄 <code>SELECT DISTINCT</code> 成本可忽略，且能持續吸收「直接改資料庫」或「還原舊備份」帶進來的新值</li><li>以名稱（忽略大小寫）判斷，與服務層唯一性檢查一致，絕不會塞進 UI 會判為重複的列</li><li><strong>失敗不中斷啟動</strong>：try/catch ＋ <code>LogError</code>（依日誌鐵則不得靜默）</li><li>採<strong>同步</strong>實作以配合該啟動區塊全程同步的既有風格，避免 sync-over-async</li></ul>
+<h3 id="16-rest-api">1.6 REST API</h3>
+<p><code>WorkCategoryController</code> 完整克隆 <code>CategoryController</code>：<code>search</code>／<code>get</code>／<code>post</code>／<code>put</code>／<code>delete</code>，名稱重複回 <strong>409 Conflict</strong>，排序參數字串與分類清單 API 一致。</p>
+<h3 id="17-選單與權限">1.7 選單與權限</h3>
+<p><code>MagicObjectHelper.角色_專案分類 = "專案分類"</code>；<code>RolePermissionService</code> 附加於「資料定義」群組<strong>最末端</strong>；<code>Menu.json</code> 資料定義 <code>subMenu</code> 最末端（id 65、圖示 <code>label</code>）。三處以位置索引對應，本次僅在既有群組尾端追加、不動頂層結構，1.0.17 新增的 <code>MenuPermissionAlignmentTests</code> 維持全綠。</p>
+<hr>
+<h2 id="二已知技術債本次不處理" class="t2">二、已知技術債（本次不處理）</h2>
+<p><code>MyTask.Category</code>（單值、<code>Required</code>、自由輸入文字）與多值 <code>Categories</code> 並存，目前供關鍵字搜尋、排序及對外 API 精確過濾使用。它是非空欄位且有對外 API 契約，改動＝migration ＋ API 破壞性變更 ＋ 回填每一列，且用途與多值標籤本就不同。若要退場應另開 PRD。</p>
+<hr>
+<h2 id="三異動檔案" class="t3">三、異動檔案</h2>
+<p><strong>新增（14）</strong></p>
+<ul><li><code>AccessDatas/Models/WorkCategory.cs</code></li><li><code>AccessDatas/Migrations/20260720031350_AddWorkCategory.cs</code>（＋ Designer）</li><li><code>AccessDatas.SqlServerMigrations/Migrations/20260720031235_AddWorkCategory.cs</code>（＋ Designer）</li><li><code>Models/AdapterModel/WorkCategoryAdapterModel.cs</code></li><li><code>Dtos/Models/WorkCategoryDto.cs</code>、<code>WorkCategoryCreateUpdateDto.cs</code></li><li><code>Dtos/Commons/WorkCategorySearchRequestDto.cs</code></li><li><code>Business/Repositories/WorkCategoryRepository.cs</code></li><li><code>Business/Services/DataAccess/WorkCategoryService.cs</code></li><li><code>Business/Services/Other/WorkCategoryBootstrapSeeder.cs</code></li><li><code>Web/Controllers/WorkCategoryController.cs</code></li><li><code>Web/Components/Pages/WorkCategories/WorkCategoryPage.razor</code></li><li><code>Web/Components/Views/WorkCategories/WorkCategoryViewView.razor(.cs/.css)</code></li><li><code>Tests/WorkCategoryServiceTests.cs</code>（7 筆）、<code>Tests/WorkCategoryBootstrapSeederTests.cs</code>（5 筆）</li><li><code>docs/prd/專案分類-prd.md</code>、本 changelog</li></ul>
+<p><strong>修改</strong></p>
+<ul><li><code>AccessDatas/BackendDBContext.cs</code>（DbSet）</li><li><code>Business/Models/AutoMapping.cs</code>（WorkCategory region，<strong>不需 <code>ForMember</code></strong>——本表無多值標籤欄位）</li><li><code>Web/Extensions/ServiceCollectionExtensions.cs</code>（Service／Repository／Seeder 三行）</li><li><code>Share/Helpers/MagicObjectHelper.cs</code>、<code>Business/Services/Other/RolePermissionService.cs</code>、<code>Web/Datas/Menu.json</code></li><li><code>Web/Program.cs</code>（seeder 掛載）</li><li><code>Tests/MenuIconTests.cs</code>（<code>AllowedLeafIcons</code> 加 <code>label</code>）</li><li>5 個 Projects 檢視（下拉來源）</li><li><code>Views/Categories/CategoryViewView.razor(.css)</code>（說明文字）</li><li><code>Web/appsettings.json</code>（1.0.17 → 1.0.18）</li><li><code>docs/prd/分類清單-prd.md</code>、<code>docs/prd/README.md</code>、<code>docs/architecture/資料模型與資料庫.md</code>、<code>docs/README.md</code>、<code>docs/changelog/README.md</code>、<code>docs/planning/專案協作模組強化-todo.md</code></li></ul>
+<hr>
+<h2 id="四驗證" class="t4">四、驗證</h2>
+<ul><li><code>dotnet build KnowledgeExtraction.slnx</code>：<strong>建置成功</strong></li><li><code>dotnet test KnowledgeExtraction.Tests</code>：<strong>585 通過 / 0 失敗</strong>（573 → 585，新增 12 筆）</li><li><code>scripts/Test-DocsEncoding.ps1</code>：全綠</li><li><code>Menu.json</code> 維持 UTF-8 <strong>無 BOM</strong></li><li>下拉來源分佈實測：5 筆 <code>workCategoryService</code> ／ 8 筆 <code>categoryService</code>，符合預期</li></ul>
+<h3 id="實作過程中的一個陷阱記錄備忘">實作過程中的一個陷阱（記錄備忘）</h3>
+<p>首次產生 SQLite migration 時加了 <code>--no-build</code>，EF 使用了尚未包含 <code>WorkCategory</code> 的舊組件，<strong>產出一份 <code>Up()</code>／<code>Down()</code> 皆為空的 migration</strong>，且 <code>BackendDBContextModelSnapshot.cs</code> 未被更新——建置與測試都不會發現（測試 fixture 走 <code>EnsureCreatedAsync()</code>，依 model snapshot 建表而非跑 migration）。已 <code>dotnet ef migrations remove</code> 後不帶 <code>--no-build</code> 重新產生。<strong>日後產 migration 一律不要用 <code>--no-build</code>。</strong></p>
+<h3 id="待人工於瀏覽器驗收">待人工於瀏覽器驗收</h3>
+<ul class="check"><li><span class="box">☐</span>以有真實資料的資料庫副本啟動，日誌出現回填筆數，<code>/work-categories</code> 列出既有分類值</li><li><span class="box">☐</span>再重啟一次，新增筆數為 0（冪等）；全新空資料庫啟動不報錯</li><li><span class="box">☐</span><code>/work-categories</code> 完整 CRUD；<code>abc</code> vs <code>ABC </code> 判為重複；可停用</li><li><span class="box">☐</span>專案／工作／會議及專案內對話窗的分類下拉顯示專案分類，停用項不出現</li><li><span class="box">☐</span>知識來源等 8 處下拉仍讀分類清單</li><li><span class="box">☐</span>存兩個分類的專案 → 資料庫值仍為 <code>\nA\nB\n</code>；篩選為精確成員比對</li><li><span class="box">☐</span>只勾「專案分類」的角色可進入該頁，其餘資料定義頁看不到</li><li><span class="box">☐</span>API 五端點正常，重複名稱回 409</li><li><span class="box">☐</span>SQL Server provider 跑一次 <code>dotnet ef database update</code> 確認可套用</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一變更內容">一、變更內容</a><a class="l3" href="#11-新增專案分類主檔">1.1 新增「專案分類」主檔</a><a class="l3" href="#12-分工邊界">1.2 分工邊界</a><a class="l3" href="#13-下拉來源切換只有-5-處">1.3 下拉來源切換：只有 5 處</a><a class="l3" href="#14-既有紀錄的儲存格式完全未變更">1.4 既有紀錄的儲存格式完全未變更</a><a class="l3" href="#15-既有分類值自動回填">1.5 既有分類值自動回填</a><a class="l3" href="#16-rest-api">1.6 REST API</a><a class="l3" href="#17-選單與權限">1.7 選單與權限</a><a class="l2" href="#二已知技術債本次不處理">二、已知技術債（本次不處理）</a><a class="l2" href="#三異動檔案">三、異動檔案</a><a class="l2" href="#四驗證">四、驗證</a><a class="l3" href="#實作過程中的一個陷阱記錄備忘">實作過程中的一個陷阱（記錄備忘）</a><a class="l3" href="#待人工於瀏覽器驗收">待人工於瀏覽器驗收</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-20-專案分類WorkCategory.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

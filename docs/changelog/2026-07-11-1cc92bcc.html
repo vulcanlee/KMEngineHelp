@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>素材版本鏈：上傳新版本＋自動接手（0.3.20→0.3.21）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>素材版本鏈：上傳新版本＋自動接手（0.3.20→0.3.21）</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-11</li><li>版本：0.3.20 → 0.3.21</li><li>類型：新增功能（<code>docs/architecture/資料生命週期與維護.md</code> §6 backlog P3）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>素材（音訊/文件/圖片）原本<strong>無版本鏈</strong>：要更新一份檔案的新版本只能重傳成一筆全新紀錄，難以追溯「同一份檔的歷次版本」，且與既有知識來源的銜接需人工處理。決策採「<strong>記錄版本＋自動接手</strong>」、三種素材全做。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="資料模型需雙資料庫-migration">資料模型（需雙資料庫 migration）</h3>
+<ul><li>三素材實體與 AdapterModel 各新增：<code>VersionNumber</code>（int，預設 1）、<code>IsLatest</code>（bool，預設 true）、<code>PreviousVersionId</code>（int?）、<code>SupersededById</code>（int?）——純可空自我參照，無硬 FK（比照 WikiPage VER-1 但簡化，不引入 as-of）。</li><li>Migration <code>AddSourceVersionChain</code>（Sqlite + SqlServer 各一，12 欄）；<code>IsLatest</code>/<code>VersionNumber</code> 欄位預設 true/1，既有列回填為「最新版 v1」。AutoMapper 同名欄位自動對應，無需改設定。</li></ul>
+<h3 id="商業層">商業層</h3>
+<ul><li><code>KnowledgeSourceMaintenanceHelper.RepointOwningSourcesToNewVersionAsync(context, itemType, oldItemId, newItemId)</code>：把引用舊版素材的 <code>KnowledgeSourceItem</code> 重指到新版、所屬來源設 <code>ContentStale</code>；<strong>不自行 SaveChanges</strong>（呼叫端同一交易）。</li><li>三素材 Service 新增 <code>AddNewVersionAsync(previousId, uploadFile)</code>：團隊權控 + 僅允許對最新版上傳；寫新檔、建版本鏈（沿用原標題/描述/分類/團隊、<code>VersionNumber+1</code>、<code>PreviousVersionId</code>、<code>IsLatest=true</code>）；<code>SaveChanges</code> 後標舊版 <code>IsLatest=false</code>＋<code>SupersededById</code>，再 repoint 成員；音訊/文件入列處理，圖片維持「未解讀」。</li></ul>
+<h3 id="ui-層">UI 層</h3>
+<ul><li>三 View 每列（僅最新版）新增「上傳新版本」按鈕（<code>drive_folder_upload</code>）；新增「版本」欄顯示 <code>v{n}</code>，非最新版標「（已被取代）」。</li><li>共用新增 Modal 加入「新版本」子模式（<code>isNewVersionMode</code>）：只顯示檔案上傳與說明、隱藏中繼資料欄位；<code>OnModalOkAsync</code> 新增分支呼叫 <code>AddNewVersionAsync</code>。</li></ul>
+<h3 id="測試">測試</h3>
+<ul><li>新增 <code>SourceVersionTests</code>（3 筆）：<code>AddNewVersionAsync</code> 建鏈/取代/重指成員/標記過時/入列；非最新版上傳被拒；<code>RepointOwningSourcesToNewVersionAsync</code> 重指並標記過時。</li><li>全測試 <strong>493 通過、0 失敗</strong>（含 <code>CrudActionIconTests</code>/<code>MenuIconTests</code>）。</li></ul>
+<h2 id="範圍決策誠實記錄" class="t3">範圍決策（誠實記錄）</h2>
+<ul><li>版本模型採<strong>最小四欄</strong>（不做 as-of/RootId/字串狀態常數）；素材不進 RAG 檢索，故無需時效查詢。</li><li>上傳新版本/編修僅<strong>標記過時</strong>、不自動重跑下游（避免非預期運算成本）；重跑由使用者或「資料一致性巡檢」批次觸發。</li><li>只允許對「最新版」上傳新版本，維持版本鏈線性。</li></ul>
+<h2 id="影響範圍" class="t4">影響範圍</h2>
+<ul><li><code>docs/architecture/資料生命週期與維護.md</code> §4.1、§5-D、§6（P3 標完成）。</li><li><code>docs/guides/新手完整操作指南.md</code> §16.3、§16.6。</li><li><code>docs/guides/EFCore.md</code> migration 目錄新增 <code>AddSourceVersionChain</code>。</li><li><code>appsettings.json</code> SystemVersion 0.3.20 → 0.3.21。</li></ul>
+<h2 id="驗證" class="t5">驗證</h2>
+<ol><li><code>dotnet build</code> 成功；兩道 <code>dotnet ef migrations add AddSourceVersionChain</code> 各產出一組檔（既有列回填 v1/最新）。</li><li><code>dotnet test</code> 綠燈（493 通過，含新增 <code>SourceVersionTests</code>）。</li><li>手動：對一筆文件按「上傳新版本」→ 新版為 v2/最新、舊版標「已被取代」；若被知識來源引用，該來源成員改指新版且顯示「內容已過時」。音訊自動轉錄；圖片新版「未解讀」需手動解讀。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠。</li></ol><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#資料模型需雙資料庫-migration">資料模型（需雙資料庫 migration）</a><a class="l3" href="#商業層">商業層</a><a class="l3" href="#ui-層">UI 層</a><a class="l3" href="#測試">測試</a><a class="l2" href="#範圍決策誠實記錄">範圍決策（誠實記錄）</a><a class="l2" href="#影響範圍">影響範圍</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-11-素材版本鏈.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

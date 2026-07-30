@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>搜尋｜智庫引擎說明</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="index.html">角色首頁</a>
+    <a href="all-docs.html">全部文件</a>
+    <a href="search.html">搜尋</a>
+    <a href="filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<header class="hero"><div class="kicker">文件標題與章節</div><h1>搜尋</h1><p class="sub">索引收的是文件標題、用途描述與各章節標題（不含全文——全文索引會膨脹到數 MB，每位訪客都要下載）。找不到時請改用 <a href="all-docs.html">全部文件索引</a>。</p></header><p><input id="q" type="search" placeholder="輸入關鍵字，例如：命名、遮罩、越權、分盒、簡報" style="width:100%;padding:.7em 1em;font-size:1.05em;border:1px solid var(--line-2);border-radius:12px;background:var(--surface);color:var(--ink);font-family:inherit"></p><p id="count" style="color:var(--muted)"></p><div id="results"></div><script src="assets/search-index.js"></script><script>var q=document.getElementById('q'),R=document.getElementById('results'),C=document.getElementById('count');function esc(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}function run(){var k=q.value.trim().toLowerCase();R.innerHTML='';if(k.length<1){C.textContent='';return}var hits=[];window.DOCS.forEach(function(d){var score=0,secs=[];if(d.t.toLowerCase().indexOf(k)>=0)score+=10;if((d.p||'').toLowerCase().indexOf(k)>=0)score+=4;(d.h||[]).forEach(function(h){if(h[0].toLowerCase().indexOf(k)>=0){score+=3;if(secs.length<6)secs.push(h)}});if(score)hits.push({d:d,s:score,secs:secs})});hits.sort(function(a,b){return b.s-a.s});C.textContent='找到 '+hits.length+' 份文件';hits.slice(0,60).forEach(function(h){var e=document.createElement('div');var sec=h.secs.map(function(s){return '<a href="'+h.d.u+'#'+encodeURIComponent(s[1])+'">'+esc(s[0])+'</a>'}).join('　');e.innerHTML='<a href="'+h.d.u+'"><b>'+esc(h.d.t)+'</b></a>'+'<div class="where">'+esc(h.d.d)+(h.d.p?' · '+esc(h.d.p):'')+'</div>'+(sec?'<div style="margin-top:.4em;font-size:.92em">章節：'+sec+'</div>':'');R.appendChild(e)})}q.addEventListener('input',run);q.focus();var m=location.hash.match(/^#q=(.*)$/);if(m){q.value=decodeURIComponent(m[1]);run()}</script>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/**/*.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

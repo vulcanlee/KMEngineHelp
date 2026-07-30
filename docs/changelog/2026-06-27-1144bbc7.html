@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工具列圖示規範化：全站動作鈕統一使用 CrudActionButton（0.2.135）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>工具列圖示規範化：全站動作鈕統一使用 CrudActionButton（0.2.135）</h1></header><div class="docwrap"><main><ul><li>日期：2026-06-27</li><li>版本：0.2.134 → 0.2.135</li><li>類型：UI 改善 / 開發規範</li></ul>
+<h2 id="症狀" class="t1">症狀</h2>
+<p>各列表頁「操作欄」動作鈕早已統一為共用元件 <code>CrudActionButton</code>（outlined classic Material Icons）， 但<strong>工具列</strong>的「新增 / 重新整理 / 搜尋 / 清空搜尋」按鈕仍是有邊框的自訂按鈕內嵌 <strong>emoji</strong> （<code>➕</code> <code>🔄</code> <code>🔍</code> <code>❌</code>），與操作欄外觀不一致，全站圖示風格分歧。</p>
+<h2 id="調整內容" class="t2">調整內容</h2>
+<ul><li>將所有列表頁（約 17 個 View）工具列的 emoji 按鈕改用 <code>CrudActionButton</code>，與操作欄同元件、同尺寸、同 hover 行為。</li></ul>
+<p>另把「管理成員」對話窗內的搜尋鈕（<code>KnowledgeSourceView</code>、<code>SkillView</code>）一併改為 <code>CrudActionButton</code>。</p>
+<ul><li>圖示語意對應（皆為 classic Material Icons）：新增 <code>add</code>、重新整理 <code>refresh</code>、搜尋 <code>search</code>、清空搜尋 <code>close</code>。</li><li><code>CrudActionButton</code> 本身已內建 <code>Tooltip</code>，轉換時連同外層 <code>Tooltip</code> 一併移除；保留各按鈕原本的事件流程不變。</li><li>移除因改用 <code>CrudActionButton</code> 而孤立的 <code>*-view-icon-button</code> scoped CSS 規則。</li><li><code>Skills/SkillView</code> 的下載連結維持以文字標籤 <code>md</code> / <code>zip</code> 區分檔案格式（非 emoji、非圖示），記為「允許的文字標籤例外」。</li></ul>
+<h2 id="測試強化" class="t3">測試強化</h2>
+<ul><li><code>CrudActionIconTests.AllowedCrudActionIcons</code> 補上 <code>refresh</code>、<code>close</code>。</li><li>新增 <code>CrudActionIconTests.Views_DoNotUseLegacyToolbarEmojiIcons</code>：掃描 Views 下所有 <code>.razor</code>，</li></ul>
+<p>禁止再出現工具列 emoji（<code>➕</code> <code>🔄</code> <code>🔍</code> <code>❌</code>），避免日後回退。</p>
+<ul><li>全測試 367 筆通過。</li></ul>
+<h2 id="文件" class="t4">文件</h2>
+<ul><li><code>docs/architecture/開發慣例與限制速查.md</code> §1.7：把「CRUD 操作欄圖示」擴充為<strong>全站動作鈕圖示規範</strong>，</li></ul>
+<p>明確工具列與對話窗小搜尋鈕也須使用 <code>CrudActionButton</code>，全站不得以 emoji 當圖示。</p>
+<ul><li><code>docs/guides/建立一個新 CRUD 操作網頁說明.md</code>：工具列與「圖示一致性」小節補上工具列圖示對應表與範例。</li></ul>
+<h2 id="備註" class="t5">備註</h2>
+<p>本次僅調整 UI 圖示與文件，未動資料模型、權限、路由，<strong>不需</strong> migration、<strong>不需</strong>權限三處同步。 新增頁面的工具列／操作欄動作鈕，請一律使用 <code>CrudActionButton</code> + classic Material Icons， 並把新圖示名稱加入 <code>CrudActionIconTests.AllowedCrudActionIcons</code>。</p><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#症狀">症狀</a><a class="l2" href="#調整內容">調整內容</a><a class="l2" href="#測試強化">測試強化</a><a class="l2" href="#文件">文件</a><a class="l2" href="#備註">備註</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-06-27-工具列圖示規範化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

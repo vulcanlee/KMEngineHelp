@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識百科與 WikiLink｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 功能機制</p><header class="hero"><div class="kicker">功能機制</div><h1>知識百科與 WikiLink</h1></header><div class="docwrap"><main><h2 id="文件目的" class="t1">文件目的</h2>
+<p>說明 reader（閱讀者）導向的<strong>知識百科頁 <code>/knowledge-wiki</code>（DIS-1）</strong>與 <strong><code>[[概念]]</code> 可點擊連結（DIS-2）</strong>兩項能力：讓使用者像看 Wiki 一樣瀏覽已完成的知識頁、並在頁面間以概念連結互相跳轉。此能力自 <strong>0.3.13</strong> 起提供。</p>
+<blockquote><p>相關：<a href="../../docs/guides/wiki-review.html">知識頁審核與 Wiki 頁管理指南</a>、<a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a>、<a href="../../docs/architecture/wiki-vs-cleaned.html">Wiki 與 Cleaned 的角色差異</a>。</p></blockquote>
+<hr>
+<h2 id="1-知識百科頁-knowledge-wikidis-1" class="t2">1. 知識百科頁 <code>/knowledge-wiki</code>（DIS-1）</h2>
+<p>有別於「知識頁審核與 Wiki 頁管理」是<strong>編輯／審核</strong>導向，知識百科頁是<strong>閱讀</strong>導向：</p>
+<ul><li>路由：<code>/knowledge-wiki</code>。</li><li>左側：把「已完成」的 Wiki 頁依 <code>Categories</code> 分類分群，並提供三種篩選：</li><li><strong>關鍵字</strong>：即時比對標題。</li><li><strong>分類</strong>、<strong>團隊</strong>：AntDesign 多選下拉（<code>SelectMode.Multiple</code>），永遠顯示。選項取自分類/團隊主檔（<code>CategoryService</code>／<code>TeamService.GetAllEnabledNamesAsync()</code>，與知識頁審核管理頁一致）；篩選比對全部在前端記憶體即時運算，同一篩選內為 OR、關鍵字/分類/團隊三者間為 AND。若選了目前沒有任何頁面使用的團隊，結果清單會為空（預期行為）。</li><li>左側清單採<strong>前端分頁</strong>（每頁 50 筆）：資料一次載入記憶體，僅渲染當前頁項目以避免大量（上萬筆）項目一次渲染造成的效能問題；保留分類分群（同一分類可跨頁切割），清單下方提供分頁器。關鍵字/分類/團隊任一篩選變動會自動回到第 1 頁。</li><li>右側：閱讀選定頁的內容（經 Markdown 安全渲染），標題下方提供<strong>複製</strong>（原始 Markdown）與<strong>下載 PDF</strong>（詳見 §2.5）。</li><li><strong>團隊權控</strong>：與全站一致，非管理員只看得到「無團隊（公開）或與自身角色團隊交集」的頁；管理員不受限。清單本身於服務層 team-scoped；團隊下拉為主檔選項，實際可見結果仍受權控。</li><li>服務層：<code>WikiPageService.GetBrowseIndexAsync</code>（分類索引，team-scoped、只含已完成頁）。</li></ul>
+<hr>
+<h2 id="2-概念-可點擊連結dis-2" class="t3">2. <code>[[概念]]</code> 可點擊連結（DIS-2）</h2>
+<p><code>WikiLinkPreprocessor</code> 是一個<strong>純函式</strong>前處理器，把內文中的 <code>[[概念]]</code> 標記轉為 Markdown 連結後，再交由既有 <code>MarkdownRenderer</code>（Markdig，<code>DisableHtml</code>）渲染：</p>
+<ul><li>概念<strong>存在</strong>（有對應的已完成頁）→ 轉為可點擊連結，跳轉到 <code>/knowledge-wiki?concept=概念</code>。</li><li>概念<strong>不存在</strong> → 顯示為「標題（待建立）」純文字，不產生死連結。</li><li><strong>XSS 安全</strong>：僅在渲染前做字串前處理，渲染器維持 <code>DisableHtml</code>，不因此開放 HTML 注入。</li><li>連結解析：<code>WikiPageService.GetCompletedTitlesAsync</code>（判斷概念是否存在）；<code>?concept=</code> 導覽由 <code>GetByTitleAsync</code> 取頁（皆 team-scoped、只取已完成頁）。</li></ul>
+<h3 id="21-下游用途linktitles-是知識圖譜的邊graph-rag-p11083">2.1 下游用途：<code>LinkTitles</code> 是知識圖譜的邊（Graph RAG P1，1.0.83）</h3>
+<p><code>[[概念]]</code> 除了供閱讀時跳轉，蒸餾時同步存進 <code>WikiPage.LinkTitles</code>（分隔字串）的那份清單，<strong>還是 Graph RAG 的邊來源</strong>：</p>
+<ul><li><code>GraphEdgeService.RebuildForSourceAsync</code> 把 <code>LinkTitles</code> 解析為 <code>GraphEdge</code> 邊表（先比對同來源標題、再比對全域現行頁；解析不到目標頁時 <code>TargetWikiPageId = 0</code>，保留 <code>TargetTitle</code> 備查但不參與遍歷）。<strong>此步驟不呼叫 LLM。</strong></li><li>觸發時機：蒸餾完成（<code>DistillationProcessor</code>）、Wiki 頁核可或線上編修（<code>WikiPageService</code>）。整批刪除重建、冪等；失敗只記警告、不影響主流程。</li><li>用途：檢索時以命中的 Wiki 頁為種子沿邊做多跳擴展（預設 2 跳、可設定），把鄰居頁的 chunk 加分（見 <a href="../../docs/architecture/rag-design.html">知識庫 RAG 設計與執行 §4.2</a>）。</li></ul>
+<p>換言之，<strong>多寫一個正確的 <code>[[概念]]</code> 連結，不只是多一個可點擊的字，也是在替知識圖譜補一條可被檢索利用的邊</strong>。邊同樣帶 <code>Teams</code> 並於遍歷前過濾，維持零越權洩漏。</p>
+<h3 id="25-內容複製與下載-pdf共用元件-markdownactionbar">2.5 內容複製與下載 PDF（共用元件 <code>MarkdownActionBar</code>）</h3>
+<p>右側閱讀區與兩個 AI 對談頁（AI 知識問答、知識來源對話）共用同一動作列元件 <code>Components/Commons/MarkdownActionBar.razor</code>：</p>
+<ul><li><strong>複製</strong>：以 JS interop 呼叫 <code>keChat.copyText</code> 複製<strong>原始 Markdown</strong>（1.0.38 起改用此法；原本的 <code>navigator.clipboard</code> 在 LAN 純 HTTP 的非安全內容下不存在，會直接失效）。</li><li><strong>下載 PDF</strong>：後端 <code>ChatPdfExporter.Generate(markdown, title)</code>（QuestPDF + QuestPDF.Markdown，內嵌 Noto Sans TC 繁中字型不亂碼、文字可選取）產生 <code>byte[]</code>，經 <code>DotNetStreamReference</code> 串流由前端 <code>keChat.downloadFileFromStream</code> 觸發下載；檔名為 <code>{前綴}_{時間戳}.pdf</code>（瀏覽頁前綴為「知識百科」，PDF 頁首為該頁標題）。</li><li>參數：<code>Content</code>（Markdown 來源）、<code>PdfTitle</code>（PDF 頁首）、<code>FileNamePrefix</code>（檔名前綴）、<code>ShowPdf</code>（是否顯示下載 PDF，使用者訊息僅複製時設 <code>false</code>）。</li></ul>
+<hr>
+<h2 id="3-權限與選單" class="t4">3. 權限與選單</h2>
+<p>新增角色權限 <strong><code>角色_知識瀏覽</code></strong>，並依專案慣例於<strong>三處同步</strong>登記：</p>
+<ol><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code>（角色常數）</li><li><code>RolePermissionService</code>（權限樹）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Datas/Menu.json</code>（選單項，圖示 <code>menu_book</code>）</li></ol>
+<p>選單與頁面權限依位置索引對應，三處需一致，否則權限樹會錯位。</p>
+<hr>
+<h2 id="4-與知識頁審核wiki-管理的關係" class="t5">4. 與知識頁審核／Wiki 管理的關係</h2>
+<div class="tw"><table><thead><tr><th>頁面</th><th>導向</th><th>對象</th></tr></thead><tbody><tr><td>知識頁審核 / Wiki 頁管理</td><td>編輯・審核（觸發蒸餾、核准/退回/編修/刪除、版本治理）</td><td>知識維護者</td></tr><tr><td>知識百科 <code>/knowledge-wiki</code></td><td>閱讀・探索（分類瀏覽、概念跳轉）</td><td>一般閱讀者</td></tr></tbody></table></div>
+<p>知識百科只呈現「已完成」頁；搭配版本化（見 <a href="../../docs/features/versioning-freshness.html">features/版本化與時效性</a>），閱讀者看到的是現行版知識。</p>
+<hr>
+<h2 id="5-相關檔案" class="t6">5. 相關檔案</h2>
+<ul><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Commons/WikiLinkPreprocessor.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Commons/MarkdownActionBar.razor</code>（複製／下載 PDF 共用動作列，三頁共用）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Commons/ChatPdfExporter.cs</code>（Markdown→PDF，Noto Sans TC）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Pages/KnowledgeWiki/KnowledgeWikiPage.razor</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Components/Views/KnowledgeWiki/KnowledgeWikiView.razor</code>（<code>.razor.cs</code>／<code>.razor.css</code>）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Business/Services/DataAccess/WikiPageService.cs</code>（<code>GetBrowseIndexAsync</code>／<code>GetCompletedTitlesAsync</code>／<code>GetByTitleAsync</code>）</li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Share/Helpers/MagicObjectHelper.cs</code></li><li><code>src/KnowledgeExtraction/KnowledgeExtraction.Web/Datas/Menu.json</code></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫系統銷售人員：客戶問技術問題，我不想答錯也不想失去專業</li></ul></div><div class="card"><h3>同類文件（功能機制）</h3><ul><li><a href="../../docs/features/distributed-cache.html">分散式快取機制</a></li><li><a href="../../docs/features/i18n.html">多語系與本地化</a></li><li><a href="../../docs/features/file-upload.html">檔案上傳機制</a></li><li><a href="../../docs/features/versioning-freshness.html">版本化與時效性</a></li><li><a href="../../docs/features/health-monitoring.html">系統健康監控</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#文件目的">文件目的</a><a class="l2" href="#1-知識百科頁-knowledge-wikidis-1">1. 知識百科頁 /knowledge-wiki（DIS-1）</a><a class="l2" href="#2-概念-可點擊連結dis-2">2. [[概念]] 可點擊連結（DIS-2）</a><a class="l3" href="#21-下游用途linktitles-是知識圖譜的邊graph-rag-p11083">2.1 下游用途：LinkTitles 是知識圖譜的邊（Graph RAG P1，1.0.83）</a><a class="l3" href="#25-內容複製與下載-pdf共用元件-markdownactionbar">2.5 內容複製與下載 PDF（共用元件 MarkdownActionBar）</a><a class="l2" href="#3-權限與選單">3. 權限與選單</a><a class="l2" href="#4-與知識頁審核wiki-管理的關係">4. 與知識頁審核／Wiki 管理的關係</a><a class="l2" href="#5-相關檔案">5. 相關檔案</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/features/知識百科與WikiLink.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

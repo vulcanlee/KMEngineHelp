@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>三份商業簡報全面更新至系統 1.0.14｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>三份商業簡報全面更新至系統 1.0.14</h1></header><div class="docwrap"><main><ul><li>日期：2026-07-18</li><li>版本：1.0.14（不升版；本次為簡報/文件更新，非程式異動）</li><li>類型：文件（對外簡報同步現況）</li></ul>
+<h2 id="需求" class="t1">需求</h2>
+<p>三份對外簡報都停在 0.2.x 年代（決策投資版最舊：標日 2026/06/08、「約 340 個 C# 檔」、路線圖「截至 0.2.160」、rerank「未導入」），落後現行 SystemVersion 1.0.14 約 15+ 個 minor。本次全面更新至現況，並補齊 0.3.x–1.0.14 新能力；以 <code>docs/strategy/系統功能與特色清單-20項.md</code>（20 核心＋9 企業專屬）與 changelog 里程碑為對齊基準。</p>
+<h2 id="變更" class="t2">變更</h2>
+<h3 id="決策投資版docsmarketing商業簡報-決策投資版md最舊清理最多">決策投資版（<code>docs/marketing/商業簡報-決策投資版.md</code>，最舊、清理最多）</h3>
+<ul><li>標日 2026/06/08→2026/07/18，加對應版本 1.0.14；「340 個 C# 檔」→「600+ 個 C# 檔、約 40 個功能頁」。</li><li>「四階段閉環」狀態表更新為 1.0.14 現況（版本化 as-of、事件觸發重索引、MCP 對外整合）。</li><li>新增「平台成熟度：可觀測、可治理、可維運」與「已交付里程碑（1.0.x）」兩張；路線圖改為「已上線 vs 規劃中」，rerank 校正為評測驅動 P2；明列授權/計費機制為規劃中未實作。</li></ul>
+<h3 id="對外銷售版docsmarketing商業簡報-對外銷售版md客戶語氣針對性強化">對外銷售版（<code>docs/marketing/商業簡報-對外銷售版.md</code>，客戶語氣、針對性強化）</h3>
+<ul><li>標題加產品名「智庫引擎」與對應版本；閉環頁補匯入格式與 5 步清洗、應用補 AI 技能/MCP。</li><li>「不只是問答」補版本化自我維護、知識瀏覽 WikiLink、外部 AI Agent（MCP）安全查庫。</li><li>「企業級資安」升級為「資安與可觀測性」：補聊天/Token/問答稽核可匯出、5 報表＋24 項健康檢查；競品註記 2026/06→2026/07 並加單一來源 caveat。</li></ul>
+<h3 id="旗艦簡報docspresentationknowledgeextraction-ai-旗艦簡報md">旗艦簡報（<code>docs/presentation/KnowledgeExtraction-AI-旗艦簡報.md</code>）</h3>
+<ul><li>標題加產品名與版本；閉環與能力段補 YouTube/抖音、信心自評、互連 Wiki/版本化/知識瀏覽、MCP。</li><li>「我們在哪裡」狀態表補 MCP 對外整合、版本化時效、經營報表/24 項健康監控為✅現已可用；Agent 自動化工作流與授權/計費機制標🔄規劃中。</li><li>資安頁補可觀測性（報表/健康檢查/PDF）；競品註記日期更新。</li></ul>
+<h3 id="講者指南docspresentationknowledgeextraction-ai-簡報講者指南md配套同步">講者指南（<code>docs/presentation/KnowledgeExtraction-AI-簡報講者指南.md</code>，配套同步）</h3>
+<ul><li>加對應版本 1.0.14；§0 現貨清單補 MCP/版本化/知識瀏覽/報表/健康監控，規劃中改為「Agent 多步驟編排＋授權/計費機制」；Q2 改述 MCP 已上線、完整自動化編排為下一步。</li></ul>
+<h3 id="產製">產製</h3>
+<ul><li>旗艦：<code>Build-FlagshipDeck.py</code> 產 pptx（29 頁）+ html（自包含離線）。</li><li>兩份商業 pptx：<code>Build-DeckPptx.py</code> 產（navy 主題；對外 20 頁、決策 15 頁）。</li><li>兩份商業 html：Marp 未安裝，改用 <code>Build-FlagshipDeck.py</code> 產自包含 HTML（輸出暫存 base 後只覆蓋 .html，navy pptx 不動）。故商業簡報 pptx 為 navy、html 為旗艦式自包含（媒體不同，本次認可之取捨）。</li></ul>
+<h2 id="誠實界線" class="t3">誠實界線</h2>
+<p>授權/計費保護機制為<strong>規劃中未實作</strong>（<code>docs/strategy/軟體授權保護機制設計.md</code> 0.1），簡報一律標「規劃中」；地端 ASR 仍需雲端；競品比較保留「廠商自述、單一來源」caveat。</p>
+<h2 id="驗證" class="t4">驗證</h2>
+<ul><li>三份 pptx 以 python-pptx 回讀投影片數＞0（29/20/15）；三份 html 檔頭 <code>&lt;!DOCTYPE html&gt;</code>、<code>lang="zh-TW"</code>、無外部 CDN（離線可放映）。</li><li>grep 確認過時字串（340 個 C#、0.2.160、2026/06/08）清除；新能力關鍵字（MCP、統計報表、24 項、知識瀏覽、版本化、1.0.14）已入。</li><li><code>scripts/Test-DocsEncoding.ps1</code> 全綠（.md 含 BOM；決策投資版整檔重寫後補 BOM）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#需求">需求</a><a class="l2" href="#變更">變更</a><a class="l3" href="#決策投資版docsmarketing商業簡報-決策投資版md最舊清理最多">決策投資版（docs/marketing/商業簡報-決策投資版.md，最舊、清理最多）</a><a class="l3" href="#對外銷售版docsmarketing商業簡報-對外銷售版md客戶語氣針對性強化">對外銷售版（docs/marketing/商業簡報-對外銷售版.md，客戶語氣、針對性強化）</a><a class="l3" href="#旗艦簡報docspresentationknowledgeextraction-ai-旗艦簡報md">旗艦簡報（docs/presentation/KnowledgeExtraction-AI-旗艦簡報.md）</a><a class="l3" href="#講者指南docspresentationknowledgeextraction-ai-簡報講者指南md配套同步">講者指南（docs/presentation/KnowledgeExtraction-AI-簡報講者指南.md，配套同步）</a><a class="l3" href="#產製">產製</a><a class="l2" href="#誠實界線">誠實界線</a><a class="l2" href="#驗證">驗證</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-18-商業簡報更新至1.0.14.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

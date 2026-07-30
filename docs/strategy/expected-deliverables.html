@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>期望產出清單｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 策略與規劃</p><header class="hero"><div class="kicker">策略與規劃</div><h1>期望產出清單</h1><p class="sub">列出整個計畫各階段應產出的成果物，作為驗收檢查表</p></header><div class="docwrap"><main><ul><li>文件用途：列出整個計畫各階段應產出的成果物，作為驗收檢查表</li><li>主要讀者：開發團隊、技術負責人、決策層</li><li>文件版本：1.0</li><li>建立日期：2026/06/08</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>本清單對應 <a href="../../docs/strategy/scope-and-vision.html">01 範圍與遠景</a> 的四階段與 <a href="../../docs/strategy/dev-roadmap.html">04 路線圖</a> 的三個近期階段。狀態以 ☐/☑ 標示。</p></blockquote>
+<hr>
+<h2 id="一本輪策略規劃產出" class="t1">一、本輪（策略規劃）產出</h2>
+<ul><li>☑ <code>docs/strategy/01-計畫範圍與遠景.md</code></li><li>☑ <code>docs/strategy/02-商業價值與行銷策略.md</code></li><li>☑ <code>docs/strategy/03-知識庫架構研究與建議.md</code></li><li>☑ <code>docs/strategy/04-開發建議與路線圖.md</code></li><li>☑ <code>docs/strategy/05-待釐清問題與技術風險清單.md</code></li><li>☑ <code>docs/strategy/06-期望產出清單.md</code>（本檔）</li><li>☐ <code>docs/marketing/商業簡報-決策投資版</code>（Markdown ＋ PPTX ＋ HTML）</li><li>☐ <code>docs/marketing/商業簡報-對外銷售版</code>（Markdown ＋ PPTX ＋ HTML）</li><li>☐ 更新 <code>docs/README.md</code> 索引</li></ul>
+<hr>
+<h2 id="二階段一清洗強化應產出" class="t2">二、階段一（清洗強化）應產出</h2>
+<ul><li>☐ 清洗管線（背景佇列）：去重/品質過濾、敏感遮罩、分類標籤自動化、摘要/重點擷取</li><li>☐ 知識單元（chunk）資料模型與雙資料庫 migration</li><li>☐ 遮罩規則設定與抽樣驗證報告</li><li>☐ 清洗狀態/進度/錯誤的 UI 與監控</li><li>☐ 清洗相關 PRD 與功能文件（沿用 <code>docs/prd/</code> 慣例）</li><li>☐ 單元/整合測試（清洗正確性、遮罩、權控標籤繼承）</li></ul>
+<hr>
+<h2 id="三階段二建立知識庫應產出" class="t3">三、階段二（建立知識庫）應產出</h2>
+<ul><li>☐ Embedding/LLM 供應商抽象（<code>IEmbeddingProvider</code>/<code>IChatCompletionProvider</code>，雲端/地端可切換）</li><li>☐ 向量索引（PostgreSQL ＋ pgvector）＋ 關鍵字索引</li><li>☐ 混合檢索 ＋ rerank</li><li>☐ 權控檢索 API（檢索層團隊過濾）</li><li>☐ 存取日誌/稽核軌跡（誰/何時/問什麼/命中來源/回什麼）</li><li>☐ 架構文件更新（<a href="../../docs/strategy/architecture-research.html">03</a>）＋ 檢索 API 設計文件</li><li>☐ 越權不外洩測試、檢索延遲與召回評測集</li></ul>
+<hr>
+<h2 id="四階段三旗艦應用-mvp應產出" class="t4">四、階段三（旗艦應用 MVP）應產出</h2>
+<ul><li>☐ KB 問答助理：提問 → 權控檢索 → 帶出處答案 → 答案遮罩</li><li>☐ 問答 UI（Blazor／AntDesign 慣例）</li><li>☐ AI Agent 自動化工作流雛形（單一情境端到端 PoC）</li><li>☐ 選定情境的 ROI 實測報告（內部燈塔案例素材）</li><li>☐ 應用相關 PRD 與使用說明</li></ul>
+<hr>
+<h2 id="五跨階段營運產出" class="t5">五、跨階段／營運產出</h2>
+<ul><li>☐ 部署 SOP（地端與雲端兩種模式）</li><li>☐ 設定檔與供應商切換說明（延用既有設定驅動慣例）</li><li>☐ 權控、遮罩、稽核的維運與合規文件</li><li>☐ 變更紀錄（<code>docs/changelog/</code>）與版本管理（每次可建置產出 +1）</li><li>☐ 對外銷售素材：簡報、痛點話術、ROI 試算、導入指南</li></ul>
+<hr>
+<h2 id="六驗收原則" class="t6">六、驗收原則</h2>
+<ul><li>每項成果物都應可獨立驗證（測試、實測或文件審閱）。</li><li>權控、遮罩、稽核三項在對應階段必須有測試佐證，不可僅口頭宣稱完成。</li><li>文件與程式同步更新（專案慣例）。</li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（策略與規劃）</h3><ul><li><a href="../../docs/strategy/scope-and-vision.html">計畫範圍與遠景</a></li><li><a href="../../docs/strategy/business-value.html">商業價值與行銷策略</a></li><li><a href="../../docs/strategy/architecture-research.html">知識庫架構研究與建議</a></li><li><a href="../../docs/strategy/dev-roadmap.html">開發建議與路線圖</a></li><li><a href="../../docs/strategy/open-questions-risks.html">待釐清問題與技術風險清單</a></li><li><a href="../../docs/strategy/gstack-playbook.html">以 gstack 技能精煉計畫的執行流程（Playbook）</a></li><li><a href="../../docs/strategy/cleaning-stage-design.html">資料清洗階段設計與分析</a></li><li><a href="../../docs/strategy/scenario-catalog.html">企業應用情境型錄</a></li><li><a href="../../docs/strategy/source-cleaning-value.html">知識來源管理與資料清洗：功能、價值與行銷</a></li><li><a href="../../docs/strategy/cleaning-eval-value.html">清洗品質評測：功能、欄位、價值與行銷</a></li><li><a href="../../docs/strategy/stage3-rag-spec.html">階段三：知識庫與 RAG 設計規格</a></li><li><a href="../../docs/strategy/market-analysis.html">知識庫產品市場分析與擴展方向</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一本輪策略規劃產出">一、本輪（策略規劃）產出</a><a class="l2" href="#二階段一清洗強化應產出">二、階段一（清洗強化）應產出</a><a class="l2" href="#三階段二建立知識庫應產出">三、階段二（建立知識庫）應產出</a><a class="l2" href="#四階段三旗艦應用-mvp應產出">四、階段三（旗艦應用 MVP）應產出</a><a class="l2" href="#五跨階段營運產出">五、跨階段／營運產出</a><a class="l2" href="#六驗收原則">六、驗收原則</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/strategy/06-期望產出清單.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

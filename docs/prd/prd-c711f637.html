@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>產品需求文件（PRD）：紀錄分類、團隊標籤與團隊權限控管｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 產品需求（PRD）</p><header class="hero"><div class="kicker">產品需求（PRD）</div><h1>產品需求文件（PRD）：紀錄分類、團隊標籤與團隊權限控管</h1></header><div class="docwrap"><main><ul><li>文件版本：2.0</li><li>文件狀態：已實作</li><li>現行系統版本：1.0.63</li><li>首次實作版本：0.2.36–0.2.37</li><li>最後核對日期：2026/07/25</li><li>建立日期：2026-06-05</li><li>狀態：已實作（階段一 0.2.36：分類/團隊標籤與過濾；階段二 0.2.37：角色預設團隊與團隊權控）</li><li>編碼：UTF-8（繁體中文）</li><li>實作備註：團隊權控已套用於 Service（清單/單筆/下載）與 Project/MyTask/Meeting 之 Repository 讀寫路徑、以及 MediaTranscription/DocumentExtraction 之 Service。非管理員之「團隊」下拉目前仍列出全部啟用團隊（伺服器端可見性已嚴格限制，指定外部團隊僅會造成自身看不到該紀錄，非資料外洩）；UI 下拉限縮列為後續強化項。</li></ul>
+<blockquote><p><strong>文件定位</strong>：§一–§十四 是 0.2.36–0.2.37 首次實作時的設計文件，<strong>保留原貌</strong>（含當時的「目前尚無…需新增」「建議命名…」等設計期語氣，以及當時只涵蓋五種紀錄的範圍）。系統此後持續擴充，<strong>現況一律以 §十五 為準</strong>；兩者不一致時，§十五 正確。</p></blockquote>
+<hr>
+<h2 id="一背景與目的" class="t1">一、背景與目的</h2>
+<p>系統已具備「知識庫分類」(<code>Category</code>) 與「團隊管理」(<code>Team</code>) 兩項基礎資料管理功能。本需求要把這兩者實際套用到五種既有紀錄頁面，並加入以團隊為基礎的資料權限控管：</p>
+<ol><li>在五種紀錄（<strong>專案管理 Project、工作任務 MyTask、會議紀錄 Meeting、影音轉逐字稿 MediaTranscription、文件轉文字 DocumentExtraction</strong>）加入「分類」與「團隊」兩個<strong>標籤式多值字串欄位</strong>（可空、可多值、不做關聯），並提供標籤式輸入 UI 與清單過濾。</li><li>在<strong>使用者角色</strong>(<code>RoleView</code>) 加入「預設團隊」設定，使非管理員使用者瀏覽上述五種紀錄時，<strong>僅能看到自己角色團隊範圍內（或無團隊）的紀錄</strong>；<strong>管理員</strong>(<code>IsAdmin</code>) 不受限。</li></ol>
+<p>目的：讓使用者能快速依分類找到/過濾紀錄，並以團隊權控限制敏感資料的可見範圍。</p>
+<h3 id="設計範本與現況">設計範本與現況</h3>
+<ul><li>各類紀錄的清單查詢透過 <code>Service.GetAsync(DataRequest)</code> 或 <code>Controller</code>／<code>Repository</code>，支援關鍵字、分類／團隊篩選、排序與分頁；所有入口共用精確團隊權控規則。</li><li>管理員以 <code>MyUser.IsAdmin</code> 判定，登入時複製到 <code>CurrentUser.IsAdmin</code>，可用 <code>AuthenticationStateHelper.CheckIsAdmin()</code> 檢查。</li><li>角色 <code>RoleView</code> 以 <code>TabViewJson</code>（JSON 字串）儲存頁面權限；登入時 <code>AuthenticationStateHelper.Check()</code> 載入角色並寫入 <code>CurrentUser</code>。</li><li>AntDesign Blazor 1.6.0，支援 <code>Select Mode="multiple"</code>（目前尚無多選用例，將新增）。</li><li><code>CategoryService</code> / <code>TeamService</code> 目前無「取得全部啟用清單」方法，需新增。</li></ul>
+<hr>
+<h2 id="二需求決策已與使用者確認" class="t2">二、需求決策（已與使用者確認）</h2>
+<div class="tw"><table><thead><tr><th>項目</th><th>決策</th></tr></thead><tbody><tr><td>分類/團隊欄位型態</td><td>字串、可空、可多值、<strong>不做外鍵關聯</strong>（儲存名稱字串快照）</td></tr><tr><td>標籤輸入方式</td><td><strong>僅能從現有啟用清單選取</strong>（輸入關鍵字過濾），不可自由新增值</td></tr><tr><td>空團隊紀錄可見性</td><td><strong>視為公開</strong>：無團隊的紀錄所有登入使用者皆可見</td></tr><tr><td>非管理員指定團隊範圍</td><td><strong>僅限自己角色授權的團隊</strong>；管理員可指定任意團隊</td></tr><tr><td>權控生效範圍</td><td><strong>所有存取路徑</strong>：清單、單筆 GET、編輯、刪除、下載/預覽</td></tr><tr><td>管理員</td><td><code>IsAdmin = true</code> 不受任何團隊過濾，看得到全部</td></tr><tr><td>分類</td><td>不涉及權控，僅供搜尋/過濾</td></tr><tr><td>多選過濾語意</td><td>選多個分類/團隊時以 <strong>OR</strong> 比對（含任一即符合）</td></tr><tr><td>既有 <code>MyTask.Category</code> 單值欄位</td><td>保留不動，新多值分類另存於新欄位 <code>Categories</code></td></tr></tbody></table></div>
+<hr>
+<h2 id="三安全模型核心規則" class="t3">三、安全模型（核心規則）</h2>
+<p>對某位<strong>非管理員</strong>使用者，一筆紀錄「可見」的條件為：</p>
+<blockquote><p>（紀錄的 <code>Teams</code> 為空） <strong>OR</strong> （紀錄的 <code>Teams</code> ∩ 使用者角色的「預設團隊」≠ ∅）</p></blockquote>
+<p>推論：</p>
+<ul><li><strong>管理員</strong>：略過上述過濾，可見所有紀錄。</li><li>使用者角色<strong>無任何預設團隊</strong>：只看得到「無團隊（公開）」紀錄。</li><li>此規則為<strong>伺服器端強制</strong>，套用於清單查詢、單筆讀取、編輯、刪除、下載/預覽。非授權者即使直接以 id 存取，亦回傳「找不到/無權限」（不可繞過 UI）。</li><li>「分類」不參與可見性判斷。</li></ul>
+<h3 id="團隊名稱精確比對">團隊名稱精確比對</h3>
+<ul><li>紀錄 <code>Teams</code>／<code>Categories</code> 以<strong>分隔字元包夾的字串</strong>儲存，例如以換行字元 <code>\n</code> 為分隔：<code>"\n團隊A\n團隊B\n"</code>。</li><li>成員判斷一律以 <code>Field.Contains("\n" + 名稱 + "\n")</code> 進行，EF Core 轉為 <code>LIKE</code>，<strong>SQLite 與 SqlServer 皆可</strong>，並避免子字串誤判（例如「團隊」誤中「團隊2」）。</li><li>AdapterModel / DTO 對外以 <code>List&lt;string&gt;</code> 表示；存取層負責 <code>List&lt;string&gt;</code> ⇄ 分隔字串轉換（提供共用輔助方法）。</li></ul>
+<hr>
+<h2 id="四資料模型" class="t4">四、資料模型</h2>
+<h3 id="41-五種紀錄-entity-各新增兩欄">4.1 五種紀錄 Entity 各新增兩欄</h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>Categories</td><td>string?</td><td>分類名稱（分隔字串，可空、可多值）</td></tr><tr><td>Teams</td><td>string?</td><td>團隊名稱（分隔字串，可空、可多值）</td></tr></tbody></table></div>
+<p>對應檔案：<code>KnowledgeExtraction.AccessDatas/Models/{Project,MyTask,Meeting,MediaTranscription,DocumentExtraction}.cs</code></p>
+<h3 id="42-角色-roleview-新增">4.2 角色 <code>RoleView</code> 新增</h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>DefaultTeamsJson</td><td>string</td><td>角色預設團隊（JSON 字串陣列，預設 <code>"[]"</code>）</td></tr></tbody></table></div>
+<p>對應 <code>RoleViewAdapterModel</code> 新增 <code>List&lt;string&gt; DefaultTeams</code>（UI 綁定用）。</p>
+<h3 id="43-currentuser-新增">4.3 <code>CurrentUser</code> 新增</h3>
+<div class="tw"><table><thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead><tbody><tr><td>IsAdmin</td><td>bool</td><td>（既有）管理員旗標</td></tr><tr><td>TeamList</td><td>List&amp;lt;string&amp;gt;</td><td>由登入角色的 <code>DefaultTeamsJson</code> 反序列化載入</td></tr></tbody></table></div>
+<h3 id="44-資料庫遷移">4.4 資料庫遷移</h3>
+<ul><li>為五個資料表各新增 <code>Categories</code>、<code>Teams</code> 兩個可空字串欄位；<code>RoleView</code> 新增 <code>DefaultTeamsJson</code>（預設 <code>"[]"</code>）。</li><li>比照既有作法，於 <strong>Sqlite</strong>（<code>KnowledgeExtraction.AccessDatas/Migrations</code>）與 <strong>SqlServer</strong>（<code>KnowledgeExtraction.AccessDatas.SqlServerMigrations</code>）<strong>雙 provider</strong> 各產生一個 migration（例如 <code>AddCategoryTeamTags</code>）。</li><li>欄位型別：Sqlite 為 <code>TEXT</code>、SqlServer 為 <code>nvarchar(max)</code>；皆 <code>nullable</code>（<code>DefaultTeamsJson</code> 以 <code>defaultValue: "[]"</code> 非空）。</li></ul>
+<hr>
+<h2 id="五存取範圍解析權控落點" class="t5">五、存取範圍解析（權控落點）</h2>
+<p>新增一個共用元件（建議命名 <code>IRecordAccessScope</code> / <code>RecordAccessScopeProvider</code>，置於 <code>KnowledgeExtraction.Business</code>）：</p>
+<ul><li>由目前使用者情境取得 <code>(bool IsAdmin, IReadOnlyList&lt;string&gt; AllowedTeams)</code>。</li><li>Blazor 情境：取自 <code>CurrentUserService.CurrentUser</code>。</li><li>API（JWT）情境：由 JWT claims 解析使用者並載入其角色團隊（確保 API 路徑同樣受控）。</li><li>提供方法產生 EF 述詞，封裝「公開 OR 團隊交集」邏輯，套用於：</li><li>五個 <code>Service.GetAsync(DataRequest)</code>（清單）與 <code>GetAsync(int id)</code>（單筆）。</li><li>五個 <code>Controller</code> 的 search / get-by-id / update / delete / 下載端點。</li><li>管理員時回傳「不過濾」。</li></ul>
+<blockquote><p>此元件是安全核心，必須有完整單元測試（見第九節）。</p></blockquote>
+<hr>
+<h2 id="六查詢與過濾datarequest-擴充" class="t6">六、查詢與過濾（DataRequest 擴充）</h2>
+<ul><li>擴充 <code>KnowledgeExtraction.Models/Systems/DataRequest.cs</code>：新增</li><li><code>List&lt;string&gt; CategoryFilters</code>（多選分類過濾）</li><li><code>List&lt;string&gt; TeamFilters</code>（多選團隊過濾）</li><li>各 <code>Service.GetAsync(DataRequest)</code> 內：</li><li>既有關鍵字搜尋、排序、分頁<strong>維持不變</strong>。</li><li>套用<strong>團隊權控述詞</strong>（第五節）。</li><li>套用分類過濾：選取多個時以 OR（<code>Categories.Contains("\n"+c+"\n")</code> 任一成立）。</li><li>套用團隊過濾：同上（在權控允許範圍內進一步縮小）。</li><li>對外 API 的 <code>*SearchRequestDto</code> 亦對應新增 <code>CategoryFilters</code>、<code>TeamFilters</code>。</li></ul>
+<hr>
+<h2 id="七uiblazor-server--ant-design" class="t7">七、UI（Blazor Server + Ant Design）</h2>
+<h3 id="71-新增編輯-modal--標籤式多選">7.1 新增/編輯 Modal — 標籤式多選</h3>
+<p>於五種紀錄的新增/編輯表單加入兩個欄位：</p>
+<pre><code>&lt;FormItem Label="分類"&gt;
+    &lt;Select TItem="string" TItemValue="string"
+            Mode="multiple" @bind-Values="CurrentRecord.Categories"
+            AllowClear EnableSearch Placeholder="輸入關鍵字選擇分類" Style="width:100%"&gt;
+        @foreach (var c in AvailableCategories)
+        {
+            &lt;SelectOption TItem="string" TItemValue="string" Value="@c"&gt;@c&lt;/SelectOption&gt;
+        }
+    &lt;/Select&gt;
+&lt;/FormItem&gt;
+
+&lt;FormItem Label="團隊"&gt;
+    &lt;Select TItem="string" TItemValue="string"
+            Mode="multiple" @bind-Values="CurrentRecord.Teams"
+            AllowClear EnableSearch Placeholder="輸入關鍵字選擇團隊" Style="width:100%"&gt;
+        @foreach (var t in AvailableTeams)
+        {
+            &lt;SelectOption TItem="string" TItemValue="string" Value="@t"&gt;@t&lt;/SelectOption&gt;
+        }
+    &lt;/Select&gt;
+&lt;/FormItem&gt;</code></pre>
+<ul><li>已選項目以標籤（含 x 移除）呈現 —— 即 AntDesign <code>Select Mode="multiple"</code> 內建行為。</li><li><code>AvailableCategories</code>：來自 <code>CategoryService</code> 的「所有啟用分類名稱」。</li><li><code>AvailableTeams</code>：來自 <code>TeamService</code> 的「所有啟用團隊名稱」；<strong>非管理員只列出自己授權的團隊</strong>（與權控一致，避免指定到看不到的團隊）。</li></ul>
+<h3 id="72-清單工具列--多選過濾下拉">7.2 清單工具列 — 多選過濾下拉</h3>
+<p>於五種紀錄清單頁工具列，在既有搜尋框旁新增「分類」「團隊」多選過濾下拉（<code>Select Mode="multiple"</code>），變更時帶入 <code>DataRequest.CategoryFilters</code> / <code>TeamFilters</code> 並重新查詢。原搜尋/排序/分頁照常並與過濾、權控疊加。</p>
+<h3 id="73-清單欄位">7.3 清單欄位</h3>
+<p>五種紀錄清單表格新增「分類」「團隊」欄位，以標籤樣式顯示該紀錄的多個值。</p>
+<h3 id="74-角色管理頁--預設團隊">7.4 角色管理頁 — 預設團隊</h3>
+<p>於角色維護 Modal（<code>RoleViewView</code>）新增「預設團隊」<code>Select Mode="multiple"</code>（來源為所有啟用團隊），儲存時序列化為 <code>DefaultTeamsJson</code>。</p>
+<hr>
+<h2 id="八服務層支援方法" class="t8">八、服務層支援方法</h2>
+<ul><li><code>CategoryService</code> 新增 <code>GetAllEnabledNamesAsync()</code>：回傳所有 <code>IsEnabled</code> 分類名稱（依名稱排序）。</li><li><code>TeamService</code> 新增 <code>GetAllEnabledNamesAsync()</code>：回傳所有 <code>IsEnabled</code> 團隊名稱。</li><li>共用名稱字串 ⇄ <code>List&lt;string&gt;</code> 轉換輔助（trim、去空、去重、以分隔字元組裝）。</li><li>登入流程（<code>AuthenticationStateHelper.Check()</code>）：載入角色 <code>DefaultTeamsJson</code> → <code>CurrentUser.TeamList</code>。</li></ul>
+<hr>
+<h2 id="九測試--驗證策略重點" class="t1">九、測試 / 驗證策略（重點）</h2>
+<p>本需求涉及資安權控，必須具備可重複的自動化驗證。沿用既有測試模式（xUnit + SQLite in-memory fixture，參考 <code>CategoryServiceTests</code> / <code>MyUserServicePasswordTests</code>）。</p>
+<h3 id="91-存取範圍權控單元測試--核心">9.1 存取範圍（權控）單元測試 — 核心</h3>
+<p>針對「存取範圍述詞」與各 <code>Service.GetAsync</code>，建立矩陣測試：</p>
+<ol><li>管理員 → 看得到所有紀錄（含有團隊、無團隊）。</li><li>非管理員（團隊 = {A}）→ 只看到 <code>Teams</code> 含 A 的紀錄 <strong>及</strong> 無團隊紀錄；看不到只屬 {B} 的紀錄。</li><li>非管理員無任何團隊 → 只看到無團隊（公開）紀錄。</li><li>空團隊紀錄 → 任何登入者皆可見。</li><li>團隊名稱精確比對：使用者團隊 {團隊} 不應看到只屬 {團隊2} 的紀錄（不可子字串誤判）。</li><li>每個紀錄型別（5 種）至少涵蓋一組權控測試。</li></ol>
+<h3 id="92-防繞過測試">9.2 防繞過測試</h3>
+<ul><li>非授權使用者對單筆 GET / 編輯 / 刪除 / 下載 → 回傳拒絕（找不到/無權限），不得成功。</li></ul>
+<h3 id="93-過濾與相容性測試">9.3 過濾與相容性測試</h3>
+<ul><li>分類/團隊多選過濾以 OR 比對正確。</li><li>過濾與既有關鍵字搜尋、排序、分頁<strong>疊加</strong>結果正確。</li><li><code>List&lt;string&gt;</code> ⇄ 分隔字串轉換：空值、單值、多值、含前後空白、重複值的往返一致。</li></ul>
+<h3 id="94-端到端驗證手動">9.4 端到端驗證（手動）</h3>
+<ul><li>以管理員與非管理員（不同團隊）兩種帳號登入，於五個頁面驗證可見範圍、標籤新增/移除、過濾、儲存後回讀正確。</li></ul>
+<h3 id="95-建置門檻">9.5 建置門檻</h3>
+<ul><li><code>dotnet build</code> 與 <code>dotnet test</code> 全綠；新增測試全部通過。</li></ul>
+<hr>
+<h2 id="十編碼需求" class="t2">十、編碼需求</h2>
+<ul><li>所有新增程式碼以 UTF-8（繁體中文）撰寫，不得有亂碼。</li><li>本 PRD 與所有 <code>docs/*.md</code> 為 UTF-8（含 BOM），通過 <code>scripts/Test-DocsEncoding.ps1</code>。</li><li>依 CLAUDE.md：實作完成建置時版本號 +1（0.2.35 → 0.2.36），commit message 說明版本變更。</li></ul>
+<hr>
+<h2 id="十一實作階段建議分兩階段交付" class="t3">十一、實作階段（建議分兩階段交付）</h2>
+<p><strong>階段一：分類/團隊標籤欄位 + 過濾 UI（不含權控）</strong></p>
+<ul><li>五個 Entity 新增 <code>Categories</code>/<code>Teams</code> 欄位 + 雙 migration。</li><li>AdapterModel/DTO 新增 <code>List&lt;string&gt;</code> + 轉換；AutoMapping 對應。</li><li><code>Category/TeamService.GetAllEnabledNamesAsync()</code>。</li><li>五個 Service.GetAsync 加入分類/團隊過濾；<code>DataRequest</code>/SearchDto 擴充。</li><li>五個紀錄 UI：Modal 多選標籤欄位、清單欄位、工具列過濾下拉。</li><li>測試：轉換、過濾、相容性。</li></ul>
+<p><strong>階段二：角色預設團隊 + 全路徑團隊權控</strong></p>
+<ul><li><code>RoleView.DefaultTeamsJson</code> + migration；角色管理 UI；登入載入 <code>CurrentUser.TeamList</code>。</li><li><code>RecordAccessScopeProvider</code>（Blazor + API 兩情境）。</li><li>五個 Service 與 Controller 全存取路徑套用權控；非管理員 Modal 團隊下拉僅列授權團隊。</li><li>測試：權控矩陣、防繞過。</li></ul>
+<hr>
+<h2 id="十二驗收條件" class="t4">十二、驗收條件</h2>
+<ol><li>五種紀錄可於新增/編輯時以標籤方式選取多個分類與團隊（只能選現有啟用清單、可逐一移除），儲存後回讀正確。</li><li>五種紀錄清單可依一或多個分類、團隊過濾；原搜尋、排序、分頁仍正常並可疊加。</li><li>角色可設定一或多個「預設團隊」。</li><li>非管理員於五個頁面僅能看到「無團隊」或「與自己角色團隊交集」的紀錄；管理員可看到全部。</li><li>權控於清單、單筆讀取、編輯、刪除、下載/預覽皆生效；非授權者直接以 id 存取會被拒絕。</li><li>團隊名稱比對精確，不發生子字串誤判。</li><li>自動化測試（權控矩陣、防繞過、過濾、轉換）全數通過；<code>dotnet build</code>/<code>dotnet test</code> 綠燈。</li><li><code>appsettings.json</code> 版本號於實作建置時 +1（0.2.35 → 0.2.36），相關文件同步更新。</li></ol>
+<hr>
+<h2 id="十三涉及檔案實作階段參考" class="t5">十三、涉及檔案（實作階段參考）</h2>
+<p><strong>修改（Entity 與遷移）：</strong></p>
+<ul><li><code>KnowledgeExtraction.AccessDatas/Models/{Project,MyTask,Meeting,MediaTranscription,DocumentExtraction}.cs</code>、<code>RoleView.cs</code></li><li>兩個 migration 專案各新增遷移</li><li><code>KnowledgeExtraction.Models/Others/CurrentUser.cs</code></li></ul>
+<p><strong>修改（DTO / AdapterModel / Mapping）：</strong></p>
+<ul><li>五種紀錄的 <code>*AdapterModel</code>、<code>*CreateUpdateDto</code>、<code>*Dto</code>、<code>*SearchRequestDto</code>，及 <code>RoleViewAdapterModel</code></li><li><code>KnowledgeExtraction.Business/Models/AutoMapping.cs</code></li><li><code>KnowledgeExtraction.Models/Systems/DataRequest.cs</code></li></ul>
+<p><strong>修改（服務與權控）：</strong></p>
+<ul><li>五種紀錄 <code>Service</code>（<code>GetAsync</code> 過濾 + 權控）與對應 <code>Controller</code></li><li><code>CategoryService</code> / <code>TeamService</code>（新增取全部啟用名稱方法）</li><li><code>RoleViewService</code>、<code>AuthenticationStateHelper</code>（載入角色團隊）</li><li>新增 <code>RecordAccessScopeProvider</code> 與介面</li></ul>
+<p><strong>修改（UI）：</strong></p>
+<ul><li>五種紀錄 <code>Components/Views/.../*ViewView.razor</code>(<code>.cs</code>)：Modal 多選欄位、清單欄位、工具列過濾</li><li><code>Components/Views/Admins/RoleViewView.razor</code>(<code>.cs</code>)：預設團隊多選</li></ul>
+<p><strong>新增（測試）：</strong></p>
+<ul><li><code>KnowledgeExtraction.Tests</code>：權控矩陣、防繞過、過濾、字串轉換測試</li></ul>
+<p><strong>修改（設定/文件）：</strong></p>
+<ul><li><code>KnowledgeExtraction.Web/appsettings.json</code>（版本號 +1）</li><li><code>docs/README.md</code>、發行說明</li></ul>
+<hr>
+<h2 id="十四未來延伸out-of-scope" class="t6">十四、未來延伸（Out of Scope）</h2>
+<ul><li>將「分類/團隊」改為真正的外鍵關聯與參照完整性。</li><li>分類/團隊重新命名時連動更新既有紀錄中的字串快照。</li><li>更細緻的權限（讀/寫分離、依欄位授權）。</li><li>直接綁定「使用者」層級團隊（目前團隊來自其角色）。</li></ul>
+<h2 id="十五現況校正1063-核對" class="t7">十五、現況校正（1.0.63 核對）</h2>
+<h3 id="151-核心不變量與-三-相同仍成立">15.1 核心不變量（與 §三 相同，仍成立）</h3>
+<ul><li>所有查詢／Controller／下載以 <code>IRecordAccessScopeProvider</code> 配合 <code>TagStringHelper.BuildTeamAccessPredicate</code> 或 <code>IsTeamAccessible</code>；管理員不受限制。</li><li>空團隊＝公開；非管理員可見公開或角色預設團隊交集。分類與團隊皆為分隔字串精確比對，禁止子字串命中。</li></ul>
+<h3 id="152-權控涵蓋範圍已較-一-的五種紀錄大幅擴張">15.2 權控涵蓋範圍（已較 §一 的「五種紀錄」大幅擴張）</h3>
+<p>紀錄型別已由五種擴為<strong>六種</strong>（新增 <code>ImageRecognition</code>），另涵蓋 <code>KnowledgeSource</code> 與 <code>WikiPage</code>。除 §十三 列出的落點外，後續版本新增的權控落點如下：</p>
+<div class="tw"><table><thead><tr><th>落點</th><th>程式</th></tr></thead><tbody><tr><td>首頁統計儀表板</td><td><code>Business/Services/DataAccess/DashboardService</code></td></tr><tr><td>資料一致性巡檢</td><td><code>Business/Services/DataAccess/DataConsistencyService</code></td></tr><tr><td>檢索診斷與調校</td><td><code>Business/Services/DataAccess/RagDiagnosticsService</code></td></tr><tr><td>內容清點統計報表</td><td><code>Business/Services/DataAccess/Reports/ContentInventoryReportService</code></td></tr><tr><td>會議行動項目（待辦轉工作任務）</td><td><code>Business/Services/DataAccess/MeetingActionItemService</code></td></tr><tr><td>MCP 對外檢索工具</td><td><code>Web/Mcp/KnowledgeSearchTool</code></td></tr><tr><td>日誌封存下載</td><td><code>Web/Controllers/LogArchiveController</code></td></tr></tbody></table></div>
+<p>整體涵蓋面：Project／MyTask／Meeting、影音／文件／圖片、知識來源、Wiki、內容編修、下載、索引、問答與評測，以及上表的儀表板、巡檢、診斷、報表與 MCP。</p>
+<h3 id="153-刻意不套團隊權控的例外">15.3 刻意不套團隊權控的例外</h3>
+<p><code>Business/Services/Pipelines/PipelineProgressQueryService</code> <strong>刻意不套</strong>團隊權控，改以 <code>UserAccount</code> 精確相等過濾（只回報「自己送出的」管線進度）。程式內已有註記；此處一併記錄，避免日後稽核誤判為漏洞。</p>
+<h3 id="154-一十四-中未依原設計落地的項目">15.4 §一–§十四 中未依原設計落地的項目</h3>
+<div class="tw"><table><thead><tr><th>設計章節</th><th>原文</th><th>實際</th></tr></thead><tbody><tr><td>§五 <code>:107</code></td><td>建議命名 <code>IRecordAccessScope</code>／<code>RecordAccessScopeProvider</code>，置於 <code>KnowledgeExtraction.Business</code></td><td>介面為 <strong><code>IRecordAccessScopeProvider</code></strong>（<code>Business/Services/Other/</code>），<strong>實作在 <code>Web/Auth/RecordAccessScopeProvider</code></strong>（需 <code>IHttpContextAccessor</code>）</td></tr><tr><td>§六 <code>:131</code></td><td>對外 API 的 <code>*SearchRequestDto</code> 亦新增 <code>CategoryFilters</code>、<code>TeamFilters</code></td><td><strong>未實作</strong>。此兩欄只存在於 <code>Models/Systems/DataRequest</code>；<code>Dtos/Commons/</code> 的 8 個 <code>*SearchRequestDto</code> 與基底 <code>SearchRequestBaseDto</code>、以及各 Controller 皆無。<strong>僅影響 API 層的分類／團隊過濾能力，不影響權控</strong> —— Controller 的可見性仍由 Service／Repository 的 <code>IRecordAccessScopeProvider</code> 強制，非授權者取不到資料</td></tr><tr><td>§七 <code>:167</code>、§十一 <code>:250</code></td><td>非管理員的團隊下拉僅列出自己授權的團隊</td><td><strong>未實作</strong>。全部 15 處 <code>availableTeams</code> 皆為無條件 <code>TeamService.GetAllEnabledNamesAsync()</code>。伺服器端會阻擋讀回無權紀錄，因此指定外部團隊只會造成自己看不到該紀錄，<strong>非越權</strong>。與 <code>:11</code>／§15.1 的敘述一致</td></tr><tr><td>§七 <code>:166</code></td><td><code>AvailableCategories</code> 來自 <code>CategoryService</code></td><td>專案／工作／會議三頁自 1.0.18 起改用 <strong><code>WorkCategoryService</code></strong>（專案分類主檔 <code>/work-categories</code>）；影音／文件／圖片／知識來源／Wiki 仍用 <code>CategoryService</code></td></tr><tr><td>§一 <code>:30</code>、§八</td><td>「<code>CategoryService</code>／<code>TeamService</code> 目前無取得全部啟用清單方法，需新增」</td><td>已實作。<code>CategoryService</code>、<code>TeamService</code>、<code>WorkCategoryService</code> 皆有 <code>GetAllEnabledNamesAsync()</code></td></tr><tr><td>§七 <code>:291</code></td><td>五種紀錄的 Modal 多選欄位寫在 <code>*ViewView.razor(.cs)</code> 內</td><td>專案／工作／會議的 Modal 已抽為獨立元件（<code>MyTasEditModal</code>、<code>MeetingEditModal</code>）</td></tr></tbody></table></div><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（產品需求（PRD））</h3><ul><li><a href="../../docs/prd/ai-prd-779da3b6.html">AI 可觀測性與成本治理 PRD</a></li><li><a href="../../docs/prd/mcp-server-prd-eb9973d8.html">MCP Server 整合 PRD</a></li><li><a href="../../docs/prd/pdf-rag-prd-86d843f1.html">產品需求文件（PRD）：PDF 型 RAG 處理（結構化解析・語意切片・可追溯引用）</a></li><li><a href="../../docs/prd/rag-prd-17baf37e.html">檢索診斷與查詢期調校 PRD</a></li><li><a href="../../docs/prd/rag-prd-926cf2f2.html">檢索品質評測 PRD</a></li><li><a href="../../docs/prd/prd-af6ff661.html">使用者管理 PRD</a></li><li><a href="../../docs/prd/prd-e188d641.html">產品需求文件（PRD）：知識庫分類（Category）管理</a></li><li><a href="../../docs/prd/prd-9f4bc5b6.html">產品需求文件（PRD）：圖片解讀（ImageRecognition）— 圖片上傳與 LLM 視覺解讀</a></li><li><a href="../../docs/prd/prd-d64ff6af.html">產品需求文件（PRD）：團隊管理（Team）管理</a></li><li><a href="../../docs/prd/prd-18b9200e.html">產品需求文件（PRD）：專案分類（WorkCategory）管理</a></li><li><a href="../../docs/prd/prd-e9230a97.html">產品需求文件（PRD）：專案協作模組強化（選單重整・專案分類・會議 AI 自動化）</a></li><li><a href="../../docs/prd/prd-dcd2b331.html">專案管理 PRD</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一背景與目的">一、背景與目的</a><a class="l3" href="#設計範本與現況">設計範本與現況</a><a class="l2" href="#二需求決策已與使用者確認">二、需求決策（已與使用者確認）</a><a class="l2" href="#三安全模型核心規則">三、安全模型（核心規則）</a><a class="l3" href="#團隊名稱精確比對">團隊名稱精確比對</a><a class="l2" href="#四資料模型">四、資料模型</a><a class="l3" href="#41-五種紀錄-entity-各新增兩欄">4.1 五種紀錄 Entity 各新增兩欄</a><a class="l3" href="#42-角色-roleview-新增">4.2 角色 RoleView 新增</a><a class="l3" href="#43-currentuser-新增">4.3 CurrentUser 新增</a><a class="l3" href="#44-資料庫遷移">4.4 資料庫遷移</a><a class="l2" href="#五存取範圍解析權控落點">五、存取範圍解析（權控落點）</a><a class="l2" href="#六查詢與過濾datarequest-擴充">六、查詢與過濾（DataRequest 擴充）</a><a class="l2" href="#七uiblazor-server--ant-design">七、UI（Blazor Server + Ant Design）</a><a class="l3" href="#71-新增編輯-modal--標籤式多選">7.1 新增/編輯 Modal — 標籤式多選</a><a class="l3" href="#72-清單工具列--多選過濾下拉">7.2 清單工具列 — 多選過濾下拉</a><a class="l3" href="#73-清單欄位">7.3 清單欄位</a><a class="l3" href="#74-角色管理頁--預設團隊">7.4 角色管理頁 — 預設團隊</a><a class="l2" href="#八服務層支援方法">八、服務層支援方法</a><a class="l2" href="#九測試--驗證策略重點">九、測試 / 驗證策略（重點）</a><a class="l3" href="#91-存取範圍權控單元測試--核心">9.1 存取範圍（權控）單元測試 — 核心</a><a class="l3" href="#92-防繞過測試">9.2 防繞過測試</a><a class="l3" href="#93-過濾與相容性測試">9.3 過濾與相容性測試</a><a class="l3" href="#94-端到端驗證手動">9.4 端到端驗證（手動）</a><a class="l3" href="#95-建置門檻">9.5 建置門檻</a><a class="l2" href="#十編碼需求">十、編碼需求</a><a class="l2" href="#十一實作階段建議分兩階段交付">十一、實作階段（建議分兩階段交付）</a><a class="l2" href="#十二驗收條件">十二、驗收條件</a><a class="l2" href="#十三涉及檔案實作階段參考">十三、涉及檔案（實作階段參考）</a><a class="l2" href="#十四未來延伸out-of-scope">十四、未來延伸（Out of Scope）</a><a class="l2" href="#十五現況校正1063-核對">十五、現況校正（1.0.63 核對）</a><a class="l3" href="#151-核心不變量與-三-相同仍成立">15.1 核心不變量（與 §三 相同，仍成立）</a><a class="l3" href="#152-權控涵蓋範圍已較-一-的五種紀錄大幅擴張">15.2 權控涵蓋範圍（已較 §一 的「五種紀錄」大幅擴張）</a><a class="l3" href="#153-刻意不套團隊權控的例外">15.3 刻意不套團隊權控的例外</a><a class="l3" href="#154-一十四-中未依原設計落地的項目">15.4 §一–§十四 中未依原設計落地的項目</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/prd/紀錄分類與團隊權控-prd.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>
