@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識庫使用者上手指南｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>知識庫使用者上手指南</h1><p class="sub">給每天用這套系統找答案、也要把自己手上資料放進去的人。從「我有一堆資料」走到「我問得到答案」，中間你要按哪幾個鍵、每一站怎麼算過關。看完就能自己走完一輪。</p></header><div class="docwrap"><main><ul><li>文件用途：給<strong>每天用這套系統找答案、也要把自己手上資料放進去</strong>的人。從「我有一堆資料」走到「我問得到答案」，中間你要按哪幾個鍵、每一站怎麼算過關。看完就能自己走完一輪。</li><li>主要讀者：知識庫使用者（部門同仁、專案成員）</li><li>文件版本：1.0</li><li>建立日期：2026/07/31</li><li>更新日期：2026/07/31</li><li>對應系統版本：1.0.120（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>這一份是<strong>動線</strong>。要問的三件事各有專門文件：資料怎麼準備看 <a href="../../docs/guides/user-data-preparation.html">我該準備與蒐集哪些資料</a>；問答怎麼問得準看 <a href="../../docs/guides/user-effective-questions.html">在大知識庫裡問到對的答案</a>；問答頁每個控制項的意義看 <a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a>。</p></blockquote>
+<hr>
+<h2 id="一你在這套系統裡是誰" class="t1">一、你在這套系統裡是誰</h2>
+<p>這套系統把<strong>散在各處的文件、會議、影音</strong>變成<strong>可以用問句問出答案、而且附得出出處</strong>的知識庫。</p>
+<p>裡面有三種人：</p>
+<div class="tw"><table><thead><tr><th>角色</th><th>在做什麼</th></tr></thead><tbody><tr><td><strong>管理者</strong></td><td>訂命名規範與分類詞庫、開團隊與權限、寫清洗提示詞、看評測與監控</td></tr><tr><td><strong>你（使用者）</strong></td><td>把自己手上的資料放進來、跑完加工、然後靠它找答案</td></tr><tr><td><strong>導入顧問／銷售</strong></td><td>帶客戶導入、對外介紹</td></tr></tbody></table></div>
+<p><strong>你不需要碰的</strong>：系統設定、團隊權限、提示詞的寫法、品質評測、系統監控。那些是管理者的事。<strong>遇到需要那些的時候，你要做的是去找管理者，不是自己研究。</strong></p>
+<hr>
+<h2 id="二五個站一句話各講一次" class="t2">二、五個站，一句話各講一次</h2>
+<pre><code>① 匯入 → ② 編成知識來源 → ③ 清洗 → ④ 蒸餾 → ⑤ 建索引 → 問答</code></pre>
+<div class="tw"><table><thead><tr><th>站</th><th>一句話</th><th>誰按</th></tr></thead><tbody><tr><td>① <strong>匯入</strong></td><td>把錄音、文件、圖片變成<strong>文字</strong>（系統只認得文字）</td><td>你</td></tr><tr><td>② <strong>編成知識來源</strong></td><td>把相關的幾份文字<strong>裝成一盒</strong>，這一盒才是知識的單位</td><td>你</td></tr><tr><td>③ <strong>清洗</strong></td><td>把這一盒的文字<strong>去重、遮蔽個資、分類、寫摘要</strong>，變成一份乾淨全文</td><td>你</td></tr><tr><td>④ <strong>蒸餾</strong></td><td>從乾淨全文<strong>拆出一個個概念</strong>，每個概念一頁 Wiki</td><td>你</td></tr><tr><td>⑤ <strong>建索引</strong></td><td>把內容切段<strong>建成可檢索的向量</strong>，這一步做完才問得到</td><td>你（蒸餾完通常會自動做）</td></tr></tbody></table></div>
+<p>⚠️ <strong>順序不能跳。</strong> 沒清洗就不能蒸餾、沒建索引就問不到——不是「效果差一點」，是<strong>完全查不到</strong>。</p>
+<hr>
+<h2 id="三每一站怎麼算過關" class="t3">三、每一站怎麼算過關</h2>
+<p>這是最實用的一節。<strong>每一站都有一個明確的字樣可以看</strong>，不要靠感覺。</p>
+<div class="tw"><table><thead><tr><th>站</th><th>在哪裡看</th><th>過關的樣子</th><th>沒過的樣子</th></tr></thead><tbody><tr><td>① 匯入</td><td>各匯入頁的狀態欄</td><td><strong>已完成</strong></td><td>等待中／處理中／<strong>失敗</strong>／已取消</td></tr><tr><td>② 編成知識來源</td><td>知識來源加工頁 → 管理成員</td><td>成員都在、順序是你要的</td><td>少了誰、順序不對</td></tr><tr><td>③ 清洗</td><td>知識來源清單的狀態</td><td><strong>已清洗</strong></td><td>未清洗／清洗中／失敗</td></tr><tr><td>④ 蒸餾</td><td>同上</td><td><strong>已蒸餾</strong></td><td>未蒸餾／蒸餾中／失敗</td></tr><tr><td>⑤ 建索引</td><td>同上</td><td><strong>已索引</strong></td><td>未索引／索引中</td></tr><tr><td>全部</td><td>同一列</td><td><strong>沒有</strong>「內容已過時」徽章</td><td>有徽章 → 見 §六</td></tr></tbody></table></div>
+<p><strong>最終驗收只有一個</strong>：到 AI 知識問答，問一個<strong>只有這份資料才答得出來的問題</strong>，看它答不答得出來、出處是不是指到你剛放的那一份。</p>
+<blockquote><p>沒有這一步就不算完成。狀態全綠但問不到答案是真的會發生的——最常見的原因是索引沒建（見 §七）。</p></blockquote>
+<hr>
+<h2 id="四第一次的-30-分鐘路線" class="t4">四、第一次的 30 分鐘路線</h2>
+<p>先用<strong>一份小東西</strong>走完全程，不要第一次就搬一整個資料夾進來。</p>
+<ol><li><strong>挑一份</strong>你最熟、篇幅中等的文件（一份 Word 或 PDF 就好）。</li><li>到「<strong>文件轉文字</strong>」上傳它，等狀態變成<strong>已完成</strong>，點開看看轉出來的文字對不對。</li><li>到「<strong>知識來源加工</strong>」新增一筆，取一個看得懂的標題，進「<strong>管理成員</strong>」把剛剛那份加進去。</li><li>按「<strong>清洗</strong>」→ 選一個清洗規則設定（不確定就選預設，選法見 §五）→ 送出，等狀態變<strong>已清洗</strong>。</li><li>按「<strong>蒸餾</strong>」，等狀態變<strong>已蒸餾</strong>。</li><li>確認狀態變成<strong>已索引</strong>（通常會自動；沒有就手動按「建立索引」）。</li><li>到「<strong>AI 知識問答</strong>」問一個那份文件裡才有的具體問題，展開<strong>出處</strong>核對。</li></ol>
+<p>第 7 步答得出來、出處指得對，你就已經會用這套系統了。剩下的都是規模的問題。</p>
+<hr>
+<h2 id="五清洗規則設定怎麼選" class="t5">五、清洗規則設定怎麼選</h2>
+<p>按「清洗」時會要你選一個<strong>清洗規則設定</strong>。它決定系統怎麼處理你這盒資料——<strong>選錯不會報錯，只會得到不對的結果</strong>。</p>
+<p>你要做的是<strong>選</strong>，不是寫。寫是管理者的事。</p>
+<div class="tw"><table><thead><tr><th>你的資料是</th><th>選哪一種傾向的設定</th><th>為什麼</th></tr></thead><tbody><tr><td>會議記錄、通話記錄</td><td>摘要要「<strong>決議／待辦／負責人</strong>」的那個</td><td>會議的價值在結論與分工，不在逐字內容</td></tr><tr><td>客服問答、退款與流程</td><td><strong>遮蔽客戶個資</strong>、保留規則的那個</td><td>客戶姓名電話不該進知識庫，流程規則要留</td></tr><tr><td>人資、合約、薪酬</td><td><strong>高敏感、門檻保守</strong>的那個</td><td>寧可多遮一點、寧可轉人工審核</td></tr><tr><td>技術文件、FAQ、規格</td><td><strong>強去重</strong>、技術分類的那個</td><td>這類文件重複段落最多</td></tr><tr><td>訪談、研究、客戶原話</td><td><strong>輕去重、保留原話</strong>的那個</td><td>去重太強會把有價值的差異抹掉</td></tr></tbody></table></div>
+<p><strong>看不懂設定名稱在講什麼、或是沒有適合的</strong>——去找管理者，不要硬選。設定檔怎麼寫見 <a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南</a>，那是給管理者的。</p>
+<hr>
+<h2 id="六看到內容已過時徽章怎麼辦" class="t6">六、看到「內容已過時」徽章怎麼辦</h2>
+<p>你改了或刪了某個成員、或在別的畫面編修了素材的文字之後，這一盒就會被標成<strong>內容已過時</strong>。</p>
+<p>⚠️ <strong>這只是提示，不擋任何事。</strong> 在你重跑之前，<strong>AI 知識問答仍然會拿舊內容作答</strong>。</p>
+<p>處置：按「<strong>清洗</strong>」→「<strong>蒸餾</strong>」→ 確認「<strong>已索引</strong>」，跑完徽章就會消失。</p>
+<p>⚠️ 如果你的目的是<strong>把某份東西從知識庫裡移除</strong>（不是更新），重跑管線<strong>不夠</strong>——舊的 Wiki 頁會被保留成「已汰換」。完整說明見 <a href="../../docs/operations/delete-update-cascade.html">更新與刪除的連鎖影響</a>。</p>
+<hr>
+<p>&lt;a id="advanced"&gt;&lt;/a&gt;</p>
+<h1 id="以下是進階想知道為什麼再看">以下是進階：想知道「為什麼」再看</h1>
+<p>第一次用可以先跳過。上面七節足夠你把事情做完。</p>
+<hr>
+<h2 id="七為什麼建索引之前完全問不到" class="t7">七、為什麼建索引之前完全問不到</h2>
+<p>問答不是「把整個知識庫丟給 AI 讀一遍」——那樣又慢又貴，而且內容一多就超過模型能吃的量。</p>
+<p>實際做法是：把內容<strong>切成小段</strong>、每一段算出一組代表語意的數字（<strong>向量</strong>），問問題時先用向量找出最相關的十來段，<strong>只把那十來段</strong>交給 AI 作答。</p>
+<p>所以<strong>沒有向量就沒有東西可以找</strong>。狀態沒到「已索引」時，你問什麼都會得到「查無相關依據」——這不是 AI 笨，是根本沒有候選內容。</p>
+<blockquote><p>「我問什麼都查無依據」最常見的原因就是這個。到問答頁前先確認狀態。</p></blockquote>
+<h2 id="八為什麼要清洗跟蒸餾兩步不是重複工" class="t8">八、為什麼要清洗跟蒸餾兩步，不是重複工</h2>
+<p>它們產出的是<strong>兩種不同層次</strong>的內容，問答時<strong>兩種都會被檢索</strong>：</p>
+<div class="tw"><table><thead><tr><th></th><th>清洗產出</th><th>蒸餾產出</th></tr></thead><tbody><tr><td>長相</td><td>一份乾淨的<strong>全文</strong></td><td>一頁一個<strong>概念</strong>的 Wiki</td></tr><tr><td>用途</td><td><strong>事實佐證</strong>——原話、數字、條款長什麼樣</td><td><strong>概念導引</strong>——這件事整體是怎麼回事</td></tr><tr><td>出處面板的標籤</td><td>綠色「清洗內容」</td><td>藍色「蒸餾頁」</td></tr></tbody></table></div>
+<p>只有清洗沒有蒸餾，問「這個專案整體有哪些風險」會答不好（沒有人幫它把散落各處的東西歸納成一個概念）；只有蒸餾沒有清洗，問「第幾條寫的違約金是多少」會答不準（概念頁不會逐字保留數字）。</p>
+<h2 id="九狀態卡住時先看哪裡" class="t1">九、狀態卡住時先看哪裡</h2>
+<div class="tw"><table><thead><tr><th>症狀</th><th>先看</th></tr></thead><tbody><tr><td>匯入一直「處理中」不動</td><td>檔案是不是太大（音訊／影片與會議錄音 2GB、文件 1GB、圖片 50MB）；影片連結是不是外部網站擋了</td></tr><tr><td>清洗失敗</td><td>這一盒是不是塞太多份。見 <a href="../../docs/guides/source-scale-limits.html">知識來源分盒與規模上限指南</a></td></tr><tr><td>清洗成功但內容明顯少一大截</td><td>同上，可能被模型的輸出上限截斷了。1.0.112 起系統會講原因</td></tr><tr><td>蒸餾只產出一頁</td><td>同上。系統會在該頁留下註記說明原因</td></tr><tr><td>狀態全綠但問不到</td><td>先確認<strong>已索引</strong>；再確認你問的關鍵字真的在那份資料裡；再看 <a href="../../docs/guides/user-effective-questions.html">在大知識庫裡問到對的答案</a></td></tr><tr><td>別人看得到我看不到</td><td>團隊權限。找管理者</td></tr></tbody></table></div>
+<p>自己看完還是不確定的，<strong>帶著「哪一筆、哪一站、看到什麼字樣」去找管理者</strong>——這三個資訊能讓對方三分鐘內判斷，比說「它壞掉了」有用得多。</p>
+<hr>
+<h2 id="十相關文件" class="t2">十、相關文件</h2>
+<ul><li><a href="../../docs/guides/user-data-preparation.html">我該準備與蒐集哪些資料</a></li><li><a href="../../docs/guides/user-effective-questions.html">在大知識庫裡問到對的答案</a></li><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/import-guide.html">資料匯入指南：音訊／影片、文件、圖片</a></li><li><a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定使用指南</a></li><li><a href="../../docs/operations/delete-update-cascade.html">更新與刪除的連鎖影響</a></li><li><a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫使用者：我剛拿到帳號，這系統跟我有什麼關係</li><li>知識庫使用者：我要用 AI 知識問答找答案</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/user-effective-questions.html">在大知識庫裡問到對的答案</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一你在這套系統裡是誰">一、你在這套系統裡是誰</a><a class="l2" href="#二五個站一句話各講一次">二、五個站，一句話各講一次</a><a class="l2" href="#三每一站怎麼算過關">三、每一站怎麼算過關</a><a class="l2" href="#四第一次的-30-分鐘路線">四、第一次的 30 分鐘路線</a><a class="l2" href="#五清洗規則設定怎麼選">五、清洗規則設定怎麼選</a><a class="l2" href="#六看到內容已過時徽章怎麼辦">六、看到「內容已過時」徽章怎麼辦</a><a class="l2" href="#七為什麼建索引之前完全問不到">七、為什麼建索引之前完全問不到</a><a class="l2" href="#八為什麼要清洗跟蒸餾兩步不是重複工">八、為什麼要清洗跟蒸餾兩步，不是重複工</a><a class="l2" href="#九狀態卡住時先看哪裡">九、狀態卡住時先看哪裡</a><a class="l2" href="#十相關文件">十、相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/知識庫使用者上手指南.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

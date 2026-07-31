@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>更新與刪除的連鎖影響：全庫盤點（1.0.118 → 1.0.119）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>更新與刪除的連鎖影響：全庫盤點（1.0.118 → 1.0.119）</h1></header><div class="docwrap"><main><ul><li>變更日期：2026/07/31</li><li>版本：1.0.118 → <strong>1.0.119</strong></li><li>性質：<strong>純文件</strong>（查證＋新增一份權威表）。<strong><code>src/</code> 零變更、無模型變更、無新表、無 migration、無新設定鍵</strong>。</li><li>對應工作：說明網站新增第四種角色「知識庫使用者」的<strong>階段 A</strong></li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="一解決什麼" class="t1">一、解決什麼</h2>
+<p>「我改了或刪了這筆，會連帶發生什麼」在整個 <code>docs/</code> 裡<strong>沒有任何一份文件回答</strong>。散落的片段有（<code>知識來源加工與清洗規則設定使用指南</code> 的「成員異動後該怎麼做」、<code>系統監控與健康檢查指南</code> 的巡檢頁說明），但沒有一處把「哪些東西會跟著消失、哪些只是被標成過時、哪些完全沒反應」講在一起。</p>
+<p>這是日常操作最常撞到的一類問題，而且<strong>猜錯的代價很高</strong>——可能誤刪整條知識線，也可能以為刪掉了其實還在。</p>
+<h2 id="二查證方法不是推測" class="t2">二、查證方法（不是推測）</h2>
+<p>三個切面逐一交叉，每一條都讀到程式：</p>
+<div class="tw"><table><thead><tr><th>切面</th><th>範圍</th></tr></thead><tbody><tr><td>DB 連鎖</td><td><code>BackendDBContext.OnModelCreating</code> 的 11 條 <code>OnDelete</code>、37 個 <code>DbSet</code></td></tr><tr><td>磁碟檔</td><td>每一支服務的刪除路徑有沒有主動刪實體檔</td></tr><tr><td>過期標記</td><td><code>ContentStale</code> 的<strong>全部</strong>寫入點與<strong>唯一</strong>清除點，以及它到底擋不擋事</td></tr></tbody></table></div>
+<p>原本估的是「20 個有 <code>DeleteAsync</code> 的服務」，實際查下來 <strong><code>GraphEdgeService</code> 與 <code>GraphCommunityBuilder</code> 不是使用者可按的刪除</strong>（它們用 <code>ExecuteDeleteAsync</code> 做整批重建前的清除），所以<strong>真正的數字是 18 個</strong>。文件裡照 18 寫。</p>
+<h2 id="三查出來最重要的三件事" class="t3">三、查出來最重要的三件事</h2>
+<h3 id="31--刪掉素材後問答還是查得到">3.1 ⚠️ 刪掉素材後，問答還是查得到</h3>
+<p>刪除影音轉錄／文件轉文字／圖片解讀／會議紀錄時：原始檔與轉出文字<strong>會刪</strong>、引用它的<strong>孤兒成員當場移除</strong>、知識來源標成 <code>內容已過時</code>。</p>
+<p><strong>但清洗檔與向量索引原封不動。</strong> 清洗當下已經把成員內容抄成一份獨立檔案，向量是從那份檔案建的——所以那份你以為已經刪掉的文件，<strong>AI 知識問答照樣拿它作答、出處也照樣列出來</strong>，直到你重新清洗為止。</p>
+<p>這同時是資安問題：使用者發現不該上傳而刪除時，會誤以為內容已經移除。</p>
+<h3 id="32--而且重跑管線也不夠乾淨">3.2 ⚠️ 而且「重跑管線」也不夠乾淨</h3>
+<p>重新蒸餾採的是<strong>版本化，不是覆蓋</strong>（<code>DistillationProcessor</code>）：舊的現行版 Wiki 頁標成「已汰換」<strong>保留不刪</strong>（供稽核與時點查詢），只是向量 <code>IsCurrent = false</code> 退出一般檢索。</p>
+<p>所以重跑完管線，那些頁<strong>還在資料庫與磁碟上</strong>。<strong>要真正移除只有一條路：刪掉整個知識來源</strong>——那會把清洗檔、全部 Wiki 頁（含已汰換的）、全部向量一次帶走。</p>
+<p>判斷準則寫進文件：<strong>「內容過時」→ 重跑管線就好；「這份東西不該存在」→ 刪掉整個知識來源。</strong></p>
+<h3 id="33-過時只是標籤不擋任何事">3.3 「過時」只是標籤，不擋任何事</h3>
+<p><code>ContentStale</code> 的寫入點有六處（素材刪除／編修／換版、成員新增／移除／換順序），<strong>清除點只有一個</strong>：重新清洗完成（<code>CleaningProcessor</code>）。</p>
+<p>它只在三個地方顯示（知識來源清單的徽章、<code>/data-consistency</code>、<code>/rag-diagnostics</code>），<strong>不阻擋任何操作</strong>。</p>
+<h2 id="四一項要更正的先前推測" class="t4">四、一項要更正的先前推測</h2>
+<p>規劃這一項時我寫過「刪素材會<strong>留下</strong>孤兒成員」。<strong>不對。</strong> 四個素材服務傳的是 <code>MarkOwningSourcesStaleAsync(..., removeOrphanItems: true)</code>，孤兒成員<strong>當場就被移除了</strong>。</p>
+<p>巡檢頁的「孤兒成員」區塊仍有存在意義——舊版資料，以及下面 §5.1 那條路徑會產生。</p>
+<h2 id="五順帶查出的三項落差本版不修只記錄" class="t5">五、順帶查出的三項落差（<strong>本版不修，只記錄</strong>）</h2>
+<p>寫進文件 §七，並在此明列。這一階段的承諾是「把現況說清楚」，改行為要配測試，混進來會讓交付範圍失控。</p>
+<h3 id="51-用-rest-api-刪會議行為與畫面不一樣">5.1 用 REST API 刪會議，行為與畫面不一樣</h3>
+<p><code>DELETE /api/meeting/{id}</code> 走 <code>MeetingRepository.DeleteAsync</code>，畫面走 <code>MeetingService.DeleteAsync</code>——<strong>兩條不同的程式路徑</strong>。</p>
+<div class="tw"><table><thead><tr><th></th><th>團隊權控</th><th>刪附件實體檔</th><th>清孤兒成員＋標過時</th></tr></thead><tbody><tr><td>畫面（<code>MeetingService</code>）</td><td>❌ 見 5.2</td><td>✅</td><td>✅</td></tr><tr><td>REST API（<code>MeetingRepository</code>）</td><td>✅</td><td>❌</td><td>❌</td></tr></tbody></table></div>
+<p>從 API 刪會議會留下磁碟孤兒檔、孤兒成員列，而且<strong>引用它的知識來源不會被標成過時</strong>——使用者不會知道那個來源已經失準。</p>
+<p><code>MeetingKnowledgeSourceStaleTests</code> 完整釘住 Service 那條路徑（6 條測試，含兩條刻意的反證），但<strong>沒有涵蓋 Repository 這條</strong>。</p>
+<h3 id="52-四個素材的-deleteasync-沒有團隊權控檢查">5.2 四個素材的 <code>DeleteAsync</code> 沒有團隊權控檢查</h3>
+<p><code>MediaTranscriptionService</code>／<code>DocumentExtractionService</code>／<code>ImageRecognitionService</code>／<code>MeetingService</code> 的 <code>DeleteAsync</code> 都沒有 <code>IsTeamAccessible</code>，而同檔案的 <code>RetryAsync</code> 有、<code>KnowledgeSourceService</code> 與 <code>WikiPageService</code> 的刪除有、<code>MeetingRepository</code>（API）也有。</p>
+<p>實務可利用性低（清單查詢已套權控、Blazor Server 元件狀態在伺服器端，使用者只刪得到畫面上渲染出來的列），但這是<strong>同一個服務兩個方法標準不同</strong>的防禦縱深不一致。</p>
+<h3 id="53-分類團隊提示詞刪除不檢查是否還被引用">5.3 分類／團隊／提示詞刪除不檢查是否還被引用</h3>
+<p>標籤欄位是分隔字串、無外鍵，刪主檔既不被擋也不回寫紀錄，留下「主檔已不存在」的名字。這是既有設計取捨、不是新問題，但符合本文件主題故一併列出。</p>
+<h2 id="六產出" class="t6">六、產出</h2>
+<div class="tw"><table><thead><tr><th>檔案</th><th>內容</th></tr></thead><tbody><tr><td><a href="../../docs/operations/delete-update-cascade.html">operations/更新與刪除的連鎖影響</a>（新）</td><td>八章：三張速查表／主線五類詳解／全庫逐項對照／磁碟檔與 DB 列的分野／⚠️「以為刪掉了其實還查得到」／巡檢頁怎麼用／已知落差／相關文件</td></tr><tr><td><code>docs/operations/README.md</code>、<code>docs/README.md</code></td><td>各補一列</td></tr><tr><td><code>docs/guides/知識來源加工與清洗規則設定-使用指南.md</code></td><td>「成員異動後該怎麼做」補一句指向新文件，<strong>不搬內容</strong></td></tr></tbody></table></div>
+<h2 id="七驗證" class="t7">七、驗證</h2>
+<ul><li><code>pwsh -NoProfile -File scripts/Test-All.ps1</code> → 四道守門全綠（測試 <strong>1120 通過／0 失敗</strong>，本版 <code>src/</code> 零變更）</li><li>新文件<strong>每一條斷言都指得回程式的檔名＋符號名</strong>，且依維護規範 §3.1 <strong>完全沒有行號</strong></li><li><code>python scripts/Build-HelpSite.py --both</code> → 頁數 +1、無法解析的文件連結 0</li></ul>
+<h2 id="八後續" class="t8">八、後續</h2>
+<p><strong>1.0.120</strong> 階段 B＋C：三份使用者視角新文件（上手／資料準備與蒐集／問到對的答案）＋ 說明網站第四個角色「知識庫使用者」與 9 個情境。本篇的權威表就是情境 9 的落點。</p>
+<hr>
+<blockquote><p>返回 <a href="../../docs/changelog/readme-436e4418.html">changelog 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一解決什麼">一、解決什麼</a><a class="l2" href="#二查證方法不是推測">二、查證方法（不是推測）</a><a class="l2" href="#三查出來最重要的三件事">三、查出來最重要的三件事</a><a class="l3" href="#31--刪掉素材後問答還是查得到">3.1 ⚠️ 刪掉素材後，問答還是查得到</a><a class="l3" href="#32--而且重跑管線也不夠乾淨">3.2 ⚠️ 而且「重跑管線」也不夠乾淨</a><a class="l3" href="#33-過時只是標籤不擋任何事">3.3 「過時」只是標籤，不擋任何事</a><a class="l2" href="#四一項要更正的先前推測">四、一項要更正的先前推測</a><a class="l2" href="#五順帶查出的三項落差本版不修只記錄">五、順帶查出的三項落差（本版不修，只記錄）</a><a class="l3" href="#51-用-rest-api-刪會議行為與畫面不一樣">5.1 用 REST API 刪會議，行為與畫面不一樣</a><a class="l3" href="#52-四個素材的-deleteasync-沒有團隊權控檢查">5.2 四個素材的 DeleteAsync 沒有團隊權控檢查</a><a class="l3" href="#53-分類團隊提示詞刪除不檢查是否還被引用">5.3 分類／團隊／提示詞刪除不檢查是否還被引用</a><a class="l2" href="#六產出">六、產出</a><a class="l2" href="#七驗證">七、驗證</a><a class="l2" href="#八後續">八、後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-31-更新與刪除連鎖影響.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

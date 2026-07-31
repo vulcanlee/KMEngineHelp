@@ -1773,6 +1773,13 @@
    "internal": false
   },
   {
+   "source": "docs/changelog/2026-07-30-蒸餾輸出截斷偵測.md",
+   "output": "docs/changelog/2026-07-30-f8373afd.html",
+   "title": "蒸餾的輸出截斷偵測，以及讓註記真的看得到（1.0.116 → 1.0.117）",
+   "curated": false,
+   "internal": false
+  },
+  {
    "source": "docs/changelog/2026-07-30-角色導向說明網站產生器.md",
    "output": "docs/changelog/2026-07-30-50f5e1af.html",
    "title": "角色導向說明網站產生器（1.0.110 → 1.0.111）",
@@ -1783,6 +1790,27 @@
    "source": "docs/changelog/2026-07-30-說明網站收錄修正與檔名更正.md",
    "output": "docs/changelog/2026-07-30-dcd598aa.html",
    "title": "說明網站收錄修正與提示詞檔名更正（1.0.114 → 1.0.115）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-31-一鍵檢查與CI.md",
+   "output": "docs/changelog/2026-07-31-ci-de50cfa4.html",
+   "title": "提交前的一鍵檢查與一層薄 CI（1.0.117 → 1.0.118）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-31-更新與刪除連鎖影響.md",
+   "output": "docs/changelog/2026-07-31-96279fa1.html",
+   "title": "更新與刪除的連鎖影響：全庫盤點（1.0.118 → 1.0.119）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-31-知識庫使用者角色.md",
+   "output": "docs/changelog/2026-07-31-aec27b6c.html",
+   "title": "說明網站新增第四種角色「知識庫使用者」（1.0.119 → 1.0.120）",
    "curated": false,
    "internal": false
   },
@@ -1927,6 +1955,13 @@
    "internal": false
   },
   {
+   "source": "docs/guides/在大知識庫裡問到對的答案.md",
+   "output": "docs/guides/user-effective-questions.html",
+   "title": "在大知識庫裡問到對的答案",
+   "curated": true,
+   "internal": false
+  },
+  {
    "source": "docs/guides/基礎設定內容設計指南-分類詞庫團隊與提示詞撰寫.md",
    "output": "docs/guides/setup-content-design.html",
    "title": "基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫",
@@ -1965,6 +2000,13 @@
    "source": "docs/guides/從匯入到知識的操作流程.md",
    "output": "docs/guides/import-to-knowledge-flow.html",
    "title": "從客戶匯入到完成知識：操作流程指南",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/我該準備與蒐集哪些資料.md",
+   "output": "docs/guides/user-data-preparation.html",
+   "title": "我該準備與蒐集哪些資料",
    "curated": true,
    "internal": false
   },
@@ -2014,6 +2056,13 @@
    "source": "docs/guides/知識庫RAG-PoC執行與驗收指南.md",
    "output": "docs/guides/rag-poc-acceptance.html",
    "title": "知識庫 RAG：PoC 端到端執行與驗收指南",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/知識庫使用者上手指南.md",
+   "output": "docs/guides/user-getting-started.html",
+   "title": "知識庫使用者上手指南",
    "curated": true,
    "internal": false
   },
@@ -2203,6 +2252,13 @@
    "source": "docs/operations/日誌與設定檔說明.md",
    "output": "docs/operations/logging-and-settings.html",
    "title": "日誌與設定檔說明",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/operations/更新與刪除的連鎖影響.md",
+   "output": "docs/operations/delete-update-cascade.html",
+   "title": "更新與刪除的連鎖影響",
    "curated": true,
    "internal": false
   },

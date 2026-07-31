@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>更新與刪除的連鎖影響｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 部署與維運</p><header class="hero"><div class="kicker">部署與維運</div><h1>更新與刪除的連鎖影響</h1><p class="sub">回答「我改了或刪了這筆，會連帶發生什麼」——哪些東西會跟著消失、哪些只是被標成過時、哪些完全沒反應，以及每種情況你還要自己補做什麼。全庫逐項對照，程式逐條查證。</p></header><div class="docwrap"><main><ul><li>文件用途：回答「<strong>我改了或刪了這筆，會連帶發生什麼</strong>」——哪些東西會跟著消失、哪些只是被標成過時、哪些完全沒反應，以及每種情況你還要自己補做什麼。全庫逐項對照，程式逐條查證。</li><li>主要讀者：知識庫使用者、知識庫管理者、導入顧問</li><li>文件版本：1.0</li><li>建立日期：2026/07/31</li><li>更新日期：2026/07/31</li><li>對應系統版本：1.0.119（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p>相關：容量與規模的邊界見 <a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a>；巡檢頁的操作見 <a href="../../docs/guides/monitoring-health.html">系統監控與健康檢查指南</a>；成員與清洗的操作見 <a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定使用指南</a>。</p></blockquote>
+<hr>
+<h2 id="一先看這三張表" class="t1">一、先看這三張表</h2>
+<h3 id="11-刪了會連帶消失">1.1 刪了會<strong>連帶消失</strong></h3>
+<div class="tw"><table><thead><tr><th>你刪的</th><th>跟著消失的</th><th>磁碟上的檔案</th></tr></thead><tbody><tr><td><strong>知識來源</strong></td><td>成員清單、<strong>全部 Wiki 頁</strong>、<strong>全部向量索引</strong>、該來源的圖譜節點／三元組／概念連結邊</td><td>清洗檔與全部 Wiki 頁檔一起刪</td></tr><tr><td><strong>Wiki 頁</strong>（單頁）</td><td>指向該頁的向量索引</td><td>該頁的 <code>.md</code> 一起刪</td></tr><tr><td>（重新蒸餾<strong>不算</strong>刪除）</td><td>舊頁轉「已汰換」<strong>保留不刪</strong>，只是退出檢索，見 §五</td><td>保留</td></tr><tr><td><strong>素材</strong>（影音轉錄／文件轉文字／圖片解讀／會議紀錄）</td><td>引用它的<strong>成員列</strong>（不是知識來源本身）</td><td>原始檔、逐字稿／轉出文字、AI 產生內容一起刪</td></tr><tr><td><strong>專案／工作任務</strong></td><td>其附件列</td><td>附件實體檔一起刪</td></tr></tbody></table></div>
+<p>⚠️ <strong>沒有回收桶。</strong> 刪除知識來源是全系統破壞力最大的單一操作——它會讓那條知識線從匯入產物以外的每一層同時消失。</p>
+<h3 id="12-只是標成過時內容不動">1.2 只是<strong>標成過時</strong>，內容不動</h3>
+<div class="tw"><table><thead><tr><th>你做的</th><th>效果</th></tr></thead><tbody><tr><td>素材被刪除</td><td>引用它的知識來源 → <code>內容已過時</code></td></tr><tr><td><strong>編修素材的文字</strong>（逐字稿、轉出的 Markdown、AI 會議紀錄）</td><td>同上</td></tr><tr><td>素材上傳新版本</td><td>成員自動改指向新版素材，來源 → <code>內容已過時</code></td></tr><tr><td>知識來源<strong>新增／移除成員</strong></td><td>該來源 → <code>內容已過時</code></td></tr><tr><td>知識來源<strong>調整成員順序</strong></td><td>同上（順序會影響清洗的輸入）</td></tr></tbody></table></div>
+<p>⚠️ <strong>「過時」只是一個標籤，不擋任何事。</strong> 舊的清洗內容與向量索引原封不動留著，<strong>問答照樣拿它們作答</strong>。要讓它真的更新，只有一條路：<strong>重新清洗 → 重新蒸餾 → 重建索引</strong>。</p>
+<h3 id="13-完全沒反應改了但既有資料不會跟著變">1.3 <strong>完全沒反應</strong>（改了但既有資料不會跟著變）</h3>
+<div class="tw"><table><thead><tr><th>你做的</th><th>為什麼沒反應</th></tr></thead><tbody><tr><td>刪除或改名<strong>分類</strong></td><td>分類是以分隔字串存在每一筆紀錄的 <code>Categories</code> 欄位裡，<strong>沒有外鍵</strong>。刪掉分類主檔，紀錄上那個名字還在（幽靈分類）</td></tr><tr><td>刪除或改名<strong>團隊</strong></td><td>同上，<code>Teams</code> 欄位也是分隔字串</td></tr><tr><td>刪除或改名<strong>提示詞</strong>、<strong>專案分類</strong></td><td>同上，引用端不檢查主檔</td></tr><tr><td>只改素材的<strong>標題／分類／團隊</strong></td><td><strong>刻意的設計</strong>：中介資料不進清洗的聚合內容，所以不標過時。有測試釘住這條</td></tr><tr><td>刪除<strong>清洗規則設定</strong></td><td>已經清洗完的內容不受影響（清洗當下就把結果寫成檔案了）</td></tr></tbody></table></div>
+<hr>
+<h2 id="二主線五類詳解" class="t2">二、主線五類詳解</h2>
+<h3 id="21-刪除知識來源">2.1 刪除知識來源</h3>
+<p>程式進入點：<code>KnowledgeSourceService.DeleteAsync</code>。</p>
+<ol><li><strong>檢查團隊權限</strong>（<code>TagStringHelper.IsTeamAccessible</code>）。非管理員刪不了別人團隊的來源。</li><li><strong>先刪磁碟檔</strong>：該來源的清洗檔，以及它底下<strong>每一頁</strong> Wiki 的實體檔（<code>DeletePhysicalFile</code>）。</li><li><strong>再刪 DB 列</strong>，由外鍵連帶處理：<code>KnowledgeSourceItem</code>、<code>WikiPage</code>、<code>VectorEmbedding</code>、<code>GraphEdge</code>、<code>GraphNode</code>、<code>GraphTriple</code> 全部設為 <code>Cascade</code>（見 <code>BackendDBContext.OnModelCreating</code>）。</li></ol>
+<p><strong>先刪檔再刪列</strong>是刻意的順序：DB 的連帶刪除不會碰磁碟，若順序反過來就找不到該刪哪些檔，會留下永久孤兒檔。</p>
+<p><strong>匯入產物不會被刪。</strong> 那些錄音、PDF、圖片是獨立的紀錄，刪知識來源不會動到它們——你可以用同一批素材重新編一個知識來源。</p>
+<h3 id="22-刪除素材">2.2 刪除素材</h3>
+<p>程式進入點：<code>MediaTranscriptionService</code>／<code>DocumentExtractionService</code>／<code>ImageRecognitionService</code>／<code>MeetingService</code> 的 <code>DeleteAsync</code>。</p>
+<ol><li><strong>先取消背景作業</strong>（三個匯入型會呼叫 <code>cancellationRegistry.TryCancel</code>）——正在轉錄中的紀錄也刪得掉，不會留下跑到一半的工作。</li><li><strong>刪磁碟檔</strong>：各自的原始檔、轉出文字、AI 產生內容。</li><li><strong>呼叫 <code>KnowledgeSourceMaintenanceHelper.MarkOwningSourcesStaleAsync</code>，且 <code>removeOrphanItems: true</code></strong>：引用它的成員列<strong>當場移除</strong>，同時把那些知識來源標成 <code>內容已過時</code>。</li></ol>
+<p>⚠️ 這一步<strong>不會</strong>碰清洗檔、不會碰向量索引。所以：</p>
+<blockquote><p><strong>你刪掉了那份錄音，但問答還是查得到它的內容。</strong></p></blockquote>
+<p>因為清洗當下已經把成員內容抄成一份獨立的清洗檔，向量索引也是從那份檔案建的。<strong>要讓內容真的從問答中消失，必須重新清洗。</strong> 詳見 §五。</p>
+<h3 id="23-編修素材的文字">2.3 編修素材的文字</h3>
+<p>改逐字稿、改轉出的 Markdown、改 AI 會議紀錄的全文 → 只標過時，<strong>成員列保留</strong>（素材還在，只是內容變了）。</p>
+<p>判斷準則很明確：<strong>有沒有寫回「知識來源聚合時會讀的那個檔案」</strong>。以會議紀錄為例，聚合讀的是 <code>GeneratedContentRelativePath</code> 指向的 <code>.md</code> 全文，<strong>不是</strong>摘要／決議／出席者那三個欄位——所以套用 AI 產出欄位不標過時，編修全文才標。</p>
+<h3 id="24-素材上傳新版本">2.4 素材上傳新版本</h3>
+<p><code>KnowledgeSourceMaintenanceHelper.RepointOwningSourcesToNewVersionAsync</code>：成員的 <code>ItemId</code> 自動改指向新版素材，來源標過時。<strong>你不必手動去每一個知識來源重掛一次。</strong></p>
+<h3 id="25-刪除單一-wiki-頁">2.5 刪除單一 Wiki 頁</h3>
+<p>程式進入點：<code>WikiPageService.DeleteAsync</code>。</p>
+<ol><li>檢查團隊權限。</li><li>刪該頁的實體檔。</li><li><strong>先刪指向該頁的 <code>VectorEmbedding</code></strong>，再刪頁本身。</li></ol>
+<p>第 3 步是必要的：<code>VectorEmbedding → WikiPage</code> 這條外鍵刻意設成 <code>Restrict</code>（不是 <code>Cascade</code>），為的是避免 SQL Server 判定多重串聯路徑。所以刪頁時要由程式顯式清向量，否則刪不掉。重蒸餾與編修頁時也走同一條規則，由索引管線負責。</p>
+<hr>
+<h2 id="三全庫逐項對照" class="t3">三、全庫逐項對照</h2>
+<h3 id="31-使用者會碰到的">3.1 使用者會碰到的</h3>
+<div class="tw"><table><thead><tr><th>物件</th><th>團隊權控</th><th>連帶刪除</th><th>磁碟檔</th><th>標過時</th></tr></thead><tbody><tr><td>知識來源</td><td>✅</td><td>成員／Wiki 頁／向量／圖譜四表</td><td>✅</td><td>—</td></tr><tr><td>Wiki 頁</td><td>✅</td><td>該頁的向量</td><td>✅</td><td>—</td></tr><tr><td>影音轉錄</td><td>❌ 見 §七</td><td>引用它的成員列</td><td>✅</td><td>✅</td></tr><tr><td>文件轉文字</td><td>❌ 見 §七</td><td>引用它的成員列</td><td>✅</td><td>✅</td></tr><tr><td>圖片解讀</td><td>❌ 見 §七</td><td>引用它的成員列</td><td>✅</td><td>✅</td></tr><tr><td>會議紀錄</td><td>❌ 見 §七</td><td>引用它的成員列＋會議附件列</td><td>✅</td><td>✅</td></tr></tbody></table></div>
+<h3 id="32-管理者才碰得到的列出來是為了完整">3.2 管理者才碰得到的（列出來是為了完整）</h3>
+<div class="tw"><table><thead><tr><th>物件</th><th>刪除時會發生什麼</th></tr></thead><tbody><tr><td>分類、團隊、提示詞、專案分類</td><td><strong>只刪主檔</strong>。引用端是分隔字串、無外鍵，既有紀錄不受影響也不會被擋</td></tr><tr><td>清洗規則設定</td><td>只刪設定。已清洗的內容不受影響</td></tr><tr><td>使用者、角色</td><td>只刪該筆。歷史紀錄上的帳號字串保留</td></tr><tr><td>MCP 金鑰</td><td>只刪該筆，該金鑰即刻失效</td></tr><tr><td>黃金樣本、RAG 評測樣本</td><td>只刪該筆，不影響知識內容</td></tr><tr><td>專案、工作任務</td><td>連帶刪附件列與附件實體檔。<strong>工作任務的子項是自我參照外鍵（<code>Restrict</code>），由 <code>MyTasService</code> 手動連帶刪除</strong></td></tr></tbody></table></div>
+<blockquote><p>知識圖譜的社群摘要與概念連結邊沒有「刪除按鈕」——它們由重建作業整批清除後重算（<code>GraphCommunityBuilder</code>、<code>GraphEdgeService</code> 用 <code>ExecuteDeleteAsync</code>），不是逐筆刪。</p></blockquote>
+<h3 id="33-外鍵政策的全貌">3.3 外鍵政策的全貌</h3>
+<p><code>BackendDBContext.OnModelCreating</code> <strong>開頭就把所有外鍵預設設成 <code>Restrict</code></strong>，再逐一覆寫成 <code>Cascade</code>。所以「沒有明講的就是不連帶刪、而且有子資料時父資料刪不掉」。</p>
+<ul><li><strong>覆寫成 <code>Cascade</code></strong>：專案→附件、工作任務→附件、會議→附件、知識來源→（成員／Wiki 頁／向量／圖譜邊／圖譜節點／三元組）</li><li><strong>保留 <code>Restrict</code> 且由程式手動處理</strong>：工作任務→子工作（自我參照，SQL Server 不允許 <code>Cascade</code>）、向量→Wiki 頁（避免多重串聯路徑）</li><li><strong>根本沒有外鍵</strong>：成員↔素材（靠 <code>ItemType</code>＋<code>ItemId</code> 軟參照）、分類／團隊／提示詞（分隔字串）、圖譜社群／別名／作業狀態、各種稽核與統計表</li></ul>
+<hr>
+<h2 id="四磁碟檔與資料庫列是兩回事" class="t4">四、磁碟檔與資料庫列是兩回事</h2>
+<p>資料庫的連帶刪除<strong>永遠不會</strong>碰磁碟。每一支服務都要自己刪檔，漏了就是永久孤兒檔——不佔功能、只佔空間，而且沒有任何巡檢會抓。</p>
+<p>目前會主動刪檔的：知識來源（清洗檔＋Wiki 頁檔）、Wiki 頁、四種素材、專案與工作任務的附件。</p>
+<p>⚠️ 一個已知例外見 §七之一。</p>
+<hr>
+<h2 id="五以為刪掉了其實還查得到" class="t5">五、⚠️「以為刪掉了，其實還查得到」</h2>
+<p>這是本文件最重要的一節，同時是<strong>資安問題</strong>。</p>
+<p><strong>發生情境</strong>：你上傳了一份含敏感內容的文件，發現不該放，於是到「文件轉文字」把它刪掉。</p>
+<p><strong>你以為的結果</strong>：內容消失了。</p>
+<p><strong>實際的結果</strong>：</p>
+<div class="tw"><table><thead><tr><th>層</th><th>狀態</th></tr></thead><tbody><tr><td>原始檔與轉出文字</td><td>✅ 已刪</td></tr><tr><td>該素材的紀錄</td><td>✅ 已刪</td></tr><tr><td>知識來源的成員列</td><td>✅ 已移除</td></tr><tr><td>知識來源狀態</td><td>標成 <code>內容已過時</code></td></tr><tr><td><strong>清洗後的內容</strong></td><td>❌ <strong>還在</strong>（清洗時已抄成獨立檔案）</td></tr><tr><td><strong>向量索引</strong></td><td>❌ <strong>還在</strong>（從清洗檔建的）</td></tr><tr><td><strong>Wiki 頁</strong></td><td>❌ <strong>還在</strong></td></tr><tr><td><strong>AI 知識問答</strong></td><td>❌ <strong>照樣查得到、照樣拿它作答、出處也照樣列出來</strong></td></tr></tbody></table></div>
+<p><strong>正確的處置順序</strong>：</p>
+<ol><li>刪掉素材</li><li>到「知識來源加工」對受影響的來源按<strong>重新清洗</strong>（此時該成員已不在，內容就不會再被納入）</li><li>重新<strong>蒸餾</strong></li><li><strong>重建索引</strong></li><li>到 AI 知識問答實際問一次，確認查不到了</li></ol>
+<p>第 2 步之後 <code>內容已過時</code> 才會被清掉——全系統只有<strong>重新清洗完成</strong>這一個地方會清除這個標記（<code>CleaningProcessor</code>）。</p>
+<h3 id="但重跑管線不等於內容被清除">⚠️ 但重跑管線<strong>不等於</strong>內容被清除</h3>
+<p>重新蒸餾採的是<strong>版本化，不是覆蓋</strong>（<code>DistillationProcessor</code>）：</p>
+<ul><li>舊的現行版 Wiki 頁 → 標成「<strong>已汰換</strong>」，<strong>保留不刪</strong>，供稽核與時點查詢</li><li>它的向量 → <code>IsCurrent = false</code>，<strong>退出一般檢索</strong></li></ul>
+<p>也就是說，重跑完管線後那些頁<strong>還在資料庫與磁碟上</strong>，只是問答不會再拿它們作答。對「內容過時了要更新」而言這是好設計；但<strong>如果你的目的是把敏感內容真正移除，這樣不夠乾淨</strong>。</p>
+<p><strong>真正要移除，只有一條路：刪掉整個知識來源</strong>（§2.1）——那會把清洗檔、<strong>全部</strong> Wiki 頁（含已汰換的）、全部向量索引一次帶走。代價是同一批素材要重編一個新的知識來源。</p>
+<blockquote><p>判斷準則：<strong>「內容過時」→ 重跑管線就好；「這份東西不該存在」→ 刪掉整個知識來源。</strong></p></blockquote>
+<hr>
+<h2 id="六怎麼知道現在有哪些東西不一致" class="t6">六、怎麼知道現在有哪些東西不一致</h2>
+<p>到「系統管理 → <strong>資料一致性巡檢</strong>」（<code>/data-consistency</code>），三個區塊：</p>
+<div class="tw"><table><thead><tr><th>區塊</th><th>抓什麼</th><th>怎麼處理</th></tr></thead><tbody><tr><td><strong>孤兒成員</strong></td><td>引用的素材已不存在的成員列</td><td>按清除。正常流程不會產生（刪素材時當場就移除了），出現通常代表走了 §七之一那條路徑，或是舊版留下的</td></tr><tr><td><strong>過時來源</strong></td><td><code>內容已過時</code> 的知識來源</td><td>逐筆或批次重新清洗</td></tr><tr><td><strong>低比值來源</strong></td><td>清洗後／彙整前的比值偏低者，可能是 1.0.112 之前被靜默截斷</td><td>重新清洗一次驗證</td></tr></tbody></table></div>
+<p>管理員看全庫；非管理員依團隊權控過濾。</p>
+<p>另外「系統管理 → 診斷與日誌 → <strong>檢索診斷與調校</strong>」（<code>/rag-diagnostics</code>）也會把過時來源數列進健康檢查與建議事項。知識來源清單頁本身則在該列直接顯示過時徽章。</p>
+<hr>
+<h2 id="七已知落差10119-查證時發現尚未修正" class="t7">七、已知落差（1.0.119 查證時發現，尚未修正）</h2>
+<p>以下三項是<strong>現況陳述，不是預期行為</strong>。列在這裡是為了讓你在遇到時知道不是自己操作錯。</p>
+<h3 id="71-用-rest-api-刪會議行為與畫面不一樣">7.1 用 REST API 刪會議，行為與畫面不一樣</h3>
+<p><code>DELETE /api/meeting/{id}</code> 走的是 <code>MeetingRepository.DeleteAsync</code>，畫面上的刪除走的是 <code>MeetingService.DeleteAsync</code>——<strong>兩條不同的程式路徑</strong>。</p>
+<div class="tw"><table><thead><tr><th></th><th>團隊權控</th><th>刪附件實體檔</th><th>清孤兒成員＋標過時</th></tr></thead><tbody><tr><td>畫面（<code>MeetingService</code>）</td><td>❌ 見 §7.2</td><td>✅</td><td>✅</td></tr><tr><td>REST API（<code>MeetingRepository</code>）</td><td>✅</td><td>❌</td><td>❌</td></tr></tbody></table></div>
+<p>從 API 刪會議會留下：<strong>磁碟上的孤兒附件檔</strong>、<strong>孤兒成員列</strong>，而且<strong>引用它的知識來源不會被標成過時</strong>——使用者完全不會知道那個來源的內容已經失準了。</p>
+<p><code>MeetingKnowledgeSourceStaleTests</code> 完整釘住了 Service 那條路徑，但沒有涵蓋 Repository 這條。</p>
+<h3 id="72-四個素材的-deleteasync-沒有團隊權控檢查">7.2 四個素材的 <code>DeleteAsync</code> 沒有團隊權控檢查</h3>
+<p><code>MediaTranscriptionService</code>／<code>DocumentExtractionService</code>／<code>ImageRecognitionService</code>／<code>MeetingService</code> 的 <code>DeleteAsync</code> <strong>都沒有</strong> <code>IsTeamAccessible</code> 檢查，而：</p>
+<ul><li>同一個檔案裡的 <code>RetryAsync</code> <strong>有</strong></li><li><code>KnowledgeSourceService.DeleteAsync</code> 與 <code>WikiPageService.DeleteAsync</code> <strong>有</strong></li><li><code>MeetingRepository.DeleteAsync</code>（API 路徑）<strong>有</strong></li></ul>
+<p>實務上的可利用性低——清單查詢本身已套團隊權控，Blazor Server 的元件狀態在伺服器端，使用者只刪得到畫面上渲染出來的那幾列。但這是<strong>防禦縱深的不一致</strong>：同一個服務的兩個方法標準不同。</p>
+<h3 id="73-分類團隊提示詞刪除時不檢查是否還被引用">7.3 分類／團隊／提示詞刪除時不檢查是否還被引用</h3>
+<p>因為標籤欄位是分隔字串、沒有外鍵，刪除主檔既不會被擋、也不會回寫既有紀錄。結果是紀錄上留著一個「主檔已不存在」的名字（幽靈分類）。</p>
+<p>這是既有的設計取捨（見 <a href="../../docs/guides/naming-rules.html">知識庫命名規範與範例</a> 對「改不動」欄位的說明），不是新問題；列在這裡是因為它符合本文件「刪了會發生什麼」的主題。</p>
+<blockquote><p>這三項要不要修、怎麼修，屬於另一項工作。本文件的責任是把現況說清楚。</p></blockquote>
+<hr>
+<h2 id="八相關文件" class="t8">八、相關文件</h2>
+<ul><li><a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a></li><li><a href="../../docs/guides/monitoring-health.html">系統監控與健康檢查指南</a></li><li><a href="../../docs/guides/source-and-cleaning.html">知識來源加工與清洗規則設定使用指南</a></li><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/naming-rules.html">知識庫命名規範與範例</a></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫使用者：我更新或刪掉了資料，會連帶發生什麼</li></ul></div><div class="card"><h3>同類文件（部署與維運）</h3><ul><li><a href="../../docs/operations/iis-deploy.html">IIS 佈署與可攜工具設定（C:\KMEngineTools）</a></li><li><a href="../../docs/operations/rag-troubleshooting.html">RAG 問題診斷手冊（維運用）</a></li><li><a href="../../docs/operations/fresh-machine-sop.html">全新機器部署 SOP</a></li><li><a href="../../docs/operations/external-tools.html">外部工具安裝與路徑設定</a></li><li><a href="../../docs/operations/capacity-limits.html">容量邊界與限制</a></li><li><a href="../../docs/operations/help-site-build.html">文件說明網站：產生與佈署</a></li><li><a href="../../docs/operations/logging-and-settings.html">日誌與設定檔說明</a></li><li><a href="../../docs/operations/production-checklist.html">正式部署與安全檢查清單</a></li><li><a href="../../docs/operations/maintenance-rules.html">維護規範</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一先看這三張表">一、先看這三張表</a><a class="l3" href="#11-刪了會連帶消失">1.1 刪了會連帶消失</a><a class="l3" href="#12-只是標成過時內容不動">1.2 只是標成過時，內容不動</a><a class="l3" href="#13-完全沒反應改了但既有資料不會跟著變">1.3 完全沒反應（改了但既有資料不會跟著變）</a><a class="l2" href="#二主線五類詳解">二、主線五類詳解</a><a class="l3" href="#21-刪除知識來源">2.1 刪除知識來源</a><a class="l3" href="#22-刪除素材">2.2 刪除素材</a><a class="l3" href="#23-編修素材的文字">2.3 編修素材的文字</a><a class="l3" href="#24-素材上傳新版本">2.4 素材上傳新版本</a><a class="l3" href="#25-刪除單一-wiki-頁">2.5 刪除單一 Wiki 頁</a><a class="l2" href="#三全庫逐項對照">三、全庫逐項對照</a><a class="l3" href="#31-使用者會碰到的">3.1 使用者會碰到的</a><a class="l3" href="#32-管理者才碰得到的列出來是為了完整">3.2 管理者才碰得到的（列出來是為了完整）</a><a class="l3" href="#33-外鍵政策的全貌">3.3 外鍵政策的全貌</a><a class="l2" href="#四磁碟檔與資料庫列是兩回事">四、磁碟檔與資料庫列是兩回事</a><a class="l2" href="#五以為刪掉了其實還查得到">五、⚠️「以為刪掉了，其實還查得到」</a><a class="l3" href="#但重跑管線不等於內容被清除">⚠️ 但重跑管線不等於內容被清除</a><a class="l2" href="#六怎麼知道現在有哪些東西不一致">六、怎麼知道現在有哪些東西不一致</a><a class="l2" href="#七已知落差10119-查證時發現尚未修正">七、已知落差（1.0.119 查證時發現，尚未修正）</a><a class="l3" href="#71-用-rest-api-刪會議行為與畫面不一樣">7.1 用 REST API 刪會議，行為與畫面不一樣</a><a class="l3" href="#72-四個素材的-deleteasync-沒有團隊權控檢查">7.2 四個素材的 DeleteAsync 沒有團隊權控檢查</a><a class="l3" href="#73-分類團隊提示詞刪除時不檢查是否還被引用">7.3 分類／團隊／提示詞刪除時不檢查是否還被引用</a><a class="l2" href="#八相關文件">八、相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/operations/更新與刪除的連鎖影響.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>
