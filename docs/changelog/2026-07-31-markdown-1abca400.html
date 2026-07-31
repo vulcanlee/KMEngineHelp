@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>抽出共用的 Markdown 轉換核心 md_render.py（1.0.120 → 1.0.121）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>抽出共用的 Markdown 轉換核心 md_render.py（1.0.120 → 1.0.121）</h1></header><div class="docwrap"><main><ul><li>變更日期：2026/07/31</li><li>版本：1.0.120 → <strong>1.0.121</strong></li><li>性質：<strong><code>scripts/</code> 重構（行為零變更）＋新增一道回歸守門</strong>。<strong><code>src/</code> 零變更、無模型變更、無新表、無 migration、無新設定鍵</strong>。</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="一解決什麼" class="t1">一、解決什麼</h2>
+<p><code>scripts/</code> 底下有兩支各自把 Markdown 轉成 HTML 的腳本：<code>Build-HelpSite.py</code>（說明網站 448／391 頁）與 <code>Build-OnboardingDocsHtml.py</code>（5 份伴生 HTML，<strong>有進版控</strong>）。</p>
+<p>兩者的區塊解析器<strong>幾乎逐行相同</strong>——圍欄程式碼、水平線、標題、引言遞迴、表格（含對齊列判定與欄數補齊）、清單（含核取方框）、段落合併，以及行內的「跳脫 → 保護 <code>code</code> → 粗體 → 連結 → 還原」骨架。約 <strong>130 行實質邏輯複製了兩份</strong>。</p>
+<p>這是會出事的那種重複：<strong>1.0.102 的「Markdown 表格渲染修正」</strong>已經證明過，這類解析程式改一邊、另一邊靜默不動時<strong>建置成功、無例外、測試全綠，只有人眼看得出來</strong>。專案內已有 <code>doc_slug.py</code> 的先例（<code>Build-HelpSite.py</code> 與 <code>Test-DocLinks.py</code> 共用 slug 演算法，註解明講「避免兩邊算法漂移」），這一版把同樣的紀律套到轉換核心。</p>
+<h2 id="二scriptsmd_renderpy新" class="t2">二、<code>scripts/md_render.py</code>（新）</h2>
+<p><strong>只放解析，不放政策。</strong> 連結怎麼解、標題要不要 <code>id</code>、章節導覽要不要收，全部由呼叫端以 callback 注入；模組裡<strong>沒有任何一個 <code>if</code> 在判斷「這是哪一支腳本」</strong>。</p>
+<div class="tw"><table><thead><tr><th>callback</th><th>必要</th><th>用途</th></tr></thead><tbody><tr><td><code>resolve_link(href, is_image)</code></td><td>✅</td><td>唯一的連結政策出口</td></tr><tr><td><code>make_id(raw)</code></td><td>—</td><td>標題 <code>id</code>；不傳就不輸出該屬性（伴生 HTML 走這條）</td></tr><tr><td><code>on_heading(level, raw, sid, top)</code></td><td>—</td><td>收章節導覽（只有說明網站要）</td></tr><tr><td><code>on_nonclickable()</code></td><td>—</td><td>計數（只有說明網站的統計要）</td></tr></tbody></table></div>
+<h3 id="一項對原規劃的修正">⚠️ 一項對原規劃的修正</h3>
+<p>原本規劃 <code>resolve_link(href) -&gt; (url|None, kind)</code>。<strong>兩個欄位不夠</strong>——兩支腳本對同一種連結輸出的 HTML 不一樣：</p>
+<div class="tw"><table><thead><tr><th></th><th>外部連結</th><th>不可點時的 <code>title</code></th></tr></thead><tbody><tr><td>伴生 HTML</td><td><code>rel="noopener"</code></td><td>只放<strong>檔名</strong></td></tr><tr><td>說明網站</td><td><code>rel="noopener" target="_blank"</code></td><td>放<strong>跳脫後的完整 href</strong></td></tr></tbody></table></div>
+<p>改成回傳 <strong><code>(url, attrs, title)</code> 三元組</strong>，<code>attrs</code> 與 <code>title</code> 都由呼叫端決定。政策 100% 留在呼叫端。</p>
+<h3 id="兩處逐字核對過的差異都不改變輸出">兩處逐字核對過的差異（都不改變輸出）</h3>
+<ol><li><strong>連結正規式</strong>：伴生腳本原本允許 href 帶空白（<code>[^)]+</code>），說明網站不允許（<code>[^)\s]+</code>）。<strong>掃過整個 <code>docs/</code> 確認兩式結果零差異</strong>，統一用嚴格式。</li><li><strong>標題正規式</strong>：說明網站原本用 <code>doc_slug.HEADING_RE</code>（會吃掉 ATX 尾端的 <code>#</code> 與空白），伴生腳本用寬鬆式。<strong>全 <code>docs/</code> 零差異</strong>，統一用嚴格式——因為說明網站會把這裡取到的標題文字餵給 <code>doc_slug</code> 算 slug，兩邊用不同的式子會讓錨點靜默對不上。這是重構時順手消掉的一個隱患。</li></ol>
+<p>另外，伴生腳本原本<strong>完全不處理</strong> <code>![]()</code> 圖片語法；已確認那 5 份 md <strong>零張圖片</strong>，所以核心統一處理不改變今天的產出。</p>
+<h2 id="三-順帶抓到一個既有的漂移" class="t3">三、⚠️ 順帶抓到一個既有的漂移</h2>
+<p>驗證第一步就發現：<code>Build-OnboardingDocsHtml.py</code> 重跑後，<strong>有兩份伴生 HTML 出現差異</strong>。</p>
+<p>查證後確認<strong>不是重構造成的</strong>——把改動 <code>git stash</code> 起來、用<strong>重構前的舊程式</strong>重跑，得到<strong>一模一樣的差異</strong>。真正的原因是：<strong>那兩份 md 在 1.0.112 前後被更新過，但伴生 HTML 從來沒有重新產生</strong>，版控裡那兩份停留在舊內容（還在說「截斷完全沒有提示」，而 1.0.112 起已經會直接失敗或留註記）。</p>
+<p>也就是說，<strong>「md 是唯一來源」這條紀律在這裡已經失效了一陣子</strong>，而且沒有任何東西會發現。本版一併重新產生並納入。</p>
+<blockquote><p>這正好說明為什麼要加第四節那道守門：只靠人記得重跑是不夠的。</p></blockquote>
+<h2 id="四scriptstest-mdrenderpy新-黃金檔" class="t4">四、<code>scripts/Test-MdRender.py</code>（新）＋ 黃金檔</h2>
+<ul><li><code>scripts/testdata/md_render_fixture.md</code>：涵蓋 H1～H6、圍欄程式碼、水平線、引言（內含表格與清單，驗遞迴）、表格（含欄數不足補齊）、有序／無序清單、<code>[ ]</code>／<code>[x]</code>／<code>[X]</code> 核取方框、行內 <code>code</code>／粗體／五種連結／圖片、段落跨行合併、HTML 跳脫。</li><li>用<strong>兩種形態</strong>各跑一次（帶 <code>id</code>＋收 TOC／不帶 <code>id</code>），對應兩支呼叫端的用法。</li><li>不符時印出<strong>逐行 unified diff</strong>；<code>--update</code> 可重新產生黃金檔（刻意要顯式指定）。</li></ul>
+<h3 id="接進-test-allps1-成為第一道">接進 <code>Test-All.ps1</code> 成為第一道</h3>
+<p>排第一是因為<strong>轉換核心壞了，後面兩道文件守門的結果就不可信</strong>（產出的 HTML 本來就不對）。實測 0.6 秒。</p>
+<p>順手修掉一個同類的毛病：<code>Test-All.ps1</code> 收尾那句寫死「<strong>四道</strong>守門全部通過」，加了第五道之後就過期了。改成用實際跑過的道數。</p>
+<p>⚠️ 依 1.0.118 的教訓，這支腳本<strong>自己的訊息不用表情符號</strong>，並加了 <code>sys.stdout.reconfigure(errors="replace")</code> 防 cp950 主控台炸掉。</p>
+<h2 id="五驗證產出零差異" class="t5">五、驗證：產出零差異</h2>
+<p>重構的唯一驗收標準是<strong>行為完全不變</strong>。</p>
+<div class="tw"><table><thead><tr><th>驗證</th><th>結果</th></tr></thead><tbody><tr><td>說明網站完整版逐位元比對（重構前快照 vs 重構後）</td><td><strong>完全相同</strong></td></tr><tr><td>說明網站對外版逐位元比對</td><td><strong>完全相同</strong>（兩版合計 853 個檔）</td></tr><tr><td>5 份伴生 HTML 對「舊程式剛產生的版本」逐位元比對</td><td><strong>5 份全部相同</strong></td></tr><tr><td><code>scripts/Test-All.ps1</code></td><td><strong>五道全綠</strong>（測試 1120 通過／0 失敗，本版 <code>src/</code> 零變更）</td></tr><tr><td>🔴 <strong>反證</strong>：故意把 <code>&lt;strong&gt;</code> 改成 <code>&lt;b&gt;</code></td><td>黃金檔守門<strong>紅燈、結束碼 1</strong>，並印出正確的差異行；還原後恢復綠燈</td></tr></tbody></table></div>
+<p>⚠️ 伴生 HTML 的比對基準刻意<strong>不是版控裡那份</strong>（那份是過期的，見第三節），而是「用重構前的程式重新產生的版本」。拿過期的當基準會把既有漂移誤算成重構的錯。</p>
+<h3 id="ciyml-一個字都不用改"><code>ci.yml</code> 一個字都不用改</h3>
+<p>1.0.118 決定「CI 只呼叫 <code>Test-All.ps1</code>、不把守門清單再列一次」，理由是「列兩份的話日後新增守門一定會漏改其中一份」。<strong>這一版就是那個「日後」</strong>——新增第五道守門，<code>ci.yml</code> 零改動。</p>
+<h2 id="六文件更新" class="t6">六、文件更新</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>改什麼</th></tr></thead><tbody><tr><td><a href="../../docs/operations/maintenance-rules.html">operations/維護規範</a></td><td>§4.1 守門表由四道改為<strong>五道</strong>並補上排序理由與黃金檔的更新方式；§4.2 補一句「這個判斷在 1.0.121 得到印證」</td></tr><tr><td><a href="../../docs/operations/help-site-build.html">operations/文件說明網站產生與佈署</a></td><td>§四「內容要改哪裡」把「轉換邏輯」拆成<strong>這個網站的連結規則</strong>（留在 <code>Converter</code>）與 <strong>Markdown 語法本身</strong>（共用的 <code>md_render.py</code>）；新增 §4.1 說明共用核心的分工與「改了就是同時改兩個產出」</td></tr></tbody></table></div>
+<h2 id="七後續" class="t7">七、後續</h2>
+<p><code>scripts/</code> 這條線的重構到此為止。<strong>CSS 刻意沒有共用</strong>——兩支的調色盤雖然相同，但設計目標不同（單頁文件 vs 帶站台框架的網站），硬合反而難改。</p>
+<p>仍掛著待決定的：1.0.119 查出的三項刪除／更新落差（見 <a href="../../docs/operations/delete-update-cascade.html">更新與刪除的連鎖影響</a> §七），以及還原階段回報的兩個高嚴重性套件弱點。</p>
+<hr>
+<blockquote><p>返回 <a href="../../docs/changelog/readme-436e4418.html">changelog 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一解決什麼">一、解決什麼</a><a class="l2" href="#二scriptsmd_renderpy新">二、scripts/md_render.py（新）</a><a class="l3" href="#一項對原規劃的修正">⚠️ 一項對原規劃的修正</a><a class="l3" href="#兩處逐字核對過的差異都不改變輸出">兩處逐字核對過的差異（都不改變輸出）</a><a class="l2" href="#三-順帶抓到一個既有的漂移">三、⚠️ 順帶抓到一個既有的漂移</a><a class="l2" href="#四scriptstest-mdrenderpy新-黃金檔">四、scripts/Test-MdRender.py（新）＋ 黃金檔</a><a class="l3" href="#接進-test-allps1-成為第一道">接進 Test-All.ps1 成為第一道</a><a class="l2" href="#五驗證產出零差異">五、驗證：產出零差異</a><a class="l3" href="#ciyml-一個字都不用改">ci.yml 一個字都不用改</a><a class="l2" href="#六文件更新">六、文件更新</a><a class="l2" href="#七後續">七、後續</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-31-Markdown轉換核心共用化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

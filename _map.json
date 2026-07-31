@@ -1794,9 +1794,23 @@
    "internal": false
   },
   {
+   "source": "docs/changelog/2026-07-31-Markdown轉換核心共用化.md",
+   "output": "docs/changelog/2026-07-31-markdown-1abca400.html",
+   "title": "抽出共用的 Markdown 轉換核心 md_render.py（1.0.120 → 1.0.121）",
+   "curated": false,
+   "internal": false
+  },
+  {
    "source": "docs/changelog/2026-07-31-一鍵檢查與CI.md",
    "output": "docs/changelog/2026-07-31-ci-de50cfa4.html",
    "title": "提交前的一鍵檢查與一層薄 CI（1.0.117 → 1.0.118）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-31-刪會議行為一致化.md",
+   "output": "docs/changelog/2026-07-31-e082f966.html",
+   "title": "修好「API 刪會議」與畫面刪會議的行為不一致（1.0.121 → 1.0.122）",
    "curated": false,
    "internal": false
   },
@@ -1811,6 +1825,13 @@
    "source": "docs/changelog/2026-07-31-知識庫使用者角色.md",
    "output": "docs/changelog/2026-07-31-aec27b6c.html",
    "title": "說明網站新增第四種角色「知識庫使用者」（1.0.119 → 1.0.120）",
+   "curated": false,
+   "internal": false
+  },
+  {
+   "source": "docs/changelog/2026-07-31-系統綜覽入口.md",
+   "output": "docs/changelog/2026-07-31-948af8b8.html",
+   "title": "說明網站首頁加「智庫引擎系統綜覽」入口（1.0.122 → 1.0.123）",
    "curated": false,
    "internal": false
   },
@@ -2014,6 +2035,13 @@
    "source": "docs/guides/新手完整操作指南.md",
    "output": "docs/guides/beginner-guide.html",
    "title": "新手完整操作指南（完全沒接觸過知識庫也看得懂）",
+   "curated": true,
+   "internal": false
+  },
+  {
+   "source": "docs/guides/智庫引擎系統綜覽.md",
+   "output": "docs/guides/system-overview.html",
+   "title": "智庫引擎系統綜覽",
    "curated": true,
    "internal": false
   },

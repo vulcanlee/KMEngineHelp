@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>修好「API 刪會議」與畫面刪會議的行為不一致（1.0.121 → 1.0.122）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>修好「API 刪會議」與畫面刪會議的行為不一致（1.0.121 → 1.0.122）</h1></header><div class="docwrap"><main><ul><li>變更日期：2026/07/31</li><li>版本：1.0.121 → <strong>1.0.122</strong></li><li>性質：<strong><code>src/</code> 修正 ＋ 測試 ＋ 文件</strong>。<strong>無模型變更、無新表、無 migration、無新設定鍵</strong>。</li><li>對應項目：1.0.119 全庫盤點查出的三項落差之<strong>第一項</strong></li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="一解決什麼" class="t1">一、解決什麼</h2>
+<p>同一筆會議，從畫面刪和從 REST API 刪，<strong>結果不一樣</strong>——因為它們是<strong>兩份不同的程式</strong>：</p>
+<div class="tw"><table><thead><tr><th></th><th>團隊權控</th><th>刪附件實體檔</th><th>清孤兒成員＋標來源過時</th></tr></thead><tbody><tr><td>畫面（<code>MeetingService.DeleteAsync</code>）</td><td>❌ 落差 #2，另案</td><td>✅</td><td>✅</td></tr><tr><td>REST API（<code>MeetingRepository.DeleteAsync</code>）</td><td>✅</td><td>❌</td><td>❌</td></tr></tbody></table></div>
+<p>從 API 刪會議會留下<strong>磁碟孤兒附件檔</strong>、<strong>孤兒成員列</strong>，而且<strong>引用它的知識來源不會被標成過時</strong>——使用者完全不會知道那個來源的內容已經失準了。這是三項落差裡唯一會造成「<strong>資料悄悄變錯而沒有人知道</strong>」的一項，所以先修它。</p>
+<p>既有的 <code>MeetingKnowledgeSourceStaleTests</code> 完整釘住了 Service 那條路徑（6 條，含兩條刻意的反證），但<strong>完全沒有涵蓋 Repository 這條</strong>——這就是它能一直存在的原因。</p>
+<h2 id="二順帶修掉的第二個洞" class="t2">二、順帶修掉的第二個洞</h2>
+<p>規劃時查證出：<code>Meeting.GeneratedContentRelativePath</code>（AI 會議紀錄的 <code>.md</code>）<strong>兩條路徑原本都沒刪</strong>，畫面刪也會留孤兒檔（<code>MeetingService.DeleteAsync</code> 只走 <code>item.Files</code>）。</p>
+<p>安全性先查證過才動手：會議與影音轉錄的產生內容檔名都是 <code>{年}/{Guid:N}.md</code>（<code>MeetingMinutesGenerationService.SaveMarkdownAsync</code>／<code>LlmGenerationService.SaveGeneratedContentFileAsync</code>），<strong>GUID 命名不可能撞檔</strong>，刪會議只會刪到自己那份；而且兩支服務本來就有「只保留最新一筆：刪除上次的落地檔」的邏輯，<strong>刪這種檔不是新行為</strong>。</p>
+<h2 id="三修法" class="t3">三、修法</h2>
+<p>新增 <code>Business/Helpers/MeetingDeletionHelper.cs</code>，與 <code>KnowledgeSourceMaintenanceHelper</code> <strong>同一個形狀</strong>：靜態、<strong>不呼叫 <code>SaveChangesAsync</code></strong>，交由呼叫端在既有交易中一併提交以維持原子性。</p>
+<p>它做三件事：刪附件實體檔 → 刪 AI 會議紀錄的 <code>.md</code> → 呼叫既有的 <code>KnowledgeSourceMaintenanceHelper.MarkOwningSourcesStaleAsync(..., removeOrphanItems: true)</code>。兩條路徑都改成呼叫它。</p>
+<div class="tw"><table><thead><tr><th>檔案</th><th>變更</th></tr></thead><tbody><tr><td><code>Helpers/MeetingDeletionHelper.cs</code>（新）</td><td>共同處置</td></tr><tr><td><code>Services/DataAccess/MeetingService.cs</code></td><td>「逐檔刪 → 標過時」那一段換成 helper。<strong>行為的唯一變化是多刪了 AI 會議紀錄那份檔</strong></td></tr><tr><td><code>Repositories/MeetingRepository.cs</code></td><td>建構式加 <code>IOptions&lt;SystemSettings&gt;</code> 與 <code>ILogger</code>；<code>DeleteAsync</code> 由 <code>FindAsync</code> 改為帶 <code>.Include(x =&gt; x.Files)</code> 的查詢，通過權限檢查後呼叫 helper</td></tr></tbody></table></div>
+<h3 id="三個刻意的設計選擇">三個刻意的設計選擇</h3>
+<p><strong>① 權限檢查留在原位，在刪檔之前。</strong> helper 會真的刪檔，順序反了會變成「<strong>刪不掉但檔案已經沒了</strong>」——比原本的落差更糟。這一點由一條專門的反證測試釘住。</p>
+<p><strong>② 刪檔失敗不讓整筆刪除失敗。</strong> 檔案被其他程序佔用時只記 <code>Warning</code> 繼續走（沿用素材三型 <code>TryDeleteRelative</code> 的處置）。留下孤兒檔，比讓使用者永遠刪不掉那筆會議好。⚠️ 這與 <code>MeetingService</code> 原本的 <code>TryDeleteFile</code>（不 catch，被鎖住就整筆失敗）不同，是刻意改成較安全的那一種。</p>
+<p><strong>③ 沒有把 <code>GetFullPath</code>／<code>TryDeleteFile</code> 搬進 helper。</strong> 規劃時本來要搬，實作時查出那三個 private 方法<strong>還被另外三處呼叫</strong>（單檔刪除等），與本次的連帶處置無關；搬了會動到不相干的程式路徑。真正該消掉的重複——刪除的連帶處置序列——已經消掉了。</p>
+<h2 id="四測試meetingdeleteparitytestscs新檔6-條" class="t4">四、測試：<code>MeetingDeleteParityTests.cs</code>（新檔，6 條）</h2>
+<p>既有的 <code>MeetingKnowledgeSourceStaleTests</code> <strong>一條都沒有改</strong>——它講的是「素材異動 → 過時」的契約，這一檔釘的是不一樣的東西：<strong>兩條刪除路徑的結果必須一致</strong>。</p>
+<p><strong>先寫測試看紅燈</strong>，確認測到的是真問題：</p>
+<div class="tw"><table><thead><tr><th>#</th><th>測什麼</th><th>修之前</th></tr></thead><tbody><tr><td>1</td><td>Repository 刪 → 孤兒成員被移除、來源 <code>ContentStale</code></td><td>🔴 紅</td></tr><tr><td>2</td><td>Repository 刪 → 附件實體檔不存在</td><td>🔴 紅</td></tr><tr><td>3</td><td>Repository 刪 → AI 會議紀錄的 <code>.md</code> 不存在</td><td>🔴 紅</td></tr><tr><td>4</td><td><strong>Service</strong> 刪 → AI 會議紀錄的 <code>.md</code> 不存在（第二節那個洞）</td><td>🔴 紅</td></tr><tr><td>5</td><td><strong>平價</strong>：同一情境走兩條路徑，成員數／<code>ContentStale</code>／兩種檔案的存在與否<strong>完全一致</strong></td><td>🔴 紅</td></tr><tr><td>6</td><td>🔴 <strong>反證</strong>：Repository 對無權限的會議 → 回 <code>false</code>，且<strong>檔案還在、成員還在、來源沒被標過時、會議還在</strong></td><td>綠（但先前沒人守著）</td></tr></tbody></table></div>
+<p>實測<strong>修之前 5 紅 1 綠</strong>，與預期完全一致——綠的那條正是反證，它本來就該綠。</p>
+<p>第 6 條是這組裡最重要的：修完之後 helper 會刪檔，<strong>必須確認權限不足時 helper 根本沒被呼叫到</strong>。</p>
+<h2 id="五驗證" class="t5">五、驗證</h2>
+<ul><li><code>pwsh -NoProfile -File scripts/Test-All.ps1</code> → <strong>五道全綠</strong>，測試 <strong>1120 → 1126</strong></li><li>既有 <code>MeetingKnowledgeSourceStaleTests</code> 6 條全綠，<strong>未修改任何一條</strong></li><li><code>dotnet build</code> 0 錯誤</li></ul>
+<h3 id="無法完成的驗證">❌ 無法完成的驗證</h3>
+<p><strong><code>DELETE /api/meeting/{id}</code> 的實際 HTTP 呼叫沒有跑過</strong>（需要跑起服務並帶 JWT）。測試涵蓋的是 <code>MeetingRepository.DeleteAsync</code> 這一層；<code>MeetingController.Delete</code> 只是薄薄一層轉發，沒有其他邏輯。</p>
+<h2 id="六順帶記錄本版不處理" class="t6">六、順帶記錄，本版不處理</h2>
+<p><code>MyTaskRepository.DeleteAsync</code> 與 <code>ProjectRepository.DeleteAsync</code> 有<strong>同一類的實體檔孤兒</strong>（刪 DB 列但不刪附件實體檔）。那兩支是樣板 CRUD、與知識庫無關，不在本次範圍內，記在這裡供日後決定。</p>
+<h2 id="七文件更新" class="t7">七、文件更新</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>改什麼</th></tr></thead><tbody><tr><td><a href="../../docs/operations/delete-update-cascade.html">operations/更新與刪除的連鎖影響</a></td><td>§7.1 標為<strong>已修正</strong>並寫明修法與反證；§3.1 會議那一列補上 AI 會議紀錄的 <code>.md</code>；§二之二、§六的孤兒成員說明同步；對應系統版本 → 1.0.122</td></tr></tbody></table></div>
+<h2 id="八剩下的" class="t8">八、剩下的</h2>
+<p>1.0.119 查出的三項落差還剩兩項：<strong>§7.2 四個素材的 <code>DeleteAsync</code> 缺團隊權控</strong>（刻意四支一起改，只補一支會製造新的不一致）、<strong>§7.3 標籤主檔刪除不檢查引用</strong>（既有設計取捨）。</p>
+<hr>
+<blockquote><p>返回 <a href="../../docs/changelog/readme-436e4418.html">changelog 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一解決什麼">一、解決什麼</a><a class="l2" href="#二順帶修掉的第二個洞">二、順帶修掉的第二個洞</a><a class="l2" href="#三修法">三、修法</a><a class="l3" href="#三個刻意的設計選擇">三個刻意的設計選擇</a><a class="l2" href="#四測試meetingdeleteparitytestscs新檔6-條">四、測試：MeetingDeleteParityTests.cs（新檔，6 條）</a><a class="l2" href="#五驗證">五、驗證</a><a class="l3" href="#無法完成的驗證">❌ 無法完成的驗證</a><a class="l2" href="#六順帶記錄本版不處理">六、順帶記錄，本版不處理</a><a class="l2" href="#七文件更新">七、文件更新</a><a class="l2" href="#八剩下的">八、剩下的</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-31-刪會議行為一致化.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>智庫引擎系統綜覽｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 操作指南</p><header class="hero"><div class="kicker">操作指南</div><h1>智庫引擎系統綜覽</h1><p class="sub">第一次聽到「智庫引擎」的人，五分鐘看懂全貌——這是什麼、解決什麼問題、能做到什麼、做不到什麼、用之前要知道什麼、要準備與配合什麼。中性陳述，不推銷。</p></header><div class="docwrap"><main><ul><li>文件用途：<strong>第一次聽到「智庫引擎」的人，五分鐘看懂全貌</strong>——這是什麼、解決什麼問題、能做到什麼、<strong>做不到什麼</strong>、用之前要知道什麼、要準備與配合什麼。中性陳述，不推銷。</li><li>主要讀者：任何第一次接觸這套系統的人（企業內部同仁、客戶、顧問、決策者皆可）</li><li>文件版本：1.0</li><li>建立日期：2026/07/31</li><li>更新日期：2026/07/31</li><li>對應系統版本：1.0.123（系統名稱：<strong>智庫引擎</strong>）</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<blockquote><p><strong>與 <a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a> 的分工</strong>：本篇回答「<strong>這是什麼、能不能解決我的問題</strong>」，給還沒決定要不要用的人；那一篇回答「<strong>我要做 X 該去哪一頁</strong>」，給已經在用的人。兩份名字很像，別看錯了。</p></blockquote>
+<hr>
+<h2 id="一一句話這是什麼" class="t1">一、一句話，這是什麼</h2>
+<p><strong>把企業散在各處的文件、會議與影音，變成「可以用問句問出答案、而且每個答案都附得出出處」的知識庫。</strong></p>
+<p>三個關鍵詞，缺一不可：</p>
+<div class="tw"><table><thead><tr><th>關鍵詞</th><th>意思</th><th>為什麼重要</th></tr></thead><tbody><tr><td><strong>用問句問</strong></td><td>不是關鍵字搜尋，是「入職滿三年的健康檢查福利是什麼？」這種自然語言</td><td>使用者不必知道答案在哪份文件裡</td></tr><tr><td><strong>附出處</strong></td><td>每個答案下方列出它引用了哪幾段、來自哪一份原始檔，可以一路點回去下載</td><td><strong>答案可查證，才敢拿來做決定</strong></td></tr><tr><td><strong>受權限管</strong></td><td>不屬於你團隊的內容，在檢索階段就被濾掉，不會進答案也不會進出處</td><td>同一個知識庫，不同的人看到不同的範圍</td></tr></tbody></table></div>
+<hr>
+<h2 id="二它解決什麼問題" class="t2">二、它解決什麼問題</h2>
+<p>不是「公司沒有文件」，多數企業文件多到滿出來。真正的問題是這四件事，而且它們每天都在發生：</p>
+<div class="tw"><table><thead><tr><th>情境</th><th>實際成本</th></tr></thead><tbody><tr><td><strong>找不到</strong> —— 知道公司一定有寫過，但不知道在哪個資料夾、哪個信箱、哪份簡報裡</td><td>每次重找一輪</td></tr><tr><td><strong>找到了，但不確定是不是最新的</strong> —— 同一份規範有 <code>_v2</code>、<code>_final</code>、<code>_final2</code></td><td>用到舊版做出錯誤決定</td></tr><tr><td><strong>乾脆去問人</strong> —— 因為問人比找快</td><td>一件事佔用兩個人的時間，而且資深的人一直被打斷</td></tr><tr><td><strong>人走了，知識也走了</strong> —— 最關鍵的判斷從來沒有被寫下來</td><td>交接文件十五頁，但真正的答案帶走了</td></tr></tbody></table></div>
+<p>這套系統要做的是把第一件事變成「問一句、三十秒」，並且讓第三、四件事<strong>有地方沉澱</strong>。</p>
+<hr>
+<h2 id="三它怎麼運作" class="t3">三、它怎麼運作</h2>
+<p>心智模型只有五個站。看懂這張圖，後面所有文件都會變好讀：</p>
+<pre><code>  ①匯入        ②清洗          ③蒸餾         ④索引        ⑤問答
+錄音/文件/圖片 → 去重·遮蔽個資 → 拆成一個個 → 切段建立 → 用問句問，
+   變成文字      分類·寫摘要     概念的 Wiki   可檢索的      附出處回答
+                                                向量</code></pre>
+<div class="tw"><table><thead><tr><th>站</th><th>一句話</th><th>為什麼要有它</th></tr></thead><tbody><tr><td>① <strong>匯入</strong></td><td>把錄音、影片、PDF、掃描件、圖片變成<strong>文字</strong></td><td>系統只認得文字</td></tr><tr><td>② <strong>清洗</strong></td><td>把一批相關素材<strong>去除重複、遮蔽個資、分類、寫摘要</strong></td><td>原始素材直接餵給 AI，答案品質會很差</td></tr><tr><td>③ <strong>蒸餾</strong></td><td>從乾淨內容<strong>拆出一個個概念</strong>，每個概念一頁 Wiki</td><td>問「整體風險有哪些」時，要有人先歸納過</td></tr><tr><td>④ <strong>索引</strong></td><td>把內容切段、算出代表語意的向量</td><td><strong>沒有這一步就完全問不到</strong></td></tr><tr><td>⑤ <strong>問答</strong></td><td>用問句提問，取出最相關的十來段交給 AI 作答</td><td>這是使用者每天真正在用的那一頁</td></tr></tbody></table></div>
+<p>⚠️ <strong>順序不能跳。</strong> 沒清洗就不能蒸餾、沒建索引就問不到——不是「效果差一點」，是<strong>完全查不到</strong>。</p>
+<blockquote><p>每一站的實際操作見 <a href="../../docs/guides/user-getting-started.html">知識庫使用者上手指南</a>。</p></blockquote>
+<hr>
+<h2 id="四能做到什麼" class="t4">四、能做到什麼</h2>
+<p>功能很多，收成六群比較好記。<strong>這裡只講輪廓</strong>，逐項的完整清單見 <a href="../../docs/strategy/feature-highlights.html">系統功能與特色清單</a>。</p>
+<div class="tw"><table><thead><tr><th>群</th><th>做什麼</th></tr></thead><tbody><tr><td><strong>把東西變成文字</strong></td><td>影音／會議錄音自動轉逐字稿、多格式文件轉文字（含批次壓縮檔）、圖片 OCR 與視覺理解</td></tr><tr><td><strong>把文字變成知識</strong></td><td>五步清洗（去重／遮蔽個資／分類／摘要／信心自評）、蒸餾成版本化的互連 Wiki、人工審核關卡</td></tr><tr><td><strong>問得到、答得準</strong></td><td>混合檢索（語意＋關鍵字＋知識圖譜）、多輪追問、<strong>答案附出處可鑽取回原始檔</strong>、兩段式信心提示</td></tr><tr><td><strong>知識之間的關聯</strong></td><td>知識百科與 WikiLink 導覽、知識圖譜（可回答「A 和 C 有什麼關聯」這類跨來源問題）</td></tr><tr><td><strong>管得住</strong></td><td>團隊權限在<strong>檢索層</strong>就過濾、提示詞線上編輯免重啟、問答稽核明細、Token 用量與成本統計</td></tr><tr><td><strong>維護得下去</strong></td><td>資料一致性巡檢、檢索品質評測與基線、系統健康監控、<strong>本機／雲端模型可切換</strong>（資料主權）</td></tr></tbody></table></div>
+<hr>
+<h2 id="五-做不到什麼" class="t5">五、⚠️ 做不到什麼</h2>
+<p><strong>這一節請認真看。</strong> 導入失敗最常見的原因不是系統不好用，是<strong>期待放錯了地方</strong>。</p>
+<h3 id="51-靠規劃可以繞過的">5.1 靠規劃可以繞過的</h3>
+<div class="tw"><table><thead><tr><th>做不到</th><th>怎麼繞</th></tr></thead><tbody><tr><td>用「分類」做二維切分（例如同時篩客戶又篩產品線）</td><td>分類多選是<strong>「或」不是「且」</strong>，會拿到聯集。改用「知識來源」當主切分單位</td></tr><tr><td>光在問句裡寫型號就保證找對那一套</td><td>那只加一點相關度分數，不夠可靠。要 100% 找對，用「<strong>限定知識來源</strong>」硬篩</td></tr><tr><td>一個知識來源塞幾十份文件</td><td>會撞上模型的處理上限。<strong>分盒</strong>，一盒放能被同一個問句問到的東西</td></tr></tbody></table></div>
+<h3 id="52-需要改程式才能做到的">5.2 需要改程式才能做到的</h3>
+<ul><li><strong>跨系統整合</strong>：目前不會自動去 ERP／PLM／MES 撈資料，資料要先匯進來。</li><li><strong>自動同步共用資料夾</strong>：檔案更新不會自動重跑，要人去按。</li><li><strong>依欄位做結構化查詢</strong>：它擅長「語意上相關」，不擅長「列出所有 2024 年金額大於 100 萬的合約」這種資料庫式查詢。</li></ul>
+<h3 id="53-本質上不該用這套系統做的">5.3 本質上不該用這套系統做的</h3>
+<div class="tw"><table><thead><tr><th>不該做</th><th>為什麼</th></tr></thead><tbody><tr><td>當作<strong>唯一</strong>的正式文件保管系統</td><td>它是知識庫不是文件管理系統；正式版本的合約、圖面仍應有原本的保管機制</td></tr><tr><td>拿它的答案直接當<strong>法律或財務依據</strong></td><td>AI 會答錯。涉及金額、條款、法遵的一律展開出處核對原文</td></tr><tr><td>存放<strong>還在爭議中、未定案</strong>的內容</td><td>系統不知道那是未定案的，會當成事實回答</td></tr><tr><td>期待它<strong>取代</strong>資深員工的判斷</td><td>它能把「查得到的東西」變快，但無法產生原本不存在的判斷</td></tr></tbody></table></div>
+<blockquote><p>依部門的完整「做不到什麼」對照見 <a href="../../docs/guides/department-playbook.html">企業實戰情境劇本</a> §九。</p></blockquote>
+<hr>
+<h2 id="六-使用上一定要知道的事" class="t6">六、⚠️ 使用上一定要知道的事</h2>
+<p>這幾件事<strong>不會有人在畫面上提醒你</strong>，但踩到會直接影響你對答案的信任。</p>
+<h3 id="61-ai-會答錯所以一定要看出處">6.1 AI 會答錯，所以一定要看出處</h3>
+<p>系統會依相關度分三種回應：<strong>查無相關依據</strong>（找不到就直說，不亂編）、<strong>⚠️ 信心不足</strong>（有找到但只沾到邊，會先警告你）、<strong>正常回答</strong>。</p>
+<p>涉及數字、條款、金額的答案，<strong>一律展開出處核對</strong>。</p>
+<h3 id="62-內容過時是靜默的">6.2 內容過時是「靜默」的</h3>
+<p>你改了成員、換了素材之後，系統只會在清單上標一個「內容已過時」的徽章。<strong>那只是提示，不擋任何事</strong>——在你重跑「清洗 → 蒸餾 → 索引」之前，<strong>問答照樣拿舊內容作答</strong>。</p>
+<h3 id="63-刪掉不等於問答就查不到">6.3 刪掉不等於問答就查不到</h3>
+<p>刪掉一份素材，原始檔會刪、成員會清掉，<strong>但清洗後的副本與向量索引原封不動</strong>——那份你以為已經移除的內容，<strong>問答還是查得到、還是會被拿去作答</strong>。</p>
+<p>而且<strong>重跑管線也不夠</strong>：重新蒸餾是<strong>版本化不是覆蓋</strong>，舊頁會被保留成「已汰換」。<strong>要真正移除，只能刪掉整個知識來源。</strong></p>
+<blockquote><p>完整的連鎖對照見 <a href="../../docs/operations/delete-update-cascade.html">更新與刪除的連鎖影響</a>。</p></blockquote>
+<h3 id="64-一盒塞太多會被截斷">6.4 一盒塞太多會被截斷</h3>
+<p>一個知識來源塞太多份，清洗或蒸餾可能撞上模型的輸出上限。<strong>1.0.112 之前這種失敗完全沒有提示</strong>（狀態仍是「已清洗」卻少了一大段）；現在系統會直接失敗或留下明確註記，但<strong>舊資料仍可能已經受影響</strong>。</p>
+<blockquote><p>判斷方法與回溯偵測見 <a href="../../docs/guides/source-scale-limits.html">知識來源分盒與規模上限指南</a>。</p></blockquote>
+<h3 id="65-問答內容會被保留">6.5 問答內容會被保留</h3>
+<p>問句與回覆<strong>全文會保留在伺服器上</strong>（刻意的稽核設計，僅管理員可查閱）。這不是匿名統計，<strong>填入機密內容前請留意</strong>。</p>
+<h3 id="66-別人問得到我問不到通常是權限不是故障">6.6 「別人問得到我問不到」通常是權限，不是故障</h3>
+<p>團隊權控在<strong>每一輪問答都重新判定</strong>，不屬於你團隊的內容連出處都不會出現。遇到就去找管理者，不是系統壞了。</p>
+<hr>
+<h2 id="七要準備與配合什麼" class="t7">七、要準備與配合什麼</h2>
+<div class="tw"><table><thead><tr><th>要準備</th><th>具體是什麼</th><th>誰出</th></tr></thead><tbody><tr><td><strong>資料</strong></td><td>能回答你關心問題的那幾十份文件、錄音；<strong>不是</strong>把整個共用資料夾倒進來</td><td>各部門</td></tr><tr><td><strong>人</strong></td><td>一位管理者（訂命名規範與分類、開團隊權限、看品質）＋ 各部門一位窗口</td><td>客戶端</td></tr><tr><td><strong>時間</strong></td><td>第一批控制在 20～30 份並<strong>全部人工看過</strong>，確認品質後再擴大</td><td>客戶端</td></tr><tr><td><strong>模型與金鑰</strong></td><td>雲端 LLM 金鑰，或地端模型的機器。<strong>無金鑰時只能做到彙整與繁體化，評測與蒸餾一定要金鑰</strong></td><td>依資料敏感度決定</td></tr><tr><td><strong>硬體與環境</strong></td><td>依部署規模而定；影音轉錄需要額外的外部工具</td><td>資訊部門</td></tr></tbody></table></div>
+<p>⚠️ <strong>最容易被低估的是「人」那一項。</strong> 沒有人訂命名規範與分類詞庫，上線三個月後會出現十盒都叫「設計規範」、AI 分不出來的狀況——<strong>而那些欄位上線後就很難改</strong>。</p>
+<blockquote><p>要準備哪些資料、怎麼蒐集見 <a href="../../docs/guides/user-data-preparation.html">我該準備與蒐集哪些資料</a>；命名規範見 <a href="../../docs/guides/naming-cheatsheet.html">知識庫命名規範速查卡</a>。</p></blockquote>
+<hr>
+<h2 id="八誰適合用誰不適合" class="t8">八、誰適合用、誰不適合</h2>
+<h3 id="適合">適合</h3>
+<ul><li>知識<strong>主要以文字存在</strong>（規範、SOP、會議記錄、客服問答、技術文件）</li><li>同樣的問題<strong>會被反覆問</strong></li><li>有<strong>跨部門或跨客戶</strong>的資訊隔離需求</li><li>願意投入<strong>一個人</strong>負責維護內容品質</li></ul>
+<h3 id="不適合或該先想清楚">不適合（或該先想清楚）</h3>
+<div class="tw"><table><thead><tr><th>情況</th><th>為什麼</th></tr></thead><tbody><tr><td>知識主要在<strong>圖面、CAD、公式</strong>裡</td><td>圖的意義通常不在圖上，系統只描述看得到的東西</td></tr><tr><td>期待<strong>上傳完就自動好</strong>，沒有人負責維護</td><td>垃圾進垃圾出；清洗的信心門檻擋得住格式問題，擋不住內容錯誤</td></tr><tr><td>主要需求是<strong>結構化查詢與統計</strong></td><td>那是資料庫或 BI 的工作，不是這套系統</td></tr><tr><td>資料<strong>完全不能離開特定環境</strong>，又沒有地端模型資源</td><td>需要先解決模型的部署方式</td></tr></tbody></table></div>
+<hr>
+<h2 id="九典型的導入節奏" class="t1">九、典型的導入節奏</h2>
+<div class="tw"><table><thead><tr><th>時間</th><th>該完成</th><th>該看到</th></tr></thead><tbody><tr><td><strong>第 1 週</strong></td><td>環境裝好、基礎設定（團隊／分類／角色）、命名規範發下去</td><td>能登入、能看到選單</td></tr><tr><td><strong>第 2～4 週</strong></td><td>挑<strong>一個部門、一個主題</strong>，20～30 份資料走完整條管線</td><td>針對那個主題問 5～10 個問題，<strong>答得出來且出處指得對</strong></td></tr><tr><td><strong>第 2 個月</strong></td><td>擴到 2～3 個部門；管理者開始看巡檢與評測</td><td>使用者開始主動來問；「查無依據」清單成為補資料的待辦</td></tr><tr><td><strong>第 1 季末</strong></td><td>建立每週／每月的維護節奏</td><td>檢索品質評測有基線可比對</td></tr></tbody></table></div>
+<p>⚠️ <strong>不要第一次就搬一整個資料夾。</strong> 先用一份小東西走完全程，確認每一站都過關，再擴大——這是最省時間的做法。</p>
+<hr>
+<h2 id="十接下來看哪裡" class="t2">十、接下來看哪裡</h2>
+<p>先選你的角色：</p>
+<div class="tw"><table><thead><tr><th>你是</th><th>從這裡開始</th></tr></thead><tbody><tr><td><strong>要用它找答案、也要放自己的資料</strong></td><td><a href="../../docs/guides/user-getting-started.html">知識庫使用者上手指南</a></td></tr><tr><td><strong>要把知識庫建起來、維護內容品質</strong></td><td><a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a> → <a href="../../docs/guides/beginner-guide.html">新手完整操作指南</a></td></tr><tr><td><strong>要帶客戶導入、做訪談與驗收</strong></td><td><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本</a> → <a href="../../docs/guides/rag-poc-acceptance.html">知識庫 RAG PoC 執行與驗收指南</a></td></tr><tr><td><strong>要對外介紹、準備簡報</strong></td><td><a href="../../docs/strategy/feature-highlights.html">系統功能與特色清單</a></td></tr></tbody></table></div>
+<p>想動手試一遍：<a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab）</a>。</p>
+<hr>
+<h2 id="十一相關文件" class="t3">十一、相關文件</h2>
+<ul><li><a href="../../docs/guides/overview-navigation.html">系統總覽與使用導覽</a>（我要做 X 該去哪一頁）</li><li><a href="../../docs/guides/user-getting-started.html">知識庫使用者上手指南</a></li><li><a href="../../docs/guides/user-data-preparation.html">我該準備與蒐集哪些資料</a></li><li><a href="../../docs/guides/user-effective-questions.html">在大知識庫裡問到對的答案</a></li><li><a href="../../docs/strategy/feature-highlights.html">系統功能與特色清單</a>（19 項逐項說明）</li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本</a>（依部門的完整範例與做不到什麼）</li><li><a href="../../docs/operations/delete-update-cascade.html">更新與刪除的連鎖影響</a></li><li><a href="../../docs/guides/source-scale-limits.html">知識來源分盒與規模上限指南</a></li></ul><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>哪些情境會用到這一份</h3><ul><li>知識庫使用者：我剛拿到帳號，這系統跟我有什麼關係</li></ul></div><div class="card"><h3>同類文件（操作指南）</h3><ul><li><a href="../../docs/guides/ai-qa-guide.html">AI 知識問答使用指南</a></li><li><a href="../../docs/guides/efcore.html">EF Core Migration 指令備忘</a></li><li><a href="../../docs/guides/mcp-service.html">MCP 服務使用說明書</a></li><li><a href="../../docs/guides/sqlserver-switch.html">SQL Server 切換說明</a></li><li><a href="../../docs/guides/windows-server-2025.html">KMEngine Windows Server 2025 安裝與設定手冊</a></li><li><a href="../../docs/guides/department-playbook.html">企業實戰情境劇本：依部門的資料準備與操作</a></li><li><a href="../../docs/guides/install-and-operate.html">使用者安裝與操作手冊（本機單機）</a></li><li><a href="../../docs/guides/user-effective-questions.html">在大知識庫裡問到對的答案</a></li><li><a href="../../docs/guides/setup-content-design.html">基礎設定內容設計指南：分類詞庫、團隊與提示詞撰寫</a></li><li><a href="../../docs/guides/setup-guide.html">基礎設定指南：團隊、分類、角色、使用者與提示詞</a></li><li><a href="../../docs/guides/complete-manual.html">完整操作手冊（從零到知識問答）</a></li><li><a href="../../docs/guides/hands-on-lab.html">實作練習手冊（Hands-on Lab：親手建起你的知識庫）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一一句話這是什麼">一、一句話，這是什麼</a><a class="l2" href="#二它解決什麼問題">二、它解決什麼問題</a><a class="l2" href="#三它怎麼運作">三、它怎麼運作</a><a class="l2" href="#四能做到什麼">四、能做到什麼</a><a class="l2" href="#五-做不到什麼">五、⚠️ 做不到什麼</a><a class="l3" href="#51-靠規劃可以繞過的">5.1 靠規劃可以繞過的</a><a class="l3" href="#52-需要改程式才能做到的">5.2 需要改程式才能做到的</a><a class="l3" href="#53-本質上不該用這套系統做的">5.3 本質上不該用這套系統做的</a><a class="l2" href="#六-使用上一定要知道的事">六、⚠️ 使用上一定要知道的事</a><a class="l3" href="#61-ai-會答錯所以一定要看出處">6.1 AI 會答錯，所以一定要看出處</a><a class="l3" href="#62-內容過時是靜默的">6.2 內容過時是「靜默」的</a><a class="l3" href="#63-刪掉不等於問答就查不到">6.3 刪掉不等於問答就查不到</a><a class="l3" href="#64-一盒塞太多會被截斷">6.4 一盒塞太多會被截斷</a><a class="l3" href="#65-問答內容會被保留">6.5 問答內容會被保留</a><a class="l3" href="#66-別人問得到我問不到通常是權限不是故障">6.6 「別人問得到我問不到」通常是權限，不是故障</a><a class="l2" href="#七要準備與配合什麼">七、要準備與配合什麼</a><a class="l2" href="#八誰適合用誰不適合">八、誰適合用、誰不適合</a><a class="l3" href="#適合">適合</a><a class="l3" href="#不適合或該先想清楚">不適合（或該先想清楚）</a><a class="l2" href="#九典型的導入節奏">九、典型的導入節奏</a><a class="l2" href="#十接下來看哪裡">十、接下來看哪裡</a><a class="l2" href="#十一相關文件">十一、相關文件</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/guides/智庫引擎系統綜覽.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

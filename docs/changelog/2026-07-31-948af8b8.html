@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>說明網站首頁加「智庫引擎系統綜覽」入口（1.0.122 → 1.0.123）｜智庫引擎說明</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">智庫引擎・說明文件</span>
+  <nav>
+    <a href="../../index.html">角色首頁</a>
+    <a href="../../all-docs.html">全部文件</a>
+    <a href="../../search.html">搜尋</a>
+    <a href="../../filename-map.html">檔名對照</a>
+  </nav>
+</header>
+<div class="page">
+<p class="crumb"><a href="../../all-docs.html">全部文件</a> ／ 變更紀錄</p><header class="hero"><div class="kicker">變更紀錄</div><h1>說明網站首頁加「智庫引擎系統綜覽」入口（1.0.122 → 1.0.123）</h1></header><div class="docwrap"><main><ul><li>變更日期：2026/07/31</li><li>版本：1.0.122 → <strong>1.0.123</strong></li><li>性質：<strong>新增一份文件 ＋ 說明網站首頁</strong>。<strong><code>src/</code> 零變更、無模型變更、無新表、無 migration、無新設定鍵</strong>。</li><li>編碼：UTF-8（繁體中文，含 BOM）</li></ul>
+<hr>
+<h2 id="一解決什麼" class="t1">一、解決什麼</h2>
+<p>說明網站首頁一開口就是「先選你的角色」——但<strong>不知道這套系統是什麼的人，根本沒辦法選角色</strong>。四張卡片假設了讀者已經知道自己在這個系統裡扮演什麼；對第一次聽到「智庫引擎」的人來說，那一頁是死路。</p>
+<p>盤點後發現，「這是什麼、能做什麼、做不到什麼」這些資訊<strong>大部分都有人寫過</strong>，但散在三份<strong>立場完全不同</strong>的文件裡：</p>
+<div class="tw"><table><thead><tr><th>已存在</th><th>寫給誰</th><th>為什麼不能直接用</th></tr></thead><tbody><tr><td><code>strategy/系統功能與特色清單-20項</code>（19KB）</td><td>技術決策者、整合開發者</td><td>太技術，第一次看會被淹沒</td></tr><tr><td><code>marketing/商業簡報-對外銷售版</code></td><td>客戶</td><td><strong>推銷語氣</strong>，不會講做不到什麼</td></tr><tr><td><code>guides/系統總覽與使用導覽</code></td><td>已經在用的操作人員</td><td>假設你已經決定要用了</td></tr><tr><td><code>guides/企業實戰情境劇本</code> §九</td><td>部門主管</td><td>「做不到的事總表」埋在 19KB 劇本的最後面</td></tr></tbody></table></div>
+<p><strong>沒有一份是中性的全貌。</strong> 這一版補的就是那一份。</p>
+<h2 id="二docsguides智庫引擎系統綜覽md新" class="t2">二、<code>docs/guides/智庫引擎系統綜覽.md</code>（新）</h2>
+<p><strong>寫給任何第一次聽到這套系統的人</strong>：中性、不推銷、不假設技術背景。十節：</p>
+<p>一句話這是什麼／它解決什麼問題／它怎麼運作（五個站的心智模型）／能做到什麼（<strong>收成 6 群，不逐一列 19 項</strong>）／⚠️ <strong>做不到什麼</strong>／⚠️ <strong>用之前一定要知道的六件事</strong>／要準備與配合什麼／<strong>誰適合用誰不適合</strong>／典型導入節奏／接下來看哪裡。</p>
+<h3 id="第-56-節才是這一頁的價值">第 5、6 節才是這一頁的價值</h3>
+<p>簡報不會講、技術清單也不會講。<strong>第 6 節的每一條都是這一輪工作中實際查證過的結論</strong>，不是重新推測：</p>
+<ul><li><strong>AI 會答錯，所以一定要看出處</strong>（兩段式信心提示）</li><li><strong>內容過時是「靜默」的</strong>——只標一個徽章、<strong>不擋任何事</strong>，重跑之前問答照樣用舊內容作答（1.0.119 查證）</li><li><strong>刪掉不等於問答就查不到</strong>——刪素材不動清洗檔與索引；而且<strong>重跑管線也不夠</strong>（重蒸餾是版本化不是覆蓋），要真正移除只能刪整個知識來源（1.0.119／1.0.122 查證）</li><li><strong>一盒塞太多會被截斷</strong>，1.0.112 之前完全沒有提示</li><li><strong>問答的問句與回覆全文會保留在伺服器</strong>（刻意的稽核設計）</li><li><strong>「別人問得到我問不到」通常是權限，不是故障</strong></li></ul>
+<p>第 5 節的「做不到什麼」分三層：<strong>靠規劃可繞過</strong>（分類多選是「或」不是「且」、型號寫進問句不可靠、一盒別塞太多）／<strong>要改程式</strong>（跨系統整合、自動同步、結構化查詢）／<strong>本質上不該用這套系統做</strong>（當唯一的文件保管系統、拿答案當法律財務依據、存未定案內容、期待取代資深員工的判斷）。</p>
+<h3 id="與-系統總覽與使用導覽-的分工寫在兩份的開頭">⚠️ 與 <code>系統總覽與使用導覽</code> 的分工寫在兩份的開頭</h3>
+<p>兩份名字很像，<strong>都加了一句互指</strong>：本篇＝「這是什麼、能不能解決我的問題」（給還沒決定的人）；那一篇＝「我要做 X 該去哪一頁」（給已經在用的人）。</p>
+<h2 id="三首頁引導列" class="t3">三、首頁引導列</h2>
+<p>在 hero 與四張角色卡<strong>之間</strong>插入一條引導列（不知道這是什麼就選不了角色，所以放在選角色之前）：</p>
+<pre><code>還不確定這套系統是什麼？  先看智庫引擎系統綜覽 →  五分鐘看懂全貌、做得到什麼、做不到什麼</code></pre>
+<div class="tw"><table><thead><tr><th>檔案</th><th>變更</th></tr></thead><tbody><tr><td><code>help_site_data.py</code></td><td>新增 <code>OVERVIEW_DOC</code> 常數；<code>CURATED_SLUGS</code> 加 <code>system-overview</code>；「知識庫使用者」情境 1 把本篇排到最前面</td></tr><tr><td><code>Build-HelpSite.py</code></td><td><code>validate_data</code> 加驗 <code>OVERVIEW_DOC</code>；<code>page_index()</code> 改為 <code>page_index(included)</code> 並<strong>查出實際輸出位置組連結</strong>（不寫死路徑）；新增 <code>.overview</code> 樣式</td></tr></tbody></table></div>
+<p><strong>兩個刻意的設計選擇</strong>：</p>
+<ul><li><strong>連結路徑不寫死</strong>，由 <code>included</code> 查出來。寫死的話文件改名就會靜默斷掉。</li><li><strong>樣式刻意做得比角色卡輕</strong>，用 8 號主色與四個角色（2／1／3／5）區隔——它是引導，不是第五個角色。⚠️ 也因此<strong>沒有把它做成第五張卡片</strong>：那會讓「角色」這個概念變得不一致，而且四張卡的版面本來就整齊。</li></ul>
+<h2 id="四驗證" class="t4">四、驗證</h2>
+<ul><li><code>pwsh -NoProfile -File scripts/Test-All.ps1</code> → <strong>五道全綠</strong>（測試 1126 通過／0 失敗，本版 <code>src/</code> 零變更）</li><li><code>python scripts/Build-HelpSite.py --both</code> → <strong>451／394 頁</strong>（+1）、無法解析的文件連結 <strong>0</strong></li><li><strong>產出實地確認</strong>：<code>index.html</code> 含引導列、<strong>四張角色卡未受影響</strong>、連結目標 <code>docs/guides/system-overview.html</code> <strong>確實存在</strong>；對外版 <code>KMEngineHelp-external</code> 同樣有這一條</li><li>🔴 <strong>反證</strong>：把 <code>OVERVIEW_DOC</code> 暫時改成不存在的路徑 → 建站<strong>當場失敗、結束碼 1</strong>，並印出「<code>OVERVIEW_DOC 的路徑不存在：…</code>」；還原後恢復</li></ul>
+<h2 id="五文件更新" class="t5">五、文件更新</h2>
+<div class="tw"><table><thead><tr><th>文件</th><th>改什麼</th></tr></thead><tbody><tr><td><a href="../../docs/guides/overview-navigation.html">guides/系統總覽與使用導覽</a></td><td>開頭加與本篇的分工說明</td></tr><tr><td><code>docs/guides/README.md</code>、<code>docs/README.md</code></td><td>新文件各補一列，置於使用者操作指南之首</td></tr><tr><td><a href="../../docs/operations/help-site-build.html">operations/文件說明網站產生與佈署</a></td><td>§二 產出結構補上引導列；新增 <strong>§2.1</strong> 說明它的資料來源、驗證與樣式取捨；§四「內容要改哪裡」加一列 <code>OVERVIEW_DOC</code>；對應系統版本 → 1.0.123</td></tr></tbody></table></div>
+<hr>
+<blockquote><p>返回 <a href="../../docs/changelog/readme-436e4418.html">changelog 索引</a>｜<a href="../../docs/docs-index.html">文件總索引</a></p></blockquote><hr><h2 class="t8">參考文件</h2><div class="grid"><div class="card"><h3>同類文件（變更紀錄）</h3><ul><li><a href="../../docs/changelog/2026-06-04-94509016.html">發行說明：音訊轉錄維運強化與抖音整合（0.2.22 – 0.2.30）</a></li><li><a href="../../docs/changelog/2026-06-05-46b5d8ec.html">發行說明：分類清單（Category）管理功能（0.2.34）</a></li><li><a href="../../docs/changelog/2026-06-05-678e4947.html">發行說明：團隊清單（Team）管理功能（0.2.35）</a></li><li><a href="../../docs/changelog/2026-06-05-7d44631b.html">發行說明：紀錄分類、團隊標籤與團隊權限控管（0.2.36 – 0.2.37）</a></li><li><a href="../../docs/changelog/2026-06-09-sidebar-hover-5ceb899b.html">Sidebar 收合子選單 Hover 修正</a></li><li><a href="../../docs/changelog/2026-06-09-youtube-c3fb8bf7.html">2026-06-09 音訊轉錄影片連結自動帶入標題（0.2.47）</a></li><li><a href="../../docs/changelog/2026-06-09-82b8f227.html">2026-06-09 圖片清單（圖片上傳與 LLM 視覺解讀）（0.2.45）</a></li><li><a href="../../docs/changelog/2026-06-09-cc010bdd.html">2026-06-09 提示詞清單功能</a></li><li><a href="../../docs/changelog/2026-06-09-llm-1147d52f.html">2026-06-09 逐字稿依提示詞透過 LLM 產生內容（0.2.44）</a></li><li><a href="../../docs/changelog/2026-06-10-87230645.html">2026-06-10 三條匯入管線：圖片佇列化、自動重試、取消機制（0.2.56–0.2.58）</a></li><li><a href="../../docs/changelog/2026-06-11-2e496f0a.html">修正側邊欄「知識來源管理清單」圖示破圖（0.2.63）</a></li><li><a href="../../docs/changelog/2026-06-11-590ceb94.html">修正知識來源清單工具列版面（分類/團隊/搜尋位置）（0.2.64）</a></li></ul></div></div></main><aside class="toc"><b>本頁章節</b><a class="l2" href="#一解決什麼">一、解決什麼</a><a class="l2" href="#二docsguides智庫引擎系統綜覽md新">二、docs/guides/智庫引擎系統綜覽.md（新）</a><a class="l3" href="#第-56-節才是這一頁的價值">第 5、6 節才是這一頁的價值</a><a class="l3" href="#與-系統總覽與使用導覽-的分工寫在兩份的開頭">⚠️ 與 系統總覽與使用導覽 的分工寫在兩份的開頭</a><a class="l2" href="#三首頁引導列">三、首頁引導列</a><a class="l2" href="#四驗證">四、驗證</a><a class="l2" href="#五文件更新">五、文件更新</a></aside></div>
+<p class="foot">本頁由 <code>scripts/Build-HelpSite.py</code> 依 <code>docs/changelog/2026-07-31-系統綜覽入口.md</code> 產生；內容以 Markdown 為唯一來源，請勿直接修改 HTML。</p>
+</div>
+</body>
+</html>

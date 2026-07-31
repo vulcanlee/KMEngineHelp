@@ -57,14 +57,16 @@
 <h2 id="4-commit-前自我檢查清單" class="t6">4. Commit 前自我檢查清單</h2>
 <h3 id="41-先跑一鍵檢查10118-起">4.1 先跑一鍵檢查（1.0.118 起）</h3>
 <pre><code>pwsh -NoProfile -File scripts/Test-All.ps1</code></pre>
-<p>這一行把四道守門一次跑完，<strong>不必再記四條指令</strong>：</p>
-<div class="tw"><table><thead><tr><th>順序</th><th>守門</th><th>檢查什麼</th><th>大約耗時</th></tr></thead><tbody><tr><td>1</td><td>文件編碼</td><td><code>docs/**/*.md</code> 是 UTF-8 <strong>含 BOM</strong>、無亂碼</td><td>&lt; 1 秒</td></tr><tr><td>2</td><td>文件連結與錨點</td><td>相對連結的目標檔案存在、<code>#錨點</code> 對得到標題</td><td>約 1 秒</td></tr><tr><td>3</td><td>說明網站乾跑</td><td>由 <code>docs/</code> 產生說明網站時沒有解析不到的連結（<code>--check</code> 不寫檔）</td><td>約 2 秒</td></tr><tr><td>4</td><td>單元測試</td><td><code>dotnet test</code> 全綠</td><td>約 1～2 分鐘</td></tr></tbody></table></div>
+<p>這一行把<strong>五道</strong>守門一次跑完，<strong>不必再記五條指令</strong>：</p>
+<div class="tw"><table><thead><tr><th>順序</th><th>守門</th><th>檢查什麼</th><th>大約耗時</th></tr></thead><tbody><tr><td>1</td><td>Markdown 轉換核心</td><td><code>scripts/md_render.py</code> 的輸出與黃金檔相符（1.0.121 起）</td><td>&lt; 1 秒</td></tr><tr><td>2</td><td>文件編碼</td><td><code>docs/**/*.md</code> 是 UTF-8 <strong>含 BOM</strong>、無亂碼</td><td>&lt; 1 秒</td></tr><tr><td>3</td><td>文件連結與錨點</td><td>相對連結的目標檔案存在、<code>#錨點</code> 對得到標題</td><td>約 1 秒</td></tr><tr><td>4</td><td>說明網站乾跑</td><td>由 <code>docs/</code> 產生說明網站時沒有解析不到的連結（<code>--check</code> 不寫檔）</td><td>約 2 秒</td></tr><tr><td>5</td><td>單元測試</td><td><code>dotnet test</code> 全綠</td><td>約 1～2 分鐘</td></tr></tbody></table></div>
+<p>第 1 道排在最前面是因為：<strong>轉換核心壞了，第 3、4 道的結果就不可信</strong>（產出的 HTML 本來就不對）。若它紅燈而你確定是刻意的行為變更，跑 <code>python scripts/Test-MdRender.py --update</code> 更新黃金檔，並在 commit message 說明為什麼。</p>
 <p>三個刻意的行為：</p>
-<ul><li><strong>第一道失敗不會中斷</strong>，四道全部跑完才收尾。這四項彼此獨立，一次看到全部的失敗清單，比修一項、再跑一次、再發現下一項省時間。</li><li><strong>由便宜到昂貴排序</strong>：文件三道幾秒內就有結果，最慢的測試放最後。</li><li><strong>結束碼</strong>：全通過 0、任一項失敗 1，可直接當 CI 或 git hook 的判斷依據。</li></ul>
+<ul><li><strong>第一道失敗不會中斷</strong>，全部跑完才收尾。這幾項彼此獨立，一次看到全部的失敗清單，比修一項、再跑一次、再發現下一項省時間。</li><li><strong>由便宜到昂貴排序</strong>：前四道加起來幾秒內就有結果，最慢的測試放最後。</li><li><strong>結束碼</strong>：全通過 0、任一項失敗 1，可直接當 CI 或 git hook 的判斷依據。</li></ul>
 <p>⚠️ 這個腳本<strong>不檢查版本號有沒有 +1</strong>，也不檢查文件內容有沒有跟著改（第 1、2 節）——那兩件事沒有機械判準，仍然要靠下面的清單自己對。全綠時腳本會再提醒一次版本號。</p>
 <h3 id="42-ci">4.2 CI</h3>
 <p><code>.github/workflows/ci.yml</code> 在推上 <code>main</code> 時於 GitHub Actions 跑<strong>同一支</strong> <code>Test-All.ps1</code>。</p>
-<p>刻意只呼叫腳本、不在 workflow 裡把四道守門再列一次：列兩份的話，日後新增第五道守門一定會漏改其中一份，CI 就會在沒人發現的情況下少檢查一項。<strong>守門清單的唯一真實來源是 <code>scripts/Test-All.ps1</code>。</strong></p>
+<p>刻意只呼叫腳本、不在 workflow 裡把守門清單再列一次：列兩份的話，日後新增守門一定會漏改其中一份，CI 就會在沒人發現的情況下少檢查一項。<strong>守門清單的唯一真實來源是 <code>scripts/Test-All.ps1</code>。</strong></p>
+<blockquote><p>這個判斷在 1.0.121 得到印證：那一版新增第五道守門，<code>ci.yml</code> <strong>一個字都不用改</strong>。</p></blockquote>
 <p>CI 跑在 <code>ubuntu-latest</code>。若日後有測試因 Linux 環境差異而失敗（本機只在 Windows 驗過），把 <code>runs-on</code> 改成 <code>windows-latest</code> 即可，代價是私有 repo 的分鐘數以兩倍計。</p>
 <h3 id="43-逐項確認清單">4.3 逐項確認清單</h3>
 <blockquote><p>本節是每次 commit / release 的操作檢查清單；項目需依當次異動逐項確認，不視為常駐 backlog。</p></blockquote>

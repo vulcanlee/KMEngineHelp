@@ -74,6 +74,15 @@ img{max-width:100%;height:auto;border-radius:10px}
 .crumb{color:var(--muted);font-size:.9em;margin:0 0 1em}
 .foot{margin-top:3em;padding-top:1.2em;border-top:1px solid var(--line);color:var(--faint);font-size:.9em}
 /* 角色選擇 */
+/* 首頁「先選你的角色」之前的引導列。刻意比角色卡輕，不搶主角；用 8 號主色與四個角色
+   （2/1/3/5）區隔。 */
+.overview{display:flex;flex-wrap:wrap;align-items:baseline;gap:.4em 1em;text-decoration:none;
+  background:var(--w8);border:1px solid var(--a8);border-left:8px solid var(--a8);
+  border-radius:12px;padding:.9em 1.2em;margin:0 0 clamp(18px,2.5vw,32px)}
+.overview:hover{box-shadow:var(--shadow)}
+.overview .k{color:var(--muted);font-size:.95em}
+.overview b{color:var(--a8);font-size:1.05em}
+.overview .s{color:var(--muted);font-size:.9em}
 .roles{display:grid;gap:clamp(16px,2vw,28px);grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
 .rolecard{display:block;background:var(--surface);border:1px solid var(--line);border-radius:18px;
   box-shadow:var(--shadow);padding:clamp(20px,2.4vw,34px);text-align:center;border-bottom:0;
